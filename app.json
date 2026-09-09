@@ -24,7 +24,16 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-document-picker",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow Lilica to use your camera to scan important documents.",
+          "photosPermission": "Allow Lilica to access documents saved in your photos.",
+          "microphonePermission": false
+        }
+      ]
     ]
   }
 }

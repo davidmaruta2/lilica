@@ -2,6 +2,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button } from '../components/Button';
 import { AppText } from '../components/Text';
+import { deriveRecordState, formatDateForDisplay } from '../records';
 import { colors, radius, shadow, spacing } from '../theme';
 import { FirstItem, OnboardingState } from '../types';
 
@@ -12,16 +13,21 @@ type Props = {
 };
 
 function itemTiming(item: FirstItem) {
-  if (item.type === 'appointment') return item.time ? `${item.date}, ${item.time}` : item.date;
-  if (item.type === 'bill') return item.date ? `Due ${item.date}` : 'Date not set';
-  if (item.type === 'task') return item.date ? `Due ${item.date}` : 'No due date';
+  const eventDate = formatDateForDisplay(item.eventDate ?? item.date);
+  const dueDate = formatDateForDisplay(item.dueDate ?? item.date);
+  if (item.type === 'appointment') return item.eventTime || item.time ? `${eventDate}, ${item.eventTime ?? item.time}` : eventDate;
+  if (item.type === 'bill' || item.type === 'task' || item.type === 'homeMatter') return dueDate ? `Due ${dueDate}` : 'No due date';
+  if (item.type === 'document' && item.expiryDate) return `Expires ${formatDateForDisplay(item.expiryDate)}`;
+  if (item.type === 'contact' && item.role) return item.role;
   return 'Saved for later';
 }
 
-function sectionFor(item?: FirstItem) {
-  if (!item) return undefined;
-  if (item.type === 'task' || item.type === 'bill') return 'Needs attention';
-  if (item.type === 'appointment') return 'Coming up';
+function sectionFor(item: FirstItem) {
+  const derived = deriveRecordState(item);
+  if (derived.overdue || derived.dueToday) return 'Needs attention';
+  if (item.type === 'appointment' && item.eventDate === new Date().toISOString().slice(0, 10)) return 'Today';
+  if (derived.upcoming) return 'Coming up';
+  if ((item.type === 'task' || item.type === 'bill' || item.type === 'homeMatter') && derived.unresolved) return 'Needs attention';
   return 'Latest';
 }
 
@@ -30,9 +36,11 @@ export function HomeScreen({
   onAddSomething,
   onDismissAllSet,
 }: Props) {
-  const item = state.firstItem;
+  const records = state.records.length > 0 ? state.records : state.firstItem ? [state.firstItem] : [];
   const personName = state.supportedPersonName?.trim() || 'Them';
-  const section = sectionFor(item);
+  const sections = ['Needs attention', 'Today', 'Coming up', 'Latest']
+    .map((title) => ({ title, records: records.filter((record) => sectionFor(record) === title) }))
+    .filter((section) => section.records.length > 0);
 
   return (
     <ScrollView
@@ -57,22 +65,28 @@ export function HomeScreen({
         </View>
       ) : null}
 
-      {item && section ? (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <AppText variant="section">{section}</AppText>
-          </View>
-          <View style={styles.item}>
-            <View style={styles.itemAccent} />
-            <View style={styles.itemCopy}>
-              <AppText variant="meta" tone="muted">{item.type}</AppText>
-              <AppText variant="bodyStrong">{item.title}</AppText>
-              <AppText variant="secondary" tone="soft">{itemTiming(item)}</AppText>
-              {item.responsiblePerson ? (
-                <AppText variant="secondary" tone="soft">With {item.responsiblePerson}</AppText>
-              ) : null}
+      {sections.length > 0 ? (
+        <View style={styles.sections}>
+          {sections.map((section) => (
+            <View key={section.title} style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <AppText variant="section">{section.title}</AppText>
+              </View>
+              {section.records.map((item) => (
+                <View key={item.id} style={styles.item}>
+                  <View style={styles.itemAccent} />
+                  <View style={styles.itemCopy}>
+                    <AppText variant="meta" tone="muted">{item.type}</AppText>
+                    <AppText variant="bodyStrong">{item.title}</AppText>
+                    <AppText variant="secondary" tone="soft">{itemTiming(item)}</AppText>
+                    {item.responsiblePerson ? (
+                      <AppText variant="secondary" tone="soft">With {item.responsiblePerson}</AppText>
+                    ) : null}
+                  </View>
+                </View>
+              ))}
             </View>
-          </View>
+          ))}
         </View>
       ) : (
         <View style={styles.empty}>
@@ -135,6 +149,9 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: spacing.sm,
+  },
+  sections: {
+    gap: spacing.xl,
   },
   sectionHeader: {
     flexDirection: 'row',

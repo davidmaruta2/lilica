@@ -29,8 +29,8 @@ import {
   AppTab,
   AuthState,
   FirstItem,
-  FirstItemType,
   Interest,
+  LilicaRecord,
   OnboardingStage,
   OnboardingState,
   Relationship,
@@ -130,13 +130,36 @@ export default function App() {
     });
   }
 
-  function selectFirstItem(type: FirstItemType) {
-    update({ selectedFirstItemType: type, stage: 'itemForm' });
+  function saveRecord(record: LilicaRecord) {
+    const records = state.records.some((item) => item.id === record.id)
+      ? state.records.map((item) => item.id === record.id ? record : item)
+      : [...state.records, record];
+
+    update({
+      supportedPersonId: state.supportedPersonId ?? record.supportedPersonId,
+      records,
+      firstItem: state.firstItem?.id === record.id ? record : state.firstItem ?? records[0],
+    });
   }
 
   function completeOnboarding(firstItem?: FirstItem) {
+    const supportedPersonId = state.supportedPersonId ?? firstItem?.supportedPersonId ?? `person-${Date.now()}`;
+    const migratedItem = firstItem ? {
+      ...firstItem,
+      supportedPersonId,
+      status: firstItem.status ?? 'saved' as const,
+      updatedAt: firstItem.updatedAt ?? new Date().toISOString(),
+    } : undefined;
+    const records = migratedItem
+      ? state.records.some((item) => item.id === migratedItem.id)
+        ? state.records.map((item) => item.id === migratedItem.id ? migratedItem : item)
+        : [...state.records, migratedItem]
+      : state.records;
+
     update({
-      firstItem: firstItem ?? state.firstItem,
+      supportedPersonId,
+      records,
+      firstItem: migratedItem ?? state.firstItem ?? records[0],
       onboardingComplete: true,
       stage: 'home',
       allSetDismissed: false,
@@ -249,8 +272,15 @@ export default function App() {
             personName={state.supportedPersonName}
             onBack={goBack}
             onToggle={toggleInterest}
-            onContinue={() => go('firstThing')}
-            onSkip={() => update({ interests: [], stage: 'firstThing' })}
+            onContinue={() => update({
+              supportedPersonId: state.supportedPersonId ?? `person-${Date.now()}`,
+              stage: 'firstThing',
+            })}
+            onSkip={() => update({
+              interests: [],
+              supportedPersonId: state.supportedPersonId ?? `person-${Date.now()}`,
+              stage: 'firstThing',
+            })}
           />
         );
       case 'firstThing':
@@ -258,8 +288,11 @@ export default function App() {
           <FirstThingScreen
             interests={state.interests}
             personName={state.supportedPersonName}
+            supportedPersonId={state.supportedPersonId ?? 'person-local'}
+            records={state.records}
             onBack={goBack}
-            onSelect={selectFirstItem}
+            onSaveRecord={saveRecord}
+            onFinish={() => completeOnboarding()}
             onSkip={() => completeOnboarding()}
           />
         );
@@ -275,8 +308,11 @@ export default function App() {
           <FirstThingScreen
             interests={state.interests}
             personName={state.supportedPersonName}
+            supportedPersonId={state.supportedPersonId ?? 'person-local'}
+            records={state.records}
             onBack={goBack}
-            onSelect={selectFirstItem}
+            onSaveRecord={saveRecord}
+            onFinish={() => completeOnboarding()}
             onSkip={() => completeOnboarding()}
           />
         );

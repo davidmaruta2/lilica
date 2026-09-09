@@ -1,0 +1,138 @@
+import { forwardRef, ReactNode, useEffect, useImperativeHandle, useRef } from 'react';
+import {
+  Animated,
+  Dimensions,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  PanResponder,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
+
+import { colors, radius, shadow, spacing } from '../theme';
+import { AppText } from './Text';
+
+type Props = {
+  title: string;
+  children: ReactNode;
+  onDismiss: () => void;
+};
+
+export type RecordSheetHandle = {
+  dismiss: () => void;
+};
+
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+
+export const RecordSheet = forwardRef<RecordSheetHandle, Props>(function RecordSheet(
+  { title, children, onDismiss },
+  ref,
+) {
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const closing = useRef(false);
+  const scrollOffset = useRef(0);
+
+  function restore() {
+    Animated.spring(translateY, {
+      toValue: 0,
+      damping: 24,
+      stiffness: 220,
+      mass: 0.9,
+      useNativeDriver: true,
+    }).start();
+  }
+
+  function dismiss() {
+    if (closing.current) return;
+    closing.current = true;
+    Animated.timing(translateY, {
+      toValue: SCREEN_HEIGHT,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) onDismiss();
+      closing.current = false;
+    });
+  }
+
+  useEffect(() => {
+    restore();
+  }, []);
+
+  useImperativeHandle(ref, () => ({ dismiss }));
+
+  const panResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_, gesture) => (
+      scrollOffset.current <= 1
+      && gesture.dy > 8
+      && Math.abs(gesture.dy) > Math.abs(gesture.dx)
+    ),
+    onPanResponderGrant: Keyboard.dismiss,
+    onPanResponderMove: (_, gesture) => translateY.setValue(Math.max(0, gesture.dy)),
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dy > 90 || gesture.vy > 0.8) dismiss();
+      else restore();
+    },
+    onPanResponderTerminate: restore,
+  })).current;
+
+  return (
+    <Modal transparent statusBarTranslucent animationType="fade" onRequestClose={dismiss}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.overlay}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close editor" onPress={dismiss} style={styles.backdrop} />
+        <Animated.View
+          accessibilityViewIsModal
+          style={[styles.sheet, { transform: [{ translateY }] }]}
+          {...panResponder.panHandlers}
+        >
+          <View style={styles.sheetTop}>
+            <View style={styles.handle} />
+            <View style={styles.header}>
+              <AppText variant="section" numberOfLines={1} style={styles.title}>{title}</AppText>
+              <Pressable accessibilityRole="button" onPress={dismiss} hitSlop={12} style={styles.done}>
+                <AppText variant="bodyStrong" tone="primary">Done</AppText>
+              </Pressable>
+            </View>
+          </View>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
+            onScroll={(event) => { scrollOffset.current = event.nativeEvent.contentOffset.y; }}
+          >
+            {children}
+          </ScrollView>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+});
+
+const styles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end', alignItems: 'center' },
+  backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(36,29,28,0.28)' },
+  sheet: {
+    width: '100%',
+    maxWidth: 560,
+    maxHeight: '88%',
+    minHeight: '48%',
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    backgroundColor: colors.surface,
+    ...shadow.soft,
+  },
+  sheetTop: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  handle: { width: 42, height: 5, borderRadius: radius.pill, backgroundColor: colors.line, alignSelf: 'center' },
+  header: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  title: { flex: 1 },
+  done: { minWidth: 52, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  scroll: { flexGrow: 0 },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: Platform.OS === 'ios' ? spacing.xxl : spacing.lg },
+});

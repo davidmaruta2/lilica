@@ -1,12 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { OnboardingState } from './types';
+import { LilicaRecord, OnboardingState } from './types';
 
 const STORAGE_KEY = 'lilica:onboarding:v1';
 
 export const initialOnboardingState: OnboardingState = {
   stage: 'welcome',
   interests: [],
+  records: [],
   privacyDeclarationAccepted: false,
   onboardingComplete: false,
   allSetDismissed: false,
@@ -19,9 +20,22 @@ export async function loadOnboardingState(): Promise<OnboardingState> {
     return initialOnboardingState;
   }
 
+  const parsed = JSON.parse(stored) as Partial<OnboardingState>;
+  const legacyFirstItem = parsed.firstItem;
+  const records: LilicaRecord[] = Array.isArray(parsed.records)
+    ? parsed.records
+    : legacyFirstItem
+      ? [{
+          ...legacyFirstItem,
+          status: legacyFirstItem.status ?? 'saved',
+          updatedAt: legacyFirstItem.updatedAt ?? legacyFirstItem.createdAt,
+        }]
+      : [];
+
   return {
     ...initialOnboardingState,
-    ...JSON.parse(stored),
+    ...parsed,
+    records,
   };
 }
 

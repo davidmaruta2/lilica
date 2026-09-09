@@ -1,5 +1,50 @@
 # Revision Log
 
+## 2026-09-09: Structured Record Onboarding And Document Capture
+
+Reason:
+
+The post-interest `What would help today?` screen repeated a question the user had already answered and did not collect enough structured information to power Lilica's Home experience. Its initial inline forms were also disproportionately large and clipped awkwardly around the keyboard.
+
+Changes:
+
+- Replaced the old category-choice screen with `Let's get [Name] organised`.
+- Added an interest-prioritised vertical snapping stack for Appointment, Something to do, Bill or renewal, Home matter, Important document, Contact, Care information and Update.
+- Added reusable structured records with event dates, due dates, expiry dates, status, responsibility, recurrence, completion, confirmations and audit timestamps.
+- Added deterministic date parsing and derived due-today, overdue, upcoming, unresolved, completed, recently-updated and next-recurring-date state.
+- Migrated legacy `firstItem` storage into a records array without creating fake content.
+- Updated Home to group real records into populated Needs attention, Today, Coming up and Latest sections.
+- Moved record forms from inline expanded cards into a compact animated bottom sheet.
+- Added dismissal through Done, backdrop, system back and downward swipe from anywhere on the sheet while content is at the top.
+- Kept unsaved draft values in the parent screen when the sheet is temporarily dismissed.
+- Added file upload and rear-camera capture to Important document.
+- Added local durable attachment copies and attachment metadata using Expo Document Picker, Image Picker and File System.
+- Added native permission configuration for document and camera access.
+
+Known limits:
+
+- Unsaved drafts are retained only while the record-onboarding screen remains mounted.
+- Camera capture does not provide document edge detection, PDF assembly or OCR.
+- Attachments are local and do not synchronise without future backend storage.
+- Authentication remains a local placeholder and no organiser profile/care-circle membership model exists yet.
+- Physical-device gesture, keyboard and camera QA remains manual because browser automation was unavailable.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npx expo config --type public` passed.
+- `npx expo export --platform web` passed.
+- The local preview returned HTTP 200 at `http://localhost:8084`.
+
+## 2026-09-09: Interest Selection Carousel
+
+Changes:
+
+- Replaced the tall interest option list with a compact horizontal chip carousel.
+- Added touch scrolling and accessible previous/next arrow controls.
+- Added clear selected styling and a live selected-count message.
+- Preserved multi-selection, skipping and later interest-based record ordering.
+
 ## 2026-09-09: Premium Onboarding Redesign
 
 Reason:

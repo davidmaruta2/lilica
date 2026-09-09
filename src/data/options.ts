@@ -1,4 +1,4 @@
-import { FirstItemType, Interest, Relationship } from '../types';
+import { Interest, LilicaRecordType, Relationship } from '../types';
 
 export const relationships: Relationship[] = [
   'Mum',
@@ -48,39 +48,57 @@ export const interestOptions: Array<{
 ];
 
 export const firstItemOptions: Array<{
-  id: FirstItemType;
+  id: LilicaRecordType;
   title: string;
   description: string;
   interest?: Interest;
 }> = [
   {
     id: 'appointment',
-    title: 'Add an appointment',
-    description: 'Add a date and time.',
+    title: 'Appointment',
+    description: 'GP, hospital, dentist, therapy or another visit',
     interest: 'appointments',
   },
   {
-    id: 'bill',
-    title: 'Add a bill or renewal',
-    description: 'Keep track of when it is due.',
-    interest: 'homeBills',
-  },
-  {
     id: 'task',
-    title: 'Add something to do',
-    description: 'A call, errand or job.',
+    title: 'Something to do',
+    description: 'A call, errand, collection or job',
     interest: 'tasks',
   },
   {
+    id: 'bill',
+    title: 'Bill or renewal',
+    description: 'A payment, policy or renewal date',
+    interest: 'homeBills',
+  },
+  {
+    id: 'homeMatter',
+    title: 'Home matter',
+    description: 'A service, repair or maintenance job',
+    interest: 'homeBills',
+  },
+  {
     id: 'document',
-    title: 'Add a document',
-    description: 'Keep its name and details handy.',
+    title: 'Important document',
+    description: 'Paperwork, letters and useful information',
     interest: 'paperwork',
   },
   {
+    id: 'contact',
+    title: 'Contact',
+    description: 'Family, health or household contacts',
+    interest: 'familyHelp',
+  },
+  {
     id: 'careNote',
-    title: 'Add care information',
-    description: 'Keep a useful note.',
+    title: 'Care information',
+    description: 'Medication, visits, routines or useful notes',
     interest: 'careInfo',
+  },
+  {
+    id: 'update',
+    title: 'Update',
+    description: 'A short note about what has happened',
+    interest: 'familyHelp',
   },
 ];

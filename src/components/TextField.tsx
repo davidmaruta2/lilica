@@ -6,9 +6,10 @@ import { AppText } from './Text';
 
 type TextFieldProps = TextInputProps & {
   label: string;
+  compact?: boolean;
 };
 
-export function TextField({ label, style, ...props }: TextFieldProps) {
+export function TextField({ label, compact, style, ...props }: TextFieldProps) {
   const [focused, setFocused] = useState(false);
 
   return (
@@ -28,7 +29,7 @@ export function TextField({ label, style, ...props }: TextFieldProps) {
           setFocused(true);
           props.onFocus?.(event);
         }}
-        style={[styles.input, focused && styles.focused, style]}
+        style={[styles.input, compact && styles.compactInput, focused && styles.focused, style]}
       />
     </View>
   );
@@ -54,5 +55,10 @@ const styles = StyleSheet.create({
   focused: {
     borderColor: colors.primary,
     backgroundColor: colors.white,
+  },
+  compactInput: {
+    minHeight: 52,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
   },
 });

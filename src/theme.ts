@@ -22,6 +22,8 @@ export const colors = {
   warning: '#A05B2B',
   danger: '#9A3E42',
   white: '#FFFFFF',
+  teal: '#2A6E68',
+  tealSoft: '#DCEBE9',
 };
 
 export const spacing = {
