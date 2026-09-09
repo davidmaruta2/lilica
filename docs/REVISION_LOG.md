@@ -18,7 +18,7 @@ Changes:
 - Restyled buttons, option rows, headers and screen spacing for a quieter, more consistent flow.
 - Simplified the account, email, relationship, name, interests and first-item screens.
 - Removed `Save your place and come back anytime.` from Create your account and grouped the heading with its three authentication buttons and Log in action using responsive in-content spacing rather than a detached fixed footer.
-- Reworked privacy information into two scannable points while preserving the responsibility statement, active checkbox gate, saved version and acceptance time.
+- Reworked privacy information into three numbered, plain-English points covering permission, involvement and UK GDPR-aligned privacy; simplified the declaration and advanced its stored version to `privacy-basis-v2` while preserving the active checkbox gate and acceptance time.
 - Removed technical and development wording from user-facing first-item and foundation screens.
 - Removed the development reset action from Home.
 - Preserved onboarding resume, back navigation, skip paths, saved selections and the first real item on Home.

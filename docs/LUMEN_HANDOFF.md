@@ -39,6 +39,13 @@ The Create your account screen has also been corrected:
 
 This section is the current truth where older failure notes or the embedded historical Lumen prompt below conflict with it.
 
+The privacy screen now follows the same plain-English standard:
+
+- Three numbered points cover getting permission or having the right authority, keeping the supported person involved, and Lilica's UK GDPR-aligned privacy commitment.
+- The privacy commitment does not make an absolute promise that would conflict with user-directed sharing or legal obligations.
+- The declaration follows the three points and uses direct language rather than `appropriate basis`.
+- The stored declaration version is now `privacy-basis-v2`.
+
 ## Current State
 
 App path:

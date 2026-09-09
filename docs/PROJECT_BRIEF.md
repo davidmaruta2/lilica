@@ -194,15 +194,18 @@ Headline:
 
 > Respecting their privacy
 
-Body copy:
+Present these three points clearly:
 
-> Lilica may contain personal and sensitive information about someone you support. Only add information you are entitled to access, store and share.
->
-> Where the person can make their own decisions, involve them and respect their wishes. If you are acting for a child or someone who cannot make a particular decision, make sure you have the appropriate authority to do so.
+1. **Get permission from the person you support**
+   Ask them before you add their information. If you make decisions for them, make sure you have the right authority.
+2. **Keep them involved**
+   Tell them what you add and who you share it with. Respect their choices and update anything they want changed.
+3. **Lilica keeps their information private**
+   Lilica will not share their information unless you choose to, or we are required to by law. We handle personal information in line with UK GDPR.
 
 Declaration:
 
-> I understand that I must have an appropriate basis for adding and sharing this person's information, and that I am responsible for respecting their privacy.
+> I understand that I need permission or the right authority to add this person's information, and that I am responsible for respecting their privacy.
 
 The checkbox must be actively selected before Continue is enabled.
 

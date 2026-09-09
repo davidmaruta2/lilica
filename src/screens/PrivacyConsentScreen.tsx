@@ -13,7 +13,7 @@ type Props = {
   onContinue: () => void;
 };
 
-export const PRIVACY_DECLARATION_VERSION = 'privacy-basis-v1';
+export const PRIVACY_DECLARATION_VERSION = 'privacy-basis-v2';
 
 export function PrivacyConsentScreen({ accepted, onBack, onToggleAccepted, onContinue }: Props) {
   return (
@@ -29,16 +29,37 @@ export function PrivacyConsentScreen({ accepted, onBack, onToggleAccepted, onCon
 
       <View style={styles.points}>
         <View style={styles.point}>
-          <AppText variant="bodyStrong">Add only what you can share</AppText>
-          <AppText variant="secondary" tone="soft" style={styles.pointBody}>
-            Lilica may hold personal and sensitive information. Only add information you are entitled to access, store and share.
-          </AppText>
+          <View style={styles.pointNumber}>
+            <AppText variant="bodyStrong" style={styles.pointNumberText}>1</AppText>
+          </View>
+          <View style={styles.pointCopy}>
+            <AppText variant="bodyStrong">Get permission from the person you support</AppText>
+            <AppText variant="secondary" tone="soft" style={styles.pointBody}>
+              Ask them before you add their information. If you make decisions for them, make sure you have the right authority.
+            </AppText>
+          </View>
         </View>
         <View style={styles.point}>
-          <AppText variant="bodyStrong">Keep them involved</AppText>
-          <AppText variant="secondary" tone="soft" style={styles.pointBody}>
-            If they can make their own decisions, involve them and respect their wishes. If you act for a child or someone who cannot make a particular decision, make sure you have the right authority.
-          </AppText>
+          <View style={styles.pointNumber}>
+            <AppText variant="bodyStrong" style={styles.pointNumberText}>2</AppText>
+          </View>
+          <View style={styles.pointCopy}>
+            <AppText variant="bodyStrong">Keep them involved</AppText>
+            <AppText variant="secondary" tone="soft" style={styles.pointBody}>
+              Tell them what you add and who you share it with. Respect their choices and update anything they want changed.
+            </AppText>
+          </View>
+        </View>
+        <View style={styles.point}>
+          <View style={styles.pointNumber}>
+            <AppText variant="bodyStrong" style={styles.pointNumberText}>3</AppText>
+          </View>
+          <View style={styles.pointCopy}>
+            <AppText variant="bodyStrong">Lilica keeps their information private</AppText>
+            <AppText variant="secondary" tone="soft" style={styles.pointBody}>
+              Lilica will not share their information unless you choose to, or we are required to by law. We handle personal information in line with UK GDPR.
+            </AppText>
+          </View>
         </View>
       </View>
 
@@ -52,7 +73,7 @@ export function PrivacyConsentScreen({ accepted, onBack, onToggleAccepted, onCon
           {accepted ? <View style={styles.checkboxTick} /> : null}
         </View>
         <AppText variant="secondary" style={styles.declarationText}>
-          I understand that I must have an appropriate basis for adding and sharing this person's information, and that I am responsible for respecting their privacy.
+          I understand that I need permission or the right authority to add this person's information, and that I am responsible for respecting their privacy.
         </AppText>
       </Pressable>
     </Screen>
@@ -94,17 +115,36 @@ const styles = StyleSheet.create({
     top: 18,
   },
   points: {
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
     gap: spacing.sm,
   },
   point: {
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    paddingTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  pointNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    backgroundColor: colors.oliveSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pointNumberText: {
+    color: colors.primary,
+  },
+  pointCopy: {
+    flex: 1,
   },
   pointBody: { marginTop: spacing.xxs },
   declaration: {
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.md,
