@@ -1,5 +1,81 @@
 # Revision Log
 
+## 2026-09-09: Phase 4 Supabase Environment And Security Foundation
+
+Reason:
+
+Create controlled, isolated backend infrastructure and prove the first private account/profile boundary before real authentication or user-data migration.
+
+Changes:
+
+- Confirmed the Luxford Interactive organisation contained no Lilica project and did not reuse the existing Goalbuddy, Tandemly, or Waddl infrastructure.
+- Created and linked the dedicated non-production `lilica-development` project in West Europe (London) on `micro` compute; no Lilica production project was created.
+- Added a pinned Supabase CLI, local Docker workflow, version-controlled migration and empty synthetic seed.
+- Added `public.profiles`, keyed one-to-one to `auth.users`, with required display name, optional private avatar path, server timestamps and database constraints.
+- Enabled and forced RLS; removed anonymous access; allowed authenticated owners to select, insert and update only their own profile; deliberately omitted delete access.
+- Added 17 transactional pgTAP assertions covering owner success and anonymous/non-owner/ownership-change/delete denial.
+- Added placeholder-only public client configuration, environment ignores, repository credential scanning and a credential-free CI database validation job.
+- Added `docs/SUPABASE_OPERATIONS.md` with environment, migration, access, secrets, reset, backup and recovery boundaries.
+
+Scope guard:
+
+- No Supabase runtime client, real authentication UI, organiser-profile UI, supported people, care spaces, records, documents, sync or production infrastructure was added.
+- Existing AsyncStorage data and attachment files remain untouched and authoritative for the running application.
+
+Verification:
+
+- A clean local database reset recreated the schema from migrations.
+- All 17 database/RLS tests passed against both local Postgres and hosted `lilica-development`; hosted synthetic data rolled back.
+- Local and hosted schema lint passed, and local/remote migration histories match.
+- `npm run secrets:check` found no credential pattern in tracked or unignored repository files.
+
+## 2026-09-09: Phase 3 Android Responsive QA Correction
+
+Reason:
+
+Physical Android screenshots showed excessive dead space, dense content, bottom navigation collisions and a First Thing stack centred too far below its introduction.
+
+Changes:
+
+- Replaced the shared legacy safe-area boundary with `react-native-safe-area-context` for Android/iOS top and bottom insets.
+- Balanced Email, Relationship and Interests through elastic content regions while preserving scroll fallback.
+- Let the existing Interests carousel use the full screen gutters.
+- Positioned the First Thing stack below its introduction and derived trailing snap space from measured height.
+- Added six responsive composition tests.
+
+Verification:
+
+- The product owner checked the live Expo Go correction with Android and iPhone connected and confirmed it was much better.
+- `npm run validate` passed TypeScript, 62 Jest tests, Expo dependency/configuration checks and web export.
+
+## 2026-09-09: Phase 3 Safety Harness And Executable Domain Contract
+
+Reason:
+
+Protect the completed Phase 1 experience and make approved future record rules executable before authentication, backend, persistence or record-architecture work begins.
+
+Changes:
+
+- Added Expo-compatible Jest/`jest-expo`, Jest types and React Native Testing Library as development-only tooling.
+- Added characterization tests for current date logic, AsyncStorage migration, protected onboarding surfaces, structured record entry, retained drafts, document entry points and real-record-only Home.
+- Added six historical JSON migration fixtures covering `records[]`, legacy `firstItem`, completion, recurrence, local attachments, missing optional fields and partially malformed legacy state.
+- Added an unwired, framework-independent `src/domain` module and executable examples for approved lifecycle, occurrence, recurrence, link, responsibility, confirmation, activity, projection, timezone and semantic-conflict rules.
+- Added `npm test`, `npm run test:watch` and the complete `npm run validate` gate.
+- Added a minimal GitHub Actions validation workflow without deployment automation or credentials.
+- Added `docs/PHASE_3_QA_BASELINE.md` with the protected baseline, known limitations and repeatable physical-device checklist.
+
+Scope guard:
+
+- No business/domain behaviour, navigation sequence, `src/records.ts`, `src/storage.ts`, authentication or backend was changed by the original safety-harness work.
+- Known Home/date and recurrence limitations are characterized, not fixed.
+- The new future domain module has no runtime imports and does not migrate data.
+
+Verification:
+
+- `npm run validate` passed after physical-device correction: TypeScript, 62 Jest tests, Expo dependency compatibility, public Expo configuration and web export.
+- Jest reports the existing React Native `SafeAreaView` deprecation warning from the protected Welcome screen; Phase 3 does not refactor it.
+- Android baseline screenshots and product-owner Android/iPhone recheck are recorded in `docs/PHASE_3_QA_BASELINE.md`; the remainder of the physical checklist stays manual.
+
 ## 2026-09-09: Structured Record Onboarding And Document Capture
 
 Reason:

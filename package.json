@@ -14,10 +14,16 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-native": "^0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
     "react-native-web": "^0.21.0"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^14.0.1",
+    "@types/jest": "^29.5.14",
     "@types/react": "~19.2.2",
+    "jest": "~29.7.0",
+    "jest-expo": "~57.0.5",
+    "supabase": "2.117.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -25,7 +31,27 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "secrets:check": "node scripts/check-secrets.mjs",
+    "db:start": "supabase db start",
+    "db:reset": "supabase db reset --local",
+    "db:test": "supabase test db --local",
+    "db:lint": "supabase db lint --local --level warning",
+    "validate:backend": "npm run secrets:check && npm run db:start && npm run db:reset && npm run db:test && npm run db:lint",
+    "validate": "npm run typecheck && npm run test && npm run secrets:check && npx expo install --check && npx expo config --type public && npx expo export --platform web",
+    "validate:all": "npm run validate && npm run validate:backend"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "setupFiles": [
+      "<rootDir>/tests/jest.setup.js"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/"
+    ]
   },
   "private": true
 }

@@ -33,6 +33,7 @@ Visual and flow references:
 - Expo 57, React 19, React Native 0.86, TypeScript 6
 - AsyncStorage for local onboarding and record state
 - Expo Document Picker, Image Picker and File System for local document attachments
-- No backend, production authentication, cloud file storage, lint script or automated test suite
+- Dedicated non-production Supabase foundation with migrations and owner-only profile RLS; no runtime client, production authentication, record sync or cloud file storage
+- Jest/`jest-expo` plus React Native Testing Library safety harness; unwired pure future-domain contract in `src/domain`
 
-Before handing work back, run `npm run typecheck`, `npx expo install --check`, and the relevant Expo export. Perform real-device visual and gesture checks whenever possible.
+Before handing work back, run `npm run validate`; run `npm run validate:backend` for database changes. Read `docs/SUPABASE_OPERATIONS.md` before any backend work. Perform real-device visual and gesture checks whenever possible; use `docs/PHASE_3_QA_BASELINE.md` and never describe browser/component tests as physical-device proof.

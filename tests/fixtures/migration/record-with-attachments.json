@@ -1,0 +1,41 @@
+{
+  "stage": "firstThing",
+  "interests": ["paperwork"],
+  "records": [
+    {
+      "id": "document-1",
+      "type": "document",
+      "title": "Power of Attorney",
+      "status": "saved",
+      "eventDate": "2026-09-09",
+      "expiryDate": "2030-09-09",
+      "attachments": [
+        {
+          "id": "file-1",
+          "kind": "file",
+          "uri": "file:///data/user/0/com.luxfordinteractive.lilica/files/attachments/file-1-poa.pdf",
+          "name": "poa.pdf",
+          "mimeType": "application/pdf",
+          "size": 245760,
+          "createdAt": "2026-09-09T10:00:00.000Z"
+        },
+        {
+          "id": "scan-1",
+          "kind": "scan",
+          "uri": "file:///data/user/0/com.luxfordinteractive.lilica/files/attachments/scan-1-page.jpg",
+          "name": "Document scan 1.jpg",
+          "mimeType": "image/jpeg",
+          "size": 102400,
+          "width": 3024,
+          "height": 4032,
+          "createdAt": "2026-09-09T10:01:00.000Z"
+        }
+      ],
+      "createdAt": "2026-09-09T10:00:00.000Z",
+      "updatedAt": "2026-09-09T10:01:00.000Z"
+    }
+  ],
+  "privacyDeclarationAccepted": true,
+  "onboardingComplete": false,
+  "allSetDismissed": false
+}

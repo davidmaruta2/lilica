@@ -1,0 +1,38 @@
+{
+  "stage": "home",
+  "auth": { "method": "email", "email": "david@example.test" },
+  "relationship": "Mum",
+  "supportedPersonName": "Margaret",
+  "supportedPersonId": "person-1725900000000",
+  "interests": ["appointments", "homeBills"],
+  "records": [
+    {
+      "id": "appointment-1725900000001",
+      "type": "appointment",
+      "title": "Hospital clinic",
+      "supportedPersonId": "person-1725900000000",
+      "status": "scheduled",
+      "eventDate": "2026-10-12",
+      "eventTime": "10:30",
+      "location": "Royal Free Hospital",
+      "createdAt": "2026-09-09T09:00:00.000Z",
+      "updatedAt": "2026-09-09T09:00:00.000Z"
+    },
+    {
+      "id": "task-1725900000002",
+      "type": "task",
+      "title": "Arrange transport",
+      "supportedPersonId": "person-1725900000000",
+      "status": "unresolved",
+      "dueDate": "2026-10-09",
+      "completed": false,
+      "createdAt": "2026-09-09T09:05:00.000Z",
+      "updatedAt": "2026-09-09T09:05:00.000Z"
+    }
+  ],
+  "privacyDeclarationAccepted": true,
+  "privacyDeclarationVersion": "privacy-basis-v2",
+  "privacyDeclarationAcceptedAt": "2026-09-09T08:58:00.000Z",
+  "onboardingComplete": true,
+  "allSetDismissed": false
+}

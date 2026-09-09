@@ -26,33 +26,39 @@ export function RelationshipScreen({ selected, onBack, onSelect, onContinue }: P
       }
     >
       <Header onBack={onBack} />
-      <View style={styles.prompt}>
-        <AppText variant="title" centre>Who are you helping?</AppText>
-        <AppText variant="body" tone="soft" centre style={styles.supporting}>
-          Choose the answer that feels right.
-        </AppText>
-      </View>
-      <View style={styles.options}>
-        {relationships.map((relationship) => (
-          <OptionRow
-            key={relationship}
-            title={relationship}
-            selected={selected === relationship}
-            onPress={() => onSelect(relationship)}
-          />
-        ))}
+      <View testID="relationship-content" style={styles.content}>
+        <View style={styles.prompt}>
+          <AppText variant="title" centre>Who are you helping?</AppText>
+          <AppText variant="body" tone="soft" centre style={styles.supporting}>
+            Choose the answer that feels right.
+          </AppText>
+        </View>
+        <View style={styles.options}>
+          {relationships.map((relationship) => (
+            <OptionRow
+              key={relationship}
+              title={relationship}
+              selected={selected === relationship}
+              onPress={() => onSelect(relationship)}
+            />
+          ))}
+        </View>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+  },
   supporting: {
     marginTop: spacing.sm,
   },
   prompt: {
     alignItems: 'center',
-    marginTop: spacing.lg,
   },
   options: {
     marginTop: spacing.xl,

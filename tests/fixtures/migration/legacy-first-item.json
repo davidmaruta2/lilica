@@ -1,0 +1,21 @@
+{
+  "stage": "home",
+  "relationship": "Dad",
+  "supportedPersonName": "John",
+  "interests": ["appointments"],
+  "selectedFirstItemType": "appointment",
+  "firstItem": {
+    "id": "appointment-legacy-1",
+    "type": "appointment",
+    "title": "GP appointment",
+    "date": "24 September",
+    "time": "11:30",
+    "location": "High Street Surgery",
+    "createdAt": "2026-09-08T12:00:00.000Z"
+  },
+  "privacyDeclarationAccepted": true,
+  "privacyDeclarationVersion": "privacy-basis-v2",
+  "privacyDeclarationAcceptedAt": "2026-09-08T11:55:00.000Z",
+  "onboardingComplete": true,
+  "allSetDismissed": false
+}

@@ -69,7 +69,7 @@ export function FirstThingScreen({
       });
   }, [interests]);
 
-  const centrePadding = Math.max(spacing.sm, (stackHeight - CLOSED_HEIGHT) / 2);
+  const stackBottomPadding = Math.max(spacing.sm, stackHeight - CLOSED_HEIGHT);
   const snapOffsets = useMemo(
     () => ordered.map((_, index) => index * (CLOSED_HEIGHT + ITEM_GAP)),
     [ordered],
@@ -138,13 +138,14 @@ export function FirstThingScreen({
 
       <Animated.FlatList
         ref={list}
+        testID="first-thing-record-stack"
         data={ordered}
         keyExtractor={(item) => item.id}
         style={styles.stack}
         onLayout={(event) => setStackHeight(event.nativeEvent.layout.height)}
         contentContainerStyle={[
           styles.stackContent,
-          { paddingTop: centrePadding, paddingBottom: Math.max(centrePadding, 180) },
+          { paddingBottom: stackBottomPadding },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -234,7 +235,7 @@ const styles = StyleSheet.create({
   intro: { alignItems: 'center', paddingHorizontal: spacing.sm, paddingBottom: spacing.md },
   supporting: { maxWidth: 390, marginTop: spacing.sm },
   stack: { flex: 1, marginHorizontal: -spacing.lg },
-  stackContent: { paddingHorizontal: spacing.lg },
+  stackContent: { paddingTop: spacing.sm, paddingHorizontal: spacing.lg },
   item: { marginBottom: ITEM_GAP, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
   closedItem: { height: CLOSED_HEIGHT, borderRadius: radius.md, justifyContent: 'center' },
   activeItem: { borderColor: colors.primary, backgroundColor: colors.white },

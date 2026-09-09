@@ -184,13 +184,15 @@ The current Welcome screens are a retained foundation. Continue improving from t
 - Expo File System
 - Fraunces font package
 
-There is no backend/database, production authentication, lint script or automated test suite.
+Phase 4 provides dedicated non-production Supabase infrastructure, version-controlled migrations, a minimal auth-linked profile table, owner-only RLS, policy tests, and secrets/operations guidance. There is still no runtime Supabase client, production authentication, cloud record storage, record migration, or sync. Phase 3 provides an automated characterization/domain-contract test suite, historical migration fixtures, and a manual physical-device checklist. The future pure domain module is not wired into the Phase 1 application.
 
 ## Verification Expectations
 
 After relevant changes:
 
+- Run `npm run validate` for the complete local gate.
 - Run `npm run typecheck`.
+- Run `npm test`.
 - Run `npx expo install --check`.
 - Run `npx expo config --type public` after native configuration changes.
 - Run the appropriate Expo export.

@@ -74,71 +74,78 @@ export function InterestsScreen({ selected, personName, onBack, onToggle, onCont
       }
     >
       <Header onBack={onBack} />
-      <View style={styles.prompt}>
-        <AppText variant="title" centre>What do you help {name} with?</AppText>
-        <AppText variant="body" tone="soft" centre style={styles.supporting}>
-          Choose what feels familiar.
+      <View testID="interests-content" style={styles.content}>
+        <View style={styles.prompt}>
+          <AppText variant="title" centre>What do you help {name} with?</AppText>
+          <AppText variant="body" tone="soft" centre style={styles.supporting}>
+            Choose what feels familiar.
+          </AppText>
+        </View>
+        <View testID="interests-carousel" style={styles.wheel}>
+          <ScrollView
+            ref={scrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleScroll}
+            onLayout={(event) => handleLayout(event.nativeEvent.layout.width)}
+            onContentSizeChange={(width) => handleContentSizeChange(width)}
+            scrollEventThrottle={16}
+            contentContainerStyle={styles.row}
+          >
+            {interestOptions.map((option) => (
+              <Chip
+                key={option.id}
+                title={option.title}
+                selected={selected.includes(option.id)}
+                onPress={() => onToggle(option.id)}
+              />
+            ))}
+          </ScrollView>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Scroll left"
+            disabled={!canScrollLeft}
+            onPress={() => scrollBy(-1)}
+            style={[styles.arrow, styles.arrowLeft, canScrollLeft ? styles.arrowActive : styles.arrowInactive]}
+          >
+            <View style={[styles.chevron, styles.chevronLeft, canScrollLeft && styles.chevronActive]} />
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Scroll right"
+            disabled={!canScrollRight}
+            onPress={() => scrollBy(1)}
+            style={[styles.arrow, styles.arrowRight, canScrollRight ? styles.arrowActive : styles.arrowInactive]}
+          >
+            <View style={[styles.chevron, styles.chevronRight, canScrollRight && styles.chevronActive]} />
+          </Pressable>
+        </View>
+        <AppText variant="secondary" tone="soft" centre style={styles.count}>
+          {selected.length > 0 ? `${selected.length} selected` : 'Tap to select. You can change this later.'}
         </AppText>
       </View>
-      <View style={styles.wheel}>
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          onScroll={handleScroll}
-          onLayout={(event) => handleLayout(event.nativeEvent.layout.width)}
-          onContentSizeChange={(width) => handleContentSizeChange(width)}
-          scrollEventThrottle={16}
-          contentContainerStyle={styles.row}
-        >
-          {interestOptions.map((option) => (
-            <Chip
-              key={option.id}
-              title={option.title}
-              selected={selected.includes(option.id)}
-              onPress={() => onToggle(option.id)}
-            />
-          ))}
-        </ScrollView>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Scroll left"
-          disabled={!canScrollLeft}
-          onPress={() => scrollBy(-1)}
-          style={[styles.arrow, styles.arrowLeft, canScrollLeft ? styles.arrowActive : styles.arrowInactive]}
-        >
-          <View style={[styles.chevron, styles.chevronLeft, canScrollLeft && styles.chevronActive]} />
-        </Pressable>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Scroll right"
-          disabled={!canScrollRight}
-          onPress={() => scrollBy(1)}
-          style={[styles.arrow, styles.arrowRight, canScrollRight ? styles.arrowActive : styles.arrowInactive]}
-        >
-          <View style={[styles.chevron, styles.chevronRight, canScrollRight && styles.chevronActive]} />
-        </Pressable>
-      </View>
-      <AppText variant="secondary" tone="soft" centre style={styles.count}>
-        {selected.length > 0 ? `${selected.length} selected` : 'Tap to select. You can change this later.'}
-      </AppText>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+  },
   supporting: {
     marginTop: spacing.sm,
     maxWidth: 310,
   },
   prompt: {
     alignItems: 'center',
-    marginTop: spacing.md,
   },
   wheel: {
     marginTop: spacing.xl,
+    marginHorizontal: -spacing.lg,
     justifyContent: 'center',
   },
   row: {

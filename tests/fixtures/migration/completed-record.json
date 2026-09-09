@@ -1,0 +1,27 @@
+{
+  "stage": "home",
+  "interests": [],
+  "records": [
+    {
+      "id": "bill-complete-1",
+      "type": "bill",
+      "title": "Electricity bill",
+      "status": "completed",
+      "dueDate": "2026-09-01",
+      "completed": true,
+      "completedAt": "2026-08-31T17:22:00.000Z",
+      "confirmationHistory": [
+        {
+          "status": "completed",
+          "confirmedAt": "2026-08-31T17:22:00.000Z",
+          "confirmedBy": "David"
+        }
+      ],
+      "createdAt": "2026-08-20T10:00:00.000Z",
+      "updatedAt": "2026-08-31T17:22:00.000Z"
+    }
+  ],
+  "privacyDeclarationAccepted": true,
+  "onboardingComplete": true,
+  "allSetDismissed": true
+}

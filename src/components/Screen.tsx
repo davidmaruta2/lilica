@@ -2,11 +2,13 @@ import { ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
+  StyleProp,
   StyleSheet,
   View,
+  ViewStyle,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing } from '../theme';
 
@@ -15,23 +17,34 @@ type ScreenProps = {
   footer?: ReactNode;
   scroll?: boolean;
   backgroundColor?: string;
+  contentStyle?: StyleProp<ViewStyle>;
 };
 
-export function Screen({ children, footer, scroll = true, backgroundColor = colors.canvas }: ScreenProps) {
+export function Screen({
+  children,
+  footer,
+  scroll = true,
+  backgroundColor = colors.canvas,
+  contentStyle,
+}: ScreenProps) {
   const content = scroll ? (
     <ScrollView
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, contentStyle]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
       {children}
     </ScrollView>
   ) : (
-    <View style={styles.staticContent}>{children}</View>
+    <View style={[styles.staticContent, contentStyle]}>{children}</View>
   );
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
+    <SafeAreaView
+      edges={['top', 'bottom']}
+      style={[styles.safeArea, { backgroundColor }]}
+      testID="screen-safe-area"
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboard}
@@ -66,7 +79,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
-    paddingBottom: Platform.OS === 'ios' ? spacing.md : spacing.md,
+    paddingBottom: spacing.md,
     backgroundColor: colors.canvas,
   },
 });

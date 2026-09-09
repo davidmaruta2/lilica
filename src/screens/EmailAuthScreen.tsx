@@ -22,36 +22,42 @@ export function EmailAuthScreen({ email = '', onBack, onContinue }: Props) {
   return (
     <Screen footer={<Button label="Continue" disabled={!canContinue} onPress={() => onContinue(trimmed)} />}>
       <Header onBack={onBack} />
-      <View style={styles.focus}>
-        <View style={styles.mark}>
-          <View style={styles.envelope}>
-            <View style={styles.envelopeFold} />
+      <View testID="email-content" style={styles.content}>
+        <View style={styles.focus}>
+          <View style={styles.mark}>
+            <View style={styles.envelope}>
+              <View style={styles.envelopeFold} />
+            </View>
           </View>
+          <AppText variant="title" centre>What's your email?</AppText>
         </View>
-        <AppText variant="title" centre>What's your email?</AppText>
-      </View>
-      <View style={styles.form}>
-        <TextField
-          label="Email"
-          autoCapitalize="none"
-          autoComplete="email"
-          autoCorrect={false}
-          keyboardType="email-address"
-          placeholder="you@example.com"
-          value={value}
-          onChangeText={setValue}
-          returnKeyType="done"
-          onSubmitEditing={canContinue ? () => onContinue(trimmed) : undefined}
-        />
+        <View style={styles.form}>
+          <TextField
+            label="Email"
+            autoCapitalize="none"
+            autoComplete="email"
+            autoCorrect={false}
+            keyboardType="email-address"
+            placeholder="you@example.com"
+            value={value}
+            onChangeText={setValue}
+            returnKeyType="done"
+            onSubmitEditing={canContinue ? () => onContinue(trimmed) : undefined}
+          />
+        </View>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+  },
   focus: {
     alignItems: 'center',
-    marginTop: spacing.lg,
   },
   mark: {
     width: 138,

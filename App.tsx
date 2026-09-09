@@ -2,6 +2,7 @@ import { Fraunces_800ExtraBold, useFonts } from '@expo-google-fonts/fraunces';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { TabBar } from './src/components/TabBar';
 import { AppText } from './src/components/Text';
@@ -335,17 +336,19 @@ export default function App() {
   }
 
   return (
-    <View style={styles.app}>
-      <StatusBar style={state.stage === 'welcome' || state.stage === 'how' ? 'light' : 'dark'} />
-      {saveError ? (
-        <View style={styles.saveBanner}>
-          <AppText variant="secondary" tone="white">
-            Your progress could not be saved just now. You can keep going.
-          </AppText>
-        </View>
-      ) : null}
-      {renderOnboarding()}
-    </View>
+    <SafeAreaProvider>
+      <View style={styles.app}>
+        <StatusBar style={state.stage === 'welcome' || state.stage === 'how' ? 'light' : 'dark'} />
+        {saveError ? (
+          <View style={styles.saveBanner}>
+            <AppText variant="secondary" tone="white">
+              Your progress could not be saved just now. You can keep going.
+            </AppText>
+          </View>
+        ) : null}
+        {renderOnboarding()}
+      </View>
+    </SafeAreaProvider>
   );
 }
 
