@@ -20,6 +20,25 @@ Latest user feedback:
 >
 > This is wasting so much time, you're failing to get a professional premium look to how you are presenting this text.
 
+## Latest 2026-09-09 Correction
+
+The current intro is a three-slide Welcome / How Lilica Works journey. The final slide no longer repeats the preceding "Know what they need" slide. It is now dedicated to controlled collaboration:
+
+- Heading: `Share care, with clarity`
+- Direction: `Update and share responsibilities in a controlled way:`
+- It explains bringing in family or other helpers, sharing updates and responsibilities, seeing who is doing what, and inviting others when ready.
+- It explicitly preserves solo-user value: `Lilica works from day one, even when it’s just you.`
+- Its visual now represents two helpers connected through a shared, confirmed responsibility rather than another generic "what needs doing" path.
+
+The Create your account screen has also been corrected:
+
+- Removed `Save your place and come back anytime.` with no replacement supporting sentence.
+- Moved the three authentication buttons and Log in action into the same centred, responsive content group as the heading.
+- Reduced the decorative wordmark disc and set a deliberate 32px heading-to-action gap, eliminating the disproportionate separation caused by the shared fixed footer.
+- Authentication behaviour is unchanged and remains the Phase 1 local placeholder described below.
+
+This section is the current truth where older failure notes or the embedded historical Lumen prompt below conflict with it.
+
 ## Current State
 
 App path:

@@ -9,12 +9,15 @@ The previous onboarding was visually crowded and presented too much copy at once
 Changes:
 
 - Replaced the separate Welcome and How Lilica Works presentation with one three-page horizontal swipe journey.
-- Added a small three-position indicator used only within the intro and a Next button for people who do not swipe.
+- Added a small three-position indicator used only within the intro and a tappable swipe cue for people who do not swipe.
 - Reduced intro copy to short, natural sentences and moved Get started to the final page.
+- Refocused the final intro slide from the repetitive `Know what needs doing` message to controlled collaboration: bringing in family or helpers, sharing updates and responsibilities, clear ownership, optional later invitations and explicit solo-user value.
+- Replaced the final slide's generic progress-path visual with two helpers connected through a shared, confirmed responsibility.
 - Refined the Lilica wordmark and created a distinct visual composition for each intro page.
 - Reduced heading and body sizes across the shared type system.
 - Restyled buttons, option rows, headers and screen spacing for a quieter, more consistent flow.
 - Simplified the account, email, relationship, name, interests and first-item screens.
+- Removed `Save your place and come back anytime.` from Create your account and grouped the heading with its three authentication buttons and Log in action using responsive in-content spacing rather than a detached fixed footer.
 - Reworked privacy information into two scannable points while preserving the responsibility statement, active checkbox gate, saved version and acceptance time.
 - Removed technical and development wording from user-facing first-item and foundation screens.
 - Removed the development reset action from Home.

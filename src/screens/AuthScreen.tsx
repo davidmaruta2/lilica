@@ -16,25 +16,19 @@ type Props = {
 
 export function AuthScreen({ onBack, onAuth, onEmail }: Props) {
   return (
-    <Screen
-      footer={
-        <View style={styles.footer}>
-          <Button label="Continue with Apple" onPress={() => onAuth({ method: 'apple' })} />
-          <Button label="Continue with Google" variant="secondary" onPress={() => onAuth({ method: 'google' })} />
-          <Button label="Continue with email" variant="secondary" onPress={onEmail} />
-          <Button label="Log in" variant="text" onPress={() => onAuth({ method: 'local', returning: true })} />
-        </View>
-      }
-    >
+    <Screen>
       <Header onBack={onBack} />
       <View style={styles.focus}>
         <View style={styles.mark}>
           <Wordmark />
         </View>
         <AppText variant="title" centre>Create your account</AppText>
-        <AppText variant="body" tone="soft" centre style={styles.copy}>
-          Save your place and come back anytime.
-        </AppText>
+        <View style={styles.actions}>
+          <Button label="Continue with Apple" onPress={() => onAuth({ method: 'apple' })} />
+          <Button label="Continue with Google" variant="secondary" onPress={() => onAuth({ method: 'google' })} />
+          <Button label="Continue with email" variant="secondary" onPress={onEmail} />
+          <Button label="Log in" variant="text" onPress={() => onAuth({ method: 'local', returning: true })} />
+        </View>
       </View>
     </Screen>
   );
@@ -43,24 +37,26 @@ export function AuthScreen({ onBack, onAuth, onEmail }: Props) {
 const styles = StyleSheet.create({
   focus: {
     flex: 1,
-    minHeight: 280,
+    width: '100%',
+    maxWidth: 420,
+    minHeight: 540,
+    alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: spacing.lg,
+    paddingVertical: spacing.lg,
   },
   mark: {
-    width: 170,
-    height: 170,
+    width: 124,
+    height: 124,
     borderRadius: radius.pill,
     backgroundColor: colors.oliveSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
-  copy: {
-    marginTop: spacing.sm,
-  },
-  footer: {
+  actions: {
+    width: '100%',
+    marginTop: spacing.xl,
     gap: spacing.xs,
   },
 });

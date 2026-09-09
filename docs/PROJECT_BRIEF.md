@@ -81,7 +81,7 @@ The flow must be page-by-page, deliberate and calm.
 
 Do not add:
 
-- Onboarding carousels
+- Additional carousels after the three-slide Welcome / How Lilica Works intro
 - Profile completion percentages
 - Detailed medical profiles
 - Medication-first onboarding
@@ -92,49 +92,46 @@ The onboarding success event is that the user gets one real thing organised.
 
 ## Approved Product Copy
 
-### Welcome
+### Welcome / How Lilica Works Intro
 
-Headline:
+The current implementation stages the introduction as a calm three-slide sequence rather than repeating the product proposition on separate screens.
 
-> Helping the people you love stay independent and age well, with the family organised around them.
+Slide 1:
 
-Supporting text:
-
-> Keep appointments, care, household matters, important paperwork and everyday to-dos organised for someone you care about.
-
-Primary button:
-
-> Get started
-
-Secondary action:
-
-> Already use Lilica? Log in
-
-The headline is long. It must be solved through excellent typography and composition, not by making it look like a dense paragraph or by allowing it to dominate the screen.
-
-### How Lilica Works
-
-Headline:
-
-> One place to organise the care and everyday life of someone you support.
-
-Body copy:
-
-> Keep track of their appointments, medication information, important documents, bills and things that need doing.
+> Welcome to Lilica
 >
-> Keep their home maintained.
+> Help the people you love to:
 >
-> Share updates and responsibilities with family or other helpers, so everyone knows what's happening and what still needs sorting.
+> - Stay independent
+> - Live and age well
+>
+> while keeping everyone involved on the same page.
 
-Reassurance:
+Slide 2:
 
-> You can start on your own and invite others later.
+> Know what they need
+>
+> See the important things in one place:
+>
+> - Medical appointments
+> - Documents and bills
+> - Everyday jobs
+> - Household tasks
 
-Primary button:
+Slide 3 is specifically about controlled collaboration and must not duplicate slide 2:
 
-> Continue
+> Share care, with clarity
+>
+> Update and share responsibilities in a controlled way:
+>
+> - Bring in family or other helpers
+> - Share updates and responsibilities
+> - See clearly who's doing what
+> - Invite others when you're ready
+>
+> Lilica works from day one, even when it’s just you.
 
-The latest user feedback is that this screen should clearly outline the explanation in numbered form and then move into Yuka-style CTA questions.
+A swipe cue advances the first two slides, with a tappable fallback. `Get started` appears only on slide 3 and leads to account creation; `Log in` remains available from the intro header.
 
 ### Create Account / Log In
 
@@ -142,9 +139,7 @@ Heading:
 
 > Create your account
 
-Supporting text:
-
-> Keep everything together and pick up where you left off.
+There is no supporting sentence beneath this heading. The heading and authentication actions are presented as one intentional group without a disproportionate vertical gap.
 
 Actions:
 

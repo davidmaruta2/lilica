@@ -25,6 +25,8 @@ type IntroPage = {
   key: string;
   heading: string;
   body: string;
+  bullets?: string[];
+  closing?: string;
   color: string;
   visual: 'hero' | 'together' | 'ahead';
 };
@@ -33,21 +35,38 @@ const pages: IntroPage[] = [
   {
     key: 'welcome',
     heading: 'Welcome to Lilica',
-    body: 'A calm place to organise life for someone you love.',
+    body: 'Help the people you love to:',
+    bullets: [
+      'Stay independent',
+      'Live and age well',
+    ],
+    closing: 'while keeping everyone involved on the same page.',
     color: colors.stageDeep,
     visual: 'hero',
   },
   {
     key: 'together',
-    heading: 'Keep the important things together',
-    body: 'Appointments, bills, documents and everyday jobs — all in one place.',
+    heading: 'Know what they need',
+    body: 'See the important things in one place:',
+    bullets: [
+      'Medical appointments',
+      'Documents and bills',
+      'Everyday jobs',
+      'Household tasks',
+    ],
     color: '#B9674C',
     visual: 'together',
   },
   {
     key: 'ahead',
-    heading: 'Know what needs doing',
-    body: "See what's coming up and bring family in when it helps.",
+    heading: 'Share care, with clarity',
+    body: 'Update and share responsibilities in a controlled way:',
+    bullets: [
+      'Bring in family or other helpers',
+      'Share updates and responsibilities',
+      "See clearly who's doing what",
+      "Invite others when you're ready",
+    ],
     color: '#62764F',
     visual: 'ahead',
   },
@@ -77,20 +96,34 @@ function TogetherVisual() {
 function AheadVisual() {
   return (
     <View style={styles.visualDisc}>
-      <View style={styles.path} />
-      <View style={[styles.pathDot, styles.pathDotOne]} />
-      <View style={[styles.pathDot, styles.pathDotTwo]} />
-      <View style={[styles.pathDot, styles.pathDotThree]}>
-        <View style={styles.tickStem} />
-        <View style={styles.tickArm} />
+      <View style={[styles.connection, styles.connectionLeft]} />
+      <View style={[styles.connection, styles.connectionRight]} />
+      <View style={[styles.helper, styles.helperLeft]}>
+        <View style={styles.helperHead} />
+        <View style={styles.helperBody} />
+      </View>
+      <View style={[styles.helper, styles.helperRight]}>
+        <View style={styles.helperHead} />
+        <View style={styles.helperBody} />
+      </View>
+      <View style={styles.sharedTask}>
+        <View style={styles.taskLines}>
+          <View style={[styles.taskLine, styles.taskLineLong]} />
+          <View style={styles.taskLine} />
+        </View>
+        <View style={styles.taskTick}>
+          <View style={styles.tickStem} />
+          <View style={styles.tickArm} />
+        </View>
       </View>
     </View>
   );
 }
 
 export function WelcomeScreen({ onStart, onLogin }: Props) {
-  const { width } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const pageWidth = Math.min(width, 520);
+  const compact = height < 740;
   const list = useRef<FlatList<IntroPage>>(null);
   const [page, setPage] = useState(0);
 
@@ -126,23 +159,41 @@ export function WelcomeScreen({ onStart, onLogin }: Props) {
             getItemLayout={(_, index) => ({ length: pageWidth, offset: pageWidth * index, index })}
             renderItem={({ item, index }) => (
               <View style={[styles.page, { width: pageWidth }]}>
-                <View style={styles.visualArea}>
-                  {item.visual === 'hero' ? <BrandVisual /> : item.visual === 'together' ? <TogetherVisual /> : <AheadVisual />}
+                <View style={[styles.visualArea, compact && styles.visualAreaCompact]}>
+                  <View style={compact && styles.visualCompact}>
+                    {item.visual === 'hero' ? <BrandVisual /> : item.visual === 'together' ? <TogetherVisual /> : <AheadVisual />}
+                  </View>
                 </View>
-                <View style={styles.copy}>
+                <View style={[styles.copy, compact && styles.copyCompact]}>
                   <AppText variant="display" tone="white" centre style={styles.heading}>
                     {item.heading}
                   </AppText>
-                  <AppText variant="body" tone="white" centre style={styles.body}>
+                  <AppText variant="body" tone="white" centre style={[styles.body, compact && styles.bodyCompact]}>
                     {item.body}
                   </AppText>
-                  {index === 0 ? (
-                    <AppText variant="secondary" tone="white" centre style={styles.swipeCue}>
-                      Swipe to continue  ›
-                    </AppText>
-                  ) : index === 2 ? (
-                    <AppText variant="secondary" tone="white" centre style={styles.reassurance}>
-                      Start on your own. Invite others later.
+                  {item.bullets ? (
+                    <View style={[styles.bullets, compact && styles.bulletsCompact]}>
+                      {item.bullets.map((bullet) => (
+                        <View key={bullet} style={styles.bulletRow}>
+                          <View style={styles.bulletMark} />
+                          <AppText variant="bodyStrong" tone="white" centre style={styles.bulletText}>
+                            {bullet}
+                          </AppText>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+                  {item.closing ? (
+                    <View style={styles.closing}>
+                      <View style={styles.accentLine} />
+                      <AppText variant="secondary" tone="white" centre style={styles.closingText}>
+                        {item.closing}
+                      </AppText>
+                    </View>
+                  ) : null}
+                  {index === 2 ? (
+                    <AppText variant="secondary" tone="white" centre style={[styles.reassurance, compact && styles.reassuranceCompact]}>
+                      Lilica works from day one, even when it’s just you.
                     </AppText>
                   ) : null}
                 </View>
@@ -156,11 +207,20 @@ export function WelcomeScreen({ onStart, onLogin }: Props) {
                 <View key={item.key} style={[styles.dot, index === page && styles.dotActive]} />
               ))}
             </View>
-            <Button
-              label={page === pages.length - 1 ? 'Get started' : 'Next'}
-              variant="light"
-              onPress={page === pages.length - 1 ? onStart : () => goTo(page + 1)}
-            />
+            {page === pages.length - 1 ? (
+              <Button label="Get started" variant="light" onPress={onStart} />
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Go to the next introduction page"
+                onPress={() => goTo(page + 1)}
+                style={({ pressed }) => [styles.advance, pressed && styles.advancePressed]}
+              >
+                <AppText variant="bodyStrong" tone="white" centre>
+                  Swipe to continue  ›
+                </AppText>
+              </Pressable>
+            )}
           </View>
         </View>
       </SafeAreaView>
@@ -203,10 +263,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: -spacing.lg,
   },
+  visualAreaCompact: {
+    minHeight: 176,
+  },
+  visualCompact: {
+    transform: [{ scale: 0.76 }],
+  },
   copy: {
     minHeight: 188,
     alignItems: 'center',
     paddingTop: spacing.md,
+  },
+  copyCompact: {
+    minHeight: 0,
+    paddingTop: 0,
   },
   heading: {
     maxWidth: 360,
@@ -217,19 +287,74 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     opacity: 0.94,
   },
-  swipeCue: {
-    marginTop: spacing.xl,
-    opacity: 0.78,
-    fontWeight: '700',
+  bodyCompact: {
+    marginTop: spacing.xs,
+  },
+  bullets: {
+    width: '100%',
+    maxWidth: 330,
+    marginTop: spacing.md,
+    gap: spacing.xs,
+    alignItems: 'center',
+  },
+  bulletsCompact: {
+    marginTop: spacing.xs,
+    gap: spacing.xxs,
+  },
+  bulletRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  bulletMark: {
+    width: 8,
+    height: 8,
+    borderRadius: radius.pill,
+    backgroundColor: '#D7DCB2',
+    marginTop: 7,
+  },
+  bulletText: {
+    maxWidth: 270,
+  },
+  closing: {
+    width: '100%',
+    maxWidth: 300,
+    marginTop: spacing.lg,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  accentLine: {
+    width: 46,
+    height: 3,
+    borderRadius: radius.pill,
+    backgroundColor: '#D7DCB2',
+  },
+  closingText: {
+    maxWidth: 280,
+    opacity: 0.9,
   },
   reassurance: {
     marginTop: spacing.lg,
     opacity: 0.82,
   },
+  reassuranceCompact: {
+    marginTop: spacing.xs,
+  },
   bottom: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
     gap: spacing.lg,
+  },
+  advance: {
+    minHeight: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.9,
+  },
+  advancePressed: {
+    opacity: 0.62,
   },
   dots: {
     height: 12,
@@ -300,25 +425,87 @@ const styles = StyleSheet.create({
   calendarDotRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-evenly' },
   calendarDot: { width: 9, height: 9, borderRadius: 9, backgroundColor: colors.line },
   calendarDotStrong: { backgroundColor: colors.clay },
-  path: {
-    width: 118,
-    height: 10,
+  connection: {
+    position: 'absolute',
+    width: 60,
+    height: 4,
+    borderRadius: radius.pill,
+    backgroundColor: '#D8DDBB',
+    top: 88,
+  },
+  connectionLeft: {
+    left: 37,
+    transform: [{ rotate: '-23deg' }],
+  },
+  connectionRight: {
+    right: 37,
+    transform: [{ rotate: '23deg' }],
+  },
+  helper: {
+    position: 'absolute',
+    width: 52,
+    height: 52,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  helperLeft: {
+    left: 24,
+    top: 44,
+    backgroundColor: colors.claySoft,
+  },
+  helperRight: {
+    right: 24,
+    top: 44,
+    backgroundColor: colors.oliveSoft,
+  },
+  helperHead: {
+    width: 13,
+    height: 13,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    marginBottom: 3,
+  },
+  helperBody: {
+    width: 24,
+    height: 12,
+    borderTopLeftRadius: radius.pill,
+    borderTopRightRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  sharedTask: {
+    position: 'absolute',
+    width: 116,
+    height: 72,
+    borderRadius: radius.md,
+    backgroundColor: colors.white,
+    bottom: 27,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  taskLines: {
+    gap: spacing.xs,
+  },
+  taskLine: {
+    width: 39,
+    height: 7,
     borderRadius: radius.pill,
     backgroundColor: colors.line,
-    transform: [{ rotate: '-17deg' }],
   },
-  pathDot: {
-    position: 'absolute',
-    width: 34,
-    height: 34,
-    borderRadius: radius.pill,
+  taskLineLong: {
+    width: 52,
     backgroundColor: colors.clay,
-    borderWidth: 6,
-    borderColor: colors.surface,
   },
-  pathDotOne: { left: 36, bottom: 55 },
-  pathDotTwo: { width: 40, height: 40, left: 84, top: 77, backgroundColor: colors.primary },
-  pathDotThree: { width: 58, height: 58, right: 25, top: 41, backgroundColor: colors.olive },
-  tickStem: { position: 'absolute', width: 7, height: 26, borderRadius: 7, backgroundColor: colors.white, transform: [{ rotate: '42deg' }], right: 14, top: 10 },
-  tickArm: { position: 'absolute', width: 7, height: 16, borderRadius: 7, backgroundColor: colors.white, transform: [{ rotate: '-42deg' }], left: 15, top: 24 },
+  taskTick: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    backgroundColor: colors.olive,
+  },
+  tickStem: { position: 'absolute', width: 5, height: 16, borderRadius: 5, backgroundColor: colors.white, transform: [{ rotate: '42deg' }], right: 8, top: 7 },
+  tickArm: { position: 'absolute', width: 5, height: 10, borderRadius: 5, backgroundColor: colors.white, transform: [{ rotate: '-42deg' }], left: 8, top: 14 },
 });
