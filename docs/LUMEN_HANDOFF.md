@@ -29,8 +29,9 @@ The working app now includes:
 - Active-person switching, add-person and resume-incomplete-setup flows.
 - Eight real record categories with category lists, multiple stable record IDs and compact editors.
 - Wheel-based date/time selection, local document upload/camera capture and real-record-only Home sections.
+- Everyday record management from Home (the same category-gateway screen as onboarding) with a stable-identity `Assigned to: Unassigned/You` control alongside the unchanged legacy responsibility text.
 
-Phase 7 record persistence, cache, sync and safe migration, and Phase 8's core Record -> Occurrence engine, are implemented, validated and physically approved (product-owner QA passed 10 September 2026 — see `docs/PHASE_8_QA.md`). Assignment UI, invitations, collaboration, cloud attachment bytes and production infrastructure are not implemented.
+Phase 7 record persistence, cache, sync and safe migration, Phase 8's core Record -> Occurrence engine, and Phase 9's everyday add/record management are implemented, validated and physically approved through Phase 8 (product-owner QA passed 10 September 2026 — see `docs/PHASE_8_QA.md`); Phase 9 physical QA is outstanding (`docs/PHASE_9_QA.md`). Assignment invitations/real collaboration, cloud attachment bytes and production infrastructure are not implemented.
 
 ## Current Flow
 
@@ -85,6 +86,8 @@ Never run a blind full `supabase config push`; the base local config intentional
 
 ## Validation Baseline
 
+The Phase 9 implementation passes `npm run validate:all`: TypeScript, 13 Jest suites/143 tests (12 suites/135 tests pre-Phase-9, plus 1 new suite/8 new tests), secret scanning, Expo dependency/config checks, web export, clean migration replay, and the same 152 pgTAP assertions and warning-level database lint as Phase 8 — Phase 9 needed no migration, since its one new field rides inside the existing generic `record_data` JSONB.
+
 The Phase 8 implementation passes `npm run validate:all`: TypeScript, 12 Jest suites/135 tests, secret scanning, Expo dependency/config checks, web export, clean migration replay, 152 pgTAP assertions and warning-level database lint. The linked Phase 8 dry run listed exactly `20260910170000_phase8_occurrence_engine.sql`; it was applied only to `lilica-development`, where the same 152 assertions and clean lint pass. Local and linked histories match through `20260910170000`.
 
 The Phase 7 implementation passed:
@@ -106,21 +109,21 @@ Physical-device testing found Password/the CTA still hidden behind the keyboard 
 
 ## Immediate Next Steps
 
-On 10 September 2026, the product owner confirmed the corrected keyboard behavior and the password, verification-code, check-email and password-reset paths working on physical devices. The same day, the product owner also confirmed the Phase 8 physical-device QA checklist (`docs/PHASE_8_QA.md`) passed on Android and iPhone.
+On 10 September 2026, the product owner confirmed the corrected keyboard behavior and the password, verification-code, check-email and password-reset paths working on physical devices. The same day, the product owner also confirmed the Phase 8 physical-device QA checklist (`docs/PHASE_8_QA.md`) passed on Android and iPhone. Codex is offline for approximately a week from this date; Claude is the sole active implementation agent on this repository until Codex returns, and committed/pushed Codex's completed Phase 8 work on explicit product-owner instruction before taking over Phase 9.
 
-Phase 8 is implemented, committed and physically approved. Preserve the Phase 7 ownership/sync contracts and Phase 8 Record -> Occurrence/history boundaries. Do not begin Phase 9 without its own separate, explicit, bounded implementation prompt.
+Phase 8 is implemented, committed and physically approved. Phase 9 (everyday add/record management, and a stable-identity Assigned to: Unassigned/You control) is implemented and validated; its physical-device checklist (`docs/PHASE_9_QA.md`) is outstanding. Preserve the Phase 7 ownership/sync contracts, the Phase 8 Record -> Occurrence/history boundaries, and the Phase 9 Assigned-to control's Unassigned/You-only scope. Do not begin Phase 10 without its own separate, explicit, bounded implementation prompt.
 
 ## Approved Future Assignment Boundary
 
-The current `responsiblePerson?: string` field remains intentionally unchanged until the cloud record/assignment model exists. Do not replace it with a cosmetic care-circle selector.
+The `responsiblePerson?: string` field is preserved exactly, unchanged, alongside the new Phase 9 control below — not replaced by it. Do not build a cosmetic care-circle selector.
 
 The authoritative sequence is:
 
 1. Phase 7 preserves legacy responsibility text and provenance exactly, creates no assignment by name/email matching, and gives cloud records stable care-space identity. This is implemented and approved.
 2. Phase 8 introduces the stable membership/external-contact assignment entity foundation and display snapshots. It is implemented server-side; assignment controls and full activity remain deferred.
-3. Phase 9 replaces new arbitrary responsibility text with a data-driven assignment control; keep it restrained while only Unassigned/You exist.
+3. Phase 9 adds a data-driven `Assigned to: Unassigned/You` control (`assignedMembershipId` on the record, stored inside existing `record_data`, no migration) alongside the unchanged legacy responsibility text, kept restrained while only Unassigned/You exist. This is implemented and validated.
 4. Phase 12 projects Assigned to me, Assigned to others and Unassigned using stable membership IDs.
-5. Phase 15 supplies invitations, active care-circle members, role/capability/domain permissions, selector population and immediate revocation behavior.
+5. Phase 15 supplies invitations, active care-circle members, role/capability/domain permissions, selector population and immediate revocation behavior — at which point the Phase 9 control extends to list other active memberships.
 
 Responsibility never grants visibility. Permission is enforced independently by server-side RLS/capability/domain checks. Pending or inactive memberships are not assignable; external contacts have zero application access. See sections 8, 11, 12, 17 and 18.6 of `docs/CORE_SYSTEM_CONTRACT.md`.
 
@@ -134,8 +137,14 @@ Interests copy now adapts for a Myself care space (`InterestsScreen`'s `isSelf` 
 
 Home's presentation was reorganised — see `docs/REVISION_LOG.md` for the full writeup. Wordmark-led header, a persistent person-switcher card (replacing the old dismissible tip banner and small text trigger), a horizontal category snapshot row, and category-tonal icon cards. Entirely contained to `src/screens/HomeScreen.tsx`: `sectionFor()` classification, `PersonSwitcher.tsx`, `Wordmark.tsx`, `records.ts`, and the `colors.canvas` theme token are all unchanged. Snapshot counts remain computed locally from already-loaded records; Phase 8 deliberately did not replace this protected presentation with a later canonical Home projection.
 
+## Phase 9 Everyday Add And Record Management (10 September 2026)
+
+Full writeup in `docs/PHASE_9_ARCHITECTURE.md`. A line-by-line trace before writing any code found that the category-gateway/list/add/edit architecture Phase 9's brief describes was already fully implemented (the 10 September 2026 "Structured Category And Wheel-Picker Correction") and already reachable from Home's everyday `Add` action — Phase 9 did not need to build or redesign it. What was actually added: an `everyday` copy variant on `FirstThingScreen` (heading/footer text only, same screen/architecture either way), and a stable-identity `Assigned to: Unassigned/You` control on `RecordEditor` for appointment/task/bill/home-or-car-matter records, storing the organiser's own `care_space_membership.id` — never a name or email — alongside the unchanged legacy `responsiblePerson` free text. No migration was needed; `assignedMembershipId` rides inside the existing `record_data` JSONB. No client code calls the separate Phase 8 `assignments` table's `create_assignment(...)` RPC yet — that remains available for a later phase once real multi-member collaboration exists to exercise it.
+
+Not changed: `bootstrap_supported_people`, `apply_record_mutation`/`apply_occurrence_mutation`, `PersonSwitcher.tsx`, `Wordmark.tsx`, `Screen.tsx`, `HomeScreen.tsx`, `records.ts`, `CareForkScreen.tsx`, any theme token, any migration, any RLS policy, and no Phase 10+ Calendar/To Do/collaboration work.
+
 ## Protected And Deferred
 
-Preserve Welcome, privacy gating/version/timestamp, organiser/supported-person separation, local account isolation, multi-person care-space separation, category/multi-record behavior, wheel selectors, record-sheet gestures, real-record-only Home and the current Home presentation described above.
+Preserve Welcome, privacy gating/version/timestamp, organiser/supported-person separation, local account isolation, multi-person care-space separation, category/multi-record behavior, wheel selectors, record-sheet gestures, real-record-only Home, the current Home presentation, and the Phase 9 everyday-copy/Assigned-to scope described above.
 
-Deferred: Phase 9 assignment controls, linked-action UI, collaboration/invitations, Calendar/To Do projections, cloud document storage, orphan attachment cleanup, OCR, notifications, production Ask Lilica, production infrastructure, backup guarantees and account/care-space deletion policy.
+Deferred: linked-action UI, collaboration/invitations, real multi-member assignment (the `assignments` table itself), Calendar/To Do projections, cloud document storage, orphan attachment cleanup, OCR, notifications, production Ask Lilica, production infrastructure, backup guarantees and account/care-space deletion policy.

@@ -25,6 +25,14 @@ type Props = {
   personName?: string;
   supportedPersonId: string;
   records: LilicaRecord[];
+  // The organiser's own membership ID for the active care space, threaded
+  // down to RecordEditor's Assigned-to control. See fork.txt Part 5.
+  activeMembershipId?: string;
+  // True once setup is already complete and this screen is reached from
+  // Home's everyday Add action rather than first-time onboarding. Changes
+  // only the heading/footer copy — the category-gateway/list/add/edit
+  // architecture itself is unchanged and locked either way.
+  everyday?: boolean;
   onBack: () => void;
   onSaveRecord: (record: LilicaRecord) => void;
   onRemoveRecord: (recordId: string) => void;
@@ -50,6 +58,8 @@ export function FirstThingScreen({
   personName,
   supportedPersonId,
   records,
+  activeMembershipId,
+  everyday = false,
   onBack,
   onSaveRecord,
   onRemoveRecord,
@@ -176,17 +186,19 @@ export function FirstThingScreen({
         records.length > 0 ? (
           <Button label={`Go to ${name}'s Home`} onPress={onFinish} style={styles.homeButton} />
         ) : (
-          <Button label="I'll add things later" variant="text" onPress={onSkip} />
+          <Button label={everyday ? 'Back to Home' : "I'll add things later"} variant="text" onPress={onSkip} />
         )
       }
     >
       <Header onBack={onBack} />
       <View style={styles.intro}>
         <AppText variant="title" centre numberOfLines={2} adjustsFontSizeToFit>
-          Let's get {name} organised.
+          {everyday ? `${name}'s records` : `Let's get ${name} organised.`}
         </AppText>
         <AppText variant="secondary" tone="soft" centre style={styles.supporting}>
-          Add the important things you want Lilica to keep track of, so we can remind you what's coming up and what still needs sorting.
+          {everyday
+            ? `Add, review or update anything Lilica keeps track of for ${name}.`
+            : "Add the important things you want Lilica to keep track of, so we can remind you what's coming up and what still needs sorting."}
         </AppText>
       </View>
 
@@ -298,6 +310,7 @@ export function FirstThingScreen({
                   record={record}
                   draft={draft}
                   supportedPersonId={supportedPersonId}
+                  activeMembershipId={activeMembershipId}
                   onChange={(nextDraft) => setDrafts((current) => ({ ...current, [draftKey]: nextDraft }))}
                   onSave={(savedRecord) => save(index, savedRecord)}
                   onRemove={record ? () => remove(record.id) : undefined}

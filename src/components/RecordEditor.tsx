@@ -26,6 +26,7 @@ export type RecordDraft = {
   expiryDate: string;
   location: string;
   responsiblePerson: string;
+  assignedMembershipId?: string;
   provider: string;
   amount: string;
   reference: string;
@@ -43,6 +44,11 @@ type Props = {
   record?: LilicaRecord;
   draft: RecordDraft;
   supportedPersonId: string;
+  // The organiser's own stable membership ID for the active care space.
+  // "Assigned to: You" stores this ID, never a display name. Only Unassigned
+  // and You are offered today because no other active membership exists
+  // yet (Phase 15 owns invitations/collaboration) — see fork.txt Part 5.
+  activeMembershipId?: string;
   onChange: (draft: RecordDraft) => void;
   onSave: (record: LilicaRecord) => void;
   onRemove?: () => void;
@@ -86,6 +92,7 @@ export function createRecordDraft(type: LilicaRecordType, record?: LilicaRecord)
     expiryDate: formatDateForInput(record?.expiryDate),
     location: record?.location ?? '',
     responsiblePerson: record?.responsiblePerson ?? '',
+    assignedMembershipId: record?.assignedMembershipId,
     provider: record?.provider ?? '',
     amount: record?.amount ?? '',
     reference: record?.reference ?? '',
@@ -106,7 +113,7 @@ function statusFor(type: LilicaRecordType, completed: boolean): RecordStatus {
   return 'saved';
 }
 
-export function RecordEditor({ type, record, draft, supportedPersonId, onChange, onSave, onRemove }: Props) {
+export function RecordEditor({ type, record, draft, supportedPersonId, activeMembershipId, onChange, onSave, onRemove }: Props) {
   const [attachmentError, setAttachmentError] = useState('');
   const parsedDate = draft.date ? toIsoDate(draft.date) : undefined;
   const parsedExpiry = draft.expiryDate ? toIsoDate(draft.expiryDate) : undefined;
@@ -118,6 +125,7 @@ export function RecordEditor({ type, record, draft, supportedPersonId, onChange,
   const usesEventDate = type === 'appointment' || type === 'document' || type === 'careNote' || type === 'update';
   const supportsCompletion = type === 'task' || type === 'bill' || type === 'homeMatter';
   const supportsRecurrence = type === 'bill' || type === 'homeMatter';
+  const supportsAssignment = (type === 'appointment' || type === 'task' || type === 'bill' || type === 'homeMatter') && Boolean(activeMembershipId);
   const itemName = type === 'careNote' ? 'care information' : type === 'homeMatter' ? 'home or car matter' : type;
 
   function change(patch: Partial<RecordDraft>) {
@@ -149,6 +157,7 @@ export function RecordEditor({ type, record, draft, supportedPersonId, onChange,
       responsiblePerson: supportsCompletion || type === 'appointment'
         ? draft.responsiblePerson.trim() || undefined
         : undefined,
+      assignedMembershipId: supportsAssignment ? draft.assignedMembershipId : undefined,
       provider: type === 'homeMatter' ? draft.provider.trim() || undefined : undefined,
       amount: type === 'bill' ? draft.amount.trim() || undefined : undefined,
       reference: type === 'bill' ? draft.reference.trim() || undefined : undefined,
@@ -312,6 +321,33 @@ export function RecordEditor({ type, record, draft, supportedPersonId, onChange,
           <TextField compact label="Provider or contact" placeholder="Optional" value={draft.provider} onChangeText={(provider) => change({ provider })} />
           <TextField compact label="Who's dealing with it" placeholder="Optional" value={draft.responsiblePerson} onChangeText={(responsiblePerson) => change({ responsiblePerson })} />
         </>
+      ) : null}
+
+      {supportsAssignment ? (
+        <View style={styles.fieldGroup}>
+          <AppText variant="secondary" tone="soft">Assigned to</AppText>
+          <View style={styles.segmented}>
+            {[
+              { label: 'Unassigned', value: undefined },
+              { label: 'You', value: activeMembershipId },
+            ].map((option) => {
+              const selected = option.value === undefined
+                ? !draft.assignedMembershipId
+                : draft.assignedMembershipId === option.value;
+              return (
+                <Pressable
+                  key={option.label}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => change({ assignedMembershipId: option.value })}
+                  style={[styles.segment, selected && styles.segmentSelected]}
+                >
+                  <AppText variant="secondary" tone={selected ? 'primary' : 'soft'} centre>{option.label}</AppText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
       ) : null}
       {type === 'bill' ? (
         <>

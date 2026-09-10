@@ -802,6 +802,8 @@ function LilicaApp() {
             personName={currentSpace?.displayName}
             supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
             records={currentSpace?.records ?? []}
+            activeMembershipId={currentSpace?.membershipId}
+            everyday={currentSpace?.setupStatus === 'ready'}
             onBack={goBack}
             onSaveRecord={saveRecord}
             onRemoveRecord={removeRecord}
@@ -823,6 +825,8 @@ function LilicaApp() {
             personName={currentSpace?.displayName}
             supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
             records={currentSpace?.records ?? []}
+            activeMembershipId={currentSpace?.membershipId}
+            everyday={currentSpace?.setupStatus === 'ready'}
             onBack={goBack}
             onSaveRecord={saveRecord}
             onRemoveRecord={removeRecord}

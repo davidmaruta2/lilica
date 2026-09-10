@@ -1,5 +1,29 @@
 # Revision Log
 
+## 10 September 2026 - Phase 9 everyday add and record management
+
+Implemented by Claude per a written product-owner brief (`fork.txt`), the first phase-implementation task done directly by this session rather than committed on Codex's behalf. Codex is offline for approximately a week from this date.
+
+Before writing any code, traced the current repository line by line (not assumption, not prior session memory) and established a `PRE_PHASE_9_BASELINE`: clean working tree at `46c1125` (already in sync with `origin/master`), TypeScript clean, 12 Jest suites/135 tests, 152 pgTAP assertions across 5 files, clean database lint, clean secret scan, clean web export.
+
+The trace found that the brief's central deliverable — a category-gateway → list → add → edit → save workflow, with wheel date/time pickers and keyboard-safe compact editors — was **already fully implemented**, as part of the 10 September 2026 "Structured Category And Wheel-Picker Correction", and was already reachable from Home's everyday `Add` action (`onAddSomething` in `App.tsx` already routed to the `firstThing` stage regardless of setup status). It also found that a Phase 8 "occurrence" is a derived projection computed automatically from existing `LilicaRecord` fields, both locally and via a server-side trigger — there is no separate occurrence-mutation API for the UI to call, so editing through the existing save path was already canonical.
+
+Given that, the actual Phase 9 work was narrower than the brief's full scope, and scoped down deliberately rather than reorganising what already worked:
+
+- `src/screens/FirstThingScreen.tsx` gained an `everyday` prop (`App.tsx` passes `currentSpace?.setupStatus === 'ready'`), changing only the heading (`"[Name]'s records"` instead of `"Let's get [Name] organised."`), supporting text, and empty-category footer button (`"Back to Home"` instead of `"I'll add things later"`). The category-gateway/list/add/edit architecture itself is identical in both modes.
+- `src/types.ts` gained one new optional field, `assignedMembershipId?: string`, on `FirstItem`/`LilicaRecord`.
+- `src/components/RecordEditor.tsx` gained an `Assigned to: Unassigned / You` segmented control for appointment/task/bill/home-or-car-matter records, rendered only when an `activeMembershipId` prop is supplied (so nothing fabricates a populated care circle where none exists). `You` stores the organiser's own `care_space_membership.id` (threaded from `currentSpace.membershipId`, already loaded locally) — never a display name or email. The existing free-text `responsiblePerson` field ("Who's taking them"/"Who's dealing with it") is completely unchanged and independent of this control; both are saved together.
+- No migration was created: `assignedMembershipId` rides inside the existing generic `record_data` JSONB already written by `apply_record_mutation(...)`, so no new schema, RPC, sync surface or RLS test was needed. The separate Phase 8 `assignments` table remains uncalled by any client code — deliberately deferred rather than speculatively wired up with only one possible assignee to exercise it against today.
+- New tests: `tests/phase9-record-management.test.tsx` (8 tests) covering the everyday-copy variant, the Unassigned/You control storing a stable ID rather than a name, the legacy text field's independence, and that no Assigned-to control renders for record types that don't support it or when no membership is available.
+
+Not changed: `bootstrap_supported_people`, `apply_record_mutation`, `apply_occurrence_mutation`, `PersonSwitcher.tsx`, `Wordmark.tsx`, `Screen.tsx`, `HomeScreen.tsx`, `records.ts`, `CareForkScreen.tsx`, any theme token, any migration, any RLS policy. `git diff --stat` after implementation: 4 files changed, 63 insertions, 4 deletions, plus 1 new test file — no unexpected files.
+
+`PRE_PHASE_9_BASELINE` vs `POST_PHASE_9`: TypeScript clean both; Jest 12 suites/135 tests -> 13 suites/143 tests (net +1 suite/+8 tests, nothing disappeared); pgTAP 152 assertions unchanged (no migration); database lint clean both; secret scan clean both (127 -> 128 files); web export clean both.
+
+Database contract preservation, individually verified: Phase 7 record IDs unchanged; `care_space_id` immutability untouched; Phase 8 occurrence IDs/derivation unchanged; recurrence history untouched; past-appointment `past_awaiting_outcome` semantics untouched (no code path touches appointment-passed logic); legacy responsibility text still never identity-linked; assignment still never grants visibility (no RLS policy was touched, and `assignedMembershipId` carries no access grant); no new cross-space access path exists (the field is scoped exactly like every other record field, per-care-space, via the same RLS `apply_record_mutation` boundary); no existing RLS test was weakened or removed (152 assertions, same 5 files); no already-deployed migration was rewritten.
+
+Physical-device QA required before approval: see `docs/PHASE_9_QA.md`. Not committed or pushed pending that review, per the implementation brief.
+
 ## 10 September 2026 - Phase 8 physical-device QA passed
 
 The product owner completed and confirmed the `docs/PHASE_8_QA.md` checklist on physical Android and iPhone devices. Phase 8 (committed as `019b88b`) is now physically approved, alongside Phases 5-7. Codex is offline for approximately one week; this session committed and pushed Codex's completed Phase 8 work on explicit product-owner instruction, and is now the sole active agent on this repository until Codex returns. Phase 9 still requires its own separate, explicit, bounded implementation prompt before any work begins — the passed QA checklist is not that authorisation.

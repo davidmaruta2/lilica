@@ -24,7 +24,7 @@ Lilica should help answer:
 
 ## Current Scope
 
-The repository contains the Phase 1 product foundation plus Phase 3-8 safety, authentication, multi-person ownership, persistence and core occurrence foundations. It includes:
+The repository contains the Phase 1 product foundation plus Phase 3-9 safety, authentication, multi-person ownership, persistence, core occurrence and everyday record-management foundations. It includes:
 
 - Core visual system and navigation shell
 - Welcome / How Lilica Works introduction
@@ -38,6 +38,7 @@ The repository contains the Phase 1 product foundation plus Phase 3-8 safety, au
 - Local persistence and legacy first-item migration
 - Care-space-scoped cloud records with an offline local cache, semantic outbox and resumable safe migration
 - Stable care-space-owned occurrences, versioned recurrence rules and immutable prior occurrence snapshots
+- Everyday record management from Home using the same category-gateway/list/add/edit screen as onboarding, plus a stable-identity Assigned to: Unassigned/You control
 
 Do not build production AI, bank integrations, payment initiation, emergency monitoring, fall detection, eMAR, diagnosis, subscriptions, complex family permissions, provider integrations or a full OCR pipeline without explicit approval.
 
@@ -133,6 +134,12 @@ Tapping Add or Edit opens a compact bottom sheet. The sheet:
 
 Before any record is saved, the footer offers `I'll add things later`. After a record exists, it offers `Go to [Name]'s Home`. Users are never required to complete every category.
 
+## Everyday Record Management (Phase 9)
+
+The same screen is the everyday Add/manage surface, not only a first-time onboarding step: Home's `Add` action reopens it after setup is already complete. In that everyday case, the heading reads `[Name]'s records`, the supporting copy reads `Add, review or update anything Lilica keeps track of for [Name].`, and the empty-category footer button reads `Back to Home` instead of `I'll add things later`. The underlying category-gateway, compact record list, bottom-sheet editor, wheel pickers and draft retention are identical in both cases — only this copy differs, driven by whether setup is already complete (`FirstThingScreen`'s `everyday` prop), not by a different screen or architecture.
+
+Appointment, task, bill and home/car matter editors also carry an `Assigned to: Unassigned / You` control, separate from and in addition to the existing free-text responsibility field. `You` stores the organiser's own stable care-space membership ID; it is never a display name or email, and it is never inferred from the free-text field. Only Unassigned and You are offered because no other active membership exists in a care space yet — Phase 15 owns invitations and real collaboration, at which point this control extends to list other active members using the same stable-identity contract.
+
 ## Record Model
 
 `LilicaRecord` supports fields used across multiple categories rather than a separate model for every example:
@@ -201,7 +208,7 @@ The current Welcome screens are a retained foundation. Continue improving from t
 - Fraunces font package
 - Supabase JavaScript client
 
-Phase 4 provides dedicated non-production Supabase infrastructure and owner-only profiles. Phase 5 adds runtime authentication and the organiser profile. Phase 6 adds a multi-person supported-person schema, one care space per person, organiser memberships, membership-enforced RLS, idempotent roster provisioning, active-space switching and per-space local state. Phase 7 adds care-space-owned cloud records, safe legacy migration, an account-scoped local cache, semantic offline outbox, deterministic reconciliation and record RLS. Phase 3 provides the automated characterization/domain-contract harness and manual device baseline.
+Phase 4 provides dedicated non-production Supabase infrastructure and owner-only profiles. Phase 5 adds runtime authentication and the organiser profile. Phase 6 adds a multi-person supported-person schema, one care space per person, organiser memberships, membership-enforced RLS, idempotent roster provisioning, active-space switching and per-space local state. Phase 7 adds care-space-owned cloud records, safe legacy migration, an account-scoped local cache, semantic offline outbox, deterministic reconciliation and record RLS. Phase 8 adds canonical occurrences derived from those records, immutable occurrence versions, recurrence series/rules and a server-side stable assignment/external-contact foundation. Phase 9 adds everyday record management from Home and a stable-identity Assigned to: Unassigned/You control consuming that Phase 8 identity, entirely client-side with no new migration. Phase 3 provides the automated characterization/domain-contract harness and manual device baseline.
 
 ## Verification Expectations
 

@@ -2,7 +2,7 @@
 
 Lilica is a React Native care-organising app for Luxford Interactive. It helps an organiser keep separate appointments, tasks, bills, home or car matters, documents, contacts, care information and updates for each person they support.
 
-The repository currently contains the Phase 1 product foundation, Phase 5 authentication, the Phase 6 multi-person ownership kernel, completed Phase 7 persistence and the Phase 8 core Record -> Occurrence engine. Before making product or design changes, read:
+The repository currently contains the Phase 1 product foundation, Phase 5 authentication, the Phase 6 multi-person ownership kernel, completed Phase 7 persistence, the Phase 8 core Record -> Occurrence engine and Phase 9's everyday add/record management with a stable-identity assignment control. Before making product or design changes, read:
 
 - `docs/PROJECT_BRIEF.md`
 - `docs/LUMEN_HANDOFF.md`
@@ -24,6 +24,7 @@ The repository currently contains the Phase 1 product foundation, Phase 5 authen
 - Upload and camera capture for important documents
 - Supabase-backed record persistence with an account-scoped local cache and durable offline outbox
 - Canonical, stable care-space-owned occurrences with explicit date-only/local-time semantics and recurrence history
+- Everyday record management from Home (the same category-gateway/list/add/edit screen used during onboarding) with a stable-identity Assigned to: Unassigned/You control
 - Deterministic due, overdue, upcoming and past-awaiting-outcome state
 - Home sections populated only from real saved records
 
@@ -35,7 +36,7 @@ Supported-person identity, one-person care spaces, organiser memberships and rec
 
 Phase 7 stores records durably in Supabase under `care_space_id`, while an account-scoped local cache and semantic outbox preserve offline startup and retry. Existing non-UUID record IDs map deterministically to cloud UUIDs. Server RLS permits only active organiser memberships, and compatible stale field edits merge while overlapping edits remain conflicts. Attachment bytes/URIs stay local. See `docs/PHASE_7_ARCHITECTURE.md` and `docs/PHASE_7_QA.md`.
 
-The current free-text responsibility field is not a care-circle identity. Phase 8 introduces server-side stable assignment and external-contact entity foundations but does not infer an assignment from legacy text and does not expose assignment UI. Phase 9 replaces new free text with a data-driven control, Phase 12 projects assignments into To Do, and Phase 15 adds real collaboration members and permissions. Assignment never grants visibility; server permissions remain separate.
+The current free-text responsibility field is not a care-circle identity, and Phase 9 preserved it exactly rather than replacing it. Phase 8 introduces server-side stable assignment and external-contact entity foundations; Phase 9 adds a data-driven Assigned to: Unassigned/You control alongside the unchanged legacy free-text field, storing a stable membership ID rather than a display name. Only Unassigned and You are offered because no other active membership exists yet. Phase 12 projects assignments into To Do, and Phase 15 adds real collaboration members and permissions. Assignment never grants visibility; server permissions remain separate.
 
 Profile photos are deferred because no private storage boundary exists yet. Date of birth is intentionally not collected.
 
