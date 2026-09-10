@@ -12,6 +12,7 @@ This is the Lilica React Native care-organising app for Luxford Interactive. Wor
 
 - Phase 5 authentication, Phase 6 multi-person ownership, Phase 7 record persistence/cache/sync and Phase 8's core Record -> Occurrence engine are implemented, validated and physically approved (product-owner QA passed 10 September 2026).
 - Phase 9 (everyday add/record management: a stable-identity Assigned-to control, and everyday-vs-onboarding copy for the already-existing category-gateway screen) is implemented and validated; physical-device QA is outstanding — see `docs/PHASE_9_QA.md`.
+- Phase 10 (Calendar projection: a month grid and day list projecting existing records, opening into the same established record editor) is implemented and validated; physical-device QA is outstanding — see `docs/PHASE_10_QA.md`. Do not begin Phase 11 without its own separate, explicit, bounded implementation prompt.
 - The self/someone-else onboarding fork (`Whose wellbeing are you looking to support with Lilica?`) is implemented and validated; physical-device QA is outstanding — see `docs/CARE_FORK_QA.md`.
 - Supabase provides email/password Auth, organiser profiles, supported people, care spaces and organiser memberships.
 - Signup and password recovery use six-digit email OTPs. Recovery proceeds through Check your email, Enter your code and Choose a new password.
@@ -29,7 +30,7 @@ This is the Lilica React Native care-organising app for Luxford Interactive. Wor
 - Preview database migrations with `npx supabase db push --linked --dry-run`; never run `supabase db reset --linked`.
 - Keep organiser identity separate from supported-person identity and membership-relative relationships.
 - Persist only real user-created records. Derived due/overdue state must remain deterministic.
-- Preserve the Phase 8 occurrence/recurrence/history and assignment-identity contracts, and the Phase 9 Assigned-to control's Unassigned/You-only scope. Do not add Phase 10+ Calendar/To Do projections, AI, OCR, banking, monitoring, clinical features, invitations or permission UI without explicit approval.
+- Preserve the Phase 8 occurrence/recurrence/history and assignment-identity contracts, and the Phase 9 Assigned-to control's Unassigned/You-only scope. Do not add Phase 11+ To Do projections, AI, OCR, banking, monitoring, clinical features, invitations or permission UI without explicit approval.
 - All text-entry screens must use the shared keyboard-aware `Screen` or `RecordSheet` path. Do not add fixed CTAs that overlay fields or device-specific keyboard margins.
 - Use `react-native-safe-area-context`; do not introduce a competing safe-area system.
 
@@ -37,4 +38,4 @@ This is the Lilica React Native care-organising app for Luxford Interactive. Wor
 
 Run `npm run validate` for app changes and `npm run validate:all` for database changes. Physical-device claims require actual device testing; automated layout tests are not physical proof.
 
-Phase 8 is implemented, committed and physically approved. Phase 9 is implemented and validated, awaiting physical QA (`docs/PHASE_9_QA.md`) and product-owner commit approval. Do not begin Phase 10 without its own separate, explicit, bounded implementation prompt.
+Phase 8 is implemented, committed and physically approved. Phase 9 is implemented and validated, awaiting physical QA (`docs/PHASE_9_QA.md`) and product-owner commit approval. Phase 10 (Calendar projection) is implemented and validated, awaiting physical QA (`docs/PHASE_10_QA.md`) and product-owner commit approval. Do not begin Phase 11 without its own separate, explicit, bounded implementation prompt.

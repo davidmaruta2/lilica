@@ -10,6 +10,7 @@ import { AppText } from './src/components/Text';
 import { AboutYouScreen } from './src/screens/AboutYouScreen';
 import { AccountScreen, ProfileErrorScreen } from './src/screens/AccountScreen';
 import { AuthScreen } from './src/screens/AuthScreen';
+import { CalendarScreen } from './src/screens/CalendarScreen';
 import { CareForkScreen } from './src/screens/CareForkScreen';
 import { EmailAuthScreen } from './src/screens/EmailAuthScreen';
 import { FirstThingScreen } from './src/screens/FirstThingScreen';
@@ -126,6 +127,10 @@ function LilicaApp() {
   const [pendingRelationship, setPendingRelationship] = useState<Relationship>();
   const [provisioning, setProvisioning] = useState(false);
   const [provisionError, setProvisionError] = useState<string>();
+  // Phase 10: one-shot "open this record's editor" request from Calendar,
+  // consumed and cleared by FirstThingScreen itself (see
+  // onInitialOpenHandled) so a later, unrelated visit never reopens it.
+  const [calendarOpenRecordId, setCalendarOpenRecordId] = useState<string>();
   const storageOwnerId = auth.session?.user.id ?? null;
   const legacyBootstrapInFlight = useRef(false);
   const reconnectedOwnerId = useRef<string | undefined>(undefined);
@@ -515,6 +520,11 @@ function LilicaApp() {
     else setActiveTab('home');
   }
 
+  function openRecordFromCalendar(recordId: string) {
+    setCalendarOpenRecordId(recordId);
+    go('firstThing');
+  }
+
   function renderShell() {
     let content;
 
@@ -536,7 +546,14 @@ function LilicaApp() {
         />
       );
     } else if (activeTab === 'calendar') {
-      content = (
+      content = currentSpace?.setupStatus === 'ready' ? (
+        <CalendarScreen
+          key={currentSpace.careSpaceId}
+          records={state.records}
+          personName={currentSpace?.displayName}
+          onOpenRecord={openRecordFromCalendar}
+        />
+      ) : (
         <FoundationScreen
           title="Calendar"
           body="Appointments, renewals and other dates will appear here."
@@ -815,6 +832,8 @@ function LilicaApp() {
             records={currentSpace?.records ?? []}
             activeMembershipId={currentSpace?.membershipId}
             everyday={currentSpace?.setupStatus === 'ready'}
+            initialOpenRecordId={calendarOpenRecordId}
+            onInitialOpenHandled={() => setCalendarOpenRecordId(undefined)}
             onBack={goBack}
             onSaveRecord={saveRecord}
             onRemoveRecord={removeRecord}

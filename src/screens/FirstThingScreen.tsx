@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   FlatList,
@@ -33,6 +33,14 @@ type Props = {
   // only the heading/footer copy — the category-gateway/list/add/edit
   // architecture itself is unchanged and locked either way.
   everyday?: boolean;
+  // Phase 10: lets another screen (Calendar) request that a specific
+  // existing record's editor opens immediately on mount, reusing this
+  // exact category-gateway/list/edit architecture rather than a second
+  // editor. Consumed once; onInitialOpenHandled lets the caller clear its
+  // own one-shot intent so a later, unrelated visit to this screen (e.g.
+  // Home's plain Add button) never reopens a stale record.
+  initialOpenRecordId?: string;
+  onInitialOpenHandled?: () => void;
   onBack: () => void;
   onSaveRecord: (record: LilicaRecord) => void;
   onRemoveRecord: (recordId: string) => void;
@@ -60,6 +68,8 @@ export function FirstThingScreen({
   records,
   activeMembershipId,
   everyday = false,
+  initialOpenRecordId,
+  onInitialOpenHandled,
   onBack,
   onSaveRecord,
   onRemoveRecord,
@@ -132,6 +142,17 @@ export function FirstThingScreen({
     setOpenView('list');
     focusIndex(index);
   }
+
+  useEffect(() => {
+    if (!initialOpenRecordId) return;
+    const record = records.find((item) => item.id === initialOpenRecordId);
+    const index = record ? ordered.findIndex((item) => item.id === record.type) : -1;
+    if (record && index !== -1) openEditor(index, record.type, record);
+    onInitialOpenHandled?.();
+    // Intentionally runs only when the requested ID changes -- this is a
+    // one-shot "open this record" request, not a continuous binding.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOpenRecordId]);
 
   function save(index: number, record: LilicaRecord) {
     onSaveRecord(record);

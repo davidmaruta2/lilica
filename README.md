@@ -2,7 +2,7 @@
 
 Lilica is a React Native care-organising app for Luxford Interactive. It helps an organiser keep separate appointments, tasks, bills, home or car matters, documents, contacts, care information and updates for each person they support.
 
-The repository currently contains the Phase 1 product foundation, Phase 5 authentication, the Phase 6 multi-person ownership kernel, completed Phase 7 persistence, the Phase 8 core Record -> Occurrence engine and Phase 9's everyday add/record management with a stable-identity assignment control. Before making product or design changes, read:
+The repository currently contains the Phase 1 product foundation, Phase 5 authentication, the Phase 6 multi-person ownership kernel, completed Phase 7 persistence, the Phase 8 core Record -> Occurrence engine, Phase 9's everyday add/record management with a stable-identity assignment control, and Phase 10's Calendar projection. Before making product or design changes, read:
 
 - `docs/PROJECT_BRIEF.md`
 - `docs/LUMEN_HANDOFF.md`
@@ -27,6 +27,7 @@ The repository currently contains the Phase 1 product foundation, Phase 5 authen
 - Everyday record management from Home (the same category-gateway/list/add/edit screen used during onboarding) with a stable-identity Assigned to: Unassigned/You control
 - Deterministic due, overdue, upcoming and past-awaiting-outcome state
 - Home sections populated only from real saved records
+- Calendar: a month grid and selected-day list projecting the same records Home reads, with no separate calendar-event store; opening an item reuses the same record editor everywhere else in the app
 
 The Welcome work should be preserved unless the product owner explicitly requests changes. The record-entry sheet may be dismissed by its Done action, backdrop, system back action or a downward swipe while the form is at the top. Unsaved drafts remain available while the onboarding screen remains mounted.
 

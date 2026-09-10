@@ -1,5 +1,32 @@
 # Revision Log
 
+## 10 September 2026 - Phase 10 Calendar projection
+
+Implemented from a written, bounded product-owner brief. `PRE_PHASE_10_BASELINE`: HEAD `62368db` (in sync with `origin/master`), clean working tree, TypeScript clean, 14 Jest suites/157 tests, clean web export -- the same numbers already recorded as passing immediately before this brief was issued, in this same session. No migration exists on either side of this phase, so the last recorded pgTAP baseline (152 assertions, Phase 8/9) is unchanged.
+
+Calendar is a projection, not a second record system: it reads `state.records` -- the exact same active-care-space projection Home already reads via `projectActiveCareSpace()` -- and resolves each record's calendar date with a new `calendarDateForRecord()` in `src/records.ts`, mirroring `domain/recordOccurrence.ts`'s existing field-priority (appointment -> `eventDate`; task/bill/homeMatter -> `dueDate`; document -> `expiryDate`) without requiring a synced cloud record ID, for the same offline-first reason Home already bypasses the Phase 8 domain layer. Status (Overdue, etc.) reuses the existing `deriveRecordState()` exactly -- no second lifecycle interpretation.
+
+- New `src/screens/CalendarScreen.tsx`: a month grid (Monday-first, today and selected-day marked, a small dot on dates with occurrences) and a selected-day agenda list below it, in the app's existing tokens/type/icon language. Categories reuse `CategoryIcon`/`categoryLabel`/`visualFor`, exported from `HomeScreen.tsx` (previously private, now shared -- zero behaviour change to Home).
+- `App.tsx`: the Calendar tab now renders `CalendarScreen` (previously a placeholder `FoundationScreen`) once the active care space's setup is `ready`, mounted with `key={careSpaceId}` so switching person always starts fresh -- no stale state, no cross-space leak. Tapping an agenda item sets a new one-shot `calendarOpenRecordId` and navigates to the existing `firstThing` stage, the same screen Home's own Add action already uses.
+- `src/screens/FirstThingScreen.tsx`: gained an optional `initialOpenRecordId`/`onInitialOpenHandled` prop pair. On mount, if set, it opens that exact existing record's editor via the screen's own existing `openEditor()` -- not a new editor, not a duplicate draft -- then reports back so the request is consumed exactly once; a later, unrelated visit (e.g. Home's plain Add button) never reopens a stale record.
+- No database migration, no RLS change, no assignment-architecture change: Assigned-to display in Calendar (where used) is presentational only, reusing Phase 9's existing Unassigned/You scope. Legacy `responsiblePerson` is never surfaced as an assignment claim.
+
+New `tests/phase10-calendar.test.tsx` (17 tests) covers month/date rendering, multi-occurrence days, category projection, undated-record exclusion, past-appointment/Overdue agreement with the existing engine, opening the correct underlying record ID, no cross-care-space leak on person switch, no mutation during month navigation, the empty-day state, and that `initialOpenRecordId` opens the same record rather than a new draft. `npm run typecheck`, `npm test` (15 suites/174 tests, up from 157 -- old tests unchanged, new tests additive) and `npm run validate` (web export included) all pass.
+
+Diff audit: 4 files touched (`App.tsx`, `src/records.ts`, `src/screens/FirstThingScreen.tsx`, `src/screens/HomeScreen.tsx` -- the last for `export` keywords only) plus one new screen and one new test file. No welcome/auth/onboarding/fork/PersonSwitcher/privacy/interests/category-gateway/wheel-picker/keyboard/theme-token file appears in the diff. `git diff --check` clean; no secrets, env files or generated exports included.
+
+Not committed or pushed pending product-owner review and physical-device QA, per the implementation brief. Phase 11+ was not started.
+
+## 10 September 2026 - Calendar redesign: icon-chip day cells and an icon legend
+
+Product owner asked for the Calendar's month grid to draw from Monzo's spending calendar (`222.jpeg`), sense-checked a first pass from ChatGPT (`111.png`), then asked for a mock in Lilica's own design system rather than adopting that pass wholesale. Mocked in a design canvas, revised once (the icon legend was present in markup but silently clipped by an `overflow:hidden` scroll container that had run out of vertical room -- fixed by trimming cell/spacing sizes and switching that container to scroll), approved, then implemented into `CalendarScreen.tsx`:
+
+- Each day cell with occurrences now shows a small tinted icon-chip badge -- the same `CategoryIcon`/`visualFor` colours already used everywhere else -- for the highest-priority category that day (priority: appointment, task, bill, home/car matter, document), with a `+N` count beneath it when more than one item falls on that date.
+- A day with any overdue item gets a small red corner dot on its badge (reusing `colors.danger`, no new interpretation of overdue -- still `deriveRecordState().overdue`).
+- A new icon legend row beneath the grid explains every glyph that can appear, reusing the same icon/tint/label for each category plus a "Needs attention" key (`StatusIcon`'s existing alert icon, now exported from `HomeScreen.tsx` alongside `CategoryIcon`).
+
+No architecture change: still the same `state.records` projection, the same `calendarDateForRecord()`/`deriveRecordState()` resolution, the same record editor on tap. New tests in `tests/phase10-calendar.test.tsx` cover the legend and the `+N` overflow badge (19 tests in that file now, up from 17). `npm run typecheck`, `npm test` (15 suites/176 tests) and `npm run validate` all pass. Not committed or pushed, per the standing Phase 10 instruction.
+
 ## 10 September 2026 - Home's horizontal strip repurposed into an "at a glance" status summary
 
 Product owner (relaying a ChatGPT-drafted proposal, then a reference image) judged the horizontal category-snapshot row a duplicate of the record boxes — "wasting prime space, making Home feel like a catalogue" — and asked for it to summarise **state**, not **category**, with an explicit caution: only surface a chip backed by real current projection logic, never a fake count.

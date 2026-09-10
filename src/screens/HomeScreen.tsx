@@ -43,7 +43,7 @@ function itemMeta(item: FirstItem) {
 // Presentation-only: the app's own existing category names, looked up from
 // the same firstItemOptions list the onboarding record stack uses, so this
 // never drifts out of sync with the real category naming.
-function categoryLabel(type: LilicaRecordType) {
+export function categoryLabel(type: LilicaRecordType) {
   return firstItemOptions.find((option) => option.id === type)?.title ?? type;
 }
 
@@ -68,7 +68,7 @@ function sectionFor(item: FirstItem) {
 // approved snapshot row (document, contact, careNote, update) reuse the
 // closest existing pair by icon shape rather than by color — still
 // distinguishable at a glance, still no new token added anywhere.
-type CategoryVisual = { tint: string; accent: string };
+export type CategoryVisual = { tint: string; accent: string };
 
 const CATEGORY_VISUALS: Record<LilicaRecordType, CategoryVisual> = {
   appointment: { tint: colors.blueSoft, accent: colors.blue },
@@ -81,14 +81,14 @@ const CATEGORY_VISUALS: Record<LilicaRecordType, CategoryVisual> = {
   update: { tint: colors.primarySoft, accent: colors.primary },
 };
 
-function visualFor(type: LilicaRecordType): CategoryVisual {
+export function visualFor(type: LilicaRecordType): CategoryVisual {
   return CATEGORY_VISUALS[type];
 }
 
 // Small drawn icons built from plain Views only — the same technique
 // already used elsewhere in this app (Wordmark's leaf mark, PersonSwitcher's
 // tick), so this needed no new icon-library dependency.
-function CategoryIcon({ type, color }: { type: LilicaRecordType; color: string }) {
+export function CategoryIcon({ type, color }: { type: LilicaRecordType; color: string }) {
   switch (type) {
     case 'appointment':
       return (
@@ -155,7 +155,7 @@ function CategoryIcon({ type, color }: { type: LilicaRecordType; color: string }
 // that depends on a real active membership existing (Phase 9's
 // assignedMembershipId); it is omitted entirely, not shown as a fake zero,
 // when no membership is available yet.
-type StatusIconKey = 'alert' | 'calendar' | 'people' | 'clock';
+export type StatusIconKey = 'alert' | 'calendar' | 'people' | 'clock';
 
 type StatusChipDef = {
   key: string;
@@ -166,7 +166,7 @@ type StatusChipDef = {
   accent: string;
 };
 
-function StatusIcon({ icon, color }: { icon: StatusIconKey; color: string }) {
+export function StatusIcon({ icon, color }: { icon: StatusIconKey; color: string }) {
   switch (icon) {
     case 'alert':
       return (

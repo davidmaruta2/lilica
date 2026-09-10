@@ -71,6 +71,21 @@ export function formatDateForDisplay(value?: string) {
   return parsed?.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) ?? value;
 }
 
+// Phase 10: the date a record projects onto in Calendar. Mirrors the exact
+// same field priority as domain/recordOccurrence.ts's canonicalOccurrenceForRecord
+// (appointment -> eventDate; task/bill/homeMatter -> dueDate; document ->
+// expiryDate; everything else has no calendar meaning) but operates on the
+// local record directly with no dependency on a synced cloud record ID, so
+// it works fully offline from whatever is already cached -- exactly like
+// deriveRecordState() below. Returning undefined means "not calendar-eligible",
+// never a fabricated date.
+export function calendarDateForRecord(record: LilicaRecord): string | undefined {
+  if (record.type === 'appointment') return record.eventDate ?? record.date;
+  if (record.type === 'task' || record.type === 'bill' || record.type === 'homeMatter') return record.dueDate ?? record.date;
+  if (record.type === 'document') return record.expiryDate;
+  return undefined;
+}
+
 export function deriveRecordState(record: LilicaRecord, now = new Date()): DerivedRecordState {
   const today = startOfDay(now);
   const relevantDate = parseDate(record.dueDate ?? record.eventDate);
