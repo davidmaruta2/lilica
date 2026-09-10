@@ -34,7 +34,7 @@ Phase 6 adds:
 
 Phase 7 adds `records` and `record_mutation_receipts`. Record writes use the idempotent `apply_record_mutation(...)` RPC; direct application writes are not granted. Record domain/sensitivity, audit membership, source, version and change sequence are server-managed. `list_my_supported_people()` now returns the active member's supported-person display/relationship data so a new device can rediscover spaces without inventing local privacy consent.
 
-Occurrences, assignments, invitations, documents and attachment bytes are not cloud tables. Phase 7 records include attachment metadata without local device URI.
+Phase 8 adds cloud `occurrences`, immutable occurrence snapshots, recurrence series/rules, mutation receipts, assignments and external contacts. Assignment/contact tables are foundations only and grant no account access. Invitations, documents and attachment bytes are not cloud tables; records include attachment metadata without local device URI.
 
 ## Migration Workflow
 
@@ -69,6 +69,13 @@ The migration in `supabase/migrations/` is authoritative schema history. `supaba
 - Local and linked database suites each passed all 89 pgTAP assertions across three files.
 - Linked database lint reported no schema errors, and migration history lists `20260910150000` on both local and remote.
 - Existing profile/care-space tests scope row counts to their transactional synthetic fixture IDs so hosted development rows do not affect assertions. Test transactions roll back their synthetic data.
+
+### Hosted Phase 8 deployment - 10 September 2026
+
+- `npx supabase db push --linked --dry-run` listed only `20260910170000_phase8_occurrence_engine.sql`, with no seeds or roles.
+- `npx supabase db push --linked` applied that migration only to `lilica-development`.
+- Local and linked suites each passed 152 pgTAP assertions across five files; warning-level database lint returned no issues in either environment.
+- Local and linked migration histories match through `20260910170000`. No Auth configuration, Storage resource, seed, role or production project was changed.
 
 ## RLS And Grants
 
@@ -137,7 +144,7 @@ Migrations recover schema, not user data. They are necessary reproducible histor
 ## Deliberately Deferred
 
 - Organiser avatar storage.
-- Invitations, collaboration/member management, documents/cloud attachment bytes, occurrences and assignments.
+- Assignment UI/lifecycle workflows, invitations, collaboration/member management, documents/cloud attachment bytes, Calendar and To Do projections.
 - Production project creation, deployment automation, backup guarantees, and disaster recovery.
 
 Email/password Auth, mandatory confirmation, OTP templates, redirect URLs, the eight-character minimum and development SMTP are implemented decisions. Any provider expansion or production Auth configuration still requires explicit review and approval.

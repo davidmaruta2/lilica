@@ -24,7 +24,7 @@ Lilica should help answer:
 
 ## Current Scope
 
-The repository contains the Phase 1 product foundation plus Phase 3-7 safety, authentication, multi-person ownership and record persistence foundations. It includes:
+The repository contains the Phase 1 product foundation plus Phase 3-8 safety, authentication, multi-person ownership, persistence and core occurrence foundations. It includes:
 
 - Core visual system and navigation shell
 - Welcome / How Lilica Works introduction
@@ -37,6 +37,7 @@ The repository contains the Phase 1 product foundation plus Phase 3-7 safety, au
 - First-arrival Home populated from real records
 - Local persistence and legacy first-item migration
 - Care-space-scoped cloud records with an offline local cache, semantic outbox and resumable safe migration
+- Stable care-space-owned occurrences, versioned recurrence rules and immutable prior occurrence snapshots
 
 Do not build production AI, bank integrations, payment initiation, emergency monitoring, fall detection, eMAR, diagnosis, subscriptions, complex family permissions, provider integrations or a full OCR pipeline without explicit approval.
 
@@ -76,7 +77,7 @@ Phase 5 implements verified Supabase email/password authentication, session rest
 
 Supported-person identity, memberships and record data are cloud-backed. Privacy, interests, setup progress and attachment bytes remain device-local per authenticated account and care space. Cached records and pending outbox work are preserved at sign-out; authenticated sync pauses. Invitations, additional member roles/permissions, cloud attachment bytes and profile photos are deferred; date of birth is intentionally not collected.
 
-Responsibility and visibility are separate concepts. The existing free-text responsibility value is temporary legacy/display data and must never be inferred to be an authenticated person. Future assignments target a stable active care-space membership or an explicit external contact; server-enforced permissions independently decide what each member can access. Assignment must never grant visibility.
+Responsibility and visibility are separate concepts. The existing free-text responsibility value is legacy/display data and is never inferred to be an authenticated person. Phase 8's server-side assignment foundation targets a stable active care-space membership or explicit external contact. It has no UI and grants no access; server-enforced permissions independently decide what each member can access.
 
 ## Privacy And Consent
 
@@ -150,6 +151,8 @@ Before any record is saved, the footer offers `I'll add things later`. After a r
 Dates are stored as ISO calendar dates. UI input accepts UK `DD/MM/YYYY` format and validates real calendar dates.
 
 `src/records.ts` derives due-today, overdue, upcoming, completed, unresolved, recently-updated and next-recurring-date state deterministically. Generative AI must not decide whether a record is overdue.
+
+Phase 8 adds a canonical `Occurrence` beneath a durable Record. Dated task, bill, home/car, expiring-document and appointment records map to one stable initial occurrence; undated or malformed history remains without a fabricated occurrence. Date-only obligations remain calendar dates. Appointment wall times remain local date/time plus `Europe/London`; they are not flattened into guessed UTC instants. A passed scheduled appointment derives `past_awaiting_outcome` and is never automatically attended, completed, missed or overdue. Recurring completion creates one deterministic next occurrence, while previous versions preserve what was expected before an edit.
 
 ## Important Documents
 

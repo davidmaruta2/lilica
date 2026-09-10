@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { supabase } from './auth/client';
+import { canonicalOccurrenceForRecord, Occurrence } from './domain';
 import { createUuid, isUuid, stableUuid } from './identifiers';
 import { LilicaRecord, LocalCareSpaceState, RecordAttachment } from './types';
 
@@ -49,10 +50,12 @@ export type RecordMigrationState = {
 
 export type RecordSpaceCache = {
   records: LilicaRecord[];
+  occurrences: Occurrence[];
   identities: Record<string, RecordIdentity>;
   outbox: RecordMutation[];
   conflicts: RecordMutation[];
   cursor: number;
+  occurrenceCursor: number;
   migration: RecordMigrationState;
 };
 
@@ -75,6 +78,28 @@ export type ServerRecordRow = {
   change_sequence: number;
 };
 
+export type ServerOccurrenceRow = {
+  id: string;
+  care_space_id: string;
+  record_id: string;
+  occurrence_kind: 'action' | 'event';
+  status: Occurrence['status'];
+  timing_kind: 'date' | 'local_datetime' | 'instant';
+  due_on: string | null;
+  starts_on: string | null;
+  starts_time: string | null;
+  timezone: string | null;
+  instant_at: string | null;
+  recurrence_series_id: string | null;
+  sequence: number;
+  original_due_on: string | null;
+  original_starts_on: string | null;
+  completed_at: string | null;
+  deleted_at: string | null;
+  version: number;
+  change_sequence: number;
+};
+
 export type ApplyMutationResult = {
   status: 'applied' | 'duplicate' | 'conflict';
   version?: number;
@@ -85,6 +110,7 @@ export type ApplyMutationResult = {
 export interface RecordSyncTransport {
   applyMutation(mutation: RecordMutation, baseVersion: number): Promise<ApplyMutationResult>;
   pullChanges(careSpaceId: string, cursor: number): Promise<ServerRecordRow[]>;
+  pullOccurrences?(careSpaceId: string, cursor: number): Promise<ServerOccurrenceRow[]>;
 }
 
 class RecordTransportError extends Error {
@@ -123,6 +149,16 @@ export const supabaseRecordTransport: RecordSyncTransport = {
     if (error) throw new RecordTransportError(error.message, errorCategory(error));
     return (data ?? []) as ServerRecordRow[];
   },
+  async pullOccurrences(careSpaceId, cursor) {
+    const { data, error } = await supabase
+      .from('occurrences')
+      .select('id, care_space_id, record_id, occurrence_kind, status, timing_kind, due_on, starts_on, starts_time, timezone, instant_at, recurrence_series_id, sequence, original_due_on, original_starts_on, completed_at, deleted_at, version, change_sequence')
+      .eq('care_space_id', careSpaceId)
+      .gt('change_sequence', cursor)
+      .order('change_sequence', { ascending: true });
+    if (error) throw new RecordTransportError(error.message, errorCategory(error));
+    return (data ?? []) as ServerOccurrenceRow[];
+  },
 };
 
 function storeKey(ownerId: string) {
@@ -140,7 +176,20 @@ async function loadStore(ownerId: string): Promise<RecordCacheStore> {
   if (parsed.version !== RECORD_CACHE_VERSION || parsed.ownerId !== ownerId || !parsed.spaces) {
     throw new Error('Unsupported record cache');
   }
-  return parsed as RecordCacheStore;
+  const store = parsed as RecordCacheStore;
+  for (const [careSpaceId, space] of Object.entries(store.spaces)) {
+    if (!Array.isArray(space.occurrences)) {
+      space.occurrences = space.records.flatMap((record) => {
+        const identity = space.identities[record.id];
+        const occurrence = identity
+          ? canonicalOccurrenceForRecord(record, careSpaceId, identity.cloudRecordId).occurrence
+          : undefined;
+        return occurrence ? [occurrence] : [];
+      });
+    }
+    if (typeof space.occurrenceCursor !== 'number') space.occurrenceCursor = 0;
+  }
+  return store;
 }
 
 async function saveStore(store: RecordCacheStore) {
@@ -199,10 +248,16 @@ function createSpaceCache(ownerId: string, careSpaceId: string, records: LilicaR
   ]));
   return {
     records: [...records],
+    occurrences: records.flatMap((record) => {
+      const identity = identities[record.id];
+      const occurrence = canonicalOccurrenceForRecord(record, careSpaceId, identity.cloudRecordId).occurrence;
+      return occurrence ? [occurrence] : [];
+    }),
     identities,
     outbox: records.map((record) => importedMutation(ownerId, careSpaceId, record)),
     conflicts: [],
     cursor: 0,
+    occurrenceCursor: 0,
     migration: { status: records.length ? 'pending' : 'complete', startedAt: now, completedAt: records.length ? undefined : now },
   };
 }
@@ -262,6 +317,12 @@ export async function enqueueRecordUpsert(
     space.records = existingIndex >= 0
       ? space.records.map((item) => item.id === record.id ? record : item)
       : [...space.records, record];
+    const projectedOccurrence = canonicalOccurrenceForRecord(record, careSpaceId, identity.cloudRecordId).occurrence;
+    space.occurrences = projectedOccurrence
+      ? space.occurrences.some((item) => item.recordId === identity.cloudRecordId && item.sequence === 0)
+        ? space.occurrences.map((item) => item.recordId === identity.cloudRecordId && item.sequence === 0 ? projectedOccurrence : item)
+        : [...space.occurrences, projectedOccurrence]
+      : space.occurrences.filter((item) => item.recordId !== identity.cloudRecordId);
 
     const unsentCreate = space.outbox.find((item) => item.cloudRecordId === identity.cloudRecordId
       && (item.kind === 'create' || item.kind === 'import')
@@ -299,6 +360,7 @@ export async function enqueueRecordDelete(
     if (!space) return [];
     const identity = ensureIdentity(ownerId, careSpaceId, space, localRecordId);
     space.records = space.records.filter((record) => record.id !== localRecordId);
+    space.occurrences = space.occurrences.filter((occurrence) => occurrence.recordId !== identity.cloudRecordId);
     space.outbox.push({
       id: createUuid(),
       careSpaceId,
@@ -360,6 +422,53 @@ function applyRemoteRows(space: RecordSpaceCache, rows: ServerRecordRow[]) {
         ? space.records.map((record) => record.id === localId ? remote : record)
         : [...space.records, remote]
       : space.records.filter((record) => record.id !== localId);
+  }
+}
+
+function occurrenceFromRow(row: ServerOccurrenceRow): Occurrence | undefined {
+  if (row.deleted_at) return undefined;
+  const timing: Occurrence['timing'] = row.timing_kind === 'date' && row.due_on
+    ? { kind: 'date', date: row.due_on as `${number}-${number}-${number}` }
+    : row.timing_kind === 'local_datetime' && row.starts_on && row.starts_time && row.timezone
+      ? {
+          kind: 'local_datetime',
+          date: row.starts_on as `${number}-${number}-${number}`,
+          time: row.starts_time.slice(0, 5) as `${number}:${number}`,
+          timezone: row.timezone,
+        }
+      : row.timing_kind === 'instant' && row.instant_at
+        ? { kind: 'instant', instant: row.instant_at, timezone: row.timezone ?? undefined }
+        : undefined;
+  if (!timing) return undefined;
+  return {
+    id: row.id,
+    recordId: row.record_id,
+    careSpaceId: row.care_space_id,
+    kind: row.occurrence_kind,
+    status: row.status,
+    timing,
+    dueOn: row.due_on as Occurrence['dueOn'],
+    recurrenceSeriesId: row.recurrence_series_id ?? undefined,
+    sequence: row.sequence,
+    originalDate: (row.original_due_on ?? row.original_starts_on) as Occurrence['originalDate'],
+    completedAt: row.completed_at ?? undefined,
+  };
+}
+
+function applyRemoteOccurrences(space: RecordSpaceCache, rows: ServerOccurrenceRow[]) {
+  let cursorBlocked = false;
+  for (const row of rows) {
+    if (space.outbox.some((operation) => operation.cloudRecordId === row.record_id)) {
+      cursorBlocked = true;
+      continue;
+    }
+    if (!cursorBlocked) space.occurrenceCursor = Math.max(space.occurrenceCursor, row.change_sequence);
+    const occurrence = occurrenceFromRow(row);
+    space.occurrences = occurrence
+      ? space.occurrences.some((item) => item.id === row.id)
+        ? space.occurrences.map((item) => item.id === row.id ? occurrence : item)
+        : [...space.occurrences.filter((item) => !(item.recordId === row.record_id && item.sequence === row.sequence)), occurrence]
+      : space.occurrences.filter((item) => item.id !== row.id);
   }
 }
 
@@ -430,6 +539,15 @@ export async function synchronizeRecords(
         // The durable cache and outbox remain unchanged until a later pull succeeds.
       }
 
+      if (transport.pullOccurrences) {
+        try {
+          const occurrences = await transport.pullOccurrences(careSpaceId, space.occurrenceCursor);
+          applyRemoteOccurrences(space, occurrences);
+        } catch {
+          // Record sync remains usable; occurrence pull resumes with its independent cursor.
+        }
+      }
+
       const migrationBlocked = space.outbox.some((mutation) => mutation.kind === 'import');
       if (!migrationBlocked && pullVerified && space.migration.status !== 'complete') {
         space.migration = { ...space.migration, status: 'complete', completedAt: now.toISOString() };
@@ -443,6 +561,11 @@ export async function synchronizeRecords(
 
 export function readRecordCache(ownerId: string) {
   return loadStore(ownerId);
+}
+
+export async function readOccurrenceCache(ownerId: string, careSpaceId: string) {
+  const store = await loadStore(ownerId);
+  return [...(store.spaces[careSpaceId]?.occurrences ?? [])];
 }
 
 export async function recordRetryDelay(

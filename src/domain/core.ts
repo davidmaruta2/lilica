@@ -12,6 +12,7 @@ import {
   RecurrenceRule,
   SemanticOperation,
 } from './types';
+import { stableUuid } from '../identifiers';
 
 const DAY_MS = 86_400_000;
 const TERMINAL_STATUSES: OccurrenceStatus[] = ['completed', 'cancelled', 'missed'];
@@ -40,6 +41,37 @@ function addDays(value: IsoDate, amount: number): IsoDate {
   return isoDate(result.getUTCFullYear(), result.getUTCMonth() + 1, result.getUTCDate());
 }
 
+function occurrenceDate(occurrence: Occurrence): IsoDate | undefined {
+  if (occurrence.timing?.kind === 'date' || occurrence.timing?.kind === 'local_datetime') return occurrence.timing.date;
+  if (occurrence.timing?.kind === 'instant') {
+    return dateInTimeZone(occurrence.timing.instant, occurrence.timing.timezone ?? 'Europe/London');
+  }
+  if (occurrence.kind === 'action') return occurrence.dueOn;
+  return occurrence.startsAt
+    ? dateInTimeZone(occurrence.startsAt, occurrence.timezone ?? 'Europe/London')
+    : undefined;
+}
+
+function eventHasPassed(occurrence: Occurrence, clock: { now: string; today: IsoDate }) {
+  if (occurrence.kind !== 'event' || occurrence.status !== 'scheduled') return false;
+  if (occurrence.timing?.kind === 'instant') {
+    return new Date(occurrence.timing.instant).getTime() < new Date(clock.now).getTime();
+  }
+  if (occurrence.timing?.kind === 'local_datetime') {
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone: occurrence.timing.timezone,
+      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    });
+    const parts = formatter.formatToParts(new Date(clock.now));
+    const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
+    const localNow = `${value('year')}-${value('month')}-${value('day')}T${value('hour')}:${value('minute')}`;
+    return `${occurrence.timing.date}T${occurrence.timing.time}` < localNow;
+  }
+  if (occurrence.timing?.kind === 'date') return occurrence.timing.date < clock.today;
+  const eventEnd = occurrence.endsAt ?? occurrence.startsAt;
+  return Boolean(eventEnd) && new Date(eventEnd!).getTime() < new Date(clock.now).getTime();
+}
+
 export function dateInTimeZone(instant: string | Date, timezone: string): IsoDate {
   const date = typeof instant === 'string' ? new Date(instant) : instant;
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -61,10 +93,8 @@ export function deriveOccurrenceState(
   const dateDifference = occurrence.dueOn
     ? dateOrdinal(occurrence.dueOn) - dateOrdinal(clock.today)
     : undefined;
-  const eventEnd = occurrence.endsAt ?? occurrence.startsAt;
-  const eventDate = occurrence.startsAt
-    ? dateInTimeZone(occurrence.startsAt, occurrence.timezone ?? 'Europe/London')
-    : undefined;
+  const eventDate = occurrence.kind === 'event' ? occurrenceDate(occurrence) : undefined;
+  const pastAwaitingOutcome = eventHasPassed(occurrence, clock);
 
   return {
     dueToday: actionable && dateDifference === 0,
@@ -74,10 +104,10 @@ export function deriveOccurrenceState(
       || (occurrence.kind === 'event' && eventDate !== undefined && eventDate > clock.today)
     ),
     unresolved: actionable,
-    pastAwaitingOutcome: occurrence.kind === 'event'
-      && occurrence.status === 'scheduled'
-      && Boolean(eventEnd)
-      && new Date(eventEnd!).getTime() < new Date(clock.now).getTime(),
+    pastAwaitingOutcome,
+    effectiveStatus: pastAwaitingOutcome
+      ? 'past_awaiting_outcome' as const
+      : occurrence.status,
   };
 }
 
@@ -165,7 +195,7 @@ export function recurrenceDate(rule: RecurrenceRule, sequence: number): IsoDate 
 }
 
 export function occurrenceKey(recordId: string, sequence: number) {
-  return `${recordId}:occurrence:${sequence}`;
+  return stableUuid(`phase8-occurrence|${recordId}|${sequence}`);
 }
 
 export function ensureNextOccurrence(
@@ -190,9 +220,11 @@ export function ensureNextOccurrence(
   const occurrence: Occurrence = {
     id: key,
     recordId: record.id,
+    careSpaceId: record.careSpaceId,
     kind: completed.kind,
     status: completed.kind === 'event' ? 'scheduled' : 'open',
     dueOn,
+    timing: { kind: 'date', date: dueOn },
     sequence,
     recurrenceKey: key,
     ruleVersion: rule.version,
@@ -205,7 +237,7 @@ export function planRecurrenceEdit(
   rule: RecurrenceRule,
   selected: Occurrence,
   occurrences: Occurrence[],
-  scope: 'one' | 'this_and_future',
+  scope: 'one' | 'this_and_future' | 'entire_series',
   newDate: IsoDate,
 ) {
   if (TERMINAL_STATUSES.includes(selected.status)) {
@@ -215,26 +247,51 @@ export function planRecurrenceEdit(
     return {
       rule,
       occurrences: occurrences.map((item) => item.id === selected.id
-        ? { ...item, dueOn: newDate }
+        ? { ...item, dueOn: newDate, timing: { kind: 'date' as const, date: newDate } }
         : item),
       affectedOccurrenceIds: [selected.id],
     };
   }
 
-  const selectedSequence = selected.sequence ?? 0;
+  const selectedSequence = scope === 'entire_series' ? 0 : selected.sequence ?? 0;
   const affectedOccurrenceIds = occurrences
     .filter((item) => (item.sequence ?? -1) >= selectedSequence && !TERMINAL_STATUSES.includes(item.status))
     .map((item) => item.id);
+  const version = rule.version + 1;
+  const anchorSequence = scope === 'entire_series' ? 0 : selected.sequence ?? 0;
+  const nextRule = {
+    ...rule,
+    id: stableUuid(`phase8-rule|${rule.seriesId ?? rule.recordId}|${version}|${newDate}`),
+    version,
+    anchorDate: newDate,
+    effectiveFrom: scope === 'entire_series'
+      ? rule.effectiveFrom
+      : selected.originalDate ?? selected.dueOn ?? newDate,
+  };
   return {
-    rule: {
-      ...rule,
-      version: rule.version + 1,
-      anchorDate: newDate,
-      effectiveFrom: selected.originalDate ?? selected.dueOn ?? newDate,
-    },
-    occurrences,
+    rule: nextRule,
+    occurrences: occurrences.map((item) => {
+      if (!affectedOccurrenceIds.includes(item.id)) return item;
+      const sequence = Math.max(0, (item.sequence ?? anchorSequence) - anchorSequence);
+      const dueOn = recurrenceDate(nextRule, sequence);
+      return { ...item, dueOn, timing: { kind: 'date' as const, date: dueOn }, ruleVersion: version };
+    }),
     affectedOccurrenceIds,
   };
+}
+
+export function validateAssignment(assignment: Assignment) {
+  const targetCount = Number(Boolean(assignment.recordId)) + Number(Boolean(assignment.occurrenceId));
+  const assigneeCount = Number(Boolean(assignment.membershipId)) + Number(Boolean(assignment.externalContactId));
+  if (targetCount !== 1) throw new Error('Assignment must target exactly one record or occurrence');
+  if (assigneeCount !== 1) throw new Error('Assignment must identify exactly one assignee');
+  if (assignment.assigneeType === 'membership' && !assignment.membershipId) throw new Error('Membership assignment requires membership identity');
+  if (assignment.assigneeType === 'external_contact' && !assignment.externalContactId) throw new Error('External contact assignment requires contact identity');
+  return assignment;
+}
+
+export function assignmentFromLegacyResponsibility(_text: string | undefined): Assignment | undefined {
+  return undefined;
 }
 
 export function planLinkedDateChange(link: RecordLink, sourceDate: IsoDate, currentDate?: IsoDate) {
@@ -262,11 +319,8 @@ export function viewEligibility(
   const terminal = TERMINAL_STATUSES.includes(occurrence.status);
   const todayEvent = occurrence.kind === 'event'
     && occurrence.status === 'scheduled'
-    && occurrence.startsAt !== undefined
-    && dateInTimeZone(occurrence.startsAt, occurrence.timezone ?? 'Europe/London') === clock.today;
-  const projectionDate = occurrence.kind === 'event' && occurrence.startsAt
-    ? dateInTimeZone(occurrence.startsAt, occurrence.timezone ?? 'Europe/London')
-    : occurrence.dueOn;
+    && occurrenceDate(occurrence) === clock.today;
+  const projectionDate = occurrenceDate(occurrence);
   const comingUp = active && !terminal && projectionDate !== undefined
     && projectionDate > clock.today && projectionDate <= clock.comingUpThrough;
   const needsAttention = active && (state.overdue || state.dueToday || state.pastAwaitingOutcome);

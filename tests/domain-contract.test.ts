@@ -1,6 +1,7 @@
 import {
   acknowledgeReminder,
   canComplete,
+  canonicalOccurrenceForRecord,
   dateInTimeZone,
   deriveOccurrenceState,
   DomainRecord,
@@ -14,6 +15,8 @@ import {
   resolveSemanticOperations,
   shouldCreateLinkedAction,
   transitionOccurrence,
+  assignmentFromLegacyResponsibility,
+  validateAssignment,
   viewEligibility,
 } from '../src/domain';
 
@@ -37,6 +40,7 @@ function occurrence(patch: Partial<Occurrence> = {}): Occurrence {
   return {
     id: 'occurrence-1',
     recordId: 'record-1',
+    careSpaceId: 'space-mum',
     kind: 'action',
     status: 'open',
     dueOn: '2026-09-09',
@@ -48,6 +52,7 @@ function recurrenceRule(patch: Partial<RecurrenceRule> = {}): RecurrenceRule {
   return {
     id: 'rule-1',
     recordId: 'record-1',
+    careSpaceId: 'space-mum',
     version: 1,
     frequency: 'month',
     interval: 1,
@@ -175,7 +180,20 @@ describe('stable recurrence series and occurrences', () => {
     const result = planRecurrenceEdit(recurrenceRule(), selected, input, 'this_and_future', '2026-03-05');
     expect(result.rule).toMatchObject({ version: 2, anchorDate: '2026-03-05', effectiveFrom: '2026-02-28' });
     expect(result.affectedOccurrenceIds).toEqual(['occ-1', 'occ-2']);
-    expect(result.occurrences).toBe(input);
+    expect(result.occurrences).toEqual([
+      completed,
+      expect.objectContaining({ id: 'occ-1', dueOn: '2026-03-05', ruleVersion: 2 }),
+      expect.objectContaining({ id: 'occ-2', dueOn: '2026-04-05', ruleVersion: 2 }),
+    ]);
+  });
+
+  it('edits an entire series without rewriting completed history', () => {
+    const completed = occurrence({ id: 'occ-0', status: 'completed', sequence: 0, dueOn: '2026-01-31' });
+    const future = occurrence({ id: 'occ-1', sequence: 1, dueOn: '2026-02-28' });
+    const result = planRecurrenceEdit(recurrenceRule(), future, [completed, future], 'entire_series', '2026-02-05');
+    expect(result.rule).toMatchObject({ version: 2, anchorDate: '2026-02-05' });
+    expect(result.occurrences[0]).toBe(completed);
+    expect(result.occurrences[1]).toMatchObject({ dueOn: '2026-03-05', ruleVersion: 2 });
   });
 
   it('refuses to rewrite a terminal occurrence', () => {
@@ -200,9 +218,27 @@ describe('links, responsibility, activity and views', () => {
   });
 
   it('keeps responsibility separate from permission to complete', () => {
-    const assignment = { occurrenceId: 'occurrence-1', membershipId: 'member-sarah', state: 'accepted' as const };
+    const assignment = {
+      id: 'assignment-1', careSpaceId: 'space-mum', occurrenceId: 'occurrence-1',
+      assigneeType: 'membership' as const, membershipId: 'member-sarah', status: 'accepted' as const,
+      displayNameSnapshot: 'Sarah', assignedByMembershipId: 'member-david',
+      assignedAt: clock.now, acceptedAt: clock.now, createdAt: clock.now, updatedAt: clock.now,
+    };
     expect(canComplete(assignment, { canView: true, canEdit: false, canComplete: false })).toBe(false);
     expect(canComplete(undefined, { canView: true, canEdit: true, canComplete: true })).toBe(true);
+    expect(validateAssignment(assignment)).toBe(assignment);
+    expect(assignmentFromLegacyResponsibility('Sarah')).toBeUndefined();
+  });
+
+  it('rejects ambiguous assignment identities and targets', () => {
+    const base = {
+      id: 'assignment-1', careSpaceId: 'space-mum', recordId: 'record-1',
+      assigneeType: 'membership' as const, membershipId: 'member-sarah', status: 'assigned' as const,
+      displayNameSnapshot: 'Sarah', assignedByMembershipId: 'member-david',
+      assignedAt: clock.now, createdAt: clock.now, updatedAt: clock.now,
+    };
+    expect(() => validateAssignment({ ...base, occurrenceId: 'occurrence-1' })).toThrow('exactly one record or occurrence');
+    expect(() => validateAssignment({ ...base, externalContactId: 'contact-1' })).toThrow('exactly one assignee');
   });
 
   it('attributes activity to the acting membership', () => {
@@ -269,5 +305,24 @@ describe('UK date and timezone edges', () => {
     expect(dateInTimeZone('2026-12-31T23:30:00.000Z', 'Europe/London')).toBe('2026-12-31');
     expect(dateInTimeZone('2026-03-29T01:30:00.000Z', 'Europe/London')).toBe('2026-03-29');
     expect(dateInTimeZone('2026-10-25T01:30:00.000Z', 'Europe/London')).toBe('2026-10-25');
+  });
+
+  it('maps record dates to stable canonical occurrences without converting wall time to UTC', () => {
+    const record = {
+      id: 'local-1', type: 'appointment' as const, title: 'Dentist',
+      eventDate: '2026-10-25', eventTime: '01:30', createdAt: clock.now, updatedAt: clock.now,
+    };
+    const first = canonicalOccurrenceForRecord(record, 'space-mum', '11111111-1111-4111-8111-111111111111');
+    const retry = canonicalOccurrenceForRecord(record, 'space-mum', '11111111-1111-4111-8111-111111111111');
+    expect(first.occurrence).toMatchObject({
+      id: retry.occurrence?.id,
+      careSpaceId: 'space-mum',
+      kind: 'event',
+      status: 'scheduled',
+      timing: { kind: 'local_datetime', date: '2026-10-25', time: '01:30', timezone: 'Europe/London' },
+    });
+    expect(deriveOccurrenceState(first.occurrence!, {
+      ...clock, now: '2026-10-25T02:00:00.000Z', today: '2026-10-25',
+    })).toMatchObject({ pastAwaitingOutcome: true, overdue: false, effectiveStatus: 'past_awaiting_outcome' });
   });
 });

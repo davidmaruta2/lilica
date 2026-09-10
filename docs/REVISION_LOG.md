@@ -1,5 +1,15 @@
 # Revision Log
 
+## 10 September 2026 - Phase 8 core Record and Occurrence engine
+
+- Added stable, care-space-owned canonical occurrences beneath existing Phase 7 records, with explicit date-only, local date/time and instant shapes.
+- Added immutable occurrence snapshots, stable recurrence series, versioned recurrence rules and idempotent server mutation receipts. Explicit recurring completion creates exactly one deterministic next occurrence.
+- Mapped the existing record editor model behind the current UI. Missing or malformed dates remain unknown; no historical occurrence is fabricated.
+- Extended the existing account/care-space record cache and sync pass with occurrence projections and pull cursors. No second outbox or sync engine was introduced.
+- Added server-only stable assignment and external-contact foundations. Membership UUID is identity; display name is a snapshot; legacy responsibility text never auto-links; assignments never participate in access policies.
+- Preserved Claude's approved Home redesign and self/someone-else fork without UI changes. Calendar, To Do, assignment controls, collaboration, invitations and notifications remain deferred.
+- Added focused domain/cache tests and 57 Phase 8 pgTAP assertions. `npm run validate:all` passes 12 Jest suites/135 tests and 152 database assertions with clean lint. A one-migration linked preview was applied to `lilica-development`; linked tests/lint pass and migration histories match. Phase 8 physical-device QA remains outstanding; work is intentionally uncommitted pending review.
+
 ## 10 September 2026 - Self/someone-else onboarding fork
 
 Bounded implementation authorised via a written product-owner brief (`fork.txt`) after a full line-by-line trace of Codex's Phase 6/7 implementation confirmed no self-care semantic existed anywhere in the app: the `Relationship` type, the relationship-wheel copy, and the `care_space_memberships_relationship_type` database CHECK constraint were all a closed set of third-person relationships only (`Mum, Dad, Partner, Child, Grandparent, Other relative, Someone else`) with no way to represent the organiser's own care space. Confirmed as the situation the brief calls "D" (a genuine architectural gap, not a hidden or unexposed existing semantic) before writing any code.

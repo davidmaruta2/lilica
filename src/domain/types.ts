@@ -1,4 +1,5 @@
 export type IsoDate = `${number}-${number}-${number}`;
+export type IsoTime = `${number}:${number}`;
 
 export type RecordKind = 'information' | 'event' | 'action' | 'document' | 'contact' | 'update';
 export type RecordLifecycle = 'active' | 'archived';
@@ -9,6 +10,12 @@ export type OccurrenceStatus =
   | 'completed'
   | 'cancelled'
   | 'missed';
+
+export type OccurrenceTiming =
+  | { kind: 'none' }
+  | { kind: 'date'; date: IsoDate }
+  | { kind: 'local_datetime'; date: IsoDate; time: IsoTime; timezone: string }
+  | { kind: 'instant'; instant: string; timezone?: string };
 
 export type DomainRecord = {
   id: string;
@@ -21,14 +28,17 @@ export type DomainRecord = {
 export type Occurrence = {
   id: string;
   recordId: string;
+  careSpaceId: string;
   kind: 'action' | 'event';
   status: OccurrenceStatus;
+  timing?: OccurrenceTiming;
   dueOn?: IsoDate;
   startsAt?: string;
   endsAt?: string;
   timezone?: string;
   sequence?: number;
   recurrenceKey?: string;
+  recurrenceSeriesId?: string;
   ruleVersion?: number;
   originalDate?: IsoDate;
   completedAt?: string;
@@ -37,6 +47,8 @@ export type Occurrence = {
 export type RecurrenceRule = {
   id: string;
   recordId: string;
+  careSpaceId: string;
+  seriesId?: string;
   version: number;
   frequency: 'week' | 'month' | 'year';
   interval: number;
@@ -53,11 +65,34 @@ export type RecordLink = {
   datePolicy: { type: 'manual' } | { type: 'relative'; daysBefore: number };
 };
 
+export type AssignmentStatus = 'assigned' | 'accepted' | 'declined' | 'removed' | 'completed';
+
 export type Assignment = {
-  occurrenceId: string;
+  id: string;
+  careSpaceId: string;
+  recordId?: string;
+  occurrenceId?: string;
+  assigneeType: 'membership' | 'external_contact';
   membershipId?: string;
-  contactId?: string;
-  state: 'proposed' | 'accepted' | 'declined';
+  externalContactId?: string;
+  status: AssignmentStatus;
+  displayNameSnapshot: string;
+  assignedByMembershipId: string;
+  assignedAt: string;
+  acceptedAt?: string;
+  declinedAt?: string;
+  removedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CareSpaceContact = {
+  id: string;
+  careSpaceId: string;
+  displayName: string;
+  relationshipOrRole?: string;
+  createdAt: string;
 };
 
 export type PermissionSet = {

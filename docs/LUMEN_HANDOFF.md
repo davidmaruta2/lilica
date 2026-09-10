@@ -25,11 +25,12 @@ The working app now includes:
 - One cloud care space, supported person and organiser membership per reviewed person.
 - Separate device-local privacy, interests, attachment bytes and setup status per care space.
 - Care-space-scoped Supabase records with a durable local cache, semantic outbox, safe migration and server-enforced RLS.
+- Canonical care-space-owned occurrences, versioned recurrence rules/history and a server-side assignment/contact identity foundation.
 - Active-person switching, add-person and resume-incomplete-setup flows.
 - Eight real record categories with category lists, multiple stable record IDs and compact editors.
 - Wheel-based date/time selection, local document upload/camera capture and real-record-only Home sections.
 
-Phase 7 record persistence, cache, sync and safe migration are implemented, validated and physically approved. Assignments, invitations, collaboration, cloud attachment bytes and production infrastructure are not implemented.
+Phase 7 record persistence, cache, sync and safe migration are implemented, validated and physically approved. Phase 8 automated implementation is complete and awaits physical QA. Assignment UI, invitations, collaboration, cloud attachment bytes and production infrastructure are not implemented.
 
 ## Current Flow
 
@@ -68,6 +69,8 @@ Cloud-backed now:
 - Transactional/idempotent `bootstrap_supported_people(jsonb)` provisioning.
 - `records` plus idempotent `record_mutation_receipts`, server-generated domain/sensitivity metadata and version/change sequencing.
 - `apply_record_mutation(...)` for membership-checked create/import/update/tombstone operations.
+- `occurrences`, immutable `occurrence_versions`, recurrence series/rules and idempotent occurrence mutation receipts.
+- `assignments` and `care_space_contacts` as server-only stable-identity foundations; neither grants access.
 
 Device-local now:
 
@@ -81,6 +84,8 @@ Hosted development Auth uses mandatory confirmation, minimum eight-character pas
 Never run a blind full `supabase config push`; the base local config intentionally differs from remote operational settings. Use `config diff` and a narrowly scoped temporary config. Never use another Luxford project and never create/touch production without explicit approval.
 
 ## Validation Baseline
+
+The Phase 8 implementation passes `npm run validate:all`: TypeScript, 12 Jest suites/135 tests, secret scanning, Expo dependency/config checks, web export, clean migration replay, 152 pgTAP assertions and warning-level database lint. The linked Phase 8 dry run listed exactly `20260910170000_phase8_occurrence_engine.sql`; it was applied only to `lilica-development`, where the same 152 assertions and clean lint pass. Local and linked histories match through `20260910170000`.
 
 The Phase 7 implementation passed:
 
@@ -103,7 +108,7 @@ Physical-device testing found Password/the CTA still hidden behind the keyboard 
 
 On 10 September 2026, the product owner confirmed the corrected keyboard behavior and the password, verification-code, check-email and password-reset paths working on physical devices.
 
-Phase 7 is complete. Preserve its record ownership, migration, cache, outbox, conflict and RLS contracts. Do not begin Phase 8 without its own explicit approval and bounded implementation prompt.
+Phase 8 is implemented and awaiting product-owner physical QA. Preserve the Phase 7 ownership/sync contracts and Phase 8 Record -> Occurrence/history boundaries. Do not begin Phase 9.
 
 ## Approved Future Assignment Boundary
 
@@ -112,7 +117,7 @@ The current `responsiblePerson?: string` field remains intentionally unchanged u
 The authoritative sequence is:
 
 1. Phase 7 preserves legacy responsibility text and provenance exactly, creates no assignment by name/email matching, and gives cloud records stable care-space identity. This is implemented and approved.
-2. Phase 8 introduces first-class assignment entities, stable membership/external-contact targets, record defaults, occurrence overrides, snapshots and immutable activity.
+2. Phase 8 introduces the stable membership/external-contact assignment entity foundation and display snapshots. It is implemented server-side; assignment controls and full activity remain deferred.
 3. Phase 9 replaces new arbitrary responsibility text with a data-driven assignment control; keep it restrained while only Unassigned/You exist.
 4. Phase 12 projects Assigned to me, Assigned to others and Unassigned using stable membership IDs.
 5. Phase 15 supplies invitations, active care-circle members, role/capability/domain permissions, selector population and immediate revocation behavior.
@@ -127,10 +132,10 @@ Interests copy now adapts for a Myself care space (`InterestsScreen`'s `isSelf` 
 
 ## Home Redesign (10 September 2026)
 
-Home's presentation was reorganised — see `docs/REVISION_LOG.md` for the full writeup. Wordmark-led header, a persistent person-switcher card (replacing the old dismissible tip banner and small text trigger), a horizontal category snapshot row, and category-tonal icon cards. Entirely contained to `src/screens/HomeScreen.tsx`: `sectionFor()` classification, `PersonSwitcher.tsx`, `Wordmark.tsx`, `records.ts`, and the `colors.canvas` theme token are all unchanged. Snapshot counts are computed locally in `HomeScreen.tsx` from already-loaded records — no new domain/aggregation logic was added to `records.ts`, deliberately, ahead of Phase 8's Record → Occurrence model.
+Home's presentation was reorganised — see `docs/REVISION_LOG.md` for the full writeup. Wordmark-led header, a persistent person-switcher card (replacing the old dismissible tip banner and small text trigger), a horizontal category snapshot row, and category-tonal icon cards. Entirely contained to `src/screens/HomeScreen.tsx`: `sectionFor()` classification, `PersonSwitcher.tsx`, `Wordmark.tsx`, `records.ts`, and the `colors.canvas` theme token are all unchanged. Snapshot counts remain computed locally from already-loaded records; Phase 8 deliberately did not replace this protected presentation with a later canonical Home projection.
 
 ## Protected And Deferred
 
 Preserve Welcome, privacy gating/version/timestamp, organiser/supported-person separation, local account isolation, multi-person care-space separation, category/multi-record behavior, wheel selectors, record-sheet gestures, real-record-only Home and the current Home presentation described above.
 
-Deferred: Phase 8 record/occurrence semantics and assignments, collaboration/invitations, cloud document storage, orphan attachment cleanup, OCR, notifications, production Ask Lilica, production infrastructure, backup guarantees and account/care-space deletion policy.
+Deferred: Phase 9 assignment controls, linked-action UI, collaboration/invitations, Calendar/To Do projections, cloud document storage, orphan attachment cleanup, OCR, notifications, production Ask Lilica, production infrastructure, backup guarantees and account/care-space deletion policy.

@@ -9,11 +9,13 @@ import {
   enqueueRecordDelete,
   enqueueRecordUpsert,
   prepareRecordCache,
+  readOccurrenceCache,
   readRecordCache,
   recordRetryDelay,
   RecordMutation,
   RecordSyncTransport,
   ServerRecordRow,
+  ServerOccurrenceRow,
   synchronizeRecords,
 } from '../src/recordSync';
 import { LilicaRecord, LocalCareSpaceState } from '../src/types';
@@ -53,6 +55,7 @@ function space(careSpaceId: string, records: LilicaRecord[]): LocalCareSpaceStat
 
 class FakeTransport implements RecordSyncTransport {
   rows = new Map<string, ServerRecordRow>();
+  occurrenceRows = new Map<string, ServerOccurrenceRow>();
   receipts = new Map<string, ApplyMutationResult>();
   calls: RecordMutation[] = [];
   sequence = 0;
@@ -114,6 +117,12 @@ class FakeTransport implements RecordSyncTransport {
       .filter((row) => row.care_space_id === careSpaceId && row.change_sequence > cursor)
       .sort((left, right) => left.change_sequence - right.change_sequence);
   }
+
+  async pullOccurrences(careSpaceId: string, cursor: number) {
+    return [...this.occurrenceRows.values()]
+      .filter((row) => row.care_space_id === careSpaceId && row.change_sequence > cursor)
+      .sort((left, right) => left.change_sequence - right.change_sequence);
+  }
 }
 
 describe('Phase 7 record cache, migration and sync', () => {
@@ -163,6 +172,26 @@ describe('Phase 7 record cache, migration and sync', () => {
     expect(synced[jackieSpaceId]).toEqual([created]);
     expect(online.rows.size).toBe(1);
     expect((await readRecordCache(ownerId)).spaces[jackieSpaceId].outbox).toEqual([]);
+  });
+
+  it('keeps a deterministic dated occurrence in the account and care-space cache across restart', async () => {
+    await prepareRecordCache(ownerId, [space(jackieSpaceId, [])]);
+    const created = record({
+      id: 'a7300000-0000-4000-a000-000000000011',
+      dueDate: '2026-10-14',
+    });
+    await enqueueRecordUpsert(ownerId, jackieSpaceId, created);
+    const beforeRestart = await readOccurrenceCache(ownerId, jackieSpaceId);
+    const afterRestart = await readOccurrenceCache(ownerId, jackieSpaceId);
+    expect(beforeRestart).toHaveLength(1);
+    expect(afterRestart).toEqual(beforeRestart);
+    expect(afterRestart[0]).toMatchObject({
+      careSpaceId: jackieSpaceId,
+      kind: 'action',
+      dueOn: '2026-10-14',
+      timing: { kind: 'date', date: '2026-10-14' },
+    });
+    expect(await readOccurrenceCache(ownerId, beautySpaceId)).toEqual([]);
   });
 
   it('does not let a later mutation overtake an earlier retry for the same record', async () => {
@@ -339,5 +368,41 @@ describe('Phase 7 record cache, migration and sync', () => {
     const pulled = await synchronizeRecords(ownerId, [jackieSpaceId], server);
     expect(pulled[jackieSpaceId][0]).toMatchObject({ id: 'a7300000-0000-4000-a000-000000000008', title: 'Power of attorney' });
     expect(pulled[jackieSpaceId][0].attachments).toBeUndefined();
+  });
+
+  it('reconciles the same canonical occurrence identity from a second device', async () => {
+    await prepareRecordCache(ownerId, [space(jackieSpaceId, [])]);
+    const server = new FakeTransport();
+    const occurrenceId = 'a7400000-0000-4000-a000-000000000001';
+    server.occurrenceRows.set(occurrenceId, {
+      id: occurrenceId,
+      care_space_id: jackieSpaceId,
+      record_id: 'a7300000-0000-4000-a000-000000000008',
+      occurrence_kind: 'event',
+      status: 'scheduled',
+      timing_kind: 'local_datetime',
+      due_on: null,
+      starts_on: '2026-10-25',
+      starts_time: '01:30:00',
+      timezone: 'Europe/London',
+      instant_at: null,
+      recurrence_series_id: null,
+      sequence: 0,
+      original_due_on: null,
+      original_starts_on: '2026-10-25',
+      completed_at: null,
+      deleted_at: null,
+      version: 1,
+      change_sequence: 1,
+    });
+    await synchronizeRecords(ownerId, [jackieSpaceId], server);
+    await synchronizeRecords(ownerId, [jackieSpaceId], server);
+    expect(await readOccurrenceCache(ownerId, jackieSpaceId)).toEqual([
+      expect.objectContaining({
+        id: occurrenceId,
+        recordId: 'a7300000-0000-4000-a000-000000000008',
+        timing: { kind: 'local_datetime', date: '2026-10-25', time: '01:30', timezone: 'Europe/London' },
+      }),
+    ]);
   });
 });
