@@ -119,8 +119,12 @@ The authoritative sequence is:
 
 Responsibility never grants visibility. Permission is enforced independently by server-side RLS/capability/domain checks. Pending or inactive memberships are not assignable; external contacts have zero application access. See sections 8, 11, 12, 17 and 18.6 of `docs/CORE_SYSTEM_CONTRACT.md`.
 
+## Home Redesign (10 September 2026)
+
+Home's presentation was reorganised — see `docs/REVISION_LOG.md` for the full writeup. Wordmark-led header, a persistent person-switcher card (replacing the old dismissible tip banner and small text trigger), a horizontal category snapshot row, and category-tonal icon cards. Entirely contained to `src/screens/HomeScreen.tsx`: `sectionFor()` classification, `PersonSwitcher.tsx`, `Wordmark.tsx`, `records.ts`, and the `colors.canvas` theme token are all unchanged. Snapshot counts are computed locally in `HomeScreen.tsx` from already-loaded records — no new domain/aggregation logic was added to `records.ts`, deliberately, ahead of Phase 8's Record → Occurrence model.
+
 ## Protected And Deferred
 
-Preserve Welcome, privacy gating/version/timestamp, organiser/supported-person separation, local account isolation, multi-person care-space separation, category/multi-record behavior, wheel selectors, record-sheet gestures and real-record-only Home.
+Preserve Welcome, privacy gating/version/timestamp, organiser/supported-person separation, local account isolation, multi-person care-space separation, category/multi-record behavior, wheel selectors, record-sheet gestures, real-record-only Home and the current Home presentation described above.
 
 Deferred: Phase 8 record/occurrence semantics and assignments, collaboration/invitations, cloud document storage, orphan attachment cleanup, OCR, notifications, production Ask Lilica, production infrastructure, backup guarantees and account/care-space deletion policy.

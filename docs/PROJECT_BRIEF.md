@@ -161,7 +161,9 @@ Home displays only real saved records. It groups them into populated sections:
 - Coming up
 - Latest
 
-Do not add fake records, statistics, profile-completion prompts, feature grids or empty dashboard sections. The existing shell includes placeholder Calendar, To Do and Person tabs; those are not full Phase 2 products.
+Do not add fake records, fabricated statistics, profile-completion prompts, feature grids or empty dashboard sections. The existing shell includes placeholder Calendar, To Do and Person tabs; those are not full Phase 2 products.
+
+The header leads with the Lilica wordmark; the supported-person context sits beneath it as a persistent, tappable card that opens the person switcher (replacing the old dismissible "Everything for [Name], in one place" banner and the small "[Name]'s week" text trigger). Directly beneath that, a horizontal snapshot row shows a truthful open-record count per category (To do/Bills/Home matters/Appointments), derived locally in `HomeScreen.tsx` from the records already loaded — this is not the "fake statistics" the rule above prohibits, since every number is a live count of real records under the existing derivation, not fabricated or projected. Section item cards use a small category-tonal icon (drawn from plain Views, no icon-library dependency) instead of one uniform accent color, plus an explicit "Overdue" label only where the existing derivation says so.
 
 ## Design Direction
 

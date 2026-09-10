@@ -1,5 +1,24 @@
 # Revision Log
 
+## 10 September 2026 - Home presentation redesign
+
+A browser mockup was reviewed and approved by the product owner, then authorised by GPT (development oversight) with an explicit architectural boundary: no new domain/aggregation semantics in `src/records.ts`, no permanent "To Do" record-category rule, and everything contained to `src/screens/HomeScreen.tsx`.
+
+Changes, all inside `HomeScreen.tsx`:
+
+- Header now leads with the `Wordmark` component (reused, not recreated) as the dominant element.
+- The old dismissible "Everything for [Name], in one place" banner and the small "[Name]'s week ⌄" switcher trigger are both replaced by one persistent, tappable card (no Dismiss action) that opens the existing `PersonSwitcher` unchanged. It's shown regardless of setup status, preserving the same always-reachable switcher access the old header trigger had.
+- New horizontal-scroll snapshot row beneath it: To do / Bills / Home matters / Appointments, each a truthful count of not-completed records of that type, computed locally with the existing `deriveRecordState()` — no new selector was added to `records.ts`. Hidden entirely when there are no records, per the existing documented rule to omit empty sections rather than show zero counts. The caption is the single word "open" everywhere, since that is the only word truthful for every category under the current record model; "To do" is a display label for today's `task` type only, not a claim about the future Phase 8 actionable-occurrence projection.
+- Section item cards (Needs attention/Today/Coming up/Latest — `sectionFor()`'s own four-way classification is unchanged) moved from a single-column list with one uniform accent bar to a two-column grid, each card carrying a small category-tonal icon and an explicit "Overdue" label shown only when the existing `deriveRecordState(item).overdue` is true.
+- Category icons for all eight record types are drawn from plain `View`/border shapes (the same technique already used by `Wordmark`'s leaf mark and `PersonSwitcher`'s tick) — no icon-library dependency was added.
+- Category eyebrow/snapshot labels are looked up from the existing `firstItemOptions` list in `src/data/options.ts`, not a separate invented label set.
+
+Not changed: `sectionFor()` classification, `PersonSwitcher.tsx`, `Wordmark.tsx`, `records.ts`, `Screen.tsx`, `TabBar.tsx`, `colors.canvas` or any other theme token, dependencies, and no Phase 7/8 code.
+
+Verification: `npm run validate` — TypeScript, 11 Jest suites/123 tests (including the existing characterization tests asserting Home's empty-state and Needs-attention classification, unmodified and passing), secret scan, dependency/config checks and web export all pass.
+
+Physical-device QA still required: long person names and long record titles in the new cards, and the horizontal snapshot row on a narrow phone.
+
 ## 10 September 2026 - Phase 7 record persistence, cache, sync and migration
 
 - Added care-space-owned Supabase records, generated domain/sensitivity classification, active-membership RLS, protected audit/version fields, tombstone deletion and idempotent mutation receipts.
