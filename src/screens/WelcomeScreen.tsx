@@ -4,11 +4,11 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandVisual } from '../components/BrandVisual';
 import { Button } from '../components/Button';
@@ -138,7 +138,7 @@ export function WelcomeScreen({ onStart, onLogin }: Props) {
 
   return (
     <View style={[styles.backdrop, { backgroundColor: pages[page].color }]}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea} testID="welcome-safe-area">
         <View style={[styles.frame, { width: pageWidth }]}>
           <View style={styles.topBar}>
             <Wordmark tone="light" />

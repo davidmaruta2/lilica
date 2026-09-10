@@ -1,4 +1,5 @@
-import { deriveRecordState, formatDateForInput, toIsoDate } from '../src/records';
+import { deriveRecordState, formatDateForInput, removeRecordById, toIsoDate, upsertRecord } from '../src/records';
+import { clampDateParts, daysInMonth, formatWheelDate, formatWheelTime } from '../src/components/DateTimeWheelField';
 import { LilicaRecord } from '../src/types';
 
 function record(patch: Partial<LilicaRecord> = {}): LilicaRecord {
@@ -24,6 +25,37 @@ describe('Phase 1 date parsing characterization', () => {
 
   it('formats stored ISO dates for the UK input', () => {
     expect(formatDateForInput('2026-09-09')).toBe('09/09/2026');
+  });
+});
+
+describe('structured record multi-entry correction', () => {
+  it('adds three records, edits only the second and removes only the first by ID', () => {
+    const first = record({ id: 'appointment-1', type: 'appointment', title: 'Orthodontist', eventTime: '10:00' });
+    const second = record({ id: 'appointment-2', type: 'appointment', title: 'GP appointment', eventTime: '14:30' });
+    const third = record({ id: 'appointment-3', type: 'appointment', title: 'Dentist', eventTime: '09:15' });
+    let records = [first, second, third].reduce(upsertRecord, [] as LilicaRecord[]);
+
+    records = upsertRecord(records, { ...second, eventTime: '15:00' });
+    expect(records).toHaveLength(3);
+    expect(records.map((item) => item.eventTime)).toEqual(['10:00', '15:00', '09:15']);
+
+    records = removeRecordById(records, first.id);
+    expect(records).toEqual([{ ...second, eventTime: '15:00' }, third]);
+  });
+});
+
+describe('Lilica date and time wheel logic', () => {
+  it('handles leap years and safely clamps impossible days', () => {
+    expect(daysInMonth(2, 2024)).toBe(29);
+    expect(daysInMonth(2, 2026)).toBe(28);
+    expect(clampDateParts({ day: 31, month: 2, year: 2024 })).toEqual({ day: 29, month: 2, year: 2024 });
+    expect(clampDateParts({ day: 31, month: 2, year: 2026 })).toEqual({ day: 28, month: 2, year: 2026 });
+  });
+
+  it('formats UK dates and every minute in 24-hour time', () => {
+    expect(formatWheelDate({ day: 9, month: 5, year: 2027 })).toBe('09/05/2027');
+    expect(formatWheelTime({ hour: 0, minute: 0 })).toBe('00:00');
+    expect(formatWheelTime({ hour: 9, minute: 5 })).toBe('09:05');
   });
 });
 

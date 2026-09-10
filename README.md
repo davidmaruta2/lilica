@@ -1,19 +1,23 @@
 # Lilica
 
-Lilica is a React Native care-organising app for Luxford Interactive. It helps one person organise appointments, tasks, bills, home matters, documents, contacts, care information and updates for someone they support.
+Lilica is a React Native care-organising app for Luxford Interactive. It helps an organiser keep separate appointments, tasks, bills, home matters, documents, contacts, care information and updates for each person they support.
 
-The repository currently contains the Phase 1 onboarding foundation and an early real-record workflow. Before making product or design changes, read:
+The repository currently contains the Phase 1 product foundation, Phase 5 authentication and the Phase 6 multi-person ownership kernel. Before making product or design changes, read:
 
 - `docs/PROJECT_BRIEF.md`
 - `docs/LUMEN_HANDOFF.md`
 - `docs/REVISION_LOG.md`
+- `docs/PHASE_6_CLAUDE_HANDOFF.md` for Phase 6 history and constraints
 - `AGENTS.md`
 
 ## Current Experience
 
 - Three-slide Welcome / How Lilica Works introduction
-- Local placeholder account-method and email flow
-- Supported-person relationship, name and privacy-consent steps
+- Supabase email/password account creation, six-digit verification, login and six-digit-code recovery
+- Separate durable organiser profile with a required display name
+- Multi-person supported-person roster, identity review and first-person choice
+- Separate privacy, interests, records and Home context for each care space
+- Minimal active-person switcher with add-person and incomplete-setup routes
 - Horizontal interest-selection carousel
 - `Let's get [Name] organised` vertical snapping record stack
 - Eight record types with compact bottom-sheet editors
@@ -26,13 +30,15 @@ The Welcome work should be preserved unless the product owner explicitly request
 
 ## Important Limitation
 
-Authentication remains a local prototype. Email entry does not yet verify the address or create a secure account. The app also does not yet collect the organiser's own profile, and there is no care-circle membership or permissions model. These are documented requirements for later work, not implemented features.
+Phase 6 stores supported-person identity, one-person care spaces and organiser memberships in Supabase. Privacy acknowledgements, interests, records and attachments remain device-local and are partitioned by care space; cloud record persistence and sync belong to Phase 7. Signing out preserves that local data rather than assigning or deleting it.
+
+Profile photos are deferred because no private storage boundary exists yet. Date of birth is intentionally not collected.
 
 Document files and camera captures are stored locally in the app's document directory. There is no backend upload, cross-device synchronisation, OCR or document-processing pipeline.
 
 ## Backend Foundation
 
-Phase 4 adds a dedicated non-production Supabase development project, version-controlled migrations, a minimal auth-linked `profiles` table, owner-only RLS, and local/hosted policy tests. The running app is deliberately not connected to Supabase yet, and local Phase 1 data remains authoritative.
+Phase 4 adds the dedicated non-production Supabase project and owner-only profiles. Phase 5 connects authentication and organiser profiles. Phase 6 adds `care_spaces`, `supported_people`, `care_space_memberships`, membership-enforced RLS and an atomic idempotent multi-person bootstrap RPC. Local care content remains authoritative until Phase 7.
 
 See `docs/SUPABASE_OPERATIONS.md` for environment boundaries, migrations, security tests, secrets handling, and recovery limits.
 
@@ -59,7 +65,9 @@ npx expo config --type public
 npx expo export --platform web
 ```
 
-Phase 3 adds a small Jest/`jest-expo` and React Native Testing Library safety harness. `npm run validate` runs typecheck, automated tests, Expo dependency/config checks and a web export. The future domain examples in `src/domain` are deliberately not connected to the application yet. Physical-device checks remain manual; see `docs/PHASE_3_QA_BASELINE.md`.
+Phase 3 adds a small Jest/`jest-expo` and React Native Testing Library safety harness. `npm run validate` runs typecheck, automated tests, Expo dependency/config checks and a web export. The future domain examples in `src/domain` are deliberately not connected to the application yet. Physical-device checks remain manual; see `docs/PHASE_3_QA_BASELINE.md`, `docs/PHASE_5_QA.md` and `docs/PHASE_6_QA.md`.
+
+The immediate next step is Android/iOS physical-device acceptance of clean signup, recovery-code password reset, safe areas and keyboard-open forms. Phase 7 cloud records/sync has not started and requires separate approval.
 
 ## Reference Material
 

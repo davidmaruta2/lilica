@@ -1,212 +1,106 @@
 # Lilica Current Handoff
 
-## Read This First
+Date: 10 September 2026
+Branch: `master`
+Remote: `origin` (`https://github.com/davidmaruta2/lilica`)
 
-Work in:
+Despite its legacy filename, this is the canonical current handoff for every incoming agent.
 
-`C:\Users\DavidPC\Downloads\DAVID\Lilica\lilica-app`
+## What Lilica Is
 
-Read `docs/PROJECT_BRIEF.md` for the canonical product and technical state. The older handoff described the whole visual direction as rejected; that is no longer current. The product owner now considers the Welcome screens a good foundation and specifically asked that Lumen's work not be undone.
+Lilica is a calm personal and family care organiser. An organiser keeps appointments, tasks, bills, home matters, documents, contacts, care information and updates separately for each person they support. It is not a clinical system, surveillance product, emergency monitor or generic family calendar.
 
-The active design and product edge begins after `What do you help [Name] with?`, at the structured-record onboarding screen.
+Read `docs/PROJECT_BRIEF.md`, `AGENTS.md`, `docs/SUPABASE_OPERATIONS.md` and `docs/CORE_SYSTEM_CONTRACT.md` before implementation.
 
-Despite its legacy filename, this is the canonical session handoff for any incoming agent, not instructions specifically for Lumen.
+## Implemented Product State
 
-## Session Summary
+The working app now includes:
 
-This session picked up after Lumen's Welcome and interest-screen work. The product owner gave three important directions:
+- Protected three-slide Welcome / How Lilica Works introduction.
+- Supabase email/password account creation and login.
+- Six-digit signup verification with resend.
+- Password recovery through Check your email, six-digit code entry and new-password screens.
+- Required organiser `About you` profile, separate from supported people.
+- Multi-person relationship selection, naming, review and first-person choice.
+- One cloud care space, supported person and organiser membership per reviewed person.
+- Separate device-local privacy, interests, records, attachments and setup status per care space.
+- Active-person switching, add-person and resume-incomplete-setup flows.
+- Eight real record categories with category lists, multiple stable record IDs and compact editors.
+- Wheel-based date/time selection, local document upload/camera capture and real-record-only Home sections.
 
-1. The Welcome screens now look good enough and must not be undone.
-2. The old `What would help today?` step should become a meaningful structured-record entry experience, not another questionnaire.
-3. The organiser account/profile and future care-circle identity problem is real, but the product owner explicitly paused that work. It was discussed and documented only; no profile implementation was made.
-
-The first record implementation used an expanding form inside each vertical card. Physical-device screenshots showed oversized fields, clipping behind the footer/keyboard and an awkward relationship between the form and stack. The editor was therefore moved into a bottom sheet. Follow-up feedback identified missing document upload/camera actions and unreliable swipe-down dismissal; both were addressed in code during this session.
-
-The current change set is intended to be committed as one coherent checkpoint covering Lumen's interest-carousel work, structured records, Home grouping, bottom-sheet editing, document capture, dependencies and documentation.
+Phase 7 cloud records/sync, invitations, collaboration, cloud attachments and production infrastructure are not implemented.
 
 ## Current Flow
 
-1. Three-slide Welcome / How Lilica Works introduction
-2. Create-account method choice
-3. Focused email screen when email is chosen
-4. Relationship to supported person
-5. Supported person's preferred name
-6. Privacy declaration
-7. Horizontal interest-selection carousel
-8. `Let's get [Name] organised` vertical record stack
-9. Home after one real item, or a permitted skip
+1. Welcome introduction.
+2. Create account or Log in.
+3. New account: enter email/password, then the six-digit email code.
+4. New profile: enter organiser display name.
+5. Select one or more people/relationships, name each person, review, then choose whom to set up first.
+6. Complete that person's privacy declaration, interests and optional initial records.
+7. Enter Home, switch people, resume another person's setup or add a person.
+8. Recovery: request code, see Check your email, enter six-digit code, then choose a new password.
 
-Onboarding state is persisted in AsyncStorage. Completed onboarding resumes at Home. Legacy `firstItem` state is migrated into the current records array.
+A logged-out fresh Expo Go session must land on Welcome. Authenticated storage is namespaced by Supabase user ID so one account cannot inherit another account's local care data. A restored token is checked against Supabase; a server-rejected deleted identity is cleared, while an ordinary network failure does not erase a cached session.
 
-## Recent Product Change
+## Critical Layout Rules
 
-The previous `What would help today?` screen was conceptually repetitive because the user had already selected their areas of help. It is now the transition from onboarding into real product value.
+- `react-native-safe-area-context` owns top/bottom insets. Welcome header content must remain below Android/iOS system status areas.
+- Text-entry screens use `Screen`, whose content and footer share one scroll region. The CTA is never a fixed overlay over required fields.
+- `KeyboardAwareScrollView` reveals a focused native input on focus and again after `keyboardDidShow`.
+- Android keeps `softwareKeyboardLayoutMode: resize` and does not add a second `KeyboardAvoidingView` height reduction.
+- iOS uses `KeyboardAvoidingView` padding. Both platforms use platform-appropriate keyboard dismissal.
+- Record editors use the same focus-aware scrolling through `RecordSheet`.
+- Do not replace this with hard-coded keyboard margins or device-specific offsets.
 
-`FirstThingScreen` presents eight real record entry points in an interest-prioritised vertical snapping stack:
+These rules cover Login, Create account, About You, names, signup/recovery code entry, recovery request/new password, item forms and record editing.
 
-- Appointment
-- Something to do
-- Bill or renewal
-- Home matter
-- Important document
-- Contact
-- Care information
-- Update
+## Backend Boundary
 
-The categories are never hidden. The focused card is more prominent, adjacent cards remain visible, and saved cards display an Added/Edit state.
+Only `lilica-development` (`ldocquqbcabdbscghojc`) exists for Lilica. No production project exists or was touched.
 
-## Editor Interaction
+Cloud-backed now:
 
-Record forms no longer expand inside the carousel card. They open in `RecordSheet`, an animated bottom sheet with compact inputs.
+- Supabase Auth account/session.
+- `public.profiles` organiser identity.
+- `care_spaces`, `supported_people` and `care_space_memberships`.
+- Transactional/idempotent `bootstrap_supported_people(jsonb)` provisioning.
 
-Dismissal paths:
+Device-local now:
 
-- Tap Done
-- Tap the backdrop
-- Use the platform back action
-- Swipe downward while the form is scrolled to the top
+- Privacy acknowledgement, interests, setup progress, records and attachment files/metadata.
+- These are partitioned by authenticated user and care space and survive sign-out on that device.
 
-The pan responder is attached to the whole sheet so the user is not required to catch a narrow handle. Form scrolling retains priority when content is below the top.
+Hosted development Auth uses mandatory confirmation, minimum eight-character passwords, custom Resend SMTP from `Lilica <auth@luxfordinteractive.com>`, and six-digit confirmation and recovery templates. Credentials are secret hosted configuration and must never enter Git or the mobile bundle.
 
-Draft state belongs to `FirstThingScreen`, not the sheet. Closing and reopening a category during that mounted session restores its unsaved text and attachments. Unsaved drafts do not survive an app restart.
+Never run a blind full `supabase config push`; the base local config intentionally differs from remote operational settings. Use `config diff` and a narrowly scoped temporary config. Never use another Luxford project and never create/touch production without explicit approval.
 
-Saving persists a `LilicaRecord`, closes the sheet, marks the category Added, and moves focus naturally toward the next category.
-
-The onboarding stack currently edits the first saved record matching each category. It does not yet offer a multi-record list within one category, although the underlying `records` array can hold multiple records. Future work should make that product decision explicitly rather than assuming the onboarding editor is a complete record manager.
-
-## Record And Home Logic
-
-`src/types.ts` defines the shared record, recurrence, confirmation and attachment shapes. `src/records.ts` owns UK date parsing/display and deterministic derived state:
-
-- Due today
-- Overdue
-- Upcoming
-- Completed
-- Unresolved
-- Recently updated
-- Next date after a completed recurring item
-
-`HomeScreen` groups real records into Needs attention, Today, Coming up and Latest. Empty sections are omitted. No fake records are generated.
-
-## Document Attachments
-
-The Important document form now includes:
-
-- Upload file through `expo-document-picker`
-- Scan with camera through `expo-image-picker`
-- Multiple attachment rows with removal actions
-- Automatic title suggestion from the first filename when title is blank
-
-On native platforms, picker/camera output is copied into `Paths.document/attachments` with `expo-file-system` before being added to the draft. The saved record stores attachment metadata and the durable local URI.
-
-Current limits:
-
-- Camera scan is a photograph, not an edge-detected document scan.
-- No crop, PDF assembly, OCR or text extraction exists.
-- No backend upload or cross-device file synchronisation exists.
-- Removed attachments are removed from draft/record metadata but local orphan-file cleanup is not implemented yet.
-- Physical-device camera, permission and swipe behaviour still require manual QA.
-
-## Authentication And Care Circle Gap
-
-The account screens are demonstrative only. Email entry by itself is not authentication. No email verification, password, one-time code, Apple OAuth or Google OAuth is implemented.
-
-The current flow also captures only the supported person's preferred name. It does not create the organiser's own user profile. That makes a future care circle ambiguous because members would lack stable display identity and permissions.
-
-Before collaboration work, add separate models for:
-
-- Authenticated account
-- Organiser/user profile
-- Supported-person profile
-- Care-circle membership, invitation, role and permissions
-
-Recommended product sequence: authenticate and verify, collect a minimal `About you` profile, then ask who the user supports. Profile photo should be optional. Date of birth should remain optional and should only be collected for a justified product requirement.
-
-This is deliberately documented and deferred. Do not quietly bolt care-circle fields onto the supported-person model.
-
-No password, date-of-birth, organiser name or profile-photo fields were added. The advice was to collect the organiser's name, make their photo optional, avoid DOB unless justified, and use either verified password authentication or passwordless email verification for email accounts.
-
-## Files Central To Current Work
-
-- `App.tsx`: onboarding state transitions and record persistence wiring
-- `src/screens/InterestsScreen.tsx`: horizontal selectable carousel
-- `src/screens/FirstThingScreen.tsx`: vertical snapping record stack and draft ownership
-- `src/components/RecordSheet.tsx`: modal animation and dismissal gestures
-- `src/components/RecordEditor.tsx`: per-category compact fields, save mapping and attachments
-- `src/components/TextField.tsx`: standard and compact input sizing
-- `src/screens/HomeScreen.tsx`: real-record grouping
-- `src/records.ts`: deterministic record calculations
-- `src/storage.ts`: persistence and legacy migration
-- `src/types.ts`: current data contracts
-- `app.json`: document-picker and camera permission configuration
-- `supabase/migrations`: authoritative backend schema history
-- `supabase/tests/database`: transactional database and RLS policy tests
-- `docs/SUPABASE_OPERATIONS.md`: environment, secrets, migration and recovery runbook
-
-## Phase 4 Backend Foundation
-
-The repository is linked locally to the dedicated non-production `lilica-development` Supabase project under Luxford Interactive. Link metadata and personal CLI authentication remain outside Git. No production Lilica project exists.
-
-Phase 4 adds only the auth-linked `public.profiles` table. It has a required display name, optional private avatar path, server timestamps, explicit grants and owner-only RLS. There is no runtime Supabase client and the app still uses its unchanged local placeholder account flow and AsyncStorage data. Run `npm run validate:backend` with Docker Desktop running and read `docs/SUPABASE_OPERATIONS.md` before backend work.
-
-## Preserve
-
-- Lumen's Welcome and account-choice presentation
-- Privacy declaration gate, version and timestamp
-- Skip paths
-- Supported-person name personalisation
-- Interest-based ordering without category removal
-- Real-record-only Home behaviour
-- Expo SDK 57 compatibility
-
-## Deliberately Deferred
-
-- Production authentication and account recovery
-- Organiser profile and care-circle membership
-- Runtime backend integration, cloud records and multi-device sync
-- Cloud document storage
-- OCR and advanced scanning
-- Notifications and reminders
-- Production Ask Lilica/AI
-- Full Calendar, To Do and Person tabs
-- Complex permissions, payments and provider integrations
-
-## Verification Status
+## Validation Baseline
 
 At this handoff:
 
-- `npm run typecheck` passes.
-- `npx expo config --type public` resolves the native picker configuration.
-- `npx expo export --platform web` passes.
-- The local preview responds at `http://localhost:8084`.
-- A Phase 3 Jest/`jest-expo` and React Native Testing Library safety harness now exists; run `npm run validate`.
-- Historical migration fixtures live in `tests/fixtures/migration`.
-- The approved future rules are executable in the unwired `src/domain` module; do not import it into production before the relevant approved phase.
-- Final physical-device gesture, keyboard, picker and camera QA remains manual; follow `docs/PHASE_3_QA_BASELINE.md`.
-- The Phase 4 profile migration rebuilds locally and all 17 RLS tests pass locally and against hosted `lilica-development`.
-- `npm run secrets:check` enforces the repository credential baseline.
+- `npm run typecheck`: pass.
+- Jest: 8 suites, 98 tests, all pass.
+- Focused auth/responsive tests: 19 tests, all pass.
+- `npx expo install --check`: dependencies up to date.
+- `npx expo config --type public`: pass; Android keyboard mode is `resize`.
+- `git diff --check`: clean apart from Windows line-ending notices.
+- Phase 6 database baseline: local rebuild/lint and 49 profile/care-space pgTAP assertions passed when the migration was introduced.
+- Expo Metro was listening on port `8081` at handoff; verify rather than assuming that process survives a later session.
 
-Native camera permission changes in `app.json` require the Expo app to be reloaded and require a fresh native build when testing a standalone development/production binary. Expo Go can exercise the supported Expo modules, but it is not a substitute for final standalone permission testing.
+Automated tests prove structure and code paths, not physical rendering. Device acceptance remains outstanding.
 
-## Incoming Agent Checklist
+## Immediate Next Steps
 
-1. Confirm `git status --short` before editing and preserve any uncommitted Phase 2/3 documentation.
-2. Read `docs/PROJECT_BRIEF.md` and this file before changing onboarding.
-3. Run the app and inspect the current screen before interpreting older screenshots or prompts.
-4. Preserve Welcome and the horizontal interest carousel unless the user explicitly targets them.
-5. Start new product work from the structured record screen or the explicitly deferred identity architecture, depending on the user's next instruction.
-6. Run `npm run validate`, then use `docs/PHASE_3_QA_BASELINE.md` on a physical device for sheet opening, drag-down dismissal, backdrop/system-back dismissal, keyboard avoidance, draft restoration, file selection, camera permission/capture, save/edit and Home visibility.
-7. Do not describe local placeholder auth, local attachments or empty shell tabs as production-ready features.
+1. Reload Expo Go and perform the exact short-height Android Login sequence in `docs/PHASE_5_QA.md`: Email -> Password with keyboard held open -> type -> reach Login -> dismiss keyboard.
+2. Repeat keyboard checks on iPhone across Login, Create account, About You, code entry and password reset; verify no blank gap or double offset after dismissal.
+3. Run a clean account walkthrough from Welcome using the reset development test address: signup, code, About You, multi-person setup and Home.
+4. Run password recovery end to end and confirm the hosted email contains a six-digit code, not a link.
+5. Complete `docs/PHASE_6_QA.md` for multi-person isolation and relaunch behavior.
+6. Record device/build/results. Fix only observed regressions, then obtain product-owner approval before starting Phase 7.
 
-## Repository State At Handoff
+## Protected And Deferred
 
-- Branch: `master`
-- Remote: `origin` (`https://github.com/davidmaruta2/lilica`)
-- Expected state after the session commit and push: clean working tree, local `master` aligned with `origin/master`
-- Generated `dist` and local Expo state are ignored and should not be committed
+Preserve Welcome, privacy gating/version/timestamp, organiser/supported-person separation, local account isolation, multi-person care-space separation, category/multi-record behavior, wheel selectors, record-sheet gestures and real-record-only Home.
 
-## Phase 3 Architecture Boundary
-
-Phase 3 adds only protection and executable examples. The existing app continues to use `src/types.ts`, `src/records.ts`, `src/storage.ts`, and the current screens exactly as before. `src/domain` describes approved future behaviour but is intentionally disconnected from `App.tsx` and must remain so until a later phase explicitly authorises integration and migration.
-
-The characterization suite deliberately records current limitations, including passed appointments deriving as overdue, due-today appointments entering Needs attention, JavaScript month-end recurrence rollover, and malformed JSON rejecting load. A future test should change only alongside the approved implementation phase for that rule.
+Deferred: cloud records/sync, collaboration/invitations, cloud document storage, orphan attachment cleanup, OCR, notifications, production Ask Lilica, production infrastructure, backup guarantees and account/care-space deletion policy.

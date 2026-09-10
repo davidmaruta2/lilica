@@ -24,12 +24,13 @@ Lilica should help answer:
 
 ## Current Scope
 
-The repository is still a Phase 1 product foundation. It includes:
+The repository contains the Phase 1 product foundation plus Phase 3-6 safety, authentication and multi-person ownership foundations. It includes:
 
 - Core visual system and navigation shell
 - Welcome / How Lilica Works introduction
-- Prototype account-method and email flow
-- Supported-person relationship and preferred name
+- Verified Supabase email/password accounts, six-digit signup verification and six-digit-code recovery
+- A separate organiser display-name profile
+- Multi-person relationship selection, supported-person profiles, care spaces and organiser memberships
 - Privacy declaration and persistence
 - Interest selection
 - Structured record capture during onboarding
@@ -41,31 +42,27 @@ Do not build production AI, bank integrations, payment initiation, emergency mon
 ## Current Onboarding Flow
 
 1. Three-slide Welcome / How Lilica Works introduction
-2. Choose account method
-3. Enter email when email is selected
-4. Choose relationship to the supported person
-5. Enter the supported person's first or preferred name
-6. Accept the privacy declaration
-7. Choose areas the organiser commonly helps with
-8. Add real information on `Let's get [Name] organised`
-9. Continue to Home after one record, or skip and add things later
+2. Create an email/password account or log in
+3. Verify a new email account
+4. Enter the organiser's display name on `About you`
+5. Select one or more relationships and enter each supported person's preferred name
+6. Review the roster and choose the first person to set up
+7. Accept that person's privacy declaration
+8. Choose areas the organiser commonly helps with for that person
+9. Add real information on `Let's get [Name] organised`
+10. Continue to Home, switch people, or resume another person's setup
 
 The introduction and account-choice presentation were revised by Lumen and should not be casually redesigned. The active product workflow begins after the interest-selection screen.
 
-## Authentication And Identity Gap
+## Authentication And Identity Boundary
 
-Authentication is currently a local UI placeholder. Apple and Google actions do not perform real OAuth, and email entry does not verify the email or request a password or one-time code.
+Phase 5 implements verified Supabase email/password authentication, session restoration, OTP recovery and sign-out. It also establishes the organiser as a separate person with a required display name. Phase 6 implements the first ownership kernel:
 
-The app also does not yet establish the organiser as a person. Before care-circle collaboration can be implemented, the product needs four distinct concepts:
-
-- **Account:** authentication identity and verified email.
-- **User profile:** organiser name, display name and optional photo; date of birth should only be collected if a real product need is established.
 - **Supported-person profile:** the person receiving support, kept separate from the organiser.
-- **Care-circle membership:** user, supported person/circle, relationship, role, permissions, invitation status and inviter.
+- **Care space:** one current security/data partition per supported person.
+- **Organiser membership:** the authenticated organiser's relationship and role for that care space.
 
-Recommended later flow: authenticate and verify, collect a minimal `About you` profile, then ask who the user supports. Apple/Google users should not be forced to create a separate Lilica password. Email users need a genuine password or passwordless verification flow.
-
-This gap is documented only. It is not implemented in the current revision.
+Supported-person identity and memberships are cloud-backed. Privacy, interests, setup progress, records and attachments remain device-local per authenticated account and care space. They are preserved at sign-out but are not cloud-synchronised. Invitations, additional member roles/permissions and profile photos are deferred; date of birth is intentionally not collected.
 
 ## Privacy And Consent
 
@@ -183,8 +180,9 @@ The current Welcome screens are a retained foundation. Continue improving from t
 - Expo Image Picker
 - Expo File System
 - Fraunces font package
+- Supabase JavaScript client
 
-Phase 4 provides dedicated non-production Supabase infrastructure, version-controlled migrations, a minimal auth-linked profile table, owner-only RLS, policy tests, and secrets/operations guidance. There is still no runtime Supabase client, production authentication, cloud record storage, record migration, or sync. Phase 3 provides an automated characterization/domain-contract test suite, historical migration fixtures, and a manual physical-device checklist. The future pure domain module is not wired into the Phase 1 application.
+Phase 4 provides dedicated non-production Supabase infrastructure and owner-only profiles. Phase 5 adds runtime authentication and the organiser profile. Phase 6 adds a multi-person supported-person schema, one care space per person, organiser memberships, membership-enforced RLS, idempotent roster provisioning, active-space switching and per-space local state. Cloud record storage, record migration and sync remain deferred to Phase 7. Phase 3 provides the automated characterization/domain-contract harness and manual device baseline.
 
 ## Verification Expectations
 

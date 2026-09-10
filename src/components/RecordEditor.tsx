@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
@@ -14,6 +14,7 @@ import {
   RecordStatus,
 } from '../types';
 import { Button } from './Button';
+import { DateTimeWheelField } from './DateTimeWheelField';
 import { AppText } from './Text';
 import { TextField } from './TextField';
 
@@ -43,6 +44,7 @@ type Props = {
   supportedPersonId: string;
   onChange: (draft: RecordDraft) => void;
   onSave: (record: LilicaRecord) => void;
+  onRemove?: () => void;
 };
 
 const titleLabels: Record<LilicaRecordType, string> = {
@@ -103,7 +105,7 @@ function statusFor(type: LilicaRecordType, completed: boolean): RecordStatus {
   return 'saved';
 }
 
-export function RecordEditor({ type, record, draft, supportedPersonId, onChange, onSave }: Props) {
+export function RecordEditor({ type, record, draft, supportedPersonId, onChange, onSave, onRemove }: Props) {
   const [attachmentError, setAttachmentError] = useState('');
   const parsedDate = draft.date ? toIsoDate(draft.date) : undefined;
   const parsedExpiry = draft.expiryDate ? toIsoDate(draft.expiryDate) : undefined;
@@ -160,6 +162,19 @@ export function RecordEditor({ type, record, draft, supportedPersonId, onChange,
       createdAt: record?.createdAt ?? now,
       updatedAt: now,
     });
+  }
+
+  function confirmRemove() {
+    if (!record || !onRemove) return;
+    const name = type === 'careNote' ? 'care information' : type === 'homeMatter' ? 'home matter' : type;
+    Alert.alert(
+      `Remove this ${name}?`,
+      'This removes only this item.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: onRemove },
+      ],
+    );
   }
 
   function addAttachments(attachments: RecordAttachment[]) {
@@ -270,19 +285,17 @@ export function RecordEditor({ type, record, draft, supportedPersonId, onChange,
       ) : null}
 
       {type !== 'contact' ? (
-        <TextField
-          compact
+        <DateTimeWheelField
           label={usesDueDate ? (type === 'bill' ? 'Due or renewal date' : 'Date or due date') : 'Date'}
-          placeholder="DD/MM/YYYY"
-          keyboardType="numbers-and-punctuation"
+          mode="date"
           value={draft.date}
-          onChangeText={(date) => change({ date })}
+          onChange={(date) => change({ date })}
+          optional={!dateRequired}
         />
       ) : null}
-      {draft.date && !parsedDate ? <AppText variant="meta" tone="muted">Use DD/MM/YYYY</AppText> : null}
 
       {type === 'appointment' || type === 'update' ? (
-        <TextField compact label="Time" placeholder="HH:MM" value={draft.time} onChangeText={(time) => change({ time })} />
+        <DateTimeWheelField label="Time" mode="time" value={draft.time} onChange={(time) => change({ time })} optional />
       ) : null}
       {type === 'appointment' ? (
         <>
@@ -306,9 +319,8 @@ export function RecordEditor({ type, record, draft, supportedPersonId, onChange,
         </>
       ) : null}
       {type === 'document' ? (
-        <TextField compact label="Expiry date" placeholder="Optional - DD/MM/YYYY" value={draft.expiryDate} onChangeText={(expiryDate) => change({ expiryDate })} />
+        <DateTimeWheelField label="Expiry date" mode="date" value={draft.expiryDate} onChange={(expiryDate) => change({ expiryDate })} optional />
       ) : null}
-      {draft.expiryDate && !parsedExpiry ? <AppText variant="meta" tone="muted">Use DD/MM/YYYY</AppText> : null}
       {type === 'contact' ? (
         <>
           <TextField compact label="Role or relationship" placeholder="e.g. GP or family member" value={draft.role} onChangeText={(role) => change({ role })} />
@@ -358,6 +370,11 @@ export function RecordEditor({ type, record, draft, supportedPersonId, onChange,
         onPress={save}
         style={styles.save}
       />
+      {record && onRemove ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${type}`} onPress={confirmRemove} style={styles.removeRecord}>
+          <AppText variant="secondary" tone="danger" centre>Remove this {type === 'careNote' ? 'care information' : type === 'homeMatter' ? 'home matter' : type}</AppText>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -366,7 +383,7 @@ const styles = StyleSheet.create({
   form: { gap: spacing.md, paddingBottom: spacing.xl },
   attachments: { gap: spacing.sm },
   attachmentActions: { flexDirection: 'row', gap: spacing.sm },
-  attachmentButton: { flex: 1, minHeight: 48, borderRadius: radius.md, paddingHorizontal: spacing.sm },
+  attachmentButton: { flex: 1, width: 'auto', minHeight: 48, borderRadius: radius.md, paddingHorizontal: spacing.sm },
   attachmentRow: {
     minHeight: 58,
     flexDirection: 'row',
@@ -389,4 +406,5 @@ const styles = StyleSheet.create({
   checkboxSelected: { backgroundColor: colors.primary },
   tick: { width: 11, height: 7, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: colors.white, transform: [{ rotate: '-45deg' }], marginTop: -2 },
   save: { borderRadius: radius.md, marginTop: spacing.xs },
+  removeRecord: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
 });

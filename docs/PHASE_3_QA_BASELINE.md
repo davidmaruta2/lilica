@@ -4,6 +4,8 @@ Date: 9 September 2026
 Scope: Phase 1 characterization and the unwired future domain contract
 Application behaviour changed: Responsive composition only; product behaviour remains unchanged
 
+Historical baseline note, 10 September 2026: this document records the Phase 3 baseline. The current suite is 8 Jest suites/98 passing tests, Welcome now uses `react-native-safe-area-context`, and current authentication/multi-person device checks live in `docs/PHASE_5_QA.md` and `docs/PHASE_6_QA.md`.
+
 ## Automated Baseline
 
 Final local result: **Passed on 9 September 2026.** `npm run validate` completed TypeScript, 62 Jest tests, Expo dependency compatibility, public Expo configuration, and web export successfully. The test output includes the existing `SafeAreaView` deprecation warning described below.

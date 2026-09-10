@@ -1,4 +1,5 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 
 import { AuthScreen } from '../src/screens/AuthScreen';
 import { EmailAuthScreen } from '../src/screens/EmailAuthScreen';
@@ -31,22 +32,33 @@ describe('protected Phase 1 onboarding surfaces', () => {
     expect(onStart).toHaveBeenCalledTimes(1);
   }, 15_000);
 
-  it('keeps account choice local and email validation presentation intact', async () => {
-    const onAuth = jest.fn();
+  it('uses the approved email-only account choice and validates credentials', async () => {
     const onEmail = jest.fn();
-    const auth = await render(<AuthScreen onBack={jest.fn()} onAuth={onAuth} onEmail={onEmail} />);
-    await fireEvent.press(auth.getByLabelText('Continue with Apple'));
-    expect(onAuth).toHaveBeenCalledWith({ method: 'apple' });
+    const onLogin = jest.fn();
+    const auth = await render(<AuthScreen onBack={jest.fn()} onCreateAccount={onEmail} onLogIn={onLogin} />);
     await fireEvent.press(auth.getByLabelText('Continue with email'));
     expect(onEmail).toHaveBeenCalledTimes(1);
+    expect(auth.queryByText('Continue with Apple')).toBeNull();
 
-    const onContinue = jest.fn();
-    const email = await render(<EmailAuthScreen onBack={jest.fn()} onContinue={onContinue} />);
-    const continueButton = email.getByLabelText('Continue');
+    const onSubmit = jest.fn().mockResolvedValue({ ok: true, verificationRequired: true });
+    const onVerificationRequired = jest.fn();
+    const email = await render(
+      <EmailAuthScreen
+        mode="create"
+        onBack={jest.fn()}
+        onSubmit={onSubmit}
+        onVerificationRequired={onVerificationRequired}
+        onAuthenticated={jest.fn()}
+        onForgotPassword={jest.fn()}
+      />,
+    );
+    const continueButton = email.getByLabelText('Create account');
     expect(continueButton.props.accessibilityState.disabled).toBe(true);
-    await fireEvent.changeText(email.getByDisplayValue(''), 'david@example.com');
-    await fireEvent.press(email.getByLabelText('Continue'));
-    expect(onContinue).toHaveBeenCalledWith('david@example.com');
+    await fireEvent.changeText(email.getByPlaceholderText('you@example.com'), 'david@example.com');
+    await fireEvent.changeText(email.getByPlaceholderText('At least 8 characters'), 'password123');
+    await fireEvent.press(email.getByLabelText('Create account'));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith('david@example.com', 'password123'));
+    expect(onVerificationRequired).toHaveBeenCalledWith('david@example.com');
   });
 
   it('preserves relationship selection and supported-person naming', async () => {
@@ -122,6 +134,7 @@ describe('protected structured-record onboarding', () => {
     records: [] as LilicaRecord[],
     onBack: jest.fn(),
     onSaveRecord: jest.fn(),
+    onRemoveRecord: jest.fn(),
     onFinish: jest.fn(),
     onSkip: jest.fn(),
   };
@@ -162,6 +175,65 @@ describe('protected structured-record onboarding', () => {
     await waitFor(() => expect(screen.queryByText('What needs doing?')).toBeNull());
     await fireEvent.press(screen.getByLabelText('Add Something to do'));
     expect(screen.getByDisplayValue('Order prescription')).toBeTruthy();
+  });
+
+  it('opens a category list before selecting or adding another record', async () => {
+    const appointment: LilicaRecord = {
+      id: 'appointment-1',
+      type: 'appointment',
+      title: 'Orthodontist',
+      supportedPersonId: 'person-margaret',
+      status: 'scheduled',
+      eventDate: '2026-09-15',
+      eventTime: '10:00',
+      createdAt: '2026-09-09T12:00:00.000Z',
+    };
+    const screen = await render(<FirstThingScreen {...props} records={[appointment]} />);
+
+    await fireEvent.press(screen.getByLabelText('Open Appointment'));
+    screen.getByLabelText('Edit Orthodontist');
+    await fireEvent.press(screen.getByLabelText('Add appointment'));
+    screen.getByLabelText('Add appointment');
+    expect(screen.queryByLabelText('Save changes')).toBeNull();
+  });
+
+  it('keeps the top-level category gateway calm even when four records exist', async () => {
+    const appointments: LilicaRecord[] = ['Orthodontist', 'GP', 'Dentist', 'Eye clinic'].map((title, index) => ({
+      id: `appointment-${index}`,
+      type: 'appointment',
+      title,
+      eventDate: `2026-09-${15 + index}`,
+      createdAt: '2026-09-09T12:00:00.000Z',
+    }));
+    const screen = await render(<FirstThingScreen {...props} records={appointments} />);
+
+    screen.getByText('GP, hospital, dentist, therapy or another visit');
+    expect(screen.queryByText('4 added')).toBeNull();
+    expect(screen.queryByText('Add another')).toBeNull();
+
+    await fireEvent.press(screen.getByLabelText('Open Appointment'));
+    appointments.forEach((appointment) => screen.getByLabelText(`Edit ${appointment.title}`));
+    screen.getByLabelText('Add appointment');
+  });
+
+  it('confirms removal and deletes only the selected record ID', async () => {
+    const appointment: LilicaRecord = {
+      id: 'appointment-remove',
+      type: 'appointment',
+      title: 'Orthodontist',
+      eventDate: '2026-09-15',
+      createdAt: '2026-09-09T12:00:00.000Z',
+    };
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    const screen = await render(<FirstThingScreen {...props} records={[appointment]} />);
+
+    await fireEvent.press(screen.getByLabelText('Open Appointment'));
+    await fireEvent.press(screen.getByLabelText('Edit Orthodontist'));
+    await fireEvent.press(screen.getByLabelText('Remove appointment'));
+    const buttons = alert.mock.calls[0][2];
+    await act(async () => buttons?.find((button) => button.text === 'Remove')?.onPress?.());
+    expect(props.onRemoveRecord).toHaveBeenCalledWith('appointment-remove');
+    alert.mockRestore();
   });
 
   it('offers both document picker and camera entry points', async () => {

@@ -2,7 +2,6 @@ import { ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleProp,
   StyleSheet,
   View,
@@ -10,7 +9,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { keyboardAvoidingBehavior, keyboardDismissMode } from '../keyboard';
 import { colors, spacing } from '../theme';
+import { KeyboardAwareScrollView } from './KeyboardAwareScrollView';
 
 type ScreenProps = {
   children: ReactNode;
@@ -28,15 +29,24 @@ export function Screen({
   contentStyle,
 }: ScreenProps) {
   const content = scroll ? (
-    <ScrollView
-      contentContainerStyle={[styles.scrollContent, contentStyle]}
+    <KeyboardAwareScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.scrollContainer}
+      keyboardDismissMode={keyboardDismissMode(Platform.OS)}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      testID="screen-scroll-view"
     >
-      {children}
-    </ScrollView>
+      <View style={[styles.scrollContent, contentStyle]} testID="screen-scroll-content">
+        {children}
+      </View>
+      {footer ? <View style={[styles.footer, { backgroundColor }]} testID="screen-footer">{footer}</View> : null}
+    </KeyboardAwareScrollView>
   ) : (
-    <View style={[styles.staticContent, contentStyle]}>{children}</View>
+    <>
+      <View style={[styles.staticContent, contentStyle]}>{children}</View>
+      {footer ? <View style={[styles.footer, { backgroundColor }]} testID="screen-footer">{footer}</View> : null}
+    </>
   );
 
   return (
@@ -46,11 +56,11 @@ export function Screen({
       testID="screen-safe-area"
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={keyboardAvoidingBehavior(Platform.OS)}
         style={styles.keyboard}
+        testID="screen-keyboard-avoiding-view"
       >
         {content}
-        {footer ? <View style={[styles.footer, { backgroundColor }]}>{footer}</View> : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -63,6 +73,12 @@ const styles = StyleSheet.create({
   },
   keyboard: {
     flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContainer: {
+    flexGrow: 1,
   },
   scrollContent: {
     flexGrow: 1,
@@ -77,6 +93,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   footer: {
+    flexShrink: 0,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
     paddingBottom: spacing.md,

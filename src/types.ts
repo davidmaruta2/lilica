@@ -3,8 +3,17 @@ export type OnboardingStage =
   | 'how'
   | 'auth'
   | 'emailAuth'
+  | 'verifyEmail'
+  | 'aboutYou'
+  | 'recoveryRequest'
+  | 'recoveryEmailSent'
+  | 'recoveryCode'
+  | 'recoveryPassword'
   | 'relationship'
+  | 'relationshipSummary'
   | 'name'
+  | 'peopleReview'
+  | 'chooseActivePerson'
   | 'privacyConsent'
   | 'interests'
   | 'firstThing'
@@ -19,6 +28,23 @@ export type Relationship =
   | 'Grandparent'
   | 'Other relative'
   | 'Someone else';
+
+export type SupportedPersonDraft = {
+  draftId: string;
+  relationshipType: Relationship;
+  relationshipLabel?: string;
+  displayName?: string;
+  order: number;
+};
+
+export type MultiPersonOnboardingDraft = {
+  version: 2;
+  stage: 'relationships' | 'identity' | 'review' | 'choose_active' | 'person_setup';
+  people: SupportedPersonDraft[];
+  currentDraftId?: string;
+  selectedSetupDraftId?: string;
+  addingAfterOnboarding?: boolean;
+};
 
 export type Interest =
   | 'appointments'
@@ -99,7 +125,32 @@ export type FirstItem = {
 
 export type LilicaRecord = FirstItem;
 
+export type CareSpaceSetupStatus =
+  | 'identity_only'
+  | 'privacy_pending'
+  | 'interests_pending'
+  | 'records_pending'
+  | 'ready';
+
+export type LocalCareSpaceState = {
+  careSpaceId: string;
+  supportedPersonId: string;
+  membershipId?: string;
+  bootstrapId: string;
+  relationshipType: Relationship;
+  relationshipLabel?: string;
+  displayName: string;
+  privacyDeclarationAccepted: boolean;
+  privacyDeclarationVersion?: string;
+  privacyDeclarationAcceptedAt?: string;
+  interests: Interest[];
+  records: LilicaRecord[];
+  setupStatus: CareSpaceSetupStatus;
+  allSetDismissed: boolean;
+};
+
 export type OnboardingState = {
+  migrationVersion: 2;
   stage: OnboardingStage;
   auth?: AuthState;
   relationship?: Relationship;
@@ -114,6 +165,9 @@ export type OnboardingState = {
   privacyDeclarationAcceptedAt?: string;
   onboardingComplete: boolean;
   allSetDismissed: boolean;
+  activeCareSpaceId?: string;
+  careSpaces: Record<string, LocalCareSpaceState>;
+  onboardingDraft?: MultiPersonOnboardingDraft;
 };
 
 export type AppTab = 'home' | 'calendar' | 'todo' | 'person';

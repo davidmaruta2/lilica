@@ -1,15 +1,23 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button } from '../components/Button';
 import { AppText } from '../components/Text';
 import { deriveRecordState, formatDateForDisplay } from '../records';
 import { colors, radius, shadow, spacing } from '../theme';
-import { FirstItem, OnboardingState } from '../types';
+import { CareSpaceSetupStatus, FirstItem, LocalCareSpaceState, OnboardingState } from '../types';
+import { PersonSwitcher } from '../components/PersonSwitcher';
+import { useState } from 'react';
 
 type Props = {
   state: OnboardingState;
   onAddSomething: () => void;
   onDismissAllSet: () => void;
+  people?: LocalCareSpaceState[];
+  activeCareSpaceId?: string;
+  setupStatus?: CareSpaceSetupStatus;
+  onSwitchPerson?: (careSpaceId: string) => void;
+  onAddPerson?: () => void;
+  onContinueSetup?: () => void;
 };
 
 function itemTiming(item: FirstItem) {
@@ -35,7 +43,14 @@ export function HomeScreen({
   state,
   onAddSomething,
   onDismissAllSet,
+  people = [],
+  activeCareSpaceId,
+  setupStatus = 'ready',
+  onSwitchPerson = () => undefined,
+  onAddPerson = () => undefined,
+  onContinueSetup = () => undefined,
 }: Props) {
+  const [switcherOpen, setSwitcherOpen] = useState(false);
   const records = state.records.length > 0 ? state.records : state.firstItem ? [state.firstItem] : [];
   const personName = state.supportedPersonName?.trim() || 'Them';
   const sections = ['Needs attention', 'Today', 'Coming up', 'Latest']
@@ -51,21 +66,28 @@ export function HomeScreen({
       <View style={styles.header}>
         <View>
           <AppText variant="meta" tone="muted">Lilica</AppText>
-          <AppText variant="title" style={styles.title} numberOfLines={2} adjustsFontSizeToFit>
-            {personName}'s week
-          </AppText>
+          <Pressable accessibilityRole="button" accessibilityLabel="Switch person" onPress={() => setSwitcherOpen(true)} style={styles.personButton}>
+            <AppText variant="title" style={styles.title} numberOfLines={2} adjustsFontSizeToFit>{personName}'s week</AppText>
+            {people.length > 1 ? <AppText variant="bodyStrong" tone="primary">v</AppText> : null}
+          </Pressable>
         </View>
         <Button label="Add" onPress={onAddSomething} style={styles.addButton} />
       </View>
 
-      {!state.allSetDismissed ? (
+      {setupStatus !== 'ready' ? (
+        <View style={styles.setupCard}>
+          <AppText variant="section">{personName} still needs setting up</AppText>
+          <AppText variant="secondary" tone="soft">Finish their privacy and care preferences before adding records.</AppText>
+          <Button label="Continue setup" onPress={onContinueSetup} style={styles.emptyButton} />
+        </View>
+      ) : !state.allSetDismissed ? (
         <View style={styles.message}>
           <AppText variant="bodyStrong">Everything for {personName}, in one place.</AppText>
           <Button label="Dismiss" variant="text" onPress={onDismissAllSet} style={styles.dismiss} />
         </View>
       ) : null}
 
-      {sections.length > 0 ? (
+      {setupStatus !== 'ready' ? null : sections.length > 0 ? (
         <View style={styles.sections}>
           {sections.map((section) => (
             <View key={section.title} style={styles.section}>
@@ -105,6 +127,15 @@ export function HomeScreen({
         </View>
       </View>
 
+      <PersonSwitcher
+        visible={switcherOpen}
+        people={people}
+        activeId={activeCareSpaceId}
+        onClose={() => setSwitcherOpen(false)}
+        onSelect={onSwitchPerson}
+        onAdd={onAddPerson}
+      />
+
     </ScrollView>
   );
 }
@@ -125,11 +156,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
   },
+  personButton: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  setupCard: { marginTop: spacing.xl, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.oliveSoft, gap: spacing.sm },
   title: {
     marginTop: spacing.xs,
     maxWidth: 230,
   },
   addButton: {
+    width: 'auto',
     minHeight: 50,
     paddingHorizontal: spacing.lg,
   },
@@ -144,6 +178,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   dismiss: {
+    width: 'auto',
     minHeight: 38,
     paddingHorizontal: spacing.sm,
   },

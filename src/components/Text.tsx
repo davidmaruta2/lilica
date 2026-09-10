@@ -8,7 +8,7 @@ type Variant = keyof typeof typography;
 type AppTextProps = TextProps & {
   children: ReactNode;
   variant?: Variant;
-  tone?: 'default' | 'soft' | 'muted' | 'primary' | 'white';
+  tone?: 'default' | 'soft' | 'muted' | 'primary' | 'white' | 'success' | 'danger';
   centre?: boolean;
 };
 
@@ -30,6 +30,8 @@ export function AppText({
         tone === 'muted' && styles.muted,
         tone === 'primary' && styles.primary,
         tone === 'white' && styles.white,
+        tone === 'success' && styles.success,
+        tone === 'danger' && styles.danger,
         centre && styles.centre,
         style,
       ]}
@@ -55,6 +57,12 @@ const styles = StyleSheet.create({
   },
   white: {
     color: colors.white,
+  },
+  success: {
+    color: colors.success,
+  },
+  danger: {
+    color: colors.danger,
   },
   centre: {
     textAlign: 'center',

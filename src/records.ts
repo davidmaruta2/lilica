@@ -10,6 +10,16 @@ export type DerivedRecordState = {
   nextDueDate?: string;
 };
 
+export function upsertRecord(records: LilicaRecord[], record: LilicaRecord) {
+  return records.some((item) => item.id === record.id)
+    ? records.map((item) => item.id === record.id ? record : item)
+    : [...records, record];
+}
+
+export function removeRecordById(records: LilicaRecord[], recordId: string) {
+  return records.filter((record) => record.id !== recordId);
+}
+
 function startOfDay(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
 }

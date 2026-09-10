@@ -1,6 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { initialOnboardingState, loadOnboardingState, saveOnboardingState } from '../src/storage';
+import {
+  initialOnboardingState,
+  loadOnboardingState,
+  prepareOnboardingStateForStartup,
+  saveOnboardingState,
+} from '../src/storage';
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
@@ -78,5 +83,66 @@ describe('Phase 1 AsyncStorage characterization', () => {
     setItem.mockResolvedValue();
     await saveOnboardingState(initialOnboardingState);
     expect(setItem).toHaveBeenCalledWith('lilica:onboarding:v1', JSON.stringify(initialOnboardingState));
+  });
+
+  it('isolates authenticated onboarding state by account without adopting legacy device data', async () => {
+    getItem.mockImplementation(async (key) => key === 'lilica:onboarding:v1'
+      ? JSON.stringify({ ...initialOnboardingState, supportedPersonName: 'Maggie', onboardingComplete: true })
+      : null);
+
+    const loaded = await loadOnboardingState('new-user-id');
+    expect(getItem).toHaveBeenCalledWith('lilica:onboarding:v1:new-user-id');
+    expect(loaded).toBe(initialOnboardingState);
+
+    setItem.mockResolvedValue();
+    await saveOnboardingState({ ...initialOnboardingState, supportedPersonName: 'David' }, 'new-user-id');
+    expect(setItem).toHaveBeenCalledWith(
+      'lilica:onboarding:v1:new-user-id',
+      JSON.stringify({ ...initialOnboardingState, supportedPersonName: 'David' }),
+    );
+  });
+
+  it('starts logged-out sessions at Welcome without deleting stored progress', () => {
+    const stored = {
+      ...initialOnboardingState,
+      stage: 'emailAuth' as const,
+      onboardingComplete: true,
+    };
+
+    expect(prepareOnboardingStateForStartup(stored)).toMatchObject({
+      stage: 'welcome',
+      onboardingComplete: true,
+    });
+    expect(stored.stage).toBe('emailAuth');
+  });
+
+  it('continues authenticated users from their account-scoped progress', () => {
+    expect(prepareOnboardingStateForStartup({
+      ...initialOnboardingState,
+      stage: 'firstThing',
+      privacyDeclarationAccepted: true,
+    }, 'user-a').stage).toBe('firstThing');
+
+    expect(prepareOnboardingStateForStartup({
+      ...initialOnboardingState,
+      stage: 'emailAuth',
+      onboardingComplete: true,
+    }, 'user-a').stage).toBe('home');
+  });
+
+  it('round-trips several records in the same category without collapsing them', async () => {
+    const appointments = ['Orthodontist', 'GP', 'Dentist'].map((title, index) => ({
+      id: `appointment-${index}`,
+      type: 'appointment' as const,
+      title,
+      eventDate: `2026-09-${15 + index}`,
+      createdAt: '2026-09-09T12:00:00.000Z',
+    }));
+    const state = { ...initialOnboardingState, records: appointments };
+    setItem.mockResolvedValue();
+    await saveOnboardingState(state, 'user-a');
+    getItem.mockResolvedValue(JSON.stringify(state));
+
+    await expect(loadOnboardingState('user-a')).resolves.toMatchObject({ records: appointments });
   });
 });

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { forwardRef, useState } from 'react';
 import { StyleSheet, TextInput, TextInputProps, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '../theme';
+import { useRevealFocusedInput } from './KeyboardAwareScrollView';
 import { AppText } from './Text';
 
 type TextFieldProps = TextInputProps & {
@@ -9,8 +10,9 @@ type TextFieldProps = TextInputProps & {
   compact?: boolean;
 };
 
-export function TextField({ label, compact, style, ...props }: TextFieldProps) {
+export const TextField = forwardRef<TextInput, TextFieldProps>(function TextField({ label, compact, style, ...props }, ref) {
   const [focused, setFocused] = useState(false);
+  const revealFocusedInput = useRevealFocusedInput();
 
   return (
     <View style={styles.wrap}>
@@ -19,6 +21,7 @@ export function TextField({ label, compact, style, ...props }: TextFieldProps) {
       </AppText>
       <TextInput
         {...props}
+        ref={ref}
         allowFontScaling
         placeholderTextColor={colors.muted}
         onBlur={(event) => {
@@ -27,13 +30,14 @@ export function TextField({ label, compact, style, ...props }: TextFieldProps) {
         }}
         onFocus={(event) => {
           setFocused(true);
+          revealFocusedInput(event.nativeEvent.target);
           props.onFocus?.(event);
         }}
         style={[styles.input, compact && styles.compactInput, focused && styles.focused, style]}
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   wrap: {

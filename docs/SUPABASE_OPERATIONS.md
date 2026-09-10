@@ -1,14 +1,14 @@
 # Lilica Supabase Operations
 
 Date: 9 September 2026
-Scope: Phase 4 environment and security foundation
+Scope: Phase 4 foundation through Phase 6 multi-person ownership kernel
 
 ## Environment Model
 
 | Environment | Purpose | Location | Status |
 |---|---|---|---|
 | Local | Disposable migration, constraint, and RLS testing with synthetic data | Docker on a developer machine | Configured in `supabase/config.toml` |
-| Development | Shared non-production integration environment | `lilica-development`, Luxford Interactive, West Europe (London), `micro` compute | Created and linked; profile migration applied |
+| Development | Shared non-production integration environment | `lilica-development`, Luxford Interactive, West Europe (London), `micro` compute | Created and linked; profile and Phase 6 care-space migrations applied |
 | Production | Future live user data | Separate dedicated Lilica project, region and plan to be approved | Does not exist and was not created or touched |
 
 A staging project is not justified yet. Add one only when release rehearsal needs an environment isolated from active development. Never reuse `goalbuddy`, `tandemly`, `waddl-production`, or another Luxford application's project.
@@ -17,14 +17,22 @@ The local link is stored under ignored `supabase/.temp/` metadata. It is not a p
 
 ## Current Schema
 
-Phase 4 introduces only `public.profiles`:
+The current schema contains `public.profiles`:
 
 - `id`: primary key and foreign key to `auth.users.id`; this is the durable account/profile link.
 - `display_name`: required, trimmed nonblank value with a 100-character database limit.
 - `avatar_path`: optional private object path placeholder for Phase 5; it is not a public URL and no storage bucket exists yet.
 - `created_at` and `updated_at`: server timestamps; updates preserve creation time and refresh update time.
 
-An Auth account and a Lilica profile remain separate concepts. There are no supported-person, care-space, membership, record, occurrence, document, invitation, or sync tables. No trigger automatically creates a profile, and no Phase 1 data is uploaded.
+Phase 6 adds:
+
+- `care_spaces`: one security/ownership boundary for one supported person; bootstrap owner/id columns provide idempotency metadata and do not grant access.
+- `supported_people`: one required, nonblank display-name identity per care space.
+- `care_space_memberships`: joins an Auth user to a care space with the current `organiser` role and a membership-relative relationship type/optional custom label.
+
+`bootstrap_supported_people(jsonb)` creates a reviewed roster transactionally. Stable draft UUIDs make retries return the same space/person/membership triplets. Direct membership writes are not granted to the client. `list_my_supported_people()` resolves the caller's existing cloud links. No trigger automatically creates a profile.
+
+Records, occurrences, attachments and documents are not cloud tables and are never sent by the Phase 6 bootstrap.
 
 ## Migration Workflow
 
@@ -62,11 +70,23 @@ RLS is enabled and forced on `public.profiles`. Table privileges and policies ar
 - There is no delete grant or delete policy. Profile/account deletion belongs to the later approved account-lifecycle phase.
 - Changing a profile's ownership identifier fails the update policy.
 
-`supabase/tests/database/profiles_rls.test.sql` runs 17 positive and negative assertions transactionally. It covers anonymous denial, owner read/create/update, non-owner read/write denial, ownership mutation, delete denial, constraints, policy count, and denied-write integrity. Tests run locally in CI without cloud credentials. The same suite was also run successfully against `lilica-development`; all synthetic rows rolled back.
+`supabase/tests/database/profiles_rls.test.sql` retains 17 profile assertions. `care_spaces_rls.test.sql` adds 32 transactional assertions for multi-space access, cross-user and anonymous denial, duplicate relationships, membership-write denial, immutable identity and retry idempotency. Application users receive read access only through membership policies; initial writes occur only through the authenticated bootstrap RPC.
+
+## Authentication Runtime
+
+Phase 5 uses Supabase email/password authentication with mandatory email confirmation. Signup email uses a six-digit OTP rendered by `supabase/templates/confirmation.html`; password recovery uses a six-digit OTP rendered by `supabase/templates/recovery.html`. The app verifies the applicable `signup` or `recovery` OTP with Supabase before continuing. Hosted development auth accepts `lilica://auth/callback` and `lilica://auth/recovery` for compatibility and requires passwords of at least eight characters. The React Native client persists and refreshes the session through AsyncStorage and loads the authenticated account's own `public.profiles` row.
+
+Development authentication email is delivered through Resend custom SMTP from `Lilica <auth@luxfordinteractive.com>`. The `luxfordinteractive.com` Resend domain was verified in `eu-west-1` before activation. The SMTP credential is held only in Supabase Auth secret configuration; it is not in Git or the mobile bundle.
+
+The current OTP signup/recovery flows can be exercised in Expo Go. The `lilica` scheme still requires a development or standalone build if legacy callback compatibility is tested.
+
+Hosted configuration warning: the base `supabase/config.toml` contains local/default values that differ from intentional hosted SMTP, MFA, pooler and storage settings. Never run a blind full `supabase config push`. Run `npx supabase config diff --project-ref ldocquqbcabdbscghojc`, inspect every declared change, and apply only approved properties through a narrowly scoped temporary config. On 10 September 2026 the recovery subject/body alone were pushed this way; 19 remote-only properties were left unchanged.
+
+Profile photos remain deferred: `avatar_path` is reserved, but no storage bucket or upload policy is introduced. Supported-person identity is cloud-backed in Phase 6; privacy, interests, records and attachments remain local per care space.
 
 ## Configuration And Secrets
 
-Phase 4 does not add a Supabase runtime client. `.env.example` contains placeholders only for future public client configuration.
+`.env.example` documents the public runtime values. Developers place the development project URL and publishable key in ignored `.env.local`.
 
 Safe for a future mobile bundle:
 
@@ -104,10 +124,8 @@ Migrations recover schema, not user data. They are necessary reproducible histor
 
 ## Deliberately Deferred
 
-- Supabase Auth UI, verification, recovery, and session navigation.
-- Runtime Supabase client and real environment values.
-- Organiser profile screens and avatar storage.
-- Supported people, care spaces, memberships, invitations, records, documents, and sync.
+- Organiser avatar storage.
+- Invitations, collaboration/member management, cloud records, documents, attachments, occurrences, outbox and sync.
 - Production project creation, deployment automation, backup guarantees, and disaster recovery.
 
-The hosted project's default authentication settings were not treated as a Phase 5 decision. Auth methods, email confirmation, redirect URLs, password rules, and provider secrets must be reviewed explicitly before authentication is implemented.
+Email/password Auth, mandatory confirmation, OTP templates, redirect URLs, the eight-character minimum and development SMTP are implemented decisions. Any provider expansion or production Auth configuration still requires explicit review and approval.

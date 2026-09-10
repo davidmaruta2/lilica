@@ -1,5 +1,29 @@
 # Revision Log
 
+## 10 September 2026 - Recovery OTP and cross-platform keyboard correction
+
+- Added the approved password-recovery sequence: `Check your email`, six-cell code entry and new-password form.
+- Added Supabase `recovery` OTP verification and retained legacy callback compatibility.
+- Added and narrowly pushed the development recovery email OTP template without changing 19 undeclared hosted settings.
+- Fixed the shared keyboard root cause: form content and CTA now participate in one scroll region rather than a fixed footer compressing/covering fields.
+- Added focus-aware input revealing on focus and after `keyboardDidShow` for shared screens and record-sheet editors.
+- Kept Android `softwareKeyboardLayoutMode: resize` without double height avoidance; retained iOS padding behavior and native safe areas.
+- Forwarded text-input refs so Email Next moves directly to Password while the keyboard remains open.
+- Confirmed the fix covers Login, Create account, About You, name/custom relationship, signup/recovery code, recovery request/new password, item forms and record editing.
+- Validation passed: TypeScript, 8 Jest suites/98 tests, focused auth/responsive tests, Expo dependency/config checks and `git diff --check`.
+- Physical Android/iOS acceptance remains the immediate next step; automated tests do not claim device proof.
+
+## 9 September 2026 - Phase 5 authentication and organiser profile
+
+- Replaced placeholder account entry with Supabase email/password signup, mandatory verification, login and recovery.
+- Added persisted React Native sessions, foreground refresh, native auth callbacks and safe unauthenticated loading gates.
+- Added a separate organiser `About you` profile backed by owner-only `public.profiles` RLS.
+- Added sign-out without deleting or uploading existing device-local supported-person data.
+- Deferred profile photos because private cloud storage is outside Phase 5.
+- Added focused Phase 5 UI/provider tests and a physical-device QA checklist.
+- Follow-up device QA moved Phase 5 forms to top-led responsive composition, added Android keyboard resize/avoidance, and replaced signup links with a six-digit verification-code screen and Lilica email template.
+- Activated verified-domain Resend SMTP for development auth email and reset the product owner's test account for fresh signup QA.
+
 ## 2026-09-09: Phase 4 Supabase Environment And Security Foundation
 
 Reason:
@@ -215,3 +239,44 @@ Changes:
 Status:
 
 No further visual implementation should be attempted from the existing composition without first rethinking the screen structure against the Yuka references.
+
+## 2026-09-09: Android Layout Consistency Pass
+
+Reason:
+
+Physical-device QA found several remaining composition inconsistencies: active onboarding content sat too low on tall Android screens, `Skip for now` wrapped near the system-navigation area, and development overlay chrome appeared over Home's compact `Add` action.
+
+Changes:
+
+- Standardised active non-Welcome authentication and onboarding content on a top-led responsive layout.
+- Applied top and bottom safe-area handling at the shared app shell.
+- Kept shared full-width command labels to one line with bounded font fitting for larger system text.
+- Preserved intrinsic width for intentional compact Home and record-editor actions.
+- Added responsive regression coverage for the top-led screens and footer command labels.
+- Documented that the grey Android cog is Expo Go/device development UI, not part of Lilica.
+
+Scope:
+
+No wording, onboarding order, state, domain behaviour, carousel behaviour, record behaviour, or approved Welcome design was changed. Phase 6 was not started.
+
+## 2026-09-09: Authenticated Local-State Isolation
+
+Physical QA found that a newly created account inherited the device-wide completed onboarding state and opened directly onto Maggie. The cause was the Phase 5 auth gate continuing to use Phase 1's single unscoped AsyncStorage key.
+
+Authenticated onboarding and record state is now stored under a Supabase-user-specific local key. Session transitions block rendering and saving until the correct account namespace has loaded. Existing legacy device data is retained without being assigned silently to a new account. Regression coverage proves that a new user does not adopt Maggie from the legacy key. No cloud record sync or Phase 6 work was introduced.
+
+After the development test user was deleted, Expo Go retained its cached token and reopened at `About you`. Startup now verifies restored identities with Supabase and clears a locally cached session only when the server rejects that identity as unauthorised or deleted. This restores Welcome for a clean signup retry without treating an ordinary network outage as account deletion.
+
+## 2026-09-10: Structured Category And Wheel-Picker Correction
+
+The structured category UI implicitly selected the first record of a type, despite `records[]` supporting several stable IDs. Categories are now clean gateways. Populated categories open a reusable compact record list; empty categories retain the fast direct-editor path. Add, edit and confirmed remove operations append, update or delete only the intended record ID, then return to the category list. Top-level cards contain no counts or `Add another` management controls.
+
+Free-text structured date/time fields were replaced with reusable Lilica wheel selectors. Dedicated bottom sheets dim the unchanged form and keep coherent Cancel, title and Done controls with centred Day/Month/Year or Hour/Minute wheels. Date logic handles month lengths and leap years, displays UK format, and writes only on confirmation. Time supports every minute from `00:00` through `23:59`. Existing records and IDs require no migration. Phase 6 was not started.
+
+## 2026-09-10: Phase 6A And Phase 6 Multi-Person Kernel
+
+The supported-person journey now creates a reviewed roster rather than one global relationship/name. Every draft has a stable UUID; duplicate relationships remain distinct. Identity is collected for everyone first, then one person is chosen for full setup. Other people remain visible with independent incomplete setup state.
+
+Supabase now contains one care space and one supported person per roster entry, plus a membership that stores the organiser-relative relationship. The authenticated bootstrap RPC creates the roster transactionally and reuses stable draft IDs on retry. RLS grants reads only through membership and denies anonymous, cross-user and direct membership writes.
+
+AsyncStorage migration version 2 partitions privacy, interests, records, attachments and setup state by care space. Existing single-person data migrates deterministically without changing record or attachment IDs. Home projects only the active space and exposes a minimal switcher/add-person route. Records remain local; Phase 7 sync was not started.

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { StyleSheet, TextInput, View } from 'react-native';
 
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
@@ -8,28 +8,63 @@ import { AppText } from '../components/Text';
 import { TextField } from '../components/TextField';
 import { colors, radius, spacing } from '../theme';
 
+type Result = { ok: true; verificationRequired?: boolean } | { ok: false; message: string };
+
 type Props = {
-  email?: string;
+  mode: 'create' | 'login';
+  initialEmail?: string;
   onBack: () => void;
-  onContinue: (email: string) => void;
+  onSubmit: (email: string, password: string) => Promise<Result>;
+  onVerificationRequired: (email: string) => void;
+  onAuthenticated: () => void;
+  onForgotPassword: () => void;
 };
 
-export function EmailAuthScreen({ email = '', onBack, onContinue }: Props) {
-  const [value, setValue] = useState(email);
-  const trimmed = value.trim();
-  const canContinue = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+export function EmailAuthScreen({
+  mode,
+  initialEmail = '',
+  onBack,
+  onSubmit,
+  onVerificationRequired,
+  onAuthenticated,
+  onForgotPassword,
+}: Props) {
+  const [email, setEmail] = useState(initialEmail);
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string>();
+  const passwordInput = useRef<TextInput>(null);
+  const trimmedEmail = email.trim();
+  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
+  const validPassword = password.length >= 8;
+  const canSubmit = validEmail && validPassword && !submitting;
+
+  async function submit() {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    setError(undefined);
+    const result = await onSubmit(trimmedEmail, password);
+    setSubmitting(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    if (result.verificationRequired) onVerificationRequired(trimmedEmail);
+    else onAuthenticated();
+  }
 
   return (
-    <Screen footer={<Button label="Continue" disabled={!canContinue} onPress={() => onContinue(trimmed)} />}>
+    <Screen footer={<Button label={submitting ? 'Please wait...' : mode === 'create' ? 'Create account' : 'Log in'} disabled={!canSubmit} onPress={() => void submit()} />}>
       <Header onBack={onBack} />
       <View testID="email-content" style={styles.content}>
         <View style={styles.focus}>
           <View style={styles.mark}>
-            <View style={styles.envelope}>
-              <View style={styles.envelopeFold} />
-            </View>
+            <AppText variant="title" tone="primary">@</AppText>
           </View>
-          <AppText variant="title" centre>What's your email?</AppText>
+          <AppText variant="title" centre>{mode === 'create' ? 'Create your account' : 'Welcome back'}</AppText>
+          <AppText variant="body" tone="soft" centre style={styles.intro}>
+            {mode === 'create' ? 'We’ll email you a code to verify your account.' : 'Log in with your Lilica email and password.'}
+          </AppText>
         </View>
         <View style={styles.form}>
           <TextField
@@ -39,11 +74,27 @@ export function EmailAuthScreen({ email = '', onBack, onContinue }: Props) {
             autoCorrect={false}
             keyboardType="email-address"
             placeholder="you@example.com"
-            value={value}
-            onChangeText={setValue}
-            returnKeyType="done"
-            onSubmitEditing={canContinue ? () => onContinue(trimmed) : undefined}
+            value={email}
+            onChangeText={setEmail}
+            returnKeyType="next"
+            blurOnSubmit={false}
+            onSubmitEditing={() => passwordInput.current?.focus()}
           />
+          <TextField
+            ref={passwordInput}
+            label="Password"
+            autoCapitalize="none"
+            autoComplete={mode === 'create' ? 'new-password' : 'current-password'}
+            autoCorrect={false}
+            secureTextEntry
+            placeholder="At least 8 characters"
+            value={password}
+            onChangeText={setPassword}
+            returnKeyType="done"
+            onSubmitEditing={canSubmit ? () => void submit() : undefined}
+          />
+          {error ? <AppText variant="secondary" tone="danger" accessibilityRole="alert">{error}</AppText> : null}
+          {mode === 'login' ? <Button label="Forgot password?" variant="text" onPress={onForgotPassword} /> : null}
         </View>
       </View>
     </Screen>
@@ -51,42 +102,17 @@ export function EmailAuthScreen({ email = '', onBack, onContinue }: Props) {
 }
 
 const styles = StyleSheet.create({
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-  },
-  focus: {
-    alignItems: 'center',
-  },
+  content: { flex: 1, justifyContent: 'flex-start', paddingTop: spacing.lg, paddingBottom: spacing.xl },
+  focus: { alignItems: 'center' },
   mark: {
-    width: 138,
-    height: 138,
+    width: 96,
+    height: 96,
     borderRadius: radius.pill,
     backgroundColor: colors.oliveSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
-  envelope: {
-    width: 68,
-    height: 48,
-    borderWidth: 3,
-    borderColor: colors.primary,
-    borderRadius: radius.sm,
-    overflow: 'hidden',
-  },
-  envelopeFold: {
-    width: 48,
-    height: 48,
-    borderLeftWidth: 3,
-    borderBottomWidth: 3,
-    borderColor: colors.primary,
-    transform: [{ rotate: '-45deg' }],
-    alignSelf: 'center',
-    marginTop: -29,
-  },
-  form: {
-    marginTop: spacing.xxl,
-  },
+  intro: { marginTop: spacing.sm, maxWidth: 330 },
+  form: { marginTop: spacing.xl, gap: spacing.md },
 });

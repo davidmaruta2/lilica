@@ -8,12 +8,13 @@ import {
   PanResponder,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
 
+import { keyboardAvoidingBehavior, keyboardDismissMode } from '../keyboard';
 import { colors, radius, shadow, spacing } from '../theme';
+import { KeyboardAwareScrollView } from './KeyboardAwareScrollView';
 import { AppText } from './Text';
 
 type Props = {
@@ -82,7 +83,11 @@ export const RecordSheet = forwardRef<RecordSheetHandle, Props>(function RecordS
 
   return (
     <Modal transparent statusBarTranslucent animationType="fade" onRequestClose={dismiss}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.overlay}>
+      <KeyboardAvoidingView
+        behavior={keyboardAvoidingBehavior(Platform.OS)}
+        style={styles.overlay}
+        testID="record-sheet-keyboard-avoiding-view"
+      >
         <Pressable accessibilityRole="button" accessibilityLabel="Close editor" onPress={dismiss} style={styles.backdrop} />
         <Animated.View
           accessibilityViewIsModal
@@ -98,17 +103,18 @@ export const RecordSheet = forwardRef<RecordSheetHandle, Props>(function RecordS
               </Pressable>
             </View>
           </View>
-          <ScrollView
+          <KeyboardAwareScrollView
             style={styles.scroll}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="interactive"
+            keyboardDismissMode={keyboardDismissMode(Platform.OS)}
             showsVerticalScrollIndicator={false}
+            testID="record-sheet-scroll-view"
             scrollEventThrottle={16}
             onScroll={(event) => { scrollOffset.current = event.nativeEvent.contentOffset.y; }}
           >
             {children}
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>

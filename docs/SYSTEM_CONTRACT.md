@@ -2,7 +2,7 @@
 
 Status: **DRAFT FOR PRODUCT-OWNER REVIEW — NO CODE CHANGED TO PRODUCE THIS DOCUMENT**
 
-> Historical note: this is an earlier Phase 2 draft and its implementation-state statements are no longer current. `docs/CORE_SYSTEM_CONTRACT.md` is the authoritative approved contract; `docs/PHASE_3_QA_BASELINE.md` and `docs/SUPABASE_OPERATIONS.md` describe the implemented Phase 3 and Phase 4 state.
+> Historical note: this is an earlier Phase 2 draft and its implementation-state statements are no longer current. `docs/CORE_SYSTEM_CONTRACT.md` is the authoritative approved contract; `docs/LUMEN_HANDOFF.md` describes the implemented Phase 5/6 state and current next steps.
 
 Legend used throughout:
 

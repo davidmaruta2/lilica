@@ -43,8 +43,12 @@ export function Button({
     >
       {icon}
       <AppText
+        adjustsFontSizeToFit
+        minimumFontScale={0.82}
+        numberOfLines={1}
         style={[
           typography.button,
+          styles.label,
           variant === 'primary' && styles.primaryLabel,
           variant === 'light' && styles.lightLabel,
           variant === 'textLight' && styles.textLightLabel,
@@ -60,6 +64,7 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
+    width: '100%',
     minHeight: 54,
     borderRadius: radius.pill,
     alignItems: 'center',
@@ -100,6 +105,10 @@ const styles = StyleSheet.create({
   },
   disabledLabel: {
     color: colors.muted,
+  },
+  label: {
+    flexShrink: 1,
+    textAlign: 'center',
   },
   pressed: {
     transform: [{ scale: 0.99 }],

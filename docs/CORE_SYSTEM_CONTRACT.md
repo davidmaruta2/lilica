@@ -5,7 +5,7 @@ Phase: **2, design and architecture only**
 Prepared: **9 September 2026**
 Implementation authority: **None. This document does not authorise Phase 3 or any code, dependency, schema, cloud, or screen change.**
 
-Implementation note, 9 September 2026: the product owner subsequently approved this contract as the architectural authority and separately authorised Phases 3 and 4. Phase 4's implemented environment, profile schema, RLS, tests, and operational limits are recorded in `docs/SUPABASE_OPERATIONS.md`.
+Implementation note, 10 September 2026: the product owner subsequently approved this contract as the architectural authority and separately authorised Phases 3 through 6. Authentication, organiser profiles and the multi-person care-space ownership kernel are implemented. Cloud records/sync and later roadmap concepts remain future work. Current state is recorded in `docs/LUMEN_HANDOFF.md`; operational limits are in `docs/SUPABASE_OPERATIONS.md`.
 
 ## How To Read This Contract
 

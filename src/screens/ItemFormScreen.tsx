@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '../components/Button';
+import { DateTimeWheelField } from '../components/DateTimeWheelField';
 import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
@@ -113,11 +114,11 @@ export function ItemFormScreen({ type, personName, onBack, onSave }: Props) {
       <View style={styles.form}>
         <TextField label={copy.required} placeholder={copy.required} value={title} onChangeText={setTitle} />
         {copy.date ? (
-          <TextField label={copy.date} placeholder="e.g. 24 September" value={date} onChangeText={setDate} />
+          <DateTimeWheelField label={copy.date} mode="date" value={date} onChange={setDate} />
         ) : null}
         {type === 'appointment' ? (
           <>
-            <TextField label="Time" placeholder="e.g. 11:30" value={time} onChangeText={setTime} />
+            <DateTimeWheelField label="Time" mode="time" value={time} onChange={setTime} optional />
           </>
         ) : null}
         {type === 'bill' ? (

@@ -133,8 +133,9 @@ export function InterestsScreen({ selected, personName, onBack, onToggle, onCont
 const styles = StyleSheet.create({
   content: {
     flex: 1,
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
+    justifyContent: 'flex-start',
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xl,
   },
   supporting: {
     marginTop: spacing.sm,
@@ -202,6 +203,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   footer: {
-    gap: spacing.sm,
+    gap: spacing.xxs,
   },
 });
