@@ -1,5 +1,24 @@
 # Revision Log
 
+## 11 September 2026 - Phase 14 reminder and notification engine
+
+Implemented from a written, bounded product-owner brief. `PRE_PHASE_14_BASELINE`: HEAD `ee4df9a` (in sync with `origin/master`), clean working tree, TypeScript clean, 17 Jest suites/208 tests, secret scan clean, 152 pgTAP assertions across 5 files, clean DB lint, clean web export.
+
+Scoped to **local device notifications only**, per explicit product-owner decision after flagging a real constraint up front: Expo Go has not reliably supported local notifications since SDK 53, so testing this phase for real needs a development build rather than the usual Expo Go workflow. Server/push delivery, device-token registration and Phase 15 collaboration notifications are deliberately deferred and documented, not faked, per the brief's own instruction to implement only the safe foundation and stop.
+
+The core invariant — record/occurrence state, in-app attention state, and notification-delivery state are three separate things, and dismissing/snoozing a notification never completes/pays/attends anything — was already anticipated in `src/domain/core.ts`'s unused `acknowledgeReminder()` helper from Phase 8; Phase 14's local implementation follows the same separation for the client-side model.
+
+- New `src/reminders.ts`: pure domain logic (eligibility, default offsets — 1 day/2 hours before a timed appointment, 3 days before/on the day for a date-only item — quiet-hours policy, deterministic idempotent identifiers, conservative lock-screen-safe wording). No native dependency; fully unit-tested.
+- New `src/notifications.ts`: the thin `expo-notifications` boundary, guarded for web throughout. One reconciliation entry point (`reconcileRecordReminders`) called from `App.tsx`'s `saveRecord`/`removeRecord` after every mutation — covers creation, date edits, completion and cancellation through the single existing save path.
+- `src/types.ts` gained two optional fields — `remindersEnabled`, `reminderScheduleVersion` — riding inside the existing record shape exactly like Phase 9's `assignedMembershipId`. No migration.
+- `RecordEditor.tsx` gained a "Remind me" toggle (appointment/task/bill/homeMatter only), gated behind an explicit permission request that only fires when the user turns it on — never at launch or during onboarding. The schedule version bumps only when the record's own relevant date/time actually changes.
+- `AccountScreen.tsx` gained a minimal Reminders section (master switch, quiet hours on/off) — reached via Person's existing "Account" link.
+- New `expo-notifications` dependency (`app.json` gained its config plugin, a `color` tint and an Android "Reminders" channel); `npx expo install --check` and the web export both remain clean with it installed.
+
+New test files: `tests/phase14-reminders.test.ts` (21 tests — eligibility, the fixed appointment/bill scenarios, too-late-lead-time omission, quiet hours including an overnight window, BST/GMT/month-end/leap-day handling, idempotent identifiers, conservative content), `tests/phase14-notifications.test.ts` (12 tests, `expo-notifications` mocked — idempotent scheduling, version-change cancellation, completion/cancellation suppression, snooze namespacing and its natural ceiling, permission mapping), `tests/phase14-record-editor.test.tsx` (6 tests — toggle visibility per type, permission gating, schedule-version bump behaviour). `npm run typecheck`, `npm test` (20 suites/247 tests, up from 208) and `npm run validate:all` (152 pgTAP assertions unchanged, no migration, clean lint, clean web export) all pass.
+
+Diff audit: `App.tsx`, `app.json`, `package.json`/`package-lock.json`, `src/components/RecordEditor.tsx`, `src/screens/AccountScreen.tsx`, `src/screens/FirstThingScreen.tsx`, `src/types.ts`, `tests/auth-flow.test.tsx` (updated for `AccountScreen`'s new required props) plus two new source files and three new test files — every changed file has a clear Phase 14 reason. No welcome/auth/onboarding/fork/Home/Calendar/To-Do/Person/theme-token file appears in the diff beyond the necessary `AccountScreen` addition. `git diff --check` clean; no secrets, push credentials or generated exports included.
+
 ## 11 September 2026 - Phase 13 Person projection
 
 Implemented from a written, bounded product-owner brief. `PRE_PHASE_13_BASELINE`: HEAD `b76446f` (in sync with `origin/master`), clean working tree, TypeScript clean, 16 Jest suites/192 tests, secret scan clean, 152 pgTAP assertions across 5 files, clean DB lint, clean web export.

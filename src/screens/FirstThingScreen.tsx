@@ -28,6 +28,8 @@ type Props = {
   // The organiser's own membership ID for the active care space, threaded
   // down to RecordEditor's Assigned-to control. See fork.txt Part 5.
   activeMembershipId?: string;
+  // Phase 14: threaded straight down to RecordEditor's "Remind me" toggle.
+  onRequestReminderPermission?: () => Promise<boolean>;
   // True once setup is already complete and this screen is reached from
   // Home's everyday Add action rather than first-time onboarding. Changes
   // only the heading/footer copy — the category-gateway/list/add/edit
@@ -73,6 +75,7 @@ export function FirstThingScreen({
   supportedPersonId,
   records,
   activeMembershipId,
+  onRequestReminderPermission,
   everyday = false,
   initialOpenRecordId,
   initialOpenType,
@@ -351,6 +354,7 @@ export function FirstThingScreen({
                   draft={draft}
                   supportedPersonId={supportedPersonId}
                   activeMembershipId={activeMembershipId}
+                  onRequestReminderPermission={onRequestReminderPermission}
                   onChange={(nextDraft) => setDrafts((current) => ({ ...current, [draftKey]: nextDraft }))}
                   onSave={(savedRecord) => save(index, savedRecord)}
                   onRemove={record ? () => remove(record.id) : undefined}

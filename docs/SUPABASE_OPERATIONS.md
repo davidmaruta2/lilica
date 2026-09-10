@@ -144,7 +144,8 @@ Migrations recover schema, not user data. They are necessary reproducible histor
 ## Deliberately Deferred
 
 - Organiser avatar storage.
-- Assignment UI/lifecycle workflows, invitations, collaboration/member management, documents/cloud attachment bytes, Calendar and To Do projections.
+- Assignment UI/lifecycle workflows, invitations, collaboration/member management, documents/cloud attachment bytes.
+- Push notification delivery and device-token registration (Phase 14 implemented local-only reminders; no schema change was needed or made). Real push would require a device-registration table (RLS-protected, one row per authenticated user's device, supporting rotation/revocation), a server-side Edge Function holding the Expo access token (never in the mobile client), and product-owner action to configure an EAS project with Apple Push Notification service and Firebase Cloud Messaging credentials.
 - Production project creation, deployment automation, backup guarantees, and disaster recovery.
 
 Email/password Auth, mandatory confirmation, OTP templates, redirect URLs, the eight-character minimum and development SMTP are implemented decisions. Any provider expansion or production Auth configuration still requires explicit review and approval.

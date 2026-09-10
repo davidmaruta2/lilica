@@ -118,6 +118,18 @@ export type FirstItem = {
   // Distinct from the legacy `responsiblePerson` free text above, which is
   // preserved exactly and never inferred to be this assignment.
   assignedMembershipId?: string;
+  // Phase 14: whether the user has opted in to local reminders for this
+  // record. Never implies a reminder has actually fired, been seen, or
+  // been acted on -- that is notification-delivery state, tracked only as
+  // scheduled local device notifications, never written back onto the
+  // record. See docs/PHASE_14_ARCHITECTURE.md section "Three-state
+  // separation".
+  remindersEnabled?: boolean;
+  // Phase 14: bumped whenever the record's relevant date/time changes
+  // while reminders are enabled, so previously scheduled local
+  // notifications (keyed by this version) can be identified and cancelled
+  // rather than left to fire with stale timing.
+  reminderScheduleVersion?: number;
   provider?: string;
   reference?: string;
   role?: string;

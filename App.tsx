@@ -57,6 +57,20 @@ import {
   recordRetryDelay,
   synchronizeRecords,
 } from './src/recordSync';
+import {
+  addNotificationResponseListener,
+  cancelRecordReminders,
+  configureNotificationHandler,
+  DEFAULT_NOTIFICATION_SETTINGS,
+  disableAllReminders,
+  getPermissionState,
+  loadNotificationSettings,
+  NotificationSettings,
+  PermissionState,
+  reconcileRecordReminders,
+  requestPermission as requestNotificationPermission,
+  saveNotificationSettings,
+} from './src/notifications';
 import { colors } from './src/theme';
 import {
   AppTab,
@@ -97,6 +111,13 @@ function initialPersonStage(state: OnboardingState): OnboardingStage {
   return hasStarted ? 'relationship' : 'careFork';
 }
 
+// Phase 14: a friendly "9pm"/"8am" label for the quiet-hours row.
+function formatQuietHour(hour: number): string {
+  const period = hour < 12 ? 'am' : 'pm';
+  const twelveHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${twelveHour}${period}`;
+}
+
 function applyCachedRecords(state: OnboardingState, recordsBySpace: Record<string, LilicaRecord[]>) {
   let next = state;
   for (const [careSpaceId, records] of Object.entries(recordsBySpace)) {
@@ -130,6 +151,12 @@ function LilicaApp() {
   const [pendingRelationship, setPendingRelationship] = useState<Relationship>();
   const [provisioning, setProvisioning] = useState(false);
   const [provisionError, setProvisionError] = useState<string>();
+  // Phase 14: local-only reminder settings. remindersEnabled is the global
+  // master switch, off until the user explicitly opts in from a real
+  // reminder-value moment -- never requested at launch or during
+  // onboarding. See docs/PHASE_14_ARCHITECTURE.md.
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
+  const [reminderPermissionState, setReminderPermissionState] = useState<PermissionState>('undetermined');
   // Phase 10: one-shot "open this record's editor" request from Calendar,
   // consumed and cleared by FirstThingScreen itself (see
   // onInitialOpenHandled) so a later, unrelated visit never reopens it.
@@ -151,6 +178,41 @@ function LilicaApp() {
   });
   const currentSpace = activeCareSpace(state);
   const spaces = Object.values(state.careSpaces).sort((left, right) => left.displayName.localeCompare(right.displayName));
+
+  // Phase 14: configure the notification handler once, and load whatever
+  // reminder settings this device already has -- never requests OS
+  // permission itself, only reads local preference state.
+  useEffect(() => {
+    configureNotificationHandler();
+    loadNotificationSettings().then(setNotificationSettings).catch(() => undefined);
+    getPermissionState().then(setReminderPermissionState).catch(() => undefined);
+  }, []);
+
+  // Refresh the displayed permission status whenever Account is opened --
+  // the user may have changed it in device settings since last time.
+  useEffect(() => {
+    if (showAccount) getPermissionState().then(setReminderPermissionState).catch(() => undefined);
+  }, [showAccount]);
+
+  // Phase 14: a tapped notification must resolve its OWN referenced care
+  // space, never trust the currently active one (brief section 17) -- a
+  // notification for Maggie opened while Jackie is active must switch to
+  // Maggie first. If that care space no longer exists locally (the only
+  // form of "access revoked" possible in this single-device, pre-Phase-15
+  // scope), the tap is safely ignored rather than opening the wrong
+  // record or exposing stale content.
+  useEffect(() => {
+    const subscription = addNotificationResponseListener(({ recordId, careSpaceId }) => {
+      setState((current) => {
+        if (!current.careSpaces[careSpaceId]) return current;
+        const next = careSpaceId === current.activeCareSpaceId ? current : projectActiveCareSpace({ ...current, activeCareSpaceId: careSpaceId });
+        return next;
+      });
+      openRecordFromProjection(recordId);
+    });
+    return () => subscription.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (auth.loading) return;
@@ -335,6 +397,7 @@ function LilicaApp() {
   function saveRecord(record: LilicaRecord) {
     if (!currentSpace) return;
     localRecordRevision.current += 1;
+    const previousRecord = currentSpace.records.find((item) => item.id === record.id);
     const savedRecord = { ...record, supportedPersonId: currentSpace.supportedPersonId };
     setState((current) => projectActiveCareSpace(replaceCareSpace(current, currentSpace.careSpaceId, (space) => ({
       ...space,
@@ -343,11 +406,22 @@ function LilicaApp() {
     if (storageOwnerId && currentSpace.membershipId) {
       syncAfterLocalMutation(enqueueRecordUpsert(storageOwnerId, currentSpace.careSpaceId, savedRecord));
     }
+    // Phase 14: reconcile pending local reminders against whatever just
+    // changed -- covers a fresh save, a date/time edit, completion and
+    // cancellation alike, since they all flow through this one path.
+    void reconcileRecordReminders(
+      savedRecord,
+      previousRecord?.reminderScheduleVersion,
+      currentSpace.careSpaceId,
+      currentSpace.displayName,
+      notificationSettings,
+    );
   }
 
   function removeRecord(recordId: string) {
     if (!currentSpace) return;
     localRecordRevision.current += 1;
+    const existing = currentSpace.records.find((item) => item.id === recordId);
     setState((current) => projectActiveCareSpace(replaceCareSpace(current, currentSpace.careSpaceId, (space) => ({
       ...space,
       records: removeRecordById(space.records, recordId),
@@ -355,6 +429,42 @@ function LilicaApp() {
     if (storageOwnerId && currentSpace.membershipId) {
       syncAfterLocalMutation(enqueueRecordDelete(storageOwnerId, currentSpace.careSpaceId, recordId));
     }
+    // Phase 14: deleting a record must suppress its pending reminders too.
+    if (existing) void cancelRecordReminders(existing.id, existing.reminderScheduleVersion ?? 0);
+  }
+
+  async function requestReminderPermission(): Promise<boolean> {
+    const permissionState = await requestNotificationPermission();
+    setReminderPermissionState(permissionState);
+    if (permissionState !== 'granted') return false;
+    if (!notificationSettings.remindersEnabled) {
+      const next = { ...notificationSettings, remindersEnabled: true };
+      setNotificationSettings(next);
+      void saveNotificationSettings(next);
+    }
+    return true;
+  }
+
+  function updateNotificationSettings(patch: Partial<NotificationSettings>) {
+    setNotificationSettings((current) => {
+      const next = { ...current, ...patch };
+      void saveNotificationSettings(next);
+      if (current.remindersEnabled && next.remindersEnabled === false) void disableAllReminders();
+      return next;
+    });
+  }
+
+  // The Account screen's master switch: turning it on is the same
+  // explicit reminder-value moment as a record's own "Remind me" toggle
+  // (brief section 13), so it goes through the same permission request.
+  // Turning it off never needs permission, just disables everything.
+  async function toggleGlobalReminders(nextEnabled: boolean) {
+    if (nextEnabled) await requestReminderPermission();
+    else updateNotificationSettings({ remindersEnabled: false });
+  }
+
+  function toggleQuietHours(nextEnabled: boolean) {
+    updateNotificationSettings({ quietHoursEnabled: nextEnabled });
   }
 
   function completeOnboarding(firstItem?: FirstItem) {
@@ -601,6 +711,12 @@ function LilicaApp() {
           email={auth.session?.user.email}
           signingOut={signingOut}
           error={signOutError}
+          remindersEnabled={notificationSettings.remindersEnabled}
+          reminderPermissionState={reminderPermissionState}
+          quietHoursEnabled={notificationSettings.quietHoursEnabled}
+          quietHoursLabel={`${formatQuietHour(notificationSettings.quietHours.startHour)}–${formatQuietHour(notificationSettings.quietHours.endHour)}`}
+          onToggleReminders={(enabled) => void toggleGlobalReminders(enabled)}
+          onToggleQuietHours={toggleQuietHours}
           onBack={() => setShowAccount(false)}
           onSignOut={() => void signOut()}
         />
@@ -878,6 +994,7 @@ function LilicaApp() {
             supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
             records={currentSpace?.records ?? []}
             activeMembershipId={currentSpace?.membershipId}
+            onRequestReminderPermission={requestReminderPermission}
             everyday={currentSpace?.setupStatus === 'ready'}
             initialOpenRecordId={calendarOpenRecordId}
             initialOpenType={projectionOpenType}
@@ -907,6 +1024,7 @@ function LilicaApp() {
             supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
             records={currentSpace?.records ?? []}
             activeMembershipId={currentSpace?.membershipId}
+            onRequestReminderPermission={requestReminderPermission}
             everyday={currentSpace?.setupStatus === 'ready'}
             onBack={goBack}
             onSaveRecord={saveRecord}

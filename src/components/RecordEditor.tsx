@@ -37,6 +37,8 @@ export type RecordDraft = {
   completed: boolean;
   recurrence?: RecordRecurrence;
   attachments: RecordAttachment[];
+  // Phase 14: per-record reminder opt-in. See docs/PHASE_14_ARCHITECTURE.md.
+  remindersEnabled: boolean;
 };
 
 type Props = {
@@ -49,6 +51,12 @@ type Props = {
   // and You are offered today because no other active membership exists
   // yet (Phase 15 owns invitations/collaboration) — see fork.txt Part 5.
   activeMembershipId?: string;
+  // Phase 14: called when the user turns the "Remind me" toggle on. Resolves
+  // true once notification permission is confirmed granted (requesting it
+  // first if not yet determined); resolves false on denial/no-op on
+  // unsupported platforms. RecordEditor never talks to expo-notifications
+  // directly -- that boundary stays in src/notifications.ts.
+  onRequestReminderPermission?: () => Promise<boolean>;
   onChange: (draft: RecordDraft) => void;
   onSave: (record: LilicaRecord) => void;
   onRemove?: () => void;
@@ -103,6 +111,7 @@ export function createRecordDraft(type: LilicaRecordType, record?: LilicaRecord)
     completed: record?.completed ?? false,
     recurrence: record?.recurrence,
     attachments: record?.attachments ?? [],
+    remindersEnabled: record?.remindersEnabled ?? false,
   };
 }
 
@@ -141,7 +150,7 @@ export function completionUpdate(
   };
 }
 
-export function RecordEditor({ type, record, draft, supportedPersonId, activeMembershipId, onChange, onSave, onRemove }: Props) {
+export function RecordEditor({ type, record, draft, supportedPersonId, activeMembershipId, onRequestReminderPermission, onChange, onSave, onRemove }: Props) {
   const [attachmentError, setAttachmentError] = useState('');
   const parsedDate = draft.date ? toIsoDate(draft.date) : undefined;
   const parsedExpiry = draft.expiryDate ? toIsoDate(draft.expiryDate) : undefined;
@@ -154,10 +163,22 @@ export function RecordEditor({ type, record, draft, supportedPersonId, activeMem
   const supportsCompletion = type === 'task' || type === 'bill' || type === 'homeMatter';
   const supportsRecurrence = type === 'bill' || type === 'homeMatter';
   const supportsAssignment = (type === 'appointment' || type === 'task' || type === 'bill' || type === 'homeMatter') && Boolean(activeMembershipId);
+  // Phase 14: only genuinely time/action-relevant types can meaningfully
+  // remind -- matches isReminderEligible() in src/reminders.ts exactly.
+  const supportsReminder = type === 'appointment' || type === 'task' || type === 'bill' || type === 'homeMatter';
   const itemName = type === 'careNote' ? 'care information' : type === 'homeMatter' ? 'home or car matter' : type;
 
   function change(patch: Partial<RecordDraft>) {
     onChange({ ...draft, ...patch });
+  }
+
+  async function toggleReminder() {
+    if (draft.remindersEnabled) {
+      change({ remindersEnabled: false });
+      return;
+    }
+    const granted = onRequestReminderPermission ? await onRequestReminderPermission() : true;
+    if (granted) change({ remindersEnabled: true });
   }
 
   function save() {
@@ -171,15 +192,28 @@ export function RecordEditor({ type, record, draft, supportedPersonId, activeMem
         ]
       : record?.confirmationHistory;
 
+    const finalEventDate = usesEventDate ? parsedDate : undefined;
+    const finalEventTime = type === 'appointment' || type === 'update' ? draft.time.trim() || undefined : undefined;
+    const finalDueDate = usesDueDate ? parsedDate : undefined;
+    // Phase 14: the schedule version is a pure fingerprint of the fields a
+    // reminder occasion is computed from. It bumps whenever they change,
+    // regardless of whether reminders are currently on, so re-enabling
+    // later still reconciles correctly against the right version.
+    const relevantDateChanged = supportsReminder
+      && (record?.eventDate !== finalEventDate || record?.eventTime !== finalEventTime || record?.dueDate !== finalDueDate);
+    const reminderScheduleVersion = relevantDateChanged ? (record?.reminderScheduleVersion ?? 0) + 1 : record?.reminderScheduleVersion ?? 0;
+
     onSave({
       id: record?.id ?? createUuid(),
       type,
       title: draft.title.trim(),
       supportedPersonId,
       status: statusFor(type, draft.completed),
-      eventDate: usesEventDate ? parsedDate : undefined,
-      eventTime: type === 'appointment' || type === 'update' ? draft.time.trim() || undefined : undefined,
-      dueDate: usesDueDate ? parsedDate : undefined,
+      eventDate: finalEventDate,
+      eventTime: finalEventTime,
+      dueDate: finalDueDate,
+      remindersEnabled: supportsReminder ? draft.remindersEnabled : undefined,
+      reminderScheduleVersion: supportsReminder ? reminderScheduleVersion : undefined,
       expiryDate: type === 'document' ? parsedExpiry : undefined,
       location: type === 'appointment' ? draft.location.trim() || undefined : undefined,
       responsiblePerson: supportsCompletion || type === 'appointment'
@@ -422,6 +456,18 @@ export function RecordEditor({ type, record, draft, supportedPersonId, activeMem
         </View>
       ) : null}
 
+      {supportsReminder ? (
+        <Pressable accessibilityRole="switch" accessibilityState={{ checked: draft.remindersEnabled }} onPress={() => void toggleReminder()} style={styles.reminderToggle}>
+          <View style={styles.reminderCopy}>
+            <AppText variant="bodyStrong">Remind me</AppText>
+            <AppText variant="secondary" tone="soft">
+              {type === 'appointment' ? '1 day and 2 hours before' : '3 days before and on the day'}
+            </AppText>
+          </View>
+          <View style={[styles.checkbox, draft.remindersEnabled && styles.checkboxSelected]}>{draft.remindersEnabled ? <View style={styles.tick} /> : null}</View>
+        </Pressable>
+      ) : null}
+
       <TextField compact label="Notes" placeholder="Optional" value={draft.notes} onChangeText={(notes) => change({ notes })} multiline style={styles.notes} />
 
       {supportsCompletion ? (
@@ -472,6 +518,8 @@ const styles = StyleSheet.create({
   recurrencePillSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   notes: { minHeight: 76, paddingTop: spacing.md, textAlignVertical: 'top' },
   completion: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  reminderToggle: { minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  reminderCopy: { flex: 1, gap: 2 },
   checkbox: { width: 26, height: 26, borderRadius: 7, borderWidth: 1.5, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   checkboxSelected: { backgroundColor: colors.primary },
   tick: { width: 11, height: 7, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: colors.white, transform: [{ rotate: '-45deg' }], marginTop: -2 },

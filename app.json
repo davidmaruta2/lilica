@@ -35,6 +35,12 @@
           "photosPermission": "Allow Lilica to access documents saved in your photos.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#63364D"
+        }
       ]
     ]
   }
