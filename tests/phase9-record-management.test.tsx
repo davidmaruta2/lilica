@@ -57,6 +57,15 @@ describe('Category gateway: saved-count badge, not an "Added" label', () => {
     expect(() => screen.getByText('Added')).toThrow();
   });
 
+  it('keeps the Add affordance alongside the count badge, since the box is revisited to add more', async () => {
+    const appointments = [
+      { id: 'a1', type: 'appointment' as const, title: 'Dentist', createdAt: '2026-09-10T00:00:00Z' },
+    ];
+    const screen = await render(<FirstThingScreen {...baseProps} records={appointments} everyday />);
+    screen.getByLabelText('1 saved');
+    expect(screen.getAllByText('Add').length).toBeGreaterThan(0);
+  });
+
   it('still shows the Add affordance when a category has no saved records', async () => {
     const screen = await render(<FirstThingScreen {...baseProps} records={[]} everyday />);
     expect(screen.getAllByText('Add').length).toBeGreaterThan(0);

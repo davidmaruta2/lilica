@@ -1,5 +1,14 @@
 # Revision Log
 
+## 10 September 2026 - Count badge coexists with Add; Home snapshot row matches the record boxes
+
+Two corrections from the same product-owner check:
+
+1. The saved-count badge just added to `FirstThingScreen`'s category boxes had replaced the "Add" label entirely once a category held records. The box is still there to add more, so "Add" now sits alongside the count badge rather than being replaced by it (`addAffordance` changed from a single fixed-width slot to a row holding both).
+2. Home's horizontal category snapshot row (`HomeScreen.tsx`) only ever showed four categories (To do, Bill, Home or car matter, Appointment) — the original approved mockup's subset — which no longer matched the eight category boxes on the person's own records screen. `SNAPSHOT_TYPES` now lists all eight, in the same order as `firstItemOptions` (Appointment, Task, Bill, Home or car matter, Document, Contact, Care information, Update). The visual treatment (icon, tint, accent) for all eight already existed in `CATEGORY_VISUALS`/`CategoryIcon` from the original build — only four were ever wired into the row.
+
+New test in `tests/phase9-record-management.test.tsx` covers Add and the count badge both being present together. `npm run typecheck` and `npm test` (154 tests, up from 153) both pass.
+
 ## 10 September 2026 - Category gateway: saved-count badge, not "Added"
 
 Product-owner observation: on a supported person's records screen (`FirstThingScreen`, both first-time and everyday modes), each category box (Appointment, Bill, Home or car matter, etc.) showed "Added" once it held any records. Since the box is revisited repeatedly to add more, "Added" wrongly implied the category was now complete/done rather than just non-empty.

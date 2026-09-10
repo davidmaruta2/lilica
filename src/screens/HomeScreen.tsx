@@ -139,14 +139,17 @@ function CategoryIcon({ type, color }: { type: LilicaRecordType; color: string }
   }
 }
 
-// The four snapshot categories from the approved mockup. Counts are derived
-// locally, right here, from the records already loaded into Home — nothing
-// is persisted, queried, or added to records.ts. "Open" is the one caption
+// All eight record categories, in the same order as the record boxes on
+// the person's own records screen (firstItemOptions) -- the snapshot row
+// used to show only four (the original approved mockup), which no longer
+// matched what the record boxes actually offer. Counts are derived locally,
+// right here, from the records already loaded into Home — nothing is
+// persisted, queried, or added to records.ts. "Open" is the one caption
 // that is truthful for every category under the current model: it means
 // exactly "not completed" per the existing deriveRecordState(), no more.
 // "To do" is a display label for today's `task` record type only — it does
 // not claim to be the future Phase 8 actionable-occurrence projection.
-const SNAPSHOT_TYPES: LilicaRecordType[] = ['task', 'bill', 'homeMatter', 'appointment'];
+const SNAPSHOT_TYPES: LilicaRecordType[] = ['appointment', 'task', 'bill', 'homeMatter', 'document', 'contact', 'careNote', 'update'];
 
 export function HomeScreen({
   state,

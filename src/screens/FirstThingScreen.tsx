@@ -269,9 +269,8 @@ export function FirstThingScreen({
                       <View style={styles.countBadge} accessibilityLabel={`${savedRecords.length} saved`}>
                         <AppText variant="secondary" tone="white" style={styles.countBadgeLabel}>{savedRecords.length}</AppText>
                       </View>
-                    ) : (
-                      <AppText variant="secondary" tone="primary">Add</AppText>
-                    )}
+                    ) : null}
+                    <AppText variant="secondary" tone="primary">Add</AppText>
                   </View>
               </Pressable>
             </Animated.View>
@@ -343,7 +342,7 @@ const styles = StyleSheet.create({
   categoryMarkSaved: { backgroundColor: colors.oliveSoft },
   categoryMarkInner: { width: 13, height: 13, borderRadius: radius.pill, backgroundColor: colors.primary },
   itemCopy: { flex: 1, gap: spacing.xxs },
-  addAffordance: { width: 48, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  addAffordance: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, justifyContent: 'flex-end' },
   countBadge: { minWidth: 24, height: 24, paddingHorizontal: 6, borderRadius: radius.pill, backgroundColor: colors.olive, alignItems: 'center', justifyContent: 'center' },
   countBadgeLabel: { fontWeight: '700' },
   recordList: { gap: spacing.sm, paddingBottom: spacing.xl },
