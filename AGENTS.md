@@ -10,7 +10,7 @@ This is the Lilica React Native care-organising app for Luxford Interactive. Wor
 
 ## Current State
 
-- Phase 5 authentication, Phase 6 multi-person ownership and Phase 7 record persistence/cache/sync are implemented, validated and physically approved. Phase 8's core Record -> Occurrence engine is implemented and awaiting product-owner physical QA.
+- Phase 5 authentication, Phase 6 multi-person ownership, Phase 7 record persistence/cache/sync and Phase 8's core Record -> Occurrence engine are implemented, validated and physically approved (product-owner QA passed 10 September 2026).
 - The self/someone-else onboarding fork (`Whose wellbeing are you looking to support with Lilica?`) is implemented and validated; physical-device QA is outstanding — see `docs/CARE_FORK_QA.md`.
 - Supabase provides email/password Auth, organiser profiles, supported people, care spaces and organiser memberships.
 - Signup and password recovery use six-digit email OTPs. Recovery proceeds through Check your email, Enter your code and Choose a new password.
@@ -36,4 +36,4 @@ This is the Lilica React Native care-organising app for Luxford Interactive. Wor
 
 Run `npm run validate` for app changes and `npm run validate:all` for database changes. Physical-device claims require actual device testing; automated layout tests are not physical proof.
 
-Phase 8 is implemented but uncommitted pending product-owner review and physical QA. Do not begin Phase 9.
+Phase 8 is implemented, committed and physically approved. Do not begin Phase 9 without its own separate, explicit, bounded implementation prompt.

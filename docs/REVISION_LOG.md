@@ -1,5 +1,9 @@
 # Revision Log
 
+## 10 September 2026 - Phase 8 physical-device QA passed
+
+The product owner completed and confirmed the `docs/PHASE_8_QA.md` checklist on physical Android and iPhone devices. Phase 8 (committed as `019b88b`) is now physically approved, alongside Phases 5-7. Codex is offline for approximately one week; this session committed and pushed Codex's completed Phase 8 work on explicit product-owner instruction, and is now the sole active agent on this repository until Codex returns. Phase 9 still requires its own separate, explicit, bounded implementation prompt before any work begins — the passed QA checklist is not that authorisation.
+
 ## 10 September 2026 - Phase 8 core Record and Occurrence engine
 
 - Added stable, care-space-owned canonical occurrences beneath existing Phase 7 records, with explicit date-only, local date/time and instant shapes.

@@ -30,7 +30,7 @@ The working app now includes:
 - Eight real record categories with category lists, multiple stable record IDs and compact editors.
 - Wheel-based date/time selection, local document upload/camera capture and real-record-only Home sections.
 
-Phase 7 record persistence, cache, sync and safe migration are implemented, validated and physically approved. Phase 8 automated implementation is complete and awaits physical QA. Assignment UI, invitations, collaboration, cloud attachment bytes and production infrastructure are not implemented.
+Phase 7 record persistence, cache, sync and safe migration, and Phase 8's core Record -> Occurrence engine, are implemented, validated and physically approved (product-owner QA passed 10 September 2026 — see `docs/PHASE_8_QA.md`). Assignment UI, invitations, collaboration, cloud attachment bytes and production infrastructure are not implemented.
 
 ## Current Flow
 
@@ -106,9 +106,9 @@ Physical-device testing found Password/the CTA still hidden behind the keyboard 
 
 ## Immediate Next Steps
 
-On 10 September 2026, the product owner confirmed the corrected keyboard behavior and the password, verification-code, check-email and password-reset paths working on physical devices.
+On 10 September 2026, the product owner confirmed the corrected keyboard behavior and the password, verification-code, check-email and password-reset paths working on physical devices. The same day, the product owner also confirmed the Phase 8 physical-device QA checklist (`docs/PHASE_8_QA.md`) passed on Android and iPhone.
 
-Phase 8 is implemented and awaiting product-owner physical QA. Preserve the Phase 7 ownership/sync contracts and Phase 8 Record -> Occurrence/history boundaries. Do not begin Phase 9.
+Phase 8 is implemented, committed and physically approved. Preserve the Phase 7 ownership/sync contracts and Phase 8 Record -> Occurrence/history boundaries. Do not begin Phase 9 without its own separate, explicit, bounded implementation prompt.
 
 ## Approved Future Assignment Boundary
 

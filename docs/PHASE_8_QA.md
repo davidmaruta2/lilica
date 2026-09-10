@@ -1,6 +1,6 @@
 # Phase 8 Physical-Device QA
 
-Status: Awaiting product-owner testing on physical Android and iPhone devices
+Status: Passed — product-owner confirmed on physical Android and iPhone devices, 10 September 2026
 Date prepared: 10 September 2026
 
 Use development accounts and `lilica-development` only. Record device model, OS, Expo Go/build version and result. Phase 8 is mostly architectural; where no UI exists, the automated proof is named instead of inventing a test screen.
@@ -36,3 +36,5 @@ Use development accounts and `lilica-development` only. Record device model, OS,
 - `supabase/tests/database/occurrences_rls.test.sql`: deterministic migration, malformed history, attachment and responsibility preservation, occurrence history, recurrence retry, stable assignment identity and anonymous/cross-user/revoked denial.
 
 Phase 8 must remain unapproved until both Android and iPhone checks pass. Failures should be reported against this checklist without beginning Phase 9.
+
+Product-owner confirmation, 10 September 2026: QA passed. Phase 8 is now physically approved. Phase 9 still requires its own separate, explicit, bounded implementation prompt before work begins — passing this checklist is not that authorisation.

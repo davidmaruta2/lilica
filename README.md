@@ -72,7 +72,7 @@ npx expo export --platform web
 
 Phase 3 adds a small Jest/`jest-expo` and React Native Testing Library safety harness. `npm run validate` runs typecheck, automated tests, Expo dependency/config checks and a web export. Phase 8 connects the canonical occurrence mapper to record creation, the local cache and server reconciliation without changing the record-entry UI. Physical-device checks remain manual; see `docs/PHASE_8_QA.md`.
 
-Physical-device acceptance has confirmed the corrected keyboard, authentication/recovery paths and Phase 7 record migration/sync behaviour on Android and iPhone. Phase 8 automated validation is complete; Phase 8 physical-device QA remains required before approval.
+Physical-device acceptance has confirmed the corrected keyboard, authentication/recovery paths, Phase 7 record migration/sync behaviour and Phase 8's Record -> Occurrence engine on Android and iPhone.
 
 ## Reference Material
 
