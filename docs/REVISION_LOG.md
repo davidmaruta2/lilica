@@ -1,12 +1,12 @@
 # Revision Log
 
-## 10 September 2026 - Repeats: Weekly/Monthly/Yearly, no explicit Never
+## 10 September 2026 - Repeats: horizontal Weekly/Bi-weekly/Monthly/6-monthly/Annually pills
 
-Product-owner request: the "Repeats" toggle offered Never/Monthly/Yearly; requested Weekly/Monthly/Yearly instead, with no explicit "Never" chip — deselecting the active option (tapping it again) now clears recurrence, same as picking Never used to.
+Product-owner request, revised twice in the same sitting: first to a Weekly/Monthly/Yearly toggle with no explicit "Never" (deselecting clears recurrence), then to a horizontal scrolling row of five pills — Weekly, Bi-weekly, Monthly, 6-monthly, Annually — confirmed via `AskUserQuestion` as a scrollable row of pill buttons rather than a draggable-thumb slider, matching the existing horizontal interest-selection carousel's interaction style.
 
-`src/components/RecordEditor.tsx`: the three segmented options are now Weekly, Monthly, Yearly (the existing `RecordRecurrence` type already supported `'week'`, no type change needed). Each is now a toggle: pressing the already-selected option sets `recurrence: undefined`; pressing a different one selects it. `docs/PHASE_9_ARCHITECTURE.md`'s one mention of the old toggle wording updated to match.
+`src/components/RecordEditor.tsx`: the "Repeats" field (bill/home-or-car-matter records only, unchanged) is now a horizontally scrolling `ScrollView` of five pill buttons. Bi-weekly is `{ interval: 2, unit: 'week' }` and 6-monthly is `{ interval: 6, unit: 'month' }` — both already expressible by the existing `RecordRecurrence` type, no type or migration change needed. Selection compares both `interval` and `unit` (previously `unit` alone, which would have conflated Weekly/Bi-weekly and Monthly/6-monthly). Tapping the already-selected pill clears recurrence to `undefined`, so there's no separate "Never" option. `docs/PHASE_9_ARCHITECTURE.md`'s reference to the old toggle wording updated to match.
 
-`npm run typecheck` and `npm test` (147 tests, no change in count — no existing test asserted the old Never option) both pass.
+New `tests/record-recurrence.test.tsx` (4 tests) covers all five options rendering, Bi-weekly/6-monthly storing the correct distinct interval, and deselecting clearing recurrence. `npm run typecheck` and `npm test` (151 tests, up from 147) both pass.
 
 ## 10 September 2026 - Remove a duplicated person from the relationship summary
 

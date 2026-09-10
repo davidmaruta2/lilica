@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
@@ -369,26 +369,28 @@ export function RecordEditor({ type, record, draft, supportedPersonId, activeMem
       {supportsRecurrence ? (
         <View style={styles.fieldGroup}>
           <AppText variant="secondary" tone="soft">Repeats</AppText>
-          <View style={styles.segmented}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recurrenceRow}>
             {[
               { label: 'Weekly', value: { interval: 1, unit: 'week' as const } },
+              { label: 'Bi-weekly', value: { interval: 2, unit: 'week' as const } },
               { label: 'Monthly', value: { interval: 1, unit: 'month' as const } },
-              { label: 'Yearly', value: { interval: 1, unit: 'year' as const } },
+              { label: '6-monthly', value: { interval: 6, unit: 'month' as const } },
+              { label: 'Annually', value: { interval: 1, unit: 'year' as const } },
             ].map((option) => {
-              const selected = draft.recurrence?.unit === option.value.unit;
+              const selected = draft.recurrence?.unit === option.value.unit && draft.recurrence?.interval === option.value.interval;
               return (
                 <Pressable
                   key={option.label}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                   onPress={() => change({ recurrence: selected ? undefined : option.value })}
-                  style={[styles.segment, selected && styles.segmentSelected]}
+                  style={[styles.recurrencePill, selected && styles.recurrencePillSelected]}
                 >
-                  <AppText variant="secondary" tone={selected ? 'primary' : 'soft'} centre>{option.label}</AppText>
+                  <AppText variant="secondary" tone={selected ? 'primary' : 'soft'}>{option.label}</AppText>
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
         </View>
       ) : null}
 
@@ -437,6 +439,9 @@ const styles = StyleSheet.create({
   segmented: { flexDirection: 'row', borderWidth: 1, borderColor: colors.line, borderRadius: radius.sm, overflow: 'hidden' },
   segment: { flex: 1, minHeight: 44, paddingHorizontal: spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   segmentSelected: { backgroundColor: colors.primarySoft },
+  recurrenceRow: { flexDirection: 'row', gap: spacing.xs },
+  recurrencePill: { minHeight: 44, paddingHorizontal: spacing.md, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line, borderRadius: radius.pill, backgroundColor: colors.surface },
+  recurrencePillSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   notes: { minHeight: 76, paddingTop: spacing.md, textAlignVertical: 'top' },
   completion: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   checkbox: { width: 26, height: 26, borderRadius: 7, borderWidth: 1.5, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
