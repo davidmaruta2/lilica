@@ -1,5 +1,13 @@
 # Revision Log
 
+## 10 September 2026 - Repeats: Weekly/Monthly/Yearly, no explicit Never
+
+Product-owner request: the "Repeats" toggle offered Never/Monthly/Yearly; requested Weekly/Monthly/Yearly instead, with no explicit "Never" chip — deselecting the active option (tapping it again) now clears recurrence, same as picking Never used to.
+
+`src/components/RecordEditor.tsx`: the three segmented options are now Weekly, Monthly, Yearly (the existing `RecordRecurrence` type already supported `'week'`, no type change needed). Each is now a toggle: pressing the already-selected option sets `recurrence: undefined`; pressing a different one selects it. `docs/PHASE_9_ARCHITECTURE.md`'s one mention of the old toggle wording updated to match.
+
+`npm run typecheck` and `npm test` (147 tests, no change in count — no existing test asserted the old Never option) both pass.
+
 ## 10 September 2026 - Remove a duplicated person from the relationship summary
 
 Reported directly by the product owner: after accidentally adding "Dad" twice on the "Who are you helping?" flow (duplicates are allowed by design, e.g. two grandparents), there was no way to remove the extra entry from the collapsed relationship summary screen reached via "+ Add another person" — the only existing remove control lived on the later `PeopleReviewScreen`, which isn't reached until every person already has a name.

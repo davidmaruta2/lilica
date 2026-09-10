@@ -41,7 +41,7 @@ Nothing else about the screen changes. The category gateway, the compact record 
 
 ## Explicit Non-Goals (Per Brief)
 
-Not implemented in Phase 9, matching the brief's explicit exclusions: Calendar projection (Phase 11), To Do projection (Phase 12), assignment invitations/collaboration/real care-circle population (Phase 15), a recurrence-rule editor beyond the existing Never/Monthly/Yearly toggle, any Home redesign, and any change to Phase 7/8 cache, outbox, RLS or migration history.
+Not implemented in Phase 9, matching the brief's explicit exclusions: Calendar projection (Phase 11), To Do projection (Phase 12), assignment invitations/collaboration/real care-circle population (Phase 15), a recurrence-rule editor beyond the existing Weekly/Monthly/Yearly toggle, any Home redesign, and any change to Phase 7/8 cache, outbox, RLS or migration history.
 
 ## Deployment
 

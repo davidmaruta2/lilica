@@ -371,17 +371,17 @@ export function RecordEditor({ type, record, draft, supportedPersonId, activeMem
           <AppText variant="secondary" tone="soft">Repeats</AppText>
           <View style={styles.segmented}>
             {[
-              { label: 'Never', value: undefined },
+              { label: 'Weekly', value: { interval: 1, unit: 'week' as const } },
               { label: 'Monthly', value: { interval: 1, unit: 'month' as const } },
               { label: 'Yearly', value: { interval: 1, unit: 'year' as const } },
             ].map((option) => {
-              const selected = draft.recurrence?.unit === option.value?.unit || (!draft.recurrence && !option.value);
+              const selected = draft.recurrence?.unit === option.value.unit;
               return (
                 <Pressable
                   key={option.label}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
-                  onPress={() => change({ recurrence: option.value })}
+                  onPress={() => change({ recurrence: selected ? undefined : option.value })}
                   style={[styles.segment, selected && styles.segmentSelected]}
                 >
                   <AppText variant="secondary" tone={selected ? 'primary' : 'soft'} centre>{option.label}</AppText>
