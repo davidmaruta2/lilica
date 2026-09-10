@@ -20,6 +20,12 @@ import { Interest } from '../types';
 type Props = {
   selected: Interest[];
   personName?: string;
+  // True for the organiser's own "Myself" care space. "What do you help
+  // David with?" is grammatically fine but conceptually odd once the
+  // supported person is the organiser themselves, so this swaps to
+  // first-person framing using the same existing relationship semantic
+  // the fork already established -- no new domain concept.
+  isSelf?: boolean;
   onBack: () => void;
   onToggle: (interest: Interest) => void;
   onContinue: () => void;
@@ -28,7 +34,7 @@ type Props = {
 
 const SCROLL_STEP = 230;
 
-export function InterestsScreen({ selected, personName, onBack, onToggle, onContinue, onSkip }: Props) {
+export function InterestsScreen({ selected, personName, isSelf = false, onBack, onToggle, onContinue, onSkip }: Props) {
   const name = personName?.trim() || 'them';
   const scrollRef = useRef<ScrollView>(null);
   const scrollX = useRef(0);
@@ -76,7 +82,7 @@ export function InterestsScreen({ selected, personName, onBack, onToggle, onCont
       <Header onBack={onBack} />
       <View testID="interests-content" style={styles.content}>
         <View style={styles.prompt}>
-          <AppText variant="title" centre>What do you help {name} with?</AppText>
+          <AppText variant="title" centre>{isSelf ? 'What would you like help staying on top of?' : `What do you help ${name} with?`}</AppText>
           <AppText variant="body" tone="soft" centre style={styles.supporting}>
             Choose what feels familiar.
           </AppText>

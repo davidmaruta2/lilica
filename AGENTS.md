@@ -11,6 +11,7 @@ This is the Lilica React Native care-organising app for Luxford Interactive. Wor
 ## Current State
 
 - Phase 5 authentication, Phase 6 multi-person ownership and Phase 7 record persistence/cache/sync are implemented, validated and physically approved.
+- The self/someone-else onboarding fork (`Whose wellbeing are you looking to support with Lilica?`) is implemented and validated; physical-device QA is outstanding — see `docs/CARE_FORK_QA.md`.
 - Supabase provides email/password Auth, organiser profiles, supported people, care spaces and organiser memberships.
 - Signup and password recovery use six-digit email OTPs. Recovery proceeds through Check your email, Enter your code and Choose a new password.
 - Privacy, interests, attachment bytes and setup progress remain device-local. Records now use a care-space cache/outbox and durable Supabase rows; attachment metadata only is cloud persisted.

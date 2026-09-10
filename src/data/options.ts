@@ -1,6 +1,7 @@
 import { Interest, LilicaRecordType, Relationship } from '../types';
 
 export const relationships: Relationship[] = [
+  'Myself',
   'Mum',
   'Dad',
   'Partner',

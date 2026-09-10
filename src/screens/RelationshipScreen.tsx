@@ -14,6 +14,10 @@ type Props = {
   collapsed?: boolean;
   addingOne?: boolean;
   selected?: Relationship;
+  // True once the organiser already has a "Myself" care space, either in
+  // this draft or already provisioned in an earlier session. "Myself" is
+  // hidden from the wheel in that case so it can never be chosen twice.
+  selfAlreadyUsed?: boolean;
   onBack: () => void;
   onToggle?: (relationship: Relationship) => void;
   onSelect?: (relationship: Relationship) => void;
@@ -29,6 +33,7 @@ export function RelationshipScreen({
   collapsed = false,
   addingOne = false,
   selected,
+  selfAlreadyUsed = false,
   onBack,
   onToggle,
   onSelect,
@@ -38,6 +43,8 @@ export function RelationshipScreen({
 }: Props) {
   const list = useRef<FlatList<Relationship>>(null);
   const selectedTypes = people.map((person) => person.relationshipType);
+  const alreadyHasSelf = selfAlreadyUsed || selectedTypes.includes('Myself');
+  const availableRelationships = alreadyHasSelf ? relationships.filter((item) => item !== 'Myself') : relationships;
 
   function choose(relationship: Relationship) {
     (onToggle ?? onSelect)?.(relationship);
@@ -81,7 +88,7 @@ export function RelationshipScreen({
           <FlatList
             ref={list}
             testID="relationship-carousel"
-            data={relationships}
+            data={availableRelationships}
             keyExtractor={(item) => item}
             contentContainerStyle={styles.wheelContent}
             showsVerticalScrollIndicator={false}

@@ -46,12 +46,23 @@ Do not build production AI, bank integrations, payment initiation, emergency mon
 2. Create an email/password account or log in
 3. Verify a new email account
 4. Enter the organiser's display name on `About you`
-5. Select one or more relationships and enter each supported person's preferred name
-6. Review the roster and choose the first person to set up
-7. Accept that person's privacy declaration
-8. Choose areas the organiser commonly helps with for that person
-9. Add real information on `Let's get [Name] organised`
-10. Continue to Home, switch people, or resume another person's setup
+5. `Whose wellbeing are you looking to support with Lilica?` — choose Myself or Someone else (first-time setup only; see Self/Someone-Else Fork below)
+6. Select one or more relationships and enter each supported person's preferred name
+7. Review the roster and choose the first person to set up
+8. Accept that person's privacy declaration
+9. Choose areas the organiser commonly helps with for that person
+10. Add real information on `Let's get [Name] organised`
+11. Continue to Home, switch people, or resume another person's setup
+
+## Self/Someone-Else Fork
+
+The first time an organiser sets up a person, `CareForkScreen` asks `Whose wellbeing are you looking to support with Lilica?` with two choices, Myself and Someone else. This governs only the *initial* setup path — it is not a permanent account mode. An organiser can end up managing only themselves, only other people, or themselves plus others; the existing Add Person / `PersonSwitcher` / care-space architecture is unchanged and already supports every combination.
+
+Choosing **Myself** uses the organiser's own `About you` display name (never re-asked) and provisions a care space through the exact same `bootstrap_supported_people` path, `care_space_memberships` row and multi-person draft pipeline as any other supported person — with `relationship_type = 'Myself'`, the one new value added to the existing closed set (`Myself, Mum, Dad, Partner, Child, Grandparent, Other relative, Someone else`), enforced by the same database `CHECK` constraint plus a unique partial index limiting a user to one `Myself` membership. There is no separate identity system, no name-matching inference, and no reduced "personal mode" — a Myself care space behaves like any other for records, cache, sync and switching.
+
+Choosing **Someone else** continues into the existing relationship wheel and supported-person flow unchanged. `Myself` also appears as a normal (single-use) option in that wheel, so a person who started with someone else can add themselves later via the existing `+ Add another person` path, and vice versa.
+
+Interests copy adapts for a Myself care space: `InterestsScreen`'s `isSelf` prop (driven by the same `relationshipType === 'Myself'` semantic, not name matching) swaps `What do you help [Name] with?` for `What would you like help staying on top of?`. The privacy declaration's wording (`Get permission from the person you support`) was deliberately left unchanged — it is a protected, versioned legal declaration (`privacy-basis-v2`), and its existing generic phrasing ("the person you support", "them") already parses correctly, if slightly redundant, when that person is the organiser; editing it would require a version bump and is a legal/product decision outside this task's scope.
 
 The introduction and account-choice presentation were revised by Lumen and should not be casually redesigned. The active product workflow begins after the interest-selection screen.
 

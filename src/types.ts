@@ -9,6 +9,7 @@ export type OnboardingStage =
   | 'recoveryEmailSent'
   | 'recoveryCode'
   | 'recoveryPassword'
+  | 'careFork'
   | 'relationship'
   | 'relationshipSummary'
   | 'name'
@@ -21,6 +22,7 @@ export type OnboardingStage =
   | 'home';
 
 export type Relationship =
+  | 'Myself'
   | 'Mum'
   | 'Dad'
   | 'Partner'

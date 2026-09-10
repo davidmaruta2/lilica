@@ -20,6 +20,7 @@ type Props = {
 };
 
 export function NameScreen({ name = '', relationship, relationshipLabel = '', position, onBack, onChangeName, onChangeRelationshipLabel, onContinue }: Props) {
+  const isSelf = relationship === 'Myself';
   const custom = relationship === 'Other relative' || relationship === 'Someone else';
   const valid = name.trim().length >= 1 && name.trim().length <= 80
     && (!custom || (relationshipLabel.trim().length >= 1 && relationshipLabel.trim().length <= 50));
@@ -29,7 +30,7 @@ export function NameScreen({ name = '', relationship, relationshipLabel = '', po
     <Screen footer={<Button label="Continue" disabled={!valid} onPress={onContinue} />}>
       <Header onBack={onBack} />
       <View style={styles.prompt}>
-        <AppText variant="title" centre>{custom ? 'Tell us who they are' : `What's your ${relation}'s name?`}</AppText>
+        <AppText variant="title" centre>{isSelf ? 'Just to confirm, what should we call you?' : custom ? 'Tell us who they are' : `What's your ${relation}'s name?`}</AppText>
         {position ? <AppText variant="secondary" tone="soft" centre style={styles.supporting}>{position}</AppText> : null}
       </View>
       <View style={styles.form}>

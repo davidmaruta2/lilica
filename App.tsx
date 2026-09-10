@@ -10,6 +10,7 @@ import { AppText } from './src/components/Text';
 import { AboutYouScreen } from './src/screens/AboutYouScreen';
 import { AccountScreen, ProfileErrorScreen } from './src/screens/AccountScreen';
 import { AuthScreen } from './src/screens/AuthScreen';
+import { CareForkScreen } from './src/screens/CareForkScreen';
 import { EmailAuthScreen } from './src/screens/EmailAuthScreen';
 import { FirstThingScreen } from './src/screens/FirstThingScreen';
 import { FoundationScreen } from './src/screens/FoundationScreen';
@@ -71,6 +72,7 @@ const stageOrder: OnboardingStage[] = [
   'emailAuth',
   'verifyEmail',
   'aboutYou',
+  'careFork',
   'relationship',
   'relationshipSummary',
   'name',
@@ -81,6 +83,15 @@ const stageOrder: OnboardingStage[] = [
   'firstThing',
   'home',
 ];
+
+// The "Whose wellbeing..." fork only ever governs the very first pass
+// through person setup, never a later add-person pass: once any care space
+// or in-progress draft exists, later additions go straight to the existing
+// relationship wheel (startAddPerson() already does this unconditionally).
+function initialPersonStage(state: OnboardingState): OnboardingStage {
+  const hasStarted = Object.keys(state.careSpaces).length > 0 || (state.onboardingDraft?.people.length ?? 0) > 0;
+  return hasStarted ? 'relationship' : 'careFork';
+}
 
 function applyCachedRecords(state: OnboardingState, recordsBySpace: Record<string, LilicaRecord[]>) {
   let next = state;
@@ -354,6 +365,32 @@ function LilicaApp() {
     update({ onboardingDraft: { ...draft, ...patch } });
   }
 
+  function selfAlreadyRepresented() {
+    return Object.values(state.careSpaces).some((space) => space.relationshipType === 'Myself')
+      || (state.onboardingDraft?.people.some((person) => person.relationshipType === 'Myself') ?? false);
+  }
+
+  function selectMyself() {
+    // Feeds a pre-populated "Myself" draft through the exact same
+    // relationshipSummary -> identity pass -> peopleReview pipeline a
+    // manually chosen relationship would go through, so back navigation,
+    // add-another and edit all reuse existing, already-tested behaviour
+    // rather than needing a parallel fast path.
+    const draft = createOnboardingDraft(state.onboardingComplete);
+    const person: SupportedPersonDraft = {
+      ...createPersonDraft('Myself', 0),
+      displayName: auth.profile?.displayName?.trim() || '',
+    };
+    update({
+      onboardingDraft: { ...draft, people: [person] },
+      stage: 'relationshipSummary',
+    });
+  }
+
+  function selectSomeoneElse() {
+    go('relationship');
+  }
+
   function toggleDraftRelationship(relationship: Relationship) {
     const draft = state.onboardingDraft ?? createOnboardingDraft(state.onboardingComplete);
     if (addingRelationship) {
@@ -454,7 +491,7 @@ function LilicaApp() {
   async function completeProfile(displayName: string) {
     const result = await auth.saveProfile(displayName);
     if (result.ok) {
-      update({ stage: state.onboardingComplete ? 'home' : 'relationship' });
+      update({ stage: state.onboardingComplete ? 'home' : initialPersonStage(state) });
     }
     return result;
   }
@@ -617,16 +654,25 @@ function LilicaApp() {
 
   function renderAuthenticatedOnboarding() {
     const stage = ['welcome', 'how', 'auth', 'emailAuth', 'verifyEmail', 'aboutYou', 'recoveryRequest', 'recoveryEmailSent', 'recoveryCode', 'recoveryPassword'].includes(state.stage)
-      ? state.onboardingComplete ? 'home' : 'relationship'
+      ? state.onboardingComplete ? 'home' : initialPersonStage(state)
       : state.stage;
 
     switch (stage) {
+      case 'careFork':
+        return (
+          <CareForkScreen
+            onBack={() => state.onboardingComplete ? go('home') : goBack()}
+            onSelectMyself={selectMyself}
+            onSelectSomeoneElse={selectSomeoneElse}
+          />
+        );
       case 'relationship':
         return (
           <RelationshipScreen
             people={state.onboardingDraft?.people ?? []}
             addingOne={addingRelationship}
             selected={pendingRelationship}
+            selfAlreadyUsed={selfAlreadyRepresented()}
             onBack={() => state.onboardingComplete ? go('home') : goBack()}
             onToggle={toggleDraftRelationship}
             onDone={finishRelationshipSelection}
@@ -736,6 +782,7 @@ function LilicaApp() {
           <InterestsScreen
             selected={currentSpace?.interests ?? []}
             personName={currentSpace?.displayName}
+            isSelf={currentSpace?.relationshipType === 'Myself'}
             onBack={goBack}
             onToggle={toggleInterest}
             onContinue={() => {
