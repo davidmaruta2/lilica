@@ -271,7 +271,7 @@ describe('real-record-only Home characterization', () => {
     expect(screen.queryByText('Latest')).toBeNull();
   });
 
-  it('currently places due-today and passed appointments in Needs attention', async () => {
+  it('places a passed appointment in Needs attention and a today appointment in Today', async () => {
     const records: LilicaRecord[] = [
       { id: 'today', type: 'appointment', title: 'Today visit', status: 'scheduled', eventDate: '2026-09-09', createdAt: '2026-09-01T00:00:00.000Z' },
       { id: 'past', type: 'appointment', title: 'Past visit', status: 'scheduled', eventDate: '2026-09-08', createdAt: '2026-09-01T00:00:00.000Z' },
@@ -280,8 +280,20 @@ describe('real-record-only Home characterization', () => {
       <HomeScreen state={{ ...initialOnboardingState, stage: 'home', records, allSetDismissed: true }} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
     );
     screen.getByText('Needs attention');
-    screen.getByText('Today visit');
     screen.getByText('Past visit');
+    screen.getByText('Today');
+    screen.getByText('Today visit');
+  });
+
+  it('still places a bill or task due today in Needs attention, unlike an appointment', async () => {
+    const records: LilicaRecord[] = [
+      { id: 'bill-today', type: 'bill', title: 'Electric bill', status: 'unresolved', dueDate: '2026-09-09', createdAt: '2026-09-01T00:00:00.000Z' },
+    ];
+    const screen = await render(
+      <HomeScreen state={{ ...initialOnboardingState, stage: 'home', records, allSetDismissed: true }} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
+    );
+    screen.getByText('Needs attention');
+    screen.getByText('Electric bill');
     expect(screen.queryByText('Today')).toBeNull();
   });
 

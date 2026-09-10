@@ -48,8 +48,14 @@ function categoryLabel(type: LilicaRecordType) {
 
 function sectionFor(item: FirstItem) {
   const derived = deriveRecordState(item);
-  if (derived.overdue || derived.dueToday) return 'Needs attention';
-  if (item.type === 'appointment' && item.eventDate === new Date().toISOString().slice(0, 10)) return 'Today';
+  // An appointment happening today hasn't been missed -- it belongs in
+  // "Today", not "Needs attention". Overdue (missed) appointments, and
+  // any other record type due today (a bill, task or home/car matter),
+  // still need attention exactly as before.
+  const isAppointmentToday = item.type === 'appointment' && item.eventDate === new Date().toISOString().slice(0, 10);
+  if (derived.overdue) return 'Needs attention';
+  if (isAppointmentToday) return 'Today';
+  if (derived.dueToday) return 'Needs attention';
   if (derived.upcoming) return 'Coming up';
   if ((item.type === 'task' || item.type === 'bill' || item.type === 'homeMatter') && derived.unresolved) return 'Needs attention';
   return 'Latest';

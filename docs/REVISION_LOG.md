@@ -1,5 +1,13 @@
 # Revision Log
 
+## 10 September 2026 - An appointment happening today shows under Today, not Needs attention
+
+Product-owner question: why did an appointment scheduled for today appear under "Needs attention" on Home instead of "Today"?
+
+`HomeScreen.tsx`'s `sectionFor()` checked the generic `derived.overdue || derived.dueToday` (true for any record type due exactly today) before its appointment-specific "Today" check, so a today's appointment always matched the first, generic branch and the appointment branch was never reached. Reordered so an overdue (missed) appointment still lands in "Needs attention", a today appointment now lands in "Today", and a bill/task/home-or-car-matter due today is unaffected — it still lands in "Needs attention", which is the existing, correct behaviour for those types.
+
+Updated the characterization test that had documented the old behaviour (now split into two tests: today-vs-past appointment, and a bill still landing in Needs attention when due today). `npm run typecheck` and `npm test` (155 tests, up from 154) both pass.
+
 ## 10 September 2026 - Count badge coexists with Add; Home snapshot row matches the record boxes
 
 Two corrections from the same product-owner check:
