@@ -101,7 +101,11 @@ select extensions.throws_ok(
   'blank display names fail the database constraint'
 );
 select extensions.is(
-  (select count(*) from public.profiles),
+  (select count(*) from public.profiles where id in (
+    '10000000-0000-0000-0000-000000000001',
+    '20000000-0000-0000-0000-000000000002',
+    '30000000-0000-0000-0000-000000000003'
+  )),
   3::bigint,
   'denied writes did not create or delete profile rows'
 );

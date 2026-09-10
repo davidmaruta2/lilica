@@ -4,6 +4,7 @@ import { fireEvent, render } from '@testing-library/react-native';
 import {
   activeCareSpace,
   integrateProvisionedPeople,
+  integrateReconnectedCareSpaces,
   projectActiveCareSpace,
   replaceCareSpace,
   validatePersonDraft,
@@ -76,6 +77,22 @@ describe('Phase 6 care-space state', () => {
     expect(Object.keys(state.careSpaces)).toEqual(['care-0', 'care-1']);
     expect(new Set(Object.values(state.careSpaces).map((space) => space.supportedPersonId)).size).toBe(2);
     expect(new Set(Object.values(state.careSpaces).map((space) => space.membershipId)).size).toBe(2);
+  });
+
+  it('reconnects cloud care spaces on a new device without inventing local consent', () => {
+    const state = integrateReconnectedCareSpaces(initialOnboardingState, [{
+      draftId: drafts[0].draftId,
+      careSpaceId: 'a1000000-0000-4000-a000-000000000001',
+      supportedPersonId: 'a2000000-0000-4000-a000-000000000001',
+      membershipId: 'a3000000-0000-4000-a000-000000000001',
+      displayName: 'Jackie',
+      relationshipType: 'Mum',
+    }]);
+    const reconnected = activeCareSpace(state)!;
+    expect(reconnected.displayName).toBe('Jackie');
+    expect(reconnected.setupStatus).toBe('identity_only');
+    expect(reconnected.privacyDeclarationAccepted).toBe(false);
+    expect(reconnected.records).toEqual([]);
   });
 
   it('isolates interests and records when the active care space changes', () => {

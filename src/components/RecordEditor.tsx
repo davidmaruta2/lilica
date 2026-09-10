@@ -4,6 +4,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 
+import { createUuid } from '../identifiers';
 import { formatDateForInput, toIsoDate } from '../records';
 import { colors, radius, spacing } from '../theme';
 import {
@@ -135,7 +136,7 @@ export function RecordEditor({ type, record, draft, supportedPersonId, onChange,
       : record?.confirmationHistory;
 
     onSave({
-      id: record?.id ?? `${type}-${Date.now()}`,
+      id: record?.id ?? createUuid(),
       type,
       title: draft.title.trim(),
       supportedPersonId,

@@ -116,9 +116,27 @@ select extensions.throws_ok(
   null,
   'membership identity cannot be transferred'
 );
-select extensions.is((select count(*) from public.care_spaces), 5::bigint, 'only five intended care spaces exist globally');
-select extensions.is((select count(*) from public.supported_people), 5::bigint, 'only five intended supported people exist globally');
-select extensions.is((select count(*) from public.care_space_memberships), 5::bigint, 'only five intended memberships exist globally');
+select extensions.is(
+  (select count(*) from public.care_spaces where bootstrap_owner_id in (
+    'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000002'
+  )),
+  5::bigint,
+  'only five intended fixture care spaces exist'
+);
+select extensions.is(
+  (select count(*) from public.supported_people person join public.care_spaces space on space.id = person.care_space_id where space.bootstrap_owner_id in (
+    'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000002'
+  )),
+  5::bigint,
+  'only five intended fixture supported people exist'
+);
+select extensions.is(
+  (select count(*) from public.care_space_memberships where user_id in (
+    'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000002'
+  )),
+  5::bigint,
+  'only five intended fixture memberships exist'
+);
 
 select * from extensions.finish();
 rollback;

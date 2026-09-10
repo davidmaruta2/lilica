@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { stableUuid } from './identifiers';
 import { LilicaRecord, LocalCareSpaceState, OnboardingState, Relationship } from './types';
 
 const STORAGE_KEY = 'lilica:onboarding:v1';
@@ -30,17 +31,6 @@ export function prepareOnboardingStateForStartup(
     return { ...loaded, stage: 'privacyConsent' };
   }
   return loaded;
-}
-
-function stableUuid(seed: string): string {
-  let first = 2166136261;
-  let second = 2246822519;
-  for (let index = 0; index < seed.length; index += 1) {
-    first = Math.imul(first ^ seed.charCodeAt(index), 16777619);
-    second = Math.imul(second ^ seed.charCodeAt(index), 3266489917);
-  }
-  const hex = `${(first >>> 0).toString(16).padStart(8, '0')}${(second >>> 0).toString(16).padStart(8, '0')}a5a5c3c3d4d4e6e6`;
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
 function migrateLegacySpace(parsed: Partial<OnboardingState>, records: LilicaRecord[]): LocalCareSpaceState | undefined {

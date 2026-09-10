@@ -5,22 +5,19 @@ import {
   Relationship,
   SupportedPersonDraft,
 } from './types';
+import { createUuid } from './identifiers';
 
 export type ProvisionedPerson = {
   draftId: string;
   careSpaceId: string;
   supportedPersonId: string;
   membershipId: string;
+  displayName?: string;
+  relationshipType?: Relationship;
+  relationshipLabel?: string;
 };
 
-export function createUuid(): string {
-  const pattern = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
-  return pattern.replace(/[xy]/g, (character) => {
-    const random = Math.floor(Math.random() * 16);
-    const value = character === 'x' ? random : (random & 0x3) | 0x8;
-    return value.toString(16);
-  });
-}
+export { createUuid } from './identifiers';
 
 export function createPersonDraft(relationshipType: Relationship, order: number): SupportedPersonDraft {
   return {
@@ -105,6 +102,43 @@ export function linkProvisionedCareSpaces(
     if (activeCareSpaceId === oldKey) activeCareSpaceId = link.careSpaceId;
   }
 
+  return projectActiveCareSpace({ ...state, careSpaces, activeCareSpaceId });
+}
+
+export function integrateReconnectedCareSpaces(
+  state: OnboardingState,
+  provisioned: ProvisionedPerson[],
+): OnboardingState {
+  const careSpaces = { ...state.careSpaces };
+  for (const link of provisioned) {
+    const current = careSpaces[link.careSpaceId];
+    if (current) {
+      careSpaces[link.careSpaceId] = {
+        ...current,
+        supportedPersonId: link.supportedPersonId,
+        membershipId: link.membershipId,
+      };
+      continue;
+    }
+    if (!link.displayName || !link.relationshipType) continue;
+    careSpaces[link.careSpaceId] = {
+      careSpaceId: link.careSpaceId,
+      supportedPersonId: link.supportedPersonId,
+      membershipId: link.membershipId,
+      bootstrapId: link.draftId,
+      relationshipType: link.relationshipType,
+      relationshipLabel: link.relationshipLabel,
+      displayName: link.displayName,
+      privacyDeclarationAccepted: false,
+      interests: [],
+      records: [],
+      setupStatus: 'identity_only',
+      allSetDismissed: false,
+    };
+  }
+  const activeCareSpaceId = state.activeCareSpaceId && careSpaces[state.activeCareSpaceId]
+    ? state.activeCareSpaceId
+    : provisioned[0]?.careSpaceId;
   return projectActiveCareSpace({ ...state, careSpaces, activeCareSpaceId });
 }
 

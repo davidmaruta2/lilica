@@ -7,6 +7,7 @@ import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
 import { TextField } from '../components/TextField';
+import { createUuid } from '../identifiers';
 import { spacing } from '../theme';
 import { FirstItem, FirstItemType } from '../types';
 
@@ -64,7 +65,7 @@ export function ItemFormScreen({ type, personName, onBack, onSave }: Props) {
 
   function buildItem(): FirstItem {
     return {
-      id: `${type}-${Date.now()}`,
+      id: createUuid(),
       type,
       title: title.trim(),
       date: date.trim() || undefined,

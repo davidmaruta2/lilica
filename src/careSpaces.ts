@@ -12,7 +12,22 @@ type BootstrapRow = {
   care_space_id: string;
   supported_person_id: string;
   membership_id: string;
+  display_name?: string;
+  relationship_type?: SupportedPersonDraft['relationshipType'];
+  relationship_label?: string | null;
 };
+
+function provisionedPerson(row: BootstrapRow): ProvisionedPerson {
+  return {
+    draftId: row.draft_id,
+    careSpaceId: row.care_space_id,
+    supportedPersonId: row.supported_person_id,
+    membershipId: row.membership_id,
+    displayName: row.display_name,
+    relationshipType: row.relationship_type,
+    relationshipLabel: row.relationship_label ?? undefined,
+  };
+}
 
 export async function provisionSupportedPeople(people: SupportedPersonDraft[]): Promise<Result> {
   const payload = people.map((person) => ({
@@ -26,12 +41,7 @@ export async function provisionSupportedPeople(people: SupportedPersonDraft[]): 
 
   return {
     ok: true,
-    people: ((data ?? []) as BootstrapRow[]).map((row) => ({
-      draftId: row.draft_id,
-      careSpaceId: row.care_space_id,
-      supportedPersonId: row.supported_person_id,
-      membershipId: row.membership_id,
-    })),
+    people: ((data ?? []) as BootstrapRow[]).map(provisionedPerson),
   };
 }
 export async function reconnectCareSpaces(): Promise<Result> {
@@ -39,11 +49,6 @@ export async function reconnectCareSpaces(): Promise<Result> {
   if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
   return {
     ok: true,
-    people: ((data ?? []) as BootstrapRow[]).map((row) => ({
-      draftId: row.draft_id,
-      careSpaceId: row.care_space_id,
-      supportedPersonId: row.supported_person_id,
-      membershipId: row.membership_id,
-    })),
+    people: ((data ?? []) as BootstrapRow[]).map(provisionedPerson),
   };
 }

@@ -24,7 +24,7 @@ Lilica should help answer:
 
 ## Current Scope
 
-The repository contains the Phase 1 product foundation plus Phase 3-6 safety, authentication and multi-person ownership foundations. It includes:
+The repository contains the Phase 1 product foundation plus Phase 3-7 safety, authentication, multi-person ownership and record persistence foundations. It includes:
 
 - Core visual system and navigation shell
 - Welcome / How Lilica Works introduction
@@ -36,6 +36,7 @@ The repository contains the Phase 1 product foundation plus Phase 3-6 safety, au
 - Structured record capture during onboarding
 - First-arrival Home populated from real records
 - Local persistence and legacy first-item migration
+- Care-space-scoped cloud records with an offline local cache, semantic outbox and resumable safe migration
 
 Do not build production AI, bank integrations, payment initiation, emergency monitoring, fall detection, eMAR, diagnosis, subscriptions, complex family permissions, provider integrations or a full OCR pipeline without explicit approval.
 
@@ -62,7 +63,7 @@ Phase 5 implements verified Supabase email/password authentication, session rest
 - **Care space:** one current security/data partition per supported person.
 - **Organiser membership:** the authenticated organiser's relationship and role for that care space.
 
-Supported-person identity and memberships are cloud-backed. Privacy, interests, setup progress, records and attachments remain device-local per authenticated account and care space. They are preserved at sign-out but are not cloud-synchronised. Invitations, additional member roles/permissions and profile photos are deferred; date of birth is intentionally not collected.
+Supported-person identity, memberships and record data are cloud-backed. Privacy, interests, setup progress and attachment bytes remain device-local per authenticated account and care space. Cached records and pending outbox work are preserved at sign-out; authenticated sync pauses. Invitations, additional member roles/permissions, cloud attachment bytes and profile photos are deferred; date of birth is intentionally not collected.
 
 Responsibility and visibility are separate concepts. The existing free-text responsibility value is temporary legacy/display data and must never be inferred to be an authenticated person. Future assignments target a stable active care-space membership or an explicit external contact; server-enforced permissions independently decide what each member can access. Assignment must never grant visibility.
 
@@ -184,7 +185,7 @@ The current Welcome screens are a retained foundation. Continue improving from t
 - Fraunces font package
 - Supabase JavaScript client
 
-Phase 4 provides dedicated non-production Supabase infrastructure and owner-only profiles. Phase 5 adds runtime authentication and the organiser profile. Phase 6 adds a multi-person supported-person schema, one care space per person, organiser memberships, membership-enforced RLS, idempotent roster provisioning, active-space switching and per-space local state. Cloud record storage, record migration and sync remain deferred to Phase 7. Phase 3 provides the automated characterization/domain-contract harness and manual device baseline.
+Phase 4 provides dedicated non-production Supabase infrastructure and owner-only profiles. Phase 5 adds runtime authentication and the organiser profile. Phase 6 adds a multi-person supported-person schema, one care space per person, organiser memberships, membership-enforced RLS, idempotent roster provisioning, active-space switching and per-space local state. Phase 7 adds care-space-owned cloud records, safe legacy migration, an account-scoped local cache, semantic offline outbox, deterministic reconciliation and record RLS. Phase 3 provides the automated characterization/domain-contract harness and manual device baseline.
 
 ## Verification Expectations
 

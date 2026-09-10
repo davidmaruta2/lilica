@@ -23,12 +23,13 @@ The working app now includes:
 - Required organiser `About you` profile, separate from supported people.
 - Multi-person relationship selection, naming, review and first-person choice.
 - One cloud care space, supported person and organiser membership per reviewed person.
-- Separate device-local privacy, interests, records, attachments and setup status per care space.
+- Separate device-local privacy, interests, attachment bytes and setup status per care space.
+- Care-space-scoped Supabase records with a durable local cache, semantic outbox, safe migration and server-enforced RLS.
 - Active-person switching, add-person and resume-incomplete-setup flows.
 - Eight real record categories with category lists, multiple stable record IDs and compact editors.
 - Wheel-based date/time selection, local document upload/camera capture and real-record-only Home sections.
 
-Phase 7 cloud records/sync, invitations, collaboration, cloud attachments and production infrastructure are not implemented.
+Phase 7 record persistence, cache, sync and safe migration are implemented, validated and physically approved. Assignments, invitations, collaboration, cloud attachment bytes and production infrastructure are not implemented.
 
 ## Current Flow
 
@@ -65,11 +66,15 @@ Cloud-backed now:
 - `public.profiles` organiser identity.
 - `care_spaces`, `supported_people` and `care_space_memberships`.
 - Transactional/idempotent `bootstrap_supported_people(jsonb)` provisioning.
+- `records` plus idempotent `record_mutation_receipts`, server-generated domain/sensitivity metadata and version/change sequencing.
+- `apply_record_mutation(...)` for membership-checked create/import/update/tombstone operations.
 
 Device-local now:
 
-- Privacy acknowledgement, interests, setup progress, records and attachment files/metadata.
+- Privacy acknowledgement, interests, setup progress, record cache/outbox/conflicts and attachment files/full local references.
 - These are partitioned by authenticated user and care space and survive sign-out on that device.
+
+Read `docs/PHASE_7_ARCHITECTURE.md` for identity, migration, cache, retry, conflict and attachment rules. The only current record participant is an active organiser. Phase 15 grants remain future work.
 
 Hosted development Auth uses mandatory confirmation, minimum eight-character passwords, custom Resend SMTP from `Lilica <auth@luxfordinteractive.com>`, and six-digit confirmation and recovery templates. Credentials are secret hosted configuration and must never enter Git or the mobile bundle.
 
@@ -77,18 +82,18 @@ Never run a blind full `supabase config push`; the base local config intentional
 
 ## Validation Baseline
 
-At this handoff:
+The Phase 7 implementation passed:
 
-- `npm run typecheck`: pass.
-- Jest: 10 suites, 110 tests, all pass (adds `tests/keyboard-reveal.test.ts` and `tests/keyboard.test.ts` for the keyboard-avoidance corrective task below).
-- Focused auth/responsive tests: 19 tests, all pass.
-- `npx expo install --check`: dependencies up to date (`expo-constants` newly declared as a direct dependency).
-- `npx expo config --type public`: pass; Android keyboard mode is `resize`.
-- `git diff --check`: clean apart from Windows line-ending notices.
-- Phase 6 database baseline: local rebuild/lint and 49 profile/care-space pgTAP assertions passed when the migration was introduced.
-- Expo Metro was listening on port `8081` at handoff; verify rather than assuming that process survives a later session.
+- `npm run validate:all`: TypeScript, 11 Jest suites/123 tests, secret scanning, Expo dependency/config checks, Android `resize` config and web export.
+- Clean local database rebuild, 89 pgTAP assertions and database lint with no errors.
+- Linked `lilica-development` deployment of migration `20260910150000_phase7_records.sql` after an exact one-migration dry run.
+- Linked database tests: all 89 pgTAP assertions pass; linked database lint reports no schema errors; local and remote migration histories match.
+
+The product owner completed and approved the Phase 7 physical-device checklist on Android and iOS on 10 September 2026.
 
 Automated tests prove structure and code paths, not physical rendering.
+
+Known test-harness note: the passing responsive suite can emit a React `VirtualizedList` update-not-wrapped-in-`act(...)` warning. It is not a Phase 7 failure and was not changed in this phase.
 
 ### Keyboard-avoidance corrective task (10 September 2026)
 
@@ -98,7 +103,7 @@ Physical-device testing found Password/the CTA still hidden behind the keyboard 
 
 On 10 September 2026, the product owner confirmed the corrected keyboard behavior and the password, verification-code, check-email and password-reset paths working on physical devices.
 
-The approved checkpoint through Phase 6 passed `npm run validate:all` and repository hygiene checks before commit. Phase 7 remains the next implementation phase, but do not begin it without its own explicit bounded approval and implementation prompt.
+Phase 7 is complete. Preserve its record ownership, migration, cache, outbox, conflict and RLS contracts. Do not begin Phase 8 without its own explicit approval and bounded implementation prompt.
 
 ## Approved Future Assignment Boundary
 
@@ -106,7 +111,7 @@ The current `responsiblePerson?: string` field remains intentionally unchanged u
 
 The authoritative sequence is:
 
-1. Phase 7 preserves legacy responsibility text and provenance exactly, creates no assignment by name/email matching, and gives cloud records stable care-space identity.
+1. Phase 7 preserves legacy responsibility text and provenance exactly, creates no assignment by name/email matching, and gives cloud records stable care-space identity. This is implemented and approved.
 2. Phase 8 introduces first-class assignment entities, stable membership/external-contact targets, record defaults, occurrence overrides, snapshots and immutable activity.
 3. Phase 9 replaces new arbitrary responsibility text with a data-driven assignment control; keep it restrained while only Unassigned/You exist.
 4. Phase 12 projects Assigned to me, Assigned to others and Unassigned using stable membership IDs.
@@ -118,4 +123,4 @@ Responsibility never grants visibility. Permission is enforced independently by 
 
 Preserve Welcome, privacy gating/version/timestamp, organiser/supported-person separation, local account isolation, multi-person care-space separation, category/multi-record behavior, wheel selectors, record-sheet gestures and real-record-only Home.
 
-Deferred: cloud records/sync, collaboration/invitations, cloud document storage, orphan attachment cleanup, OCR, notifications, production Ask Lilica, production infrastructure, backup guarantees and account/care-space deletion policy.
+Deferred: Phase 8 record/occurrence semantics and assignments, collaboration/invitations, cloud document storage, orphan attachment cleanup, OCR, notifications, production Ask Lilica, production infrastructure, backup guarantees and account/care-space deletion policy.

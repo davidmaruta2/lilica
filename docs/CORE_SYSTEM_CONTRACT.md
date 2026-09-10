@@ -1,11 +1,11 @@
 # Lilica — Core System Contract & Implementation Roadmap
 
-Status: **Proposed for product-owner review**
-Phase: **2, design and architecture only**
+Status: **Subsequently approved as the architectural authority; implementation completed through Phase 7**
+Original phase: **2, design and architecture only**
 Prepared: **9 September 2026**
-Implementation authority: **None. This document does not authorise Phase 3 or any code, dependency, schema, cloud, or screen change.**
+Original implementation authority: **None at preparation. This document did not itself authorise Phase 3 or any code, dependency, schema, cloud, or screen change. Later phases were separately authorised by the product owner.**
 
-Implementation note, 10 September 2026: the product owner subsequently approved this contract as the architectural authority and separately authorised Phases 3 through 6. Authentication, organiser profiles and the multi-person care-space ownership kernel are implemented. Cloud records/sync and later roadmap concepts remain future work. The product owner also approved the assignment, legacy-responsibility and collaboration boundaries in sections 8, 11, 12, 17 and 19: responsibility uses stable identities; visibility uses independently enforced server permissions; neither implies the other. Current state is recorded in `docs/LUMEN_HANDOFF.md`; operational limits are in `docs/SUPABASE_OPERATIONS.md`.
+Implementation note, 10 September 2026: the product owner subsequently approved this original Phase 2 contract as the architectural authority and separately authorised Phases 3 through 7. Authentication, organiser profiles, the multi-person care-space ownership kernel and the Phase 7 cloud-record/cache/outbox foundation are implemented, validated and physically approved. Phase 8 and later roadmap concepts remain future work. The product owner also approved the assignment, legacy-responsibility and collaboration boundaries in sections 8, 11, 12, 17 and 19: responsibility uses stable identities; visibility uses independently enforced server permissions; neither implies the other. Current state is recorded in `docs/LUMEN_HANDOFF.md`; operational limits are in `docs/SUPABASE_OPERATIONS.md`.
 
 ## How To Read This Contract
 

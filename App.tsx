@@ -1,7 +1,7 @@
 import { Fraunces_800ExtraBold, useFonts } from '@expo-google-fonts/fraunces';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from './src/auth/AuthProvider';
@@ -39,12 +39,20 @@ import {
   createOnboardingDraft,
   createPersonDraft,
   integrateProvisionedPeople,
+  integrateReconnectedCareSpaces,
   linkProvisionedCareSpaces,
   projectActiveCareSpace,
   replaceCareSpace,
   validatePersonDraft,
 } from './src/careSpaceState';
-import { provisionSupportedPeople } from './src/careSpaces';
+import { provisionSupportedPeople, reconnectCareSpaces } from './src/careSpaces';
+import {
+  enqueueRecordDelete,
+  enqueueRecordUpsert,
+  prepareRecordCache,
+  recordRetryDelay,
+  synchronizeRecords,
+} from './src/recordSync';
 import { colors } from './src/theme';
 import {
   AppTab,
@@ -74,6 +82,14 @@ const stageOrder: OnboardingStage[] = [
   'home',
 ];
 
+function applyCachedRecords(state: OnboardingState, recordsBySpace: Record<string, LilicaRecord[]>) {
+  let next = state;
+  for (const [careSpaceId, records] of Object.entries(recordsBySpace)) {
+    next = replaceCareSpace(next, careSpaceId, (space) => ({ ...space, records }));
+  }
+  return projectActiveCareSpace(next);
+}
+
 export default function App() {
   return (
     <SafeAreaProvider>
@@ -99,11 +115,16 @@ function LilicaApp() {
   const [pendingRelationship, setPendingRelationship] = useState<Relationship>();
   const [provisioning, setProvisioning] = useState(false);
   const [provisionError, setProvisionError] = useState<string>();
+  const storageOwnerId = auth.session?.user.id ?? null;
   const legacyBootstrapInFlight = useRef(false);
+  const reconnectedOwnerId = useRef<string | undefined>(undefined);
+  const localRecordRevision = useRef(0);
+  const recordRetryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const activeStorageOwnerId = useRef<string | null>(storageOwnerId);
+  activeStorageOwnerId.current = storageOwnerId;
   const [fontsLoaded] = useFonts({
     Fraunces_800ExtraBold,
   });
-  const storageOwnerId = auth.session?.user.id ?? null;
   const currentSpace = activeCareSpace(state);
   const spaces = Object.values(state.careSpaces).sort((left, right) => left.displayName.localeCompare(right.displayName));
 
@@ -113,9 +134,18 @@ function LilicaApp() {
     let cancelled = false;
     setLocalLoading(true);
     loadOnboardingState(storageOwnerId ?? undefined)
-      .then((loaded) => {
+      .then(async (loaded) => {
         if (cancelled) return;
-        setState(prepareOnboardingStateForStartup(loaded, storageOwnerId ?? undefined));
+        let prepared = prepareOnboardingStateForStartup(loaded, storageOwnerId ?? undefined);
+        if (storageOwnerId) {
+          try {
+            const cached = await prepareRecordCache(storageOwnerId, Object.values(prepared.careSpaces));
+            prepared = applyCachedRecords(prepared, cached);
+          } catch {
+            setSaveError(true);
+          }
+        }
+        if (!cancelled) setState(prepared);
       })
       .catch(() => {
         if (cancelled) return;
@@ -131,6 +161,19 @@ function LilicaApp() {
       cancelled = true;
     };
   }, [auth.loading, storageOwnerId]);
+
+  useEffect(() => () => {
+    if (recordRetryTimer.current) clearTimeout(recordRetryTimer.current);
+  }, [storageOwnerId]);
+
+  useEffect(() => {
+    if (localLoading || loadedStorageOwnerId !== storageOwnerId || !auth.profile || !storageOwnerId) return;
+    if (reconnectedOwnerId.current === storageOwnerId) return;
+    reconnectedOwnerId.current = storageOwnerId;
+    reconnectCareSpaces().then((result) => {
+      if (result.ok) setState((current) => integrateReconnectedCareSpaces(current, result.people));
+    });
+  }, [auth.profile, loadedStorageOwnerId, localLoading, storageOwnerId]);
 
   useEffect(() => {
     if (localLoading || loadedStorageOwnerId !== storageOwnerId) return;
@@ -161,6 +204,80 @@ function LilicaApp() {
         legacyBootstrapInFlight.current = false;
       });
   }, [auth.profile, loadedStorageOwnerId, localLoading, state.careSpaces, storageOwnerId]);
+
+  const linkedCareSpaceIds = spaces
+    .filter((space) => Boolean(space.membershipId) && !space.careSpaceId.startsWith('local-'))
+    .map((space) => space.careSpaceId);
+  const linkedCareSpaceSignature = linkedCareSpaceIds.join('|');
+
+  useEffect(() => {
+    if (localLoading || loadedStorageOwnerId !== storageOwnerId || !auth.profile || !storageOwnerId || !linkedCareSpaceSignature) return;
+    let cancelled = false;
+    const revision = localRecordRevision.current;
+    const localSpaces = Object.values(state.careSpaces);
+    prepareRecordCache(storageOwnerId, localSpaces)
+      .then((cached) => {
+        if (!cancelled && revision === localRecordRevision.current) setState((current) => applyCachedRecords(current, cached));
+        scheduleRecordRetry(storageOwnerId, linkedCareSpaceIds);
+        return synchronizeRecords(storageOwnerId, linkedCareSpaceIds);
+      })
+      .then((cached) => {
+        if (!cancelled && revision === localRecordRevision.current) setState((current) => applyCachedRecords(current, cached));
+      })
+      .catch(() => {
+        // Existing cached records remain usable; queued work will retry later.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.profile, linkedCareSpaceSignature, loadedStorageOwnerId, localLoading, storageOwnerId]);
+
+  useEffect(() => {
+    if (!storageOwnerId || !linkedCareSpaceSignature) return;
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active') return;
+      const revision = localRecordRevision.current;
+      synchronizeRecords(storageOwnerId, linkedCareSpaceIds)
+        .then((cached) => {
+          if (revision === localRecordRevision.current) setState((current) => applyCachedRecords(current, cached));
+          scheduleRecordRetry(storageOwnerId, linkedCareSpaceIds);
+        })
+        .catch(() => undefined);
+    });
+    return () => subscription.remove();
+  }, [linkedCareSpaceSignature, storageOwnerId]);
+
+  function syncAfterLocalMutation(operation: Promise<LilicaRecord[]>) {
+    if (!storageOwnerId) return;
+    const revision = localRecordRevision.current;
+    operation
+      .then(() => synchronizeRecords(storageOwnerId, linkedCareSpaceIds))
+      .then((cached) => {
+        if (revision === localRecordRevision.current) setState((current) => applyCachedRecords(current, cached));
+        scheduleRecordRetry(storageOwnerId, linkedCareSpaceIds);
+      })
+      .catch(() => setSaveError(true));
+  }
+
+  function scheduleRecordRetry(ownerId: string, careSpaceIds: string[]) {
+    recordRetryDelay(ownerId, careSpaceIds).then((delay) => {
+      if (activeStorageOwnerId.current !== ownerId) return;
+      if (recordRetryTimer.current) clearTimeout(recordRetryTimer.current);
+      if (delay === undefined) {
+        recordRetryTimer.current = undefined;
+        return;
+      }
+      recordRetryTimer.current = setTimeout(() => {
+        if (activeStorageOwnerId.current !== ownerId) return;
+        const revision = localRecordRevision.current;
+        synchronizeRecords(ownerId, careSpaceIds)
+          .then((cached) => {
+            if (revision === localRecordRevision.current) setState((current) => applyCachedRecords(current, cached));
+          })
+          .finally(() => scheduleRecordRetry(ownerId, careSpaceIds));
+      }, Math.max(250, delay));
+    }).catch(() => undefined);
+  }
 
   function update(patch: Partial<OnboardingState>) {
     setSaveError(false);
@@ -193,28 +310,42 @@ function LilicaApp() {
 
   function saveRecord(record: LilicaRecord) {
     if (!currentSpace) return;
+    localRecordRevision.current += 1;
+    const savedRecord = { ...record, supportedPersonId: currentSpace.supportedPersonId };
     setState((current) => projectActiveCareSpace(replaceCareSpace(current, currentSpace.careSpaceId, (space) => ({
       ...space,
-      records: upsertRecord(space.records, { ...record, supportedPersonId: space.supportedPersonId }),
+      records: upsertRecord(space.records, savedRecord),
     }))));
+    if (storageOwnerId && currentSpace.membershipId) {
+      syncAfterLocalMutation(enqueueRecordUpsert(storageOwnerId, currentSpace.careSpaceId, savedRecord));
+    }
   }
 
   function removeRecord(recordId: string) {
     if (!currentSpace) return;
+    localRecordRevision.current += 1;
     setState((current) => projectActiveCareSpace(replaceCareSpace(current, currentSpace.careSpaceId, (space) => ({
       ...space,
       records: removeRecordById(space.records, recordId),
     }))));
+    if (storageOwnerId && currentSpace.membershipId) {
+      syncAfterLocalMutation(enqueueRecordDelete(storageOwnerId, currentSpace.careSpaceId, recordId));
+    }
   }
 
   function completeOnboarding(firstItem?: FirstItem) {
     if (!currentSpace) return;
+    if (firstItem) localRecordRevision.current += 1;
+    const savedRecord = firstItem ? { ...firstItem, supportedPersonId: currentSpace.supportedPersonId } : undefined;
     setState((current) => projectActiveCareSpace(replaceCareSpace({ ...current, onboardingComplete: true, stage: 'home', onboardingDraft: undefined }, currentSpace.careSpaceId, (space) => ({
       ...space,
-      records: firstItem ? upsertRecord(space.records, { ...firstItem, supportedPersonId: space.supportedPersonId }) : space.records,
+      records: savedRecord ? upsertRecord(space.records, savedRecord) : space.records,
       setupStatus: 'ready',
       allSetDismissed: false,
     }))));
+    if (storageOwnerId && currentSpace.membershipId && savedRecord) {
+      syncAfterLocalMutation(enqueueRecordUpsert(storageOwnerId, currentSpace.careSpaceId, savedRecord));
+    }
     setActiveTab('home');
   }
 

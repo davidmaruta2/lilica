@@ -1,5 +1,20 @@
 # Revision Log
 
+## 10 September 2026 - Phase 7 record persistence, cache, sync and migration
+
+- Added care-space-owned Supabase records, generated domain/sensitivity classification, active-membership RLS, protected audit/version fields, tombstone deletion and idempotent mutation receipts.
+- Added an account/care-space-scoped AsyncStorage record cache with stable identity mappings, migration checkpoints, semantic outbox, capped retry, durable conflict/rejection state and change cursors.
+- Preserved valid UUIDs and deterministically mapped historical non-UUID IDs; migrated responsibility as descriptive text/provenance only with no identity inference.
+- Added explicit-base reconciliation: non-overlapping stale fields merge, overlapping edits conflict, and stale deletes cannot erase newer work.
+- Kept attachment bytes and URIs local while persisting non-URI metadata; no Storage bucket, OCR or sharing was added.
+- Added fresh-device care-space discovery without inferring local privacy/setup completion, plus focused application and pgTAP coverage.
+- Added `docs/PHASE_7_ARCHITECTURE.md` and `docs/PHASE_7_QA.md`. The product owner subsequently completed and approved the Phase 7 physical-device checklist on Android and iOS. Phase 8 was not started.
+- `npm run validate:all` passed TypeScript, 11 Jest suites/123 tests, secret scanning, Expo dependency/config checks, web export, a clean local database rebuild, 89 pgTAP assertions and database lint.
+- Sync ordering now prevents later operations from overtaking an unresolved mutation for the same record; unrelated remote records continue reconciling past a conflict without advancing the durable cursor beyond that conflict.
+- A linked dry run listed only `20260910150000_phase7_records.sql`; that migration was applied to `lilica-development`. All 89 linked pgTAP assertions and linked database lint then passed, and local/remote migration histories matched.
+- No production project, Auth configuration, Storage resource, seed or role configuration was changed. Phase 7 is approved for its completed repository checkpoint.
+- The passing responsive Jest suite emitted an asynchronous React `VirtualizedList`/`act(...)` warning. It is recorded as an out-of-scope test-harness issue and was not altered in Phase 7.
+
 ## 10 September 2026 - Assignment and collaboration roadmap locked
 
 - Made stable assignment identity and independently server-enforced visibility an authoritative product invariant.

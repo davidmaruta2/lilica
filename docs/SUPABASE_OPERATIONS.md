@@ -1,14 +1,14 @@
 # Lilica Supabase Operations
 
-Date: 9 September 2026
-Scope: Phase 4 foundation through Phase 6 multi-person ownership kernel
+Date: 10 September 2026
+Scope: Phase 4 foundation through Phase 7 record persistence
 
 ## Environment Model
 
 | Environment | Purpose | Location | Status |
 |---|---|---|---|
 | Local | Disposable migration, constraint, and RLS testing with synthetic data | Docker on a developer machine | Configured in `supabase/config.toml` |
-| Development | Shared non-production integration environment | `lilica-development`, Luxford Interactive, West Europe (London), `micro` compute | Created and linked; profile and Phase 6 care-space migrations applied |
+| Development | Shared non-production integration environment | `lilica-development`, Luxford Interactive, West Europe (London), `micro` compute | Created and linked; profile/Phase 6 migrations applied; Phase 7 deployment recorded below |
 | Production | Future live user data | Separate dedicated Lilica project, region and plan to be approved | Does not exist and was not created or touched |
 
 A staging project is not justified yet. Add one only when release rehearsal needs an environment isolated from active development. Never reuse `goalbuddy`, `tandemly`, `waddl-production`, or another Luxford application's project.
@@ -32,7 +32,9 @@ Phase 6 adds:
 
 `bootstrap_supported_people(jsonb)` creates a reviewed roster transactionally. Stable draft UUIDs make retries return the same space/person/membership triplets. Direct membership writes are not granted to the client. `list_my_supported_people()` resolves the caller's existing cloud links. No trigger automatically creates a profile.
 
-Records, occurrences, attachments and documents are not cloud tables and are never sent by the Phase 6 bootstrap.
+Phase 7 adds `records` and `record_mutation_receipts`. Record writes use the idempotent `apply_record_mutation(...)` RPC; direct application writes are not granted. Record domain/sensitivity, audit membership, source, version and change sequence are server-managed. `list_my_supported_people()` now returns the active member's supported-person display/relationship data so a new device can rediscover spaces without inventing local privacy consent.
+
+Occurrences, assignments, invitations, documents and attachment bytes are not cloud tables. Phase 7 records include attachment metadata without local device URI.
 
 ## Migration Workflow
 
@@ -60,6 +62,14 @@ Review every dry run. Dashboard-only schema changes are prohibited because they 
 
 The migration in `supabase/migrations/` is authoritative schema history. `supabase/seed.sql` deliberately contains no shared users or profile data.
 
+### Hosted Phase 7 deployment - 10 September 2026
+
+- `npx supabase db push --linked --dry-run` listed only `20260910150000_phase7_records.sql`.
+- `npx supabase db push --linked` applied that migration to `lilica-development`; no production project, Auth setting, Storage resource, seed or role configuration was touched.
+- Local and linked database suites each passed all 89 pgTAP assertions across three files.
+- Linked database lint reported no schema errors, and migration history lists `20260910150000` on both local and remote.
+- Existing profile/care-space tests scope row counts to their transactional synthetic fixture IDs so hosted development rows do not affect assertions. Test transactions roll back their synthetic data.
+
 ## RLS And Grants
 
 RLS is enabled and forced on `public.profiles`. Table privileges and policies are deliberately separate:
@@ -72,6 +82,8 @@ RLS is enabled and forced on `public.profiles`. Table privileges and policies ar
 
 `supabase/tests/database/profiles_rls.test.sql` retains 17 profile assertions. `care_spaces_rls.test.sql` adds 32 transactional assertions for multi-space access, cross-user and anonymous denial, duplicate relationships, membership-write denial, immutable identity and retry idempotency. Application users receive read access only through membership policies; initial writes occur only through the authenticated bootstrap RPC.
 
+`records_rls.test.sql` adds 40 assertions for anonymous/cross-user denial, active-organiser access, server classification, protected ownership/audit fields, stable mutation receipts, compatible stale-field merge, incompatible conflict preservation, tombstones and immediate revoked-membership denial. Authenticated clients receive record `SELECT` only; all mutations go through the RPC.
+
 ## Authentication Runtime
 
 Phase 5 uses Supabase email/password authentication with mandatory email confirmation. Signup email uses a six-digit OTP rendered by `supabase/templates/confirmation.html`; password recovery uses a six-digit OTP rendered by `supabase/templates/recovery.html`. The app verifies the applicable `signup` or `recovery` OTP with Supabase before continuing. Hosted development auth accepts `lilica://auth/callback` and `lilica://auth/recovery` for compatibility and requires passwords of at least eight characters. The React Native client persists and refreshes the session through AsyncStorage and loads the authenticated account's own `public.profiles` row.
@@ -82,7 +94,7 @@ The current OTP signup/recovery flows can be exercised in Expo Go. The `lilica` 
 
 Hosted configuration warning: the base `supabase/config.toml` contains local/default values that differ from intentional hosted SMTP, MFA, pooler and storage settings. Never run a blind full `supabase config push`. Run `npx supabase config diff --project-ref ldocquqbcabdbscghojc`, inspect every declared change, and apply only approved properties through a narrowly scoped temporary config. On 10 September 2026 the recovery subject/body alone were pushed this way; 19 remote-only properties were left unchanged.
 
-Profile photos remain deferred: `avatar_path` is reserved, but no storage bucket or upload policy is introduced. Supported-person identity is cloud-backed in Phase 6; privacy, interests, records and attachments remain local per care space.
+Profile photos remain deferred: `avatar_path` is reserved, but no storage bucket or upload policy is introduced. Supported-person identity and records are cloud-backed; privacy, interests, setup progress and attachment bytes remain local per care space.
 
 ## Configuration And Secrets
 
@@ -125,7 +137,7 @@ Migrations recover schema, not user data. They are necessary reproducible histor
 ## Deliberately Deferred
 
 - Organiser avatar storage.
-- Invitations, collaboration/member management, cloud records, documents, attachments, occurrences, outbox and sync.
+- Invitations, collaboration/member management, documents/cloud attachment bytes, occurrences and assignments.
 - Production project creation, deployment automation, backup guarantees, and disaster recovery.
 
 Email/password Auth, mandatory confirmation, OTP templates, redirect URLs, the eight-character minimum and development SMTP are implemented decisions. Any provider expansion or production Auth configuration still requires explicit review and approval.
