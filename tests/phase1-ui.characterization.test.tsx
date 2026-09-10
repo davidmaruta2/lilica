@@ -296,6 +296,50 @@ describe('real-record-only Home characterization', () => {
     expect(screen.queryByText('Today')).toBeNull();
   });
 
+  it('summarises real state in the at-a-glance strip: overdue, due today, coming up, updates -- not category counts', async () => {
+    const records: LilicaRecord[] = [
+      { id: 'past', type: 'appointment', title: 'Past visit', status: 'scheduled', eventDate: '2026-09-08', createdAt: '2026-09-01T00:00:00.000Z' },
+      { id: 'today', type: 'bill', title: 'Electric bill', status: 'unresolved', dueDate: '2026-09-09', createdAt: '2026-09-01T00:00:00.000Z' },
+      { id: 'future', type: 'task', title: 'Book haircut', status: 'unresolved', dueDate: '2026-09-20', createdAt: '2026-09-01T00:00:00.000Z' },
+      { id: 'recent', type: 'update', title: 'Called the GP', status: 'saved', createdAt: '2026-09-08T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' },
+    ];
+    const screen = await render(
+      <HomeScreen state={{ ...initialOnboardingState, stage: 'home', records, allSetDismissed: true }} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
+    );
+    // "Overdue" and "Coming up" also label a section/per-record pill
+    // elsewhere on Home, so assert the strip's copies via getAllByText.
+    expect(screen.getAllByText('Overdue').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Coming up').length).toBeGreaterThan(0);
+    screen.getByText('Due today');
+    screen.getByText('Updates this week');
+  });
+
+  it('shows Assigned to you only when a real active membership exists, never as a fake zero', async () => {
+    const records: LilicaRecord[] = [
+      { id: 'a1', type: 'appointment', title: 'Dentist', status: 'scheduled', createdAt: '2026-09-01T00:00:00.000Z' },
+    ];
+    const withoutMembership = await render(
+      <HomeScreen state={{ ...initialOnboardingState, stage: 'home', records, allSetDismissed: true }} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
+    );
+    expect(withoutMembership.queryByText('Assigned to you')).toBeNull();
+
+    const withMembership = await render(
+      <HomeScreen
+        state={{
+          ...initialOnboardingState,
+          stage: 'home',
+          records: [{ ...records[0], assignedMembershipId: 'membership-1' }],
+          allSetDismissed: true,
+          activeCareSpaceId: 'space-1',
+          careSpaces: { 'space-1': { membershipId: 'membership-1' } as any },
+        }}
+        onAddSomething={jest.fn()}
+        onDismissAllSet={jest.fn()}
+      />,
+    );
+    withMembership.getByText('Assigned to you');
+  });
+
   it('prefers records[] over the legacy firstItem fallback', async () => {
     const current: LilicaRecord = { id: 'current', type: 'task', title: 'Current record', status: 'unresolved', createdAt: '2026-09-01T00:00:00.000Z' };
     const legacy: LilicaRecord = { id: 'legacy', type: 'task', title: 'Legacy fallback', status: 'unresolved', createdAt: '2026-09-01T00:00:00.000Z' };

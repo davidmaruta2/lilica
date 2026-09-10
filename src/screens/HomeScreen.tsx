@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { activeCareSpace } from '../careSpaceState';
 import { Button } from '../components/Button';
 import { AppText } from '../components/Text';
 import { Wordmark } from '../components/Wordmark';
@@ -145,17 +146,61 @@ function CategoryIcon({ type, color }: { type: LilicaRecordType; color: string }
   }
 }
 
-// All eight record categories, in the same order as the record boxes on
-// the person's own records screen (firstItemOptions) -- the snapshot row
-// used to show only four (the original approved mockup), which no longer
-// matched what the record boxes actually offer. Counts are derived locally,
-// right here, from the records already loaded into Home — nothing is
-// persisted, queried, or added to records.ts. "Open" is the one caption
-// that is truthful for every category under the current model: it means
-// exactly "not completed" per the existing deriveRecordState(), no more.
-// "To do" is a display label for today's `task` record type only — it does
-// not claim to be the future Phase 8 actionable-occurrence projection.
-const SNAPSHOT_TYPES: LilicaRecordType[] = ['appointment', 'task', 'bill', 'homeMatter', 'document', 'contact', 'careNote', 'update'];
+// The "at a glance" status strip answers a different question than the
+// record boxes or the sections below: not "how many of each category"
+// (that duplicated the record boxes, and was removed), but "what state is
+// everything in, right now". Every count comes straight from the same
+// deriveRecordState()/record fields the rest of Home already uses -- no
+// new derivation, no fabricated numbers. "Assigned to you" is the one chip
+// that depends on a real active membership existing (Phase 9's
+// assignedMembershipId); it is omitted entirely, not shown as a fake zero,
+// when no membership is available yet.
+type StatusIconKey = 'alert' | 'calendar' | 'people' | 'clock';
+
+type StatusChipDef = {
+  key: string;
+  label: string;
+  count: number;
+  icon: StatusIconKey;
+  tint: string;
+  accent: string;
+};
+
+function StatusIcon({ icon, color }: { icon: StatusIconKey; color: string }) {
+  switch (icon) {
+    case 'alert':
+      return (
+        <View style={iconStyles.alertWrap}>
+          <View style={[iconStyles.alertBar, { backgroundColor: color }]} />
+          <View style={[iconStyles.alertDot, { backgroundColor: color }]} />
+        </View>
+      );
+    case 'calendar':
+      return (
+        <View style={iconStyles.calendarBody}>
+          <View style={[iconStyles.calendarFrame, { borderColor: color }]} />
+          <View style={[iconStyles.calendarBar, { backgroundColor: color }]} />
+          <View style={[iconStyles.calendarRing, iconStyles.calendarRingLeft, { backgroundColor: color }]} />
+          <View style={[iconStyles.calendarRing, iconStyles.calendarRingRight, { backgroundColor: color }]} />
+        </View>
+      );
+    case 'people':
+      return (
+        <View style={iconStyles.personWrap}>
+          <View style={[iconStyles.personHead, { borderColor: color }]} />
+          <View style={[iconStyles.personShoulders, { borderColor: color }]} />
+        </View>
+      );
+    case 'clock':
+    default:
+      return (
+        <View style={[iconStyles.clockFace, { borderColor: color }]}>
+          <View style={[iconStyles.clockHandMinute, { backgroundColor: color }]} />
+          <View style={[iconStyles.clockHandHour, { backgroundColor: color }]} />
+        </View>
+      );
+  }
+}
 
 export function HomeScreen({
   state,
@@ -174,12 +219,25 @@ export function HomeScreen({
     .map((title) => ({ title, records: records.filter((record) => sectionFor(record) === title) }))
     .filter((section) => section.records.length > 0);
 
-  const snapshot = SNAPSHOT_TYPES.map((type) => ({
-    type,
-    label: type === 'task' ? 'To do' : categoryLabel(type),
-    visual: visualFor(type),
-    count: records.filter((record) => record.type === type && !deriveRecordState(record).completed).length,
-  }));
+  const currentSpace = activeCareSpace(state);
+  const derived = records.map((record) => deriveRecordState(record));
+  const overdueCount = derived.filter((item) => item.overdue).length;
+  const dueTodayCount = derived.filter((item) => item.dueToday).length;
+  const comingUpCount = derived.filter((item) => item.upcoming).length;
+  const updatesThisWeekCount = derived.filter((item) => item.recentlyUpdated).length;
+  const assignedToYouCount = currentSpace?.membershipId
+    ? records.filter((record) => record.assignedMembershipId === currentSpace.membershipId).length
+    : undefined;
+
+  const statusChips: StatusChipDef[] = [
+    { key: 'overdue', label: 'Overdue', count: overdueCount, icon: 'alert', tint: colors.dangerSoft, accent: colors.danger },
+    { key: 'dueToday', label: 'Due today', count: dueTodayCount, icon: 'calendar', tint: colors.warningSoft, accent: colors.warning },
+    { key: 'comingUp', label: 'Coming up', count: comingUpCount, icon: 'calendar', tint: colors.oliveSoft, accent: colors.olive },
+    ...(assignedToYouCount !== undefined
+      ? [{ key: 'assignedToYou', label: 'Assigned to you', count: assignedToYouCount, icon: 'people' as const, tint: colors.primarySoft, accent: colors.primary }]
+      : []),
+    { key: 'updatesThisWeek', label: 'Updates this week', count: updatesThisWeekCount, icon: 'clock' as const, tint: colors.blueSoft, accent: colors.blue },
+  ];
 
   return (
     <ScrollView
@@ -215,18 +273,15 @@ export function HomeScreen({
         <>
           {records.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.snapshotRow}>
-              {snapshot.map((item) => (
-                <View key={item.type} style={styles.snapshotTile}>
-                  <View style={styles.snapshotTop}>
-                    <View style={[styles.snapshotIconChip, { backgroundColor: item.visual.tint }]}>
-                      <CategoryIcon type={item.type} color={item.visual.accent} />
+              {statusChips.map((chip) => (
+                <View key={chip.key} style={[styles.statusChip, { backgroundColor: chip.tint }]}>
+                  <View style={styles.statusTopRow}>
+                    <View style={styles.statusIconChip}>
+                      <StatusIcon icon={chip.icon} color={chip.accent} />
                     </View>
-                    <AppText variant="secondary" tone="soft" numberOfLines={1} style={styles.snapshotLabel}>{item.label}</AppText>
+                    <AppText variant="title" style={styles.statusCount}>{chip.count}</AppText>
                   </View>
-                  <View style={styles.snapshotCountRow}>
-                    <AppText variant="title" style={styles.snapshotCount}>{item.count}</AppText>
-                    <AppText variant="secondary" tone="muted">open</AppText>
-                  </View>
+                  <AppText variant="secondary" tone="soft" numberOfLines={1}>{chip.label}</AppText>
                 </View>
               ))}
             </ScrollView>
@@ -346,36 +401,27 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingRight: spacing.lg,
   },
-  snapshotTile: {
+  statusChip: {
     width: 150,
-    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: spacing.md,
-    gap: spacing.sm,
-    ...shadow.soft,
-  },
-  snapshotTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: spacing.xs,
   },
-  snapshotIconChip: {
-    width: 30,
-    height: 30,
+  statusTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  statusIconChip: {
+    width: 34,
+    height: 34,
     borderRadius: radius.pill,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  snapshotLabel: {
-    flex: 1,
-  },
-  snapshotCountRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.xxs,
-  },
-  snapshotCount: {
-    fontSize: 22,
+  statusCount: {
+    fontSize: 26,
   },
   sections: {
     gap: spacing.xl,
@@ -554,6 +600,45 @@ const iconStyles = StyleSheet.create({
     borderWidth: 1.5,
     borderBottomWidth: 0,
     marginTop: 1.5,
+  },
+  alertWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  alertBar: {
+    width: 2.4,
+    height: 9,
+    borderRadius: 1.5,
+  },
+  alertDot: {
+    width: 2.4,
+    height: 2.4,
+    borderRadius: 1.5,
+  },
+  clockFace: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clockHandMinute: {
+    position: 'absolute',
+    width: 1.4,
+    height: 6,
+    borderRadius: 1,
+    top: 2,
+  },
+  clockHandHour: {
+    position: 'absolute',
+    width: 1.4,
+    height: 4.5,
+    borderRadius: 1,
+    top: 4,
+    left: 8.3,
+    transform: [{ rotate: '70deg' }],
   },
   plusWrap: {
     width: 15,

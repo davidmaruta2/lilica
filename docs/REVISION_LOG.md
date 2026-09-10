@@ -1,5 +1,19 @@
 # Revision Log
 
+## 10 September 2026 - Home's horizontal strip repurposed into an "at a glance" status summary
+
+Product owner (relaying a ChatGPT-drafted proposal, then a reference image) judged the horizontal category-snapshot row a duplicate of the record boxes — "wasting prime space, making Home feel like a catalogue" — and asked for it to summarise **state**, not **category**, with an explicit caution: only surface a chip backed by real current projection logic, never a fake count.
+
+`src/screens/HomeScreen.tsx`: the row now shows up to five chips — Overdue, Due today, Coming up, Assigned to you, Updates this week — each counted straight from data the rest of Home already derives, nothing new:
+
+- Overdue / Due today / Coming up: `deriveRecordState(record).overdue` / `.dueToday` / `.upcoming`, the same fields the section grouping above already uses.
+- Updates this week: `deriveRecordState(record).recentlyUpdated` (already existed, unused until now).
+- Assigned to you: `record.assignedMembershipId === currentSpace.membershipId` (Phase 9's stable-identity field). This chip is **omitted entirely**, not shown as a fake zero, whenever `activeCareSpace(state)?.membershipId` is unavailable — matching the caution exactly.
+
+Two new soft-tint theme tokens (`dangerSoft`, `warningSoft`) added to `theme.ts`, extending the existing hue+soft-pair pattern every other color already has, for the Overdue/Due-today chips; Coming up reuses `olive`/`oliveSoft`, Assigned to you reuses `primary`/`primarySoft`, Updates this week reuses `blue`/`blueSoft` — no arbitrary new colors. New `StatusIcon` (alert, calendar, people, clock) built from plain Views, reusing the calendar/person shapes already drawn for `CategoryIcon` in this same file. The old `SNAPSHOT_TYPES`/8-category row (and its now-unused styles) is gone; `CategoryIcon`/`categoryLabel` remain, still used by the sections list below.
+
+Two new tests in `tests/phase1-ui.characterization.test.tsx` cover the four always-present chips and the Assigned-to-you omission/inclusion behaviour. `npm run typecheck`, `npm test` (157 tests, up from 155) and `npm run validate` all pass.
+
 ## 10 September 2026 - Welcome carousel redesign, mocked and approved first
 
 Product owner supplied a reference image (`Lilica Care Onboarding Screens.png`) and asked for a mockup before any code changed. Drafted a 3-artboard Claude Design canvas matching it against the app's real tokens (Fraunces headings, existing per-page colors, spacing/radius scale), iterated through two rounds of feedback (raise/lower text position; smaller hero circles with a bigger gap to the heading), then implemented the approved result into `src/screens/WelcomeScreen.tsx` and `src/components/BrandVisual.tsx`:
