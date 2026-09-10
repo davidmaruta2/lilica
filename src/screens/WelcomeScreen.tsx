@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandVisual } from '../components/BrandVisual';
-import { Button } from '../components/Button';
 import { AppText } from '../components/Text';
 import { Wordmark } from '../components/Wordmark';
 import { colors, radius, spacing } from '../theme';
@@ -21,12 +20,18 @@ type Props = {
   onLogin: () => void;
 };
 
+type BulletIconKey = 'calendar' | 'document' | 'house' | 'check' | 'people' | 'chat' | 'list' | 'paperPlane';
+
+type IntroBullet = {
+  label: string;
+  icon: BulletIconKey;
+};
+
 type IntroPage = {
   key: string;
   heading: string;
   body: string;
-  bullets?: string[];
-  closing?: string;
+  bullets?: IntroBullet[];
   color: string;
   visual: 'hero' | 'together' | 'ahead';
 };
@@ -34,25 +39,20 @@ type IntroPage = {
 const pages: IntroPage[] = [
   {
     key: 'welcome',
-    heading: 'Welcome to Lilica',
-    body: 'Help the people you love to:',
-    bullets: [
-      'Stay independent',
-      'Live and age well',
-    ],
-    closing: 'while keeping everyone involved on the same page.',
+    heading: 'Care for the people you love',
+    body: 'Helping them stay independent and age well, with the family organised around them.',
     color: colors.stageDeep,
     visual: 'hero',
   },
   {
     key: 'together',
     heading: 'Know what they need',
-    body: 'See the important things in one place:',
+    body: 'Keep the important things in one place, from appointments to paperwork and everyday jobs.',
     bullets: [
-      'Medical appointments',
-      'Documents and bills',
-      'Everyday jobs',
-      'Home and car tasks',
+      { label: 'Medical appointments', icon: 'calendar' },
+      { label: 'Documents and bills', icon: 'document' },
+      { label: 'Household tasks', icon: 'house' },
+      { label: 'Everyday jobs', icon: 'check' },
     ],
     color: '#B9674C',
     visual: 'together',
@@ -60,17 +60,188 @@ const pages: IntroPage[] = [
   {
     key: 'ahead',
     heading: 'Share care, with clarity',
-    body: 'Update and share responsibilities in a controlled way:',
+    body: "Bring in family or other helpers, share updates and responsibilities, and see clearly who's doing what.",
     bullets: [
-      'Bring in family or other helpers',
-      'Share updates and responsibilities',
-      "See clearly who's doing what",
-      "Invite others when you're ready",
+      { label: 'Bring in family or other helpers', icon: 'people' },
+      { label: 'Share updates and responsibilities', icon: 'chat' },
+      { label: "See clearly who's doing what", icon: 'list' },
+      { label: "Invite others when you're ready", icon: 'paperPlane' },
     ],
     color: '#62764F',
     visual: 'ahead',
   },
 ];
+
+// Small drawn icons built from plain Views only, matching the technique
+// already used elsewhere in this app (Wordmark's leaf, HomeScreen's
+// CategoryIcon) -- no icon library dependency needed.
+function BulletIcon({ icon }: { icon: BulletIconKey }) {
+  switch (icon) {
+    case 'calendar':
+      return (
+        <View style={iconStyles.calendar}>
+          <View style={iconStyles.calendarTop} />
+        </View>
+      );
+    case 'document':
+      return (
+        <View style={iconStyles.document}>
+          <View style={iconStyles.documentLine} />
+          <View style={[iconStyles.documentLine, iconStyles.documentLineShort]} />
+        </View>
+      );
+    case 'house':
+      return (
+        <View style={iconStyles.houseWrap}>
+          <View style={iconStyles.houseRoof} />
+          <View style={iconStyles.houseBase} />
+        </View>
+      );
+    case 'check':
+      return <View style={iconStyles.tick} />;
+    case 'people':
+      return (
+        <View style={iconStyles.personWrap}>
+          <View style={iconStyles.personHead} />
+          <View style={iconStyles.personShoulders} />
+        </View>
+      );
+    case 'chat':
+      return (
+        <View style={iconStyles.chatWrap}>
+          <View style={iconStyles.chatBubble} />
+          <View style={iconStyles.chatTail} />
+        </View>
+      );
+    case 'list':
+      return (
+        <View style={iconStyles.listWrap}>
+          <View style={iconStyles.listLine} />
+          <View style={iconStyles.listLine} />
+          <View style={iconStyles.listLine} />
+        </View>
+      );
+    case 'paperPlane':
+    default:
+      return <View style={iconStyles.paperPlane} />;
+  }
+}
+
+const iconStyles = StyleSheet.create({
+  calendar: {
+    width: 16,
+    height: 14,
+    borderWidth: 1.4,
+    borderColor: colors.white,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  calendarTop: {
+    height: 4,
+    backgroundColor: colors.white,
+  },
+  document: {
+    width: 14,
+    height: 16,
+    borderWidth: 1.4,
+    borderColor: colors.white,
+    borderRadius: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  documentLine: {
+    width: 8,
+    height: 1.6,
+    backgroundColor: colors.white,
+  },
+  documentLineShort: {
+    width: 6,
+  },
+  houseWrap: {
+    alignItems: 'center',
+  },
+  houseRoof: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 7,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: colors.white,
+  },
+  houseBase: {
+    width: 12,
+    height: 9,
+    borderWidth: 1.4,
+    borderColor: colors.white,
+    marginTop: -1,
+  },
+  tick: {
+    width: 12,
+    height: 7,
+    borderLeftWidth: 2.5,
+    borderBottomWidth: 2.5,
+    borderColor: colors.white,
+    transform: [{ rotate: '-45deg' }],
+    marginTop: -2,
+  },
+  personWrap: {
+    alignItems: 'center',
+  },
+  personHead: {
+    width: 9,
+    height: 9,
+    borderRadius: radius.pill,
+    backgroundColor: colors.white,
+    marginBottom: 2,
+  },
+  personShoulders: {
+    width: 18,
+    height: 9,
+    borderTopLeftRadius: radius.pill,
+    borderTopRightRadius: radius.pill,
+    backgroundColor: colors.white,
+  },
+  chatWrap: {
+    alignItems: 'flex-start',
+  },
+  chatBubble: {
+    width: 16,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.white,
+  },
+  chatTail: {
+    width: 4,
+    height: 4,
+    backgroundColor: colors.white,
+    marginTop: -2,
+    marginLeft: 3,
+    transform: [{ rotate: '45deg' }],
+  },
+  listWrap: {
+    gap: 3,
+  },
+  listLine: {
+    width: 14,
+    height: 1.6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.white,
+  },
+  paperPlane: {
+    width: 0,
+    height: 0,
+    borderTopWidth: 9,
+    borderRightWidth: 9,
+    borderBottomWidth: 9,
+    borderTopColor: 'transparent',
+    borderRightColor: colors.white,
+    borderBottomColor: 'transparent',
+    transform: [{ rotate: '-45deg' }],
+  },
+});
 
 function TogetherVisual() {
   return (
@@ -174,21 +345,15 @@ export function WelcomeScreen({ onStart, onLogin }: Props) {
                   {item.bullets ? (
                     <View style={[styles.bullets, compact && styles.bulletsCompact]}>
                       {item.bullets.map((bullet) => (
-                        <View key={bullet} style={styles.bulletRow}>
-                          <View style={styles.bulletMark} />
-                          <AppText variant="bodyStrong" tone="white" centre style={styles.bulletText}>
-                            {bullet}
+                        <View key={bullet.label} style={styles.bulletRow}>
+                          <View style={styles.bulletBadge}>
+                            <BulletIcon icon={bullet.icon} />
+                          </View>
+                          <AppText variant="bodyStrong" tone="white" style={styles.bulletText}>
+                            {bullet.label}
                           </AppText>
                         </View>
                       ))}
-                    </View>
-                  ) : null}
-                  {item.closing ? (
-                    <View style={styles.closing}>
-                      <View style={styles.accentLine} />
-                      <AppText variant="secondary" tone="white" centre style={styles.closingText}>
-                        {item.closing}
-                      </AppText>
                     </View>
                   ) : null}
                   {index === 2 ? (
@@ -208,7 +373,15 @@ export function WelcomeScreen({ onStart, onLogin }: Props) {
               ))}
             </View>
             {page === pages.length - 1 ? (
-              <Button label="Get started" variant="light" onPress={onStart} />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Get started"
+                onPress={onStart}
+                style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
+              >
+                <AppText variant="button" tone="primary">Get started</AppText>
+                <View style={styles.ctaArrow} />
+              </Pressable>
             ) : (
               <Pressable
                 accessibilityRole="button"
@@ -259,12 +432,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   visualArea: {
-    minHeight: 236,
+    minHeight: 196,
     justifyContent: 'center',
-    marginTop: -spacing.lg,
   },
   visualAreaCompact: {
-    minHeight: 176,
+    minHeight: 150,
   },
   visualCompact: {
     transform: [{ scale: 0.76 }],
@@ -272,11 +444,11 @@ const styles = StyleSheet.create({
   copy: {
     minHeight: 188,
     alignItems: 'center',
-    paddingTop: spacing.md,
+    paddingTop: 28,
   },
   copyCompact: {
     minHeight: 0,
-    paddingTop: 0,
+    paddingTop: spacing.xs,
   },
   heading: {
     maxWidth: 360,
@@ -292,48 +464,30 @@ const styles = StyleSheet.create({
   },
   bullets: {
     width: '100%',
-    maxWidth: 330,
-    marginTop: spacing.md,
-    gap: spacing.xs,
-    alignItems: 'center',
+    maxWidth: 300,
+    marginTop: spacing.lg,
+    gap: spacing.sm,
   },
   bulletsCompact: {
-    marginTop: spacing.xs,
-    gap: spacing.xxs,
+    marginTop: spacing.sm,
+    gap: spacing.xs,
   },
   bulletRow: {
     width: '100%',
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.md,
   },
-  bulletMark: {
-    width: 8,
-    height: 8,
+  bulletBadge: {
+    width: 36,
+    height: 36,
     borderRadius: radius.pill,
-    backgroundColor: '#D7DCB2',
-    marginTop: 7,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bulletText: {
-    maxWidth: 270,
-  },
-  closing: {
-    width: '100%',
-    maxWidth: 300,
-    marginTop: spacing.lg,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  accentLine: {
-    width: 46,
-    height: 3,
-    borderRadius: radius.pill,
-    backgroundColor: '#D7DCB2',
-  },
-  closingText: {
-    maxWidth: 280,
-    opacity: 0.9,
+    flex: 1,
   },
   reassurance: {
     marginTop: spacing.lg,
@@ -356,6 +510,30 @@ const styles = StyleSheet.create({
   advancePressed: {
     opacity: 0.62,
   },
+  cta: {
+    width: '100%',
+    minHeight: 54,
+    borderRadius: radius.pill,
+    backgroundColor: colors.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  ctaPressed: {
+    transform: [{ scale: 0.99 }],
+    opacity: 0.9,
+  },
+  ctaArrow: {
+    width: 8,
+    height: 8,
+    borderTopWidth: 2.4,
+    borderRightWidth: 2.4,
+    borderColor: colors.primary,
+    transform: [{ rotate: '45deg' }],
+    marginLeft: 2,
+  },
   dots: {
     height: 12,
     flexDirection: 'row',
@@ -374,8 +552,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   visualDisc: {
-    width: 208,
-    height: 208,
+    width: 172,
+    height: 172,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
     alignSelf: 'center',
@@ -384,103 +562,103 @@ const styles = StyleSheet.create({
   },
   paper: {
     position: 'absolute',
-    width: 102,
-    height: 128,
+    width: 84,
+    height: 106,
     borderRadius: radius.md,
   },
   paperBack: {
     backgroundColor: '#D8DDBB',
     transform: [{ rotate: '9deg' }],
-    marginLeft: 28,
+    marginLeft: 23,
   },
   paperFront: {
     backgroundColor: '#EFE2D4',
     transform: [{ rotate: '-6deg' }],
-    marginLeft: -20,
-    padding: spacing.md,
+    marginLeft: -17,
+    padding: spacing.sm,
     justifyContent: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   paperLine: {
-    height: 8,
-    width: 58,
+    height: 7,
+    width: 48,
     borderRadius: radius.pill,
     backgroundColor: colors.stage,
   },
-  paperLineLong: { width: 72, backgroundColor: colors.primary },
-  paperLineShort: { width: 42, backgroundColor: colors.olive },
+  paperLineLong: { width: 60, backgroundColor: colors.primary },
+  paperLineShort: { width: 35, backgroundColor: colors.olive },
   calendar: {
     position: 'absolute',
-    width: 70,
-    height: 66,
+    width: 58,
+    height: 55,
     borderRadius: radius.sm,
     backgroundColor: colors.white,
-    right: 23,
-    bottom: 27,
+    right: 19,
+    bottom: 22,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.line,
   },
-  calendarTop: { height: 15, backgroundColor: colors.primary },
+  calendarTop: { height: 12, backgroundColor: colors.primary },
   calendarDotRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-evenly' },
-  calendarDot: { width: 9, height: 9, borderRadius: 9, backgroundColor: colors.line },
+  calendarDot: { width: 7, height: 7, borderRadius: 7, backgroundColor: colors.line },
   calendarDotStrong: { backgroundColor: colors.clay },
   connection: {
     position: 'absolute',
-    width: 60,
-    height: 4,
+    width: 50,
+    height: 3,
     borderRadius: radius.pill,
     backgroundColor: '#D8DDBB',
-    top: 88,
+    top: 73,
   },
   connectionLeft: {
-    left: 37,
+    left: 31,
     transform: [{ rotate: '-23deg' }],
   },
   connectionRight: {
-    right: 37,
+    right: 31,
     transform: [{ rotate: '23deg' }],
   },
   helper: {
     position: 'absolute',
-    width: 52,
-    height: 52,
+    width: 43,
+    height: 43,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
   helperLeft: {
-    left: 24,
-    top: 44,
+    left: 20,
+    top: 36,
     backgroundColor: colors.claySoft,
   },
   helperRight: {
-    right: 24,
-    top: 44,
+    right: 20,
+    top: 36,
     backgroundColor: colors.oliveSoft,
   },
   helperHead: {
-    width: 13,
-    height: 13,
+    width: 11,
+    height: 11,
     borderRadius: radius.pill,
     backgroundColor: colors.primary,
-    marginBottom: 3,
+    marginBottom: 2,
   },
   helperBody: {
-    width: 24,
-    height: 12,
+    width: 20,
+    height: 10,
     borderTopLeftRadius: radius.pill,
     borderTopRightRadius: radius.pill,
     backgroundColor: colors.primary,
   },
   sharedTask: {
     position: 'absolute',
-    width: 116,
-    height: 72,
+    width: 96,
+    height: 60,
     borderRadius: radius.md,
     backgroundColor: colors.white,
-    bottom: 27,
-    paddingHorizontal: spacing.md,
+    bottom: 22,
+    paddingHorizontal: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -491,21 +669,21 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   taskLine: {
-    width: 39,
-    height: 7,
+    width: 32,
+    height: 6,
     borderRadius: radius.pill,
     backgroundColor: colors.line,
   },
   taskLineLong: {
-    width: 52,
+    width: 43,
     backgroundColor: colors.clay,
   },
   taskTick: {
-    width: 32,
-    height: 32,
+    width: 27,
+    height: 27,
     borderRadius: radius.pill,
     backgroundColor: colors.olive,
   },
-  tickStem: { position: 'absolute', width: 5, height: 16, borderRadius: 5, backgroundColor: colors.white, transform: [{ rotate: '42deg' }], right: 8, top: 7 },
-  tickArm: { position: 'absolute', width: 5, height: 10, borderRadius: 5, backgroundColor: colors.white, transform: [{ rotate: '-42deg' }], left: 8, top: 14 },
+  tickStem: { position: 'absolute', width: 4, height: 13, borderRadius: 4, backgroundColor: colors.white, transform: [{ rotate: '42deg' }], right: 7, top: 6 },
+  tickArm: { position: 'absolute', width: 4, height: 8, borderRadius: 4, backgroundColor: colors.white, transform: [{ rotate: '-42deg' }], left: 7, top: 12 },
 });

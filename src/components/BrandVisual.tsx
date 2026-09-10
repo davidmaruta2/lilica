@@ -17,22 +17,22 @@ export function BrandVisual() {
 
 const styles = StyleSheet.create({
   wrap: {
-    width: 224,
-    height: 224,
+    width: 184,
+    height: 184,
     alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
   },
   disc: {
     position: 'absolute',
-    width: 190,
-    height: 190,
+    width: 156,
+    height: 156,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
     opacity: 0.94,
   },
   image: {
-    width: 220,
-    height: 220,
+    width: 180,
+    height: 180,
   },
 });

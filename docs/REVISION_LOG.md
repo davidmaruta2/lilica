@@ -1,5 +1,21 @@
 # Revision Log
 
+## 10 September 2026 - Welcome carousel redesign, mocked and approved first
+
+Product owner supplied a reference image (`Lilica Care Onboarding Screens.png`) and asked for a mockup before any code changed. Drafted a 3-artboard Claude Design canvas matching it against the app's real tokens (Fraunces headings, existing per-page colors, spacing/radius scale), iterated through two rounds of feedback (raise/lower text position; smaller hero circles with a bigger gap to the heading), then implemented the approved result into `src/screens/WelcomeScreen.tsx` and `src/components/BrandVisual.tsx`:
+
+- Page 1 copy simplified to the reference's heading + single paragraph (dropped the old bullet pair and closing line); pages 2 and 3's body copy and bullet wording/order updated to match the reference exactly (e.g. "Household tasks" replacing "Home and car tasks").
+- Plain bullet-dot rows on pages 2 and 3 replaced with icon-badge rows: a translucent circular badge holding a small drawn icon (calendar, document, house, check, people, chat, list, paper-plane), built from plain Views only, matching the app's existing icon technique (`Wordmark`'s leaf, `HomeScreen`'s `CategoryIcon`) — no icon library added.
+- All three hero visuals (the real illustrated `BrandVisual` image, and the drawn `TogetherVisual`/`AheadVisual`) shrunk by about 17%, with more vertical space opened up between the hero and the heading below it.
+- The final "Get started" button gained a trailing arrow (previously text-only), built as a small chevron View rather than the shared `Button` component's `icon` slot, since that slot renders before the label and the approved mock wants the arrow after it.
+- One deliberate deviation from the reference, flagged and accepted: "Get started" stays on the last page only (page 3), not page 1 as the reference literally showed — matching the app's correct onboarding order.
+
+Not changed: the paging/scroll mechanics, the compact-height fallback, `Screen`/keyboard architecture, auth, or any other screen. `npm run typecheck`, `npm test` (155 tests — one characterization test's copy assertion updated to match) and `npm run validate` (web export included) all pass.
+
+## 10 September 2026 - Count-saved badge moved to the category-mark corner
+
+Product-owner follow-up: the count badge (added earlier the same day) should sit like an unread-message badge — pinned to the corner of the category's icon mark — rather than in the row next to "Add". Moved `countBadge` into `categoryMark` as an absolutely-positioned corner badge (with a border matching the row's own background, so it reads as sitting on top of the icon), and "Add" now always renders plainly in its own slot regardless of whether the category has records. `npm run typecheck` and `npm test` (155 tests) both pass.
+
 ## 10 September 2026 - An appointment happening today shows under Today, not Needs attention
 
 Product-owner question: why did an appointment scheduled for today appear under "Needs attention" on Home instead of "Today"?

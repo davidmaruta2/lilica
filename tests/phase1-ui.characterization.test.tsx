@@ -19,8 +19,7 @@ describe('protected Phase 1 onboarding surfaces', () => {
     const onLogin = jest.fn();
     const screen = await render(<WelcomeScreen onStart={onStart} onLogin={onLogin} />);
 
-    screen.getByText('Welcome to Lilica');
-    screen.getByText('Stay independent');
+    screen.getByText('Care for the people you love');
     await fireEvent.press(screen.getByText('Log in'));
     expect(onLogin).toHaveBeenCalledTimes(1);
 

@@ -257,6 +257,11 @@ export function FirstThingScreen({
               >
                   <View style={[styles.categoryMark, hasRecords && styles.categoryMarkSaved]}>
                     <View style={styles.categoryMarkInner} />
+                    {hasRecords ? (
+                      <View style={styles.countBadge} accessibilityLabel={`${savedRecords.length} saved`}>
+                        <AppText variant="secondary" tone="white" style={styles.countBadgeLabel}>{savedRecords.length}</AppText>
+                      </View>
+                    ) : null}
                   </View>
                   <View style={styles.itemCopy}>
                     <AppText variant="bodyStrong" numberOfLines={2}>{item.title}</AppText>
@@ -265,11 +270,6 @@ export function FirstThingScreen({
                     </AppText>
                   </View>
                   <View style={styles.addAffordance}>
-                    {hasRecords ? (
-                      <View style={styles.countBadge} accessibilityLabel={`${savedRecords.length} saved`}>
-                        <AppText variant="secondary" tone="white" style={styles.countBadgeLabel}>{savedRecords.length}</AppText>
-                      </View>
-                    ) : null}
                     <AppText variant="secondary" tone="primary">Add</AppText>
                   </View>
               </Pressable>
@@ -338,13 +338,26 @@ const styles = StyleSheet.create({
   closedItem: { height: CLOSED_HEIGHT, borderRadius: radius.md, justifyContent: 'center' },
   activeItem: { borderColor: colors.primary, backgroundColor: colors.white },
   itemHeader: { minHeight: 86, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  categoryMark: { width: 38, height: 38, borderRadius: radius.pill, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  categoryMark: { width: 38, height: 38, borderRadius: radius.pill, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   categoryMarkSaved: { backgroundColor: colors.oliveSoft },
   categoryMarkInner: { width: 13, height: 13, borderRadius: radius.pill, backgroundColor: colors.primary },
   itemCopy: { flex: 1, gap: spacing.xxs },
-  addAffordance: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, justifyContent: 'flex-end' },
-  countBadge: { minWidth: 24, height: 24, paddingHorizontal: 6, borderRadius: radius.pill, backgroundColor: colors.olive, alignItems: 'center', justifyContent: 'center' },
-  countBadgeLabel: { fontWeight: '700' },
+  addAffordance: { minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  countBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 4,
+    borderRadius: radius.pill,
+    backgroundColor: colors.olive,
+    borderWidth: 2,
+    borderColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countBadgeLabel: { fontWeight: '700', fontSize: 11, lineHeight: 13 },
   recordList: { gap: spacing.sm, paddingBottom: spacing.xl },
   recordRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
   recordCopy: { flex: 1, gap: spacing.xxs },
