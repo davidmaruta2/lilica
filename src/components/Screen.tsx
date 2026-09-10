@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useRef } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -28,6 +28,8 @@ export function Screen({
   backgroundColor = colors.canvas,
   contentStyle,
 }: ScreenProps) {
+  const footerRef = useRef<View>(null);
+
   const content = scroll ? (
     <KeyboardAwareScrollView
       style={styles.scroll}
@@ -36,11 +38,16 @@ export function Screen({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
       testID="screen-scroll-view"
+      keepVisibleWithFocusRef={footer ? footerRef : undefined}
     >
       <View style={[styles.scrollContent, contentStyle]} testID="screen-scroll-content">
         {children}
       </View>
-      {footer ? <View style={[styles.footer, { backgroundColor }]} testID="screen-footer">{footer}</View> : null}
+      {footer ? (
+        <View ref={footerRef} style={[styles.footer, { backgroundColor }]} testID="screen-footer">
+          {footer}
+        </View>
+      ) : null}
     </KeyboardAwareScrollView>
   ) : (
     <>

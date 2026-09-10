@@ -47,13 +47,13 @@ A logged-out fresh Expo Go session must land on Welcome. Authenticated storage i
 
 - `react-native-safe-area-context` owns top/bottom insets. Welcome header content must remain below Android/iOS system status areas.
 - Text-entry screens use `Screen`, whose content and footer share one scroll region. The CTA is never a fixed overlay over required fields.
-- `KeyboardAwareScrollView` reveals a focused native input on focus and again after `keyboardDidShow`.
-- Android keeps `softwareKeyboardLayoutMode: resize` and does not add a second `KeyboardAvoidingView` height reduction.
+- `KeyboardAwareScrollView` reveals a focused native input by measuring the field and the ScrollView's own current on-screen rect together, in the same window coordinate space, via chained `UIManager.measureInWindow` calls (on focus, again after `keyboardDidShow`, and once more shortly after to catch a still-animating keyboard). It also pulls the screen's footer/CTA into the same visible region alongside the focused field whenever there is room for both, without ever scrolling the field itself off-screen to do so.
+- `app.json` declares `android.softwareKeyboardLayoutMode: resize`, but that native config only applies in a custom dev client or a standalone/production build — Expo Go's own host app has a fixed native manifest and never honours it, so the window never actually resizes there. `keyboardAvoidingBehavior()` in `src/keyboard.ts` detects Expo Go via `expo-constants`'s `executionEnvironment` and gives Android the same JS-driven `KeyboardAvoidingView` behaviour (`'height'`) iOS already uses, only inside Expo Go; a real dev-client/standalone build keeps Android's behaviour `undefined` so the native resize isn't double-compensated.
 - iOS uses `KeyboardAvoidingView` padding. Both platforms use platform-appropriate keyboard dismissal.
 - Record editors use the same focus-aware scrolling through `RecordSheet`.
 - Do not replace this with hard-coded keyboard margins or device-specific offsets.
 
-These rules cover Login, Create account, About You, names, signup/recovery code entry, recovery request/new password, item forms and record editing.
+These rules cover Login, Create account, About You, names, signup/recovery code entry, recovery request/new password, item forms and record editing. Confirmed on physical Android and iOS devices in Expo Go on 10 September 2026: focused field and footer CTA both become visible without a manual scroll, and Android now visibly resizes/pads as the keyboard opens instead of staying static.
 
 ## Backend Boundary
 
@@ -80,24 +80,26 @@ Never run a blind full `supabase config push`; the base local config intentional
 At this handoff:
 
 - `npm run typecheck`: pass.
-- Jest: 8 suites, 98 tests, all pass.
+- Jest: 10 suites, 110 tests, all pass (adds `tests/keyboard-reveal.test.ts` and `tests/keyboard.test.ts` for the keyboard-avoidance corrective task below).
 - Focused auth/responsive tests: 19 tests, all pass.
-- `npx expo install --check`: dependencies up to date.
+- `npx expo install --check`: dependencies up to date (`expo-constants` newly declared as a direct dependency).
 - `npx expo config --type public`: pass; Android keyboard mode is `resize`.
 - `git diff --check`: clean apart from Windows line-ending notices.
 - Phase 6 database baseline: local rebuild/lint and 49 profile/care-space pgTAP assertions passed when the migration was introduced.
 - Expo Metro was listening on port `8081` at handoff; verify rather than assuming that process survives a later session.
 
-Automated tests prove structure and code paths, not physical rendering. Device acceptance remains outstanding.
+Automated tests prove structure and code paths, not physical rendering.
+
+### Keyboard-avoidance corrective task (10 September 2026)
+
+Physical-device testing found Password/the CTA still hidden behind the keyboard on both platforms after the original Phase 5 layout correction. Root-caused and fixed in two layers — see `docs/REVISION_LOG.md` for the full writeup — and confirmed working on physical Android and iOS devices in Expo Go by the product owner. This is now part of the protected baseline, not outstanding work.
 
 ## Immediate Next Steps
 
-1. Reload Expo Go and perform the exact short-height Android Login sequence in `docs/PHASE_5_QA.md`: Email -> Password with keyboard held open -> type -> reach Login -> dismiss keyboard.
-2. Repeat keyboard checks on iPhone across Login, Create account, About You, code entry and password reset; verify no blank gap or double offset after dismissal.
-3. Run a clean account walkthrough from Welcome using the reset development test address: signup, code, About You, multi-person setup and Home.
-4. Run password recovery end to end and confirm the hosted email contains a six-digit code, not a link.
-5. Complete `docs/PHASE_6_QA.md` for multi-person isolation and relaunch behavior.
-6. Record device/build/results. Fix only observed regressions, then obtain product-owner approval before starting Phase 7.
+1. Run a clean account walkthrough from Welcome using the reset development test address: signup, code, About You, multi-person setup and Home.
+2. Run password recovery end to end and confirm the hosted email contains a six-digit code, not a link.
+3. Complete `docs/PHASE_6_QA.md` for multi-person isolation and relaunch behavior.
+4. Record device/build/results. Fix only observed regressions, then obtain product-owner approval before starting Phase 7.
 
 ## Protected And Deferred
 
