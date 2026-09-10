@@ -55,6 +55,29 @@ describe('Phase 6A multi-person contract', () => {
     collapsed.getByLabelText('+ Add another person');
   });
 
+  it('offers a Remove control per person in the collapsed summary, wired to onRemovePerson', async () => {
+    const onRemovePerson = jest.fn();
+    const collapsed = await render(
+      <RelationshipScreen
+        people={drafts}
+        collapsed
+        onBack={jest.fn()}
+        onContinue={jest.fn()}
+        onAddAnother={jest.fn()}
+        onRemovePerson={onRemovePerson}
+      />,
+    );
+    await fireEvent.press(collapsed.getByLabelText('Remove Dad'));
+    expect(onRemovePerson).toHaveBeenCalledWith('10000000-0000-4000-a000-000000000002');
+  });
+
+  it('renders no Remove control when onRemovePerson is not supplied', async () => {
+    const collapsed = await render(
+      <RelationshipScreen people={drafts} collapsed onBack={jest.fn()} onContinue={jest.fn()} onAddAnother={jest.fn()} />,
+    );
+    expect(collapsed.queryByLabelText('Remove Dad')).toBeNull();
+  });
+
   it('allows duplicate relationship types because draft identity is distinct', () => {
     const children: SupportedPersonDraft[] = [
       { draftId: 'child-1', relationshipType: 'Child', displayName: 'Amelia', order: 0 },

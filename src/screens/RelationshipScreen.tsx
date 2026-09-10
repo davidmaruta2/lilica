@@ -24,6 +24,7 @@ type Props = {
   onDone?: () => void;
   onContinue: () => void;
   onAddAnother?: () => void;
+  onRemovePerson?: (draftId: string) => void;
 };
 
 const ITEM_HEIGHT = 66;
@@ -40,6 +41,7 @@ export function RelationshipScreen({
   onDone,
   onContinue,
   onAddAnother,
+  onRemovePerson,
 }: Props) {
   const list = useRef<FlatList<Relationship>>(null);
   const selectedTypes = people.map((person) => person.relationshipType);
@@ -61,7 +63,17 @@ export function RelationshipScreen({
           {people.map((person) => (
             <View key={person.draftId} style={styles.summaryRow}>
               <View style={styles.summaryMark}><View style={styles.tick} /></View>
-              <AppText variant="bodyStrong">{person.relationshipLabel || person.relationshipType}</AppText>
+              <AppText variant="bodyStrong" style={styles.summaryLabel}>{person.relationshipLabel || person.relationshipType}</AppText>
+              {onRemovePerson ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${person.relationshipLabel || person.relationshipType}`}
+                  onPress={() => onRemovePerson(person.draftId)}
+                  style={({ pressed }) => [styles.removeButton, pressed && styles.pressed]}
+                >
+                  <AppText variant="secondary" tone="soft">Remove</AppText>
+                </Pressable>
+              ) : null}
             </View>
           ))}
           <Button label="+ Add another person" variant="text" onPress={onAddAnother ?? (() => undefined)} />
@@ -136,5 +148,7 @@ const styles = StyleSheet.create({
   tick: { width: 12, height: 7, borderLeftWidth: 2.5, borderBottomWidth: 2.5, borderColor: colors.white, transform: [{ rotate: '-45deg' }], marginTop: -2 },
   summary: { marginTop: spacing.xl, gap: spacing.sm },
   summaryRow: { minHeight: 60, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.surface, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  summaryLabel: { flex: 1 },
+  removeButton: { paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
   summaryMark: { width: 28, height: 28, borderRadius: radius.pill, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
 });

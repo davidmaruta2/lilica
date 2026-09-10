@@ -1,5 +1,13 @@
 # Revision Log
 
+## 10 September 2026 - Remove a duplicated person from the relationship summary
+
+Reported directly by the product owner: after accidentally adding "Dad" twice on the "Who are you helping?" flow (duplicates are allowed by design, e.g. two grandparents), there was no way to remove the extra entry from the collapsed relationship summary screen reached via "+ Add another person" — the only existing remove control lived on the later `PeopleReviewScreen`, which isn't reached until every person already has a name.
+
+Added a `Remove` control per row in `RelationshipScreen`'s collapsed summary, gated behind a new optional `onRemovePerson` prop (no control renders when it isn't supplied, so the `PeopleReviewScreen`'s own fallback usage of this component is unaffected). `App.tsx` wires it to a new `removeDraftPerson(draftId)` handler, mirroring the existing `PeopleReviewScreen` remove logic exactly: filters the person out of the draft, reindexes remaining order, clears `currentDraftId` if it pointed at the removed person, and drops back to the `relationship` wheel stage if the list becomes empty.
+
+Two new tests in `tests/multi-person.test.tsx` cover the control appearing and firing, and staying absent when no handler is supplied. `npm run typecheck` and `npm test` (147 tests, up from 145) both pass.
+
 ## 10 September 2026 - Corrective fix: self/someone-else fork not reachable on resume
 
 Physical-device testing reported that onboarding still went straight to the old "Who are you helping?" relationship screen, bypassing the approved "Whose wellbeing are you looking to support with Lilica?" fork, despite the fork's code being present and correct.

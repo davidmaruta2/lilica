@@ -419,6 +419,16 @@ function LilicaApp() {
     if (draft.people.length > 0) go('relationshipSummary');
   }
 
+  function removeDraftPerson(draftId: string) {
+    const draft = state.onboardingDraft;
+    if (!draft) return;
+    const people = draft.people.filter((item) => item.draftId !== draftId).map((item, order) => ({ ...item, order }));
+    update({
+      onboardingDraft: { ...draft, people, currentDraftId: draft.currentDraftId === draftId ? undefined : draft.currentDraftId },
+      stage: people.length ? 'relationshipSummary' : 'relationship',
+    });
+  }
+
   function beginIdentityPass() {
     const draft = state.onboardingDraft ?? createOnboardingDraft(state.onboardingComplete);
     const next = draft.people.find((person) => !validatePersonDraft(person)) ?? draft.people[0];
@@ -691,6 +701,7 @@ function LilicaApp() {
               setPendingRelationship(undefined);
               go('relationship');
             }}
+            onRemovePerson={removeDraftPerson}
           />
         );
       case 'name':
