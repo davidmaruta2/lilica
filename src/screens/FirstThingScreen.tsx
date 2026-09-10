@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   categoryMarkInner: { width: 13, height: 13, borderRadius: radius.pill, backgroundColor: colors.primary },
   itemCopy: { flex: 1, gap: spacing.xxs },
   addAffordance: { width: 48, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' },
-  countBadge: { minWidth: 24, height: 24, paddingHorizontal: 6, borderRadius: radius.pill, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  countBadge: { minWidth: 24, height: 24, paddingHorizontal: 6, borderRadius: radius.pill, backgroundColor: colors.olive, alignItems: 'center', justifyContent: 'center' },
   countBadgeLabel: { fontWeight: '700' },
   recordList: { gap: spacing.sm, paddingBottom: spacing.xl },
   recordRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
