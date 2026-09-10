@@ -28,6 +28,7 @@ import {
 import { RelationshipScreen } from './src/screens/RelationshipScreen';
 import { RecoveryEmailSentScreen, RecoveryPasswordScreen, RecoveryRequestScreen } from './src/screens/RecoveryScreen';
 import { RecoveryCodeScreen, VerificationScreen } from './src/screens/VerificationScreen';
+import { ToDoScreen } from './src/screens/ToDoScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import {
   initialOnboardingState,
@@ -520,7 +521,9 @@ function LilicaApp() {
     else setActiveTab('home');
   }
 
-  function openRecordFromCalendar(recordId: string) {
+  // Shared by Calendar and To Do: both open a tapped item through the same
+  // established record editor, never a projection-specific one.
+  function openRecordFromProjection(recordId: string) {
     setCalendarOpenRecordId(recordId);
     go('firstThing');
   }
@@ -551,7 +554,7 @@ function LilicaApp() {
           key={currentSpace.careSpaceId}
           records={state.records}
           personName={currentSpace?.displayName}
-          onOpenRecord={openRecordFromCalendar}
+          onOpenRecord={openRecordFromProjection}
         />
       ) : (
         <FoundationScreen
@@ -560,7 +563,17 @@ function LilicaApp() {
         />
       );
     } else if (activeTab === 'todo') {
-      content = (
+      content = currentSpace?.setupStatus === 'ready' ? (
+        <ToDoScreen
+          key={currentSpace.careSpaceId}
+          records={state.records}
+          personName={currentSpace?.displayName}
+          activeMembershipId={currentSpace?.membershipId}
+          onOpenRecord={openRecordFromProjection}
+          onSaveRecord={saveRecord}
+          onAddSomething={() => go('firstThing')}
+        />
+      ) : (
         <FoundationScreen
           title="To Do"
           body="Things to do will appear here as you add them."

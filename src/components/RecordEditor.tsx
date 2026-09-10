@@ -113,6 +113,34 @@ function statusFor(type: LilicaRecordType, completed: boolean): RecordStatus {
   return 'saved';
 }
 
+// Phase 12: the exact same completed/reopened transition save() applies
+// below (status, completed, completedAt, confirmationHistory), factored
+// out so another projection (To Do) that completes or reopens a record
+// without opening the full editor produces the identical canonical
+// transition -- never a second interpretation of what "complete" means.
+// Reopening (completed: false) clears the active completedAt pointer but
+// preserves confirmationHistory -- the historical completion evidence.
+export function completionUpdate(
+  record: LilicaRecord,
+  completed: boolean,
+  confirmedBy?: string,
+): Pick<LilicaRecord, 'status' | 'completed' | 'completedAt' | 'confirmationHistory'> {
+  const now = new Date().toISOString();
+  const newlyCompleted = completed && !record.completed;
+  const confirmationHistory = newlyCompleted
+    ? [
+        ...(record.confirmationHistory ?? []),
+        { status: 'completed' as const, confirmedAt: now, confirmedBy: confirmedBy?.trim() || 'You' },
+      ]
+    : record.confirmationHistory;
+  return {
+    status: statusFor(record.type, completed),
+    completed,
+    completedAt: newlyCompleted ? now : completed ? record.completedAt : undefined,
+    confirmationHistory,
+  };
+}
+
 export function RecordEditor({ type, record, draft, supportedPersonId, activeMembershipId, onChange, onSave, onRemove }: Props) {
   const [attachmentError, setAttachmentError] = useState('');
   const parsedDate = draft.date ? toIsoDate(draft.date) : undefined;

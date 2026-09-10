@@ -1,5 +1,25 @@
 # Revision Log
 
+## 10 September 2026 - Phase 12 To Do projection
+
+Roadmap numbering note first: the product owner clarified that the work committed as "Phase 10" (immediately below) implements the canonical roadmap's **Phase 11 — Calendar Projection** (`docs/CORE_SYSTEM_CONTRACT.md` numbers its own Phase 10 as Home Projection, effectively already delivered by the earlier Home redesign). Historical commits/entries saying "Phase 10" for Calendar are not renamed or rewritten; numbering resumes canonically from **Phase 12 — To Do Projection** onward, per this entry.
+
+Implemented from a written, bounded product-owner brief. `PRE_PHASE_12_BASELINE`: HEAD `c85a58d` (in sync with `origin/master`), clean working tree, TypeScript clean, 15 Jest suites/176 tests, secret scan clean (135 files), 152 pgTAP assertions across 5 files, clean DB lint, clean web export.
+
+To Do is a projection, not a second task store: it reads `state.records` (the same Home/Calendar already read) and a new `isActionableRecord()` in `src/records.ts` decides eligibility per `docs/CORE_SYSTEM_CONTRACT.md` section 9.3 — open task/bill/home-or-car-matter records, never appointments/documents/contacts/care-information/updates even though some are dated.
+
+- New `src/screens/ToDoScreen.tsx`: Overdue / Today-Needs-doing / Upcoming groups (30-day horizon, matching Home's own Coming Up window), an All/Mine/Unassigned assignment-filter row, and per-row "Mark complete"/"Mark paid"/"Reopen" actions. A "Show completed" toggle (off by default) keeps completed items reachable for reopening without a second screen.
+- New `completionUpdate()` in `src/components/RecordEditor.tsx`: the exact status/completed/completedAt/confirmationHistory transition `RecordEditor.save()` already applies inline for its "Already sorted" checkbox, factored out (save() itself untouched) so To Do's quick actions produce a byte-identical mutation to the established editor — never a second interpretation of "complete".
+- Assignment filtering and the row's You/Unassigned badge use Phase 9's stable `assignedMembershipId` exclusively — never a display name or the legacy `responsiblePerson` text, and no third assignment representation was created.
+- `App.tsx`: the To Do tab now renders `ToDoScreen` (previously a placeholder) once the active care space's setup is `ready`, mounted with `key={careSpaceId}` for the same clean-switch guarantee Calendar already has. Tapping a row or completing an item reuses the exact same `initialOpenRecordId`/`onSaveRecord` paths Calendar and Home already use.
+- No database migration, no RLS change, no new assignment architecture.
+
+New `tests/phase12-todo.test.tsx` (16 tests) covers the brief's fixed test scenario verbatim, eligibility, identity (no duplication), the shared completion transition, assignment filtering (including that `responsiblePerson` and a changed display name never affect it), care-space isolation, and that Add reuses the established creation flow. `npm run typecheck`, `npm test` (16 suites/192 tests, up from 176) and `npm run validate:all` (152 pgTAP assertions unchanged, clean lint, clean web export) all pass.
+
+Diff audit: 3 files touched (`App.tsx`, `src/records.ts`, `src/components/RecordEditor.tsx`) plus one new screen and one new test file — all with a clear Phase 12 reason. No welcome/auth/onboarding/fork/PersonSwitcher/Home/Calendar/theme-token file appears in the diff. `git diff --check` clean; no secrets, env files or generated exports included.
+
+Not committed or pushed pending product-owner review and physical-device QA, per the implementation brief. Phase 13+ was not started.
+
 ## 10 September 2026 - Phase 10 Calendar projection
 
 Implemented from a written, bounded product-owner brief. `PRE_PHASE_10_BASELINE`: HEAD `62368db` (in sync with `origin/master`), clean working tree, TypeScript clean, 14 Jest suites/157 tests, clean web export -- the same numbers already recorded as passing immediately before this brief was issued, in this same session. No migration exists on either side of this phase, so the last recorded pgTAP baseline (152 assertions, Phase 8/9) is unchanged.

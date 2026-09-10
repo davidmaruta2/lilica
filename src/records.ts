@@ -1,4 +1,4 @@
-import { LilicaRecord, RecordRecurrence } from './types';
+import { LilicaRecord, LilicaRecordType, RecordRecurrence } from './types';
 
 export type DerivedRecordState = {
   dueToday: boolean;
@@ -84,6 +84,18 @@ export function calendarDateForRecord(record: LilicaRecord): string | undefined 
   if (record.type === 'task' || record.type === 'bill' || record.type === 'homeMatter') return record.dueDate ?? record.date;
   if (record.type === 'document') return record.expiryDate;
   return undefined;
+}
+
+// Phase 12: which records are genuinely actionable "To Do" work, per
+// docs/CORE_SYSTEM_CONTRACT.md section 9.3 -- explicit tasks, actionable
+// bill/renewal occurrences, and actionable home/car matters. Appointments,
+// documents, contacts, care information and updates are informational or
+// merely dated, not actionable, and never enter this projection even
+// though some of them have dates and already appear in Calendar.
+const ACTIONABLE_TYPES: LilicaRecordType[] = ['task', 'bill', 'homeMatter'];
+
+export function isActionableRecord(record: LilicaRecord): boolean {
+  return ACTIONABLE_TYPES.includes(record.type) && record.status !== 'cancelled';
 }
 
 export function deriveRecordState(record: LilicaRecord, now = new Date()): DerivedRecordState {

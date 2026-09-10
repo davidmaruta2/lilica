@@ -182,9 +182,17 @@ Home displays only real saved records. It groups them into populated sections:
 - Coming up
 - Latest
 
-Do not add fake records, fabricated statistics, profile-completion prompts, feature grids or empty dashboard sections. The existing shell includes placeholder Calendar, To Do and Person tabs; those are not full Phase 2 products.
+Do not add fake records, fabricated statistics, profile-completion prompts, feature grids or empty dashboard sections. Calendar (Phase 11 of the canonical roadmap) and To Do (Phase 12) are now real projections rather than placeholders; the Person tab remains a placeholder.
 
-The header leads with the Lilica wordmark; the supported-person context sits beneath it as a persistent, tappable card that opens the person switcher (replacing the old dismissible "Everything for [Name], in one place" banner and the small "[Name]'s week" text trigger). Directly beneath that, a horizontal snapshot row shows a truthful open-record count per category (To do/Bills/Home matters/Appointments), derived locally in `HomeScreen.tsx` from the records already loaded — this is not the "fake statistics" the rule above prohibits, since every number is a live count of real records under the existing derivation, not fabricated or projected. Section item cards use a small category-tonal icon (drawn from plain Views, no icon-library dependency) instead of one uniform accent color, plus an explicit "Overdue" label only where the existing derivation says so.
+The header leads with the Lilica wordmark; the supported-person context sits beneath it as a persistent, tappable card that opens the person switcher (replacing the old dismissible "Everything for [Name], in one place" banner and the small "[Name]'s week" text trigger). Directly beneath that, a horizontal "at a glance" status strip shows Overdue/Due today/Coming up/Assigned to you/Updates this week counts, derived locally in `HomeScreen.tsx` from the records already loaded and Phase 9's stable assignment identity — this is not the "fake statistics" the rule above prohibits, since every number is a live count under the existing derivation, and Assigned to you is omitted entirely (never a fake zero) when no active membership exists to back it. Section item cards use a small category-tonal icon (drawn from plain Views, no icon-library dependency) instead of one uniform accent color, plus an explicit "Overdue" label only where the existing derivation says so.
+
+## Calendar (Phase 11 of the canonical roadmap)
+
+Calendar is a month-grid-and-selected-day projection of the same records Home reads (`state.records`), not a second record system. Each day cell shows a tinted icon-chip badge for its highest-priority category (a `+N` badge when more than one item falls on a date, a small red corner dot on any overdue item), and an icon legend beneath the grid explains every glyph. Tapping an item opens the established record editor via a one-shot `initialOpenRecordId` request, exactly as Home's own Add action already does. See `docs/PHASE_10_ARCHITECTURE.md`.
+
+## To Do (Phase 12)
+
+To Do projects genuinely actionable work — open task/bill/home-or-car-matter records that are not completed or cancelled — grouped into Overdue, Today / Needs doing, and Upcoming (a 30-day horizon, matching Home's own Coming Up window). Appointments, documents, contacts, care information and updates never appear, even though some are dated. Assignment filters (All/Mine/Unassigned) use Phase 9's stable `assignedMembershipId`, never a display name or the legacy `responsiblePerson` text. Completing or reopening an item uses the same canonical transition `RecordEditor`'s own Save button would produce (`completionUpdate()`, shared by both), so Home, Calendar and To Do can never disagree about what "complete" means for a record. See `docs/PHASE_12_ARCHITECTURE.md`.
 
 ## Design Direction
 

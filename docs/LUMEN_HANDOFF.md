@@ -30,8 +30,12 @@ The working app now includes:
 - Eight real record categories with category lists, multiple stable record IDs and compact editors.
 - Wheel-based date/time selection, local document upload/camera capture and real-record-only Home sections.
 - Everyday record management from Home (the same category-gateway screen as onboarding) with a stable-identity `Assigned to: Unassigned/You` control alongside the unchanged legacy responsibility text.
+- Calendar: a month grid plus selected-day list, projecting the same records Home reads (canonical roadmap Phase 11 — see the roadmap numbering note below).
+- To Do (Phase 12): open task/bill/home-or-car-matter records grouped into Overdue/Today/Upcoming, with All/Mine/Unassigned assignment filters and completion sharing the record editor's own canonical transition.
 
-Phase 7 record persistence, cache, sync and safe migration, Phase 8's core Record -> Occurrence engine, and Phase 9's everyday add/record management are implemented, validated and physically approved through Phase 8 (product-owner QA passed 10 September 2026 — see `docs/PHASE_8_QA.md`); Phase 9 physical QA is outstanding (`docs/PHASE_9_QA.md`). Assignment invitations/real collaboration, cloud attachment bytes and production infrastructure are not implemented.
+Phase 7 record persistence, cache, sync and safe migration, Phase 8's core Record -> Occurrence engine, and Phase 9's everyday add/record management are implemented, validated and physically approved through Phase 8 (product-owner QA passed 10 September 2026 — see `docs/PHASE_8_QA.md`); Phase 9, Calendar and Phase 12 physical QA are outstanding (`docs/PHASE_9_QA.md`, `docs/PHASE_10_QA.md`, `docs/PHASE_12_QA.md`). Assignment invitations/real collaboration, cloud attachment bytes and production infrastructure are not implemented.
+
+**Roadmap numbering note:** the Calendar work was implemented and committed under the working label "Phase 10", but `docs/CORE_SYSTEM_CONTRACT.md`'s canonical roadmap defines it as **Phase 11 — Calendar Projection** (its Phase 10, Home Projection, was effectively already delivered by the earlier Home redesign work). Historical commits and doc entries that say "Phase 10" for Calendar are not renamed or rewritten; numbering simply resumes canonically from Phase 12 (To Do) onward.
 
 ## Current Flow
 
@@ -141,10 +145,18 @@ Home's presentation was reorganised — see `docs/REVISION_LOG.md` for the full 
 
 Full writeup in `docs/PHASE_9_ARCHITECTURE.md`. A line-by-line trace before writing any code found that the category-gateway/list/add/edit architecture Phase 9's brief describes was already fully implemented (the 10 September 2026 "Structured Category And Wheel-Picker Correction") and already reachable from Home's everyday `Add` action — Phase 9 did not need to build or redesign it. What was actually added: an `everyday` copy variant on `FirstThingScreen` (heading/footer text only, same screen/architecture either way), and a stable-identity `Assigned to: Unassigned/You` control on `RecordEditor` for appointment/task/bill/home-or-car-matter records, storing the organiser's own `care_space_membership.id` — never a name or email — alongside the unchanged legacy `responsiblePerson` free text. No migration was needed; `assignedMembershipId` rides inside the existing `record_data` JSONB. No client code calls the separate Phase 8 `assignments` table's `create_assignment(...)` RPC yet — that remains available for a later phase once real multi-member collaboration exists to exercise it.
 
-Not changed: `bootstrap_supported_people`, `apply_record_mutation`/`apply_occurrence_mutation`, `PersonSwitcher.tsx`, `Wordmark.tsx`, `Screen.tsx`, `HomeScreen.tsx`, `records.ts`, `CareForkScreen.tsx`, any theme token, any migration, any RLS policy, and no Phase 10+ Calendar/To Do/collaboration work.
+Not changed: `bootstrap_supported_people`, `apply_record_mutation`/`apply_occurrence_mutation`, `PersonSwitcher.tsx`, `Wordmark.tsx`, `Screen.tsx`, `HomeScreen.tsx`, `records.ts`, `CareForkScreen.tsx`, any theme token, any migration, any RLS policy.
+
+## Calendar Projection (10 September 2026, canonical roadmap Phase 11)
+
+Full writeup in `docs/PHASE_10_ARCHITECTURE.md` (filename kept from the original working label; see the roadmap numbering note above). Calendar reads `state.records` — the same active-care-space projection Home reads — and resolves each record's calendar date via a new `calendarDateForRecord()` in `records.ts`, mirroring `domain/recordOccurrence.ts`'s existing date-field priority. Opening an item reuses the established record editor via a new one-shot `initialOpenRecordId` prop on `FirstThingScreen`. `CategoryIcon`/`categoryLabel`/`visualFor`/`StatusIcon` were exported from `HomeScreen.tsx` (previously private) so Calendar and To Do share the same icon language.
+
+## Phase 12 To Do Projection (10 September 2026)
+
+Full writeup in `docs/PHASE_12_ARCHITECTURE.md`. To Do projects genuinely actionable work — open task/bill/home-or-car-matter records, per `docs/CORE_SYSTEM_CONTRACT.md` section 9.3 — into Overdue/Today-Needs-doing/Upcoming (30-day horizon, matching Home's own Coming Up window). Appointments, documents, contacts, care information and updates never appear. A new `isActionableRecord()` in `records.ts` and a new `completionUpdate()` in `RecordEditor.tsx` (the exact status/completed/completedAt/confirmationHistory transition `RecordEditor.save()` already applies inline, factored out so both produce byte-identical results) are the only new domain logic. Assignment filters (All/Mine/Unassigned) use Phase 9's stable `assignedMembershipId`; legacy `responsiblePerson` text is never treated as assignment. No migration, no RLS change, no new assignment representation.
 
 ## Protected And Deferred
 
-Preserve Welcome, privacy gating/version/timestamp, organiser/supported-person separation, local account isolation, multi-person care-space separation, category/multi-record behavior, wheel selectors, record-sheet gestures, real-record-only Home, the current Home presentation, and the Phase 9 everyday-copy/Assigned-to scope described above.
+Preserve Welcome, privacy gating/version/timestamp, organiser/supported-person separation, local account isolation, multi-person care-space separation, category/multi-record behavior, wheel selectors, record-sheet gestures, real-record-only Home, the current Home presentation, Calendar, and the Phase 9/Phase 12 everyday-copy/Assigned-to/To-Do scope described above.
 
-Deferred: linked-action UI, collaboration/invitations, real multi-member assignment (the `assignments` table itself), Calendar/To Do projections, cloud document storage, orphan attachment cleanup, OCR, notifications, production Ask Lilica, production infrastructure, backup guarantees and account/care-space deletion policy.
+Deferred: linked-action UI, collaboration/invitations, real multi-member assignment (the `assignments` table itself), reminders/notifications, cloud document storage, orphan attachment cleanup, OCR, production Ask Lilica, production infrastructure, backup guarantees and account/care-space deletion policy.
