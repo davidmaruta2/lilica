@@ -1,5 +1,13 @@
 # Revision Log
 
+## 10 September 2026 - Category gateway: saved-count badge, not "Added"
+
+Product-owner observation: on a supported person's records screen (`FirstThingScreen`, both first-time and everyday modes), each category box (Appointment, Bill, Home or car matter, etc.) showed "Added" once it held any records. Since the box is revisited repeatedly to add more, "Added" wrongly implied the category was now complete/done rather than just non-empty.
+
+`src/screens/FirstThingScreen.tsx`: replaced the "Added"/"Add" text with a small numeric badge showing `savedRecords.length` once a category has any records; an empty category still shows "Add" as before. New `countBadge`/`countBadgeLabel` styles alongside the existing `addAffordance` styling — no other layout change.
+
+Two new tests in `tests/phase9-record-management.test.tsx` cover the badge showing the correct count with no "Added" text present, and the empty-category "Add" affordance still rendering. `npm run typecheck` and `npm test` (153 tests, up from 151) both pass.
+
 ## 10 September 2026 - Repeats: horizontal Weekly/Bi-weekly/Monthly/6-monthly/Annually pills
 
 Product-owner request, revised twice in the same sitting: first to a Weekly/Monthly/Yearly toggle with no explicit "Never" (deselecting clears recurrence), then to a horizontal scrolling row of five pills — Weekly, Bi-weekly, Monthly, 6-monthly, Annually — confirmed via `AskUserQuestion` as a scrollable row of pill buttons rather than a draggable-thumb slider, matching the existing horizontal interest-selection carousel's interaction style.

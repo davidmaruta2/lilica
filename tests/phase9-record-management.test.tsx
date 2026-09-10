@@ -43,6 +43,26 @@ describe('Phase 9: everyday vs onboarding copy', () => {
   });
 });
 
+describe('Category gateway: saved-count badge, not an "Added" label', () => {
+  // A category box is revisited repeatedly to add more records, so "Added"
+  // wrongly implied it was now complete/done. A count badge shows how many
+  // are actually saved without implying the category is finished.
+  it('shows a count badge with the number of saved records, not the word Added', async () => {
+    const appointments = [
+      { id: 'a1', type: 'appointment' as const, title: 'Dentist', createdAt: '2026-09-10T00:00:00Z' },
+      { id: 'a2', type: 'appointment' as const, title: 'GP', createdAt: '2026-09-10T00:00:00Z' },
+    ];
+    const screen = await render(<FirstThingScreen {...baseProps} records={appointments} everyday />);
+    screen.getByLabelText('2 saved');
+    expect(() => screen.getByText('Added')).toThrow();
+  });
+
+  it('still shows the Add affordance when a category has no saved records', async () => {
+    const screen = await render(<FirstThingScreen {...baseProps} records={[]} everyday />);
+    expect(screen.getAllByText('Add').length).toBeGreaterThan(0);
+  });
+});
+
 describe('Phase 9: stable-identity assignment control', () => {
   it('does not render an Assigned-to control when no active membership is available (no fabricated care circle)', async () => {
     const draft = createRecordDraft('appointment');

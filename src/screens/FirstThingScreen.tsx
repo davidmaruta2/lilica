@@ -265,7 +265,13 @@ export function FirstThingScreen({
                     </AppText>
                   </View>
                   <View style={styles.addAffordance}>
-                    <AppText variant="secondary" tone="primary">{hasRecords ? 'Added' : 'Add'}</AppText>
+                    {hasRecords ? (
+                      <View style={styles.countBadge} accessibilityLabel={`${savedRecords.length} saved`}>
+                        <AppText variant="secondary" tone="white" style={styles.countBadgeLabel}>{savedRecords.length}</AppText>
+                      </View>
+                    ) : (
+                      <AppText variant="secondary" tone="primary">Add</AppText>
+                    )}
                   </View>
               </Pressable>
             </Animated.View>
@@ -338,6 +344,8 @@ const styles = StyleSheet.create({
   categoryMarkInner: { width: 13, height: 13, borderRadius: radius.pill, backgroundColor: colors.primary },
   itemCopy: { flex: 1, gap: spacing.xxs },
   addAffordance: { width: 48, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  countBadge: { minWidth: 24, height: 24, paddingHorizontal: 6, borderRadius: radius.pill, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  countBadgeLabel: { fontWeight: '700' },
   recordList: { gap: spacing.sm, paddingBottom: spacing.xl },
   recordRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
   recordCopy: { flex: 1, gap: spacing.xxs },
