@@ -2,7 +2,7 @@
 
 Status: **DRAFT FOR PRODUCT-OWNER REVIEW — NO CODE CHANGED TO PRODUCE THIS DOCUMENT**
 
-> Historical note: this is an earlier Phase 2 draft and its implementation-state statements are no longer current. `docs/CORE_SYSTEM_CONTRACT.md` is the authoritative approved contract; `docs/LUMEN_HANDOFF.md` describes the implemented Phase 5/6 state and current next steps.
+> Historical note: this is an earlier Phase 2 draft and its implementation-state statements are no longer current. `docs/CORE_SYSTEM_CONTRACT.md` is the authoritative approved contract; `docs/LUMEN_HANDOFF.md` describes the implemented Phase 5/6 state and current next steps. The current user-facing `Home or car matter` label retains the historical internal key `homeMatter` used below.
 
 Legend used throughout:
 

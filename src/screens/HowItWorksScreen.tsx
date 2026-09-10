@@ -41,7 +41,7 @@ export function HowItWorksScreen({ onBack, onContinue }: Props) {
         One place for the care and everyday life of someone you support.
       </AppText>
       <AppText variant="body" tone="soft" style={styles.opening}>
-        Keep appointments, care, household matters, important paperwork and everyday to-dos organised for someone you care about.
+        Keep appointments, care, home and car matters, important paperwork and everyday to-dos organised for someone you care about.
       </AppText>
       <View style={styles.numberedList}>
         {points.map((point, index) => (

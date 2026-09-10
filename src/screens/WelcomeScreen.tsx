@@ -52,7 +52,7 @@ const pages: IntroPage[] = [
       'Medical appointments',
       'Documents and bills',
       'Everyday jobs',
-      'Household tasks',
+      'Home and car tasks',
     ],
     color: '#B9674C',
     visual: 'together',

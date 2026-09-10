@@ -1,5 +1,23 @@
 # Revision Log
 
+## 10 September 2026 - Assignment and collaboration roadmap locked
+
+- Made stable assignment identity and independently server-enforced visibility an authoritative product invariant.
+- Assigned legacy responsibility migration to Phase 7, assignment entities/defaults/occurrence overrides to Phase 8, editor controls to Phase 9, To Do projections to Phase 12, and real member population/permissions/revocation to Phase 15.
+- Locked no name/email auto-matching, no implicit permission from assignment, active-membership-only assignment, separate zero-access external contacts, non-mandatory acceptance at initial launch, and historical attribution after revocation.
+- Added role/capability/domain boundaries and a roadmap-level acceptance matrix covering identity changes, cross-space isolation, legacy text, permissions, pending invitations, helper restrictions, revocation and stale offline replay.
+- No application code, schema or Supabase resource was changed for this architecture decision. The present free-text field remains until its approved replacement phase.
+- Product-owner physical-device testing also confirmed the corrected keyboard behavior and password, verification-code, check-email and password-reset paths before the Phase 6 checkpoint.
+- The checkpoint passed `npm run validate:all`: 10 Jest suites/110 tests, secret scanning, Expo dependency/config checks, web export, local database reset, 49 pgTAP assertions and database lint.
+
+## 10 September 2026 - Home and car category expansion
+
+- Expanded the user-facing `Home matter` category to `Home or car matter` across Welcome, interests, structured record entry and record-management actions.
+- Renamed the interest to `Home, car & bills` and clarified that it includes repairs, servicing and renewals.
+- Added MOT, vehicle service and maintenance examples while retaining the distinction between matters and bills/renewals.
+- Preserved the internal `homeMatter` identifier so existing stored records and migrations remain compatible.
+- Updated exact-copy regression coverage and current product/handoff documentation.
+
 ## 10 September 2026 - Keyboard-avoidance corrective task: Password and CTA trapped behind the keyboard
 
 Physical-device testing after the prior keyboard correction still showed the Password field (and, once that was fixed, the Create Account/Log in CTA) clipped or hidden behind the open keyboard on Android, and initially on iOS too. Root-caused and fixed in three passes rather than patched with fixed offsets:

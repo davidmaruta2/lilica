@@ -64,6 +64,8 @@ Phase 5 implements verified Supabase email/password authentication, session rest
 
 Supported-person identity and memberships are cloud-backed. Privacy, interests, setup progress, records and attachments remain device-local per authenticated account and care space. They are preserved at sign-out but are not cloud-synchronised. Invitations, additional member roles/permissions and profile photos are deferred; date of birth is intentionally not collected.
 
+Responsibility and visibility are separate concepts. The existing free-text responsibility value is temporary legacy/display data and must never be inferred to be an authenticated person. Future assignments target a stable active care-space membership or an explicit external contact; server-enforced permissions independently decide what each member can access. Assignment must never grant visibility.
+
 ## Privacy And Consent
 
 The privacy screen must:
@@ -83,7 +85,7 @@ The screen asks `What do you help [Name] with?` and displays six selectable area
 - Appointments and visits
 - Everyday things to sort
 - Care and routines
-- Home and bills
+- Home, car and bills
 - Important paperwork
 - Keeping family updated
 
@@ -102,7 +104,7 @@ It is a vertical snapping stack with one record category in focus. All categorie
 - Appointment
 - Something to do
 - Bill or renewal
-- Home matter
+- Home or car matter
 - Important document
 - Contact
 - Care information

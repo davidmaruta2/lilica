@@ -8,7 +8,7 @@ Despite its legacy filename, this is the canonical current handoff for every inc
 
 ## What Lilica Is
 
-Lilica is a calm personal and family care organiser. An organiser keeps appointments, tasks, bills, home matters, documents, contacts, care information and updates separately for each person they support. It is not a clinical system, surveillance product, emergency monitor or generic family calendar.
+Lilica is a calm personal and family care organiser. An organiser keeps appointments, tasks, bills, home or car matters, documents, contacts, care information and updates separately for each person they support. It is not a clinical system, surveillance product, emergency monitor or generic family calendar.
 
 Read `docs/PROJECT_BRIEF.md`, `AGENTS.md`, `docs/SUPABASE_OPERATIONS.md` and `docs/CORE_SYSTEM_CONTRACT.md` before implementation.
 
@@ -96,10 +96,23 @@ Physical-device testing found Password/the CTA still hidden behind the keyboard 
 
 ## Immediate Next Steps
 
-1. Run a clean account walkthrough from Welcome using the reset development test address: signup, code, About You, multi-person setup and Home.
-2. Run password recovery end to end and confirm the hosted email contains a six-digit code, not a link.
-3. Complete `docs/PHASE_6_QA.md` for multi-person isolation and relaunch behavior.
-4. Record device/build/results. Fix only observed regressions, then obtain product-owner approval before starting Phase 7.
+On 10 September 2026, the product owner confirmed the corrected keyboard behavior and the password, verification-code, check-email and password-reset paths working on physical devices.
+
+The approved checkpoint through Phase 6 passed `npm run validate:all` and repository hygiene checks before commit. Phase 7 remains the next implementation phase, but do not begin it without its own explicit bounded approval and implementation prompt.
+
+## Approved Future Assignment Boundary
+
+The current `responsiblePerson?: string` field remains intentionally unchanged until the cloud record/assignment model exists. Do not replace it with a cosmetic care-circle selector.
+
+The authoritative sequence is:
+
+1. Phase 7 preserves legacy responsibility text and provenance exactly, creates no assignment by name/email matching, and gives cloud records stable care-space identity.
+2. Phase 8 introduces first-class assignment entities, stable membership/external-contact targets, record defaults, occurrence overrides, snapshots and immutable activity.
+3. Phase 9 replaces new arbitrary responsibility text with a data-driven assignment control; keep it restrained while only Unassigned/You exist.
+4. Phase 12 projects Assigned to me, Assigned to others and Unassigned using stable membership IDs.
+5. Phase 15 supplies invitations, active care-circle members, role/capability/domain permissions, selector population and immediate revocation behavior.
+
+Responsibility never grants visibility. Permission is enforced independently by server-side RLS/capability/domain checks. Pending or inactive memberships are not assignable; external contacts have zero application access. See sections 8, 11, 12, 17 and 18.6 of `docs/CORE_SYSTEM_CONTRACT.md`.
 
 ## Protected And Deferred
 

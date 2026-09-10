@@ -1,6 +1,6 @@
 # Lilica
 
-Lilica is a React Native care-organising app for Luxford Interactive. It helps an organiser keep separate appointments, tasks, bills, home matters, documents, contacts, care information and updates for each person they support.
+Lilica is a React Native care-organising app for Luxford Interactive. It helps an organiser keep separate appointments, tasks, bills, home or car matters, documents, contacts, care information and updates for each person they support.
 
 The repository currently contains the Phase 1 product foundation, Phase 5 authentication and the Phase 6 multi-person ownership kernel. Before making product or design changes, read:
 
@@ -31,6 +31,8 @@ The Welcome work should be preserved unless the product owner explicitly request
 ## Important Limitation
 
 Phase 6 stores supported-person identity, one-person care spaces and organiser memberships in Supabase. Privacy acknowledgements, interests, records and attachments remain device-local and are partitioned by care space; cloud record persistence and sync belong to Phase 7. Signing out preserves that local data rather than assigning or deleting it.
+
+The current free-text responsibility field is not a care-circle identity. The approved roadmap preserves it as unresolved legacy text in Phase 7, introduces stable assignment entities in Phase 8, replaces new free text with a data-driven control in Phase 9, projects it into To Do in Phase 12, and populates it with real active members only after Phase 15 collaboration. Assignment never grants visibility; server permissions remain separate.
 
 Profile photos are deferred because no private storage boundary exists yet. Date of birth is intentionally not collected.
 
@@ -67,7 +69,7 @@ npx expo export --platform web
 
 Phase 3 adds a small Jest/`jest-expo` and React Native Testing Library safety harness. `npm run validate` runs typecheck, automated tests, Expo dependency/config checks and a web export. The future domain examples in `src/domain` are deliberately not connected to the application yet. Physical-device checks remain manual; see `docs/PHASE_3_QA_BASELINE.md`, `docs/PHASE_5_QA.md` and `docs/PHASE_6_QA.md`.
 
-The immediate next step is Android/iOS physical-device acceptance of clean signup, recovery-code password reset, safe areas and keyboard-open forms. Phase 7 cloud records/sync has not started and requires separate approval.
+Physical-device acceptance has confirmed the corrected keyboard behavior and the password, verification-code, check-email and reset paths. The approved Phase 6 checkpoint passed full validation. Phase 7 cloud records/sync has not started and requires separate approval.
 
 ## Reference Material
 

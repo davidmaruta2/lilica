@@ -113,7 +113,7 @@ describe('protected Phase 1 onboarding surfaces', () => {
     screen.getByText('What do you help Margaret with?');
     [
       'Appointments & visits',
-      'Home & bills',
+      'Home, car & bills',
       'Everyday things to sort',
       'Important paperwork',
       'Keeping family updated',
@@ -148,12 +148,13 @@ describe('protected structured-record onboarding', () => {
       'Appointment',
       'Something to do',
       'Bill or renewal',
-      'Home matter',
+      'Home or car matter',
       'Important document',
       'Contact',
       'Care information',
       'Update',
     ].forEach((label) => screen.getByLabelText(`Add ${label}`));
+    screen.getByText('A repair, service, MOT or maintenance job');
     await fireEvent.press(screen.getByLabelText("I'll add things later"));
     expect(props.onSkip).toHaveBeenCalledTimes(1);
   });

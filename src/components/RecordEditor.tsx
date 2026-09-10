@@ -117,6 +117,7 @@ export function RecordEditor({ type, record, draft, supportedPersonId, onChange,
   const usesEventDate = type === 'appointment' || type === 'document' || type === 'careNote' || type === 'update';
   const supportsCompletion = type === 'task' || type === 'bill' || type === 'homeMatter';
   const supportsRecurrence = type === 'bill' || type === 'homeMatter';
+  const itemName = type === 'careNote' ? 'care information' : type === 'homeMatter' ? 'home or car matter' : type;
 
   function change(patch: Partial<RecordDraft>) {
     onChange({ ...draft, ...patch });
@@ -166,9 +167,8 @@ export function RecordEditor({ type, record, draft, supportedPersonId, onChange,
 
   function confirmRemove() {
     if (!record || !onRemove) return;
-    const name = type === 'careNote' ? 'care information' : type === 'homeMatter' ? 'home matter' : type;
     Alert.alert(
-      `Remove this ${name}?`,
+      `Remove this ${itemName}?`,
       'This removes only this item.',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -365,14 +365,14 @@ export function RecordEditor({ type, record, draft, supportedPersonId, onChange,
       ) : null}
 
       <Button
-        label={record ? 'Save changes' : `Add ${type === 'careNote' ? 'care information' : type === 'homeMatter' ? 'home matter' : type}`}
+        label={record ? 'Save changes' : `Add ${itemName}`}
         disabled={!canSave}
         onPress={save}
         style={styles.save}
       />
       {record && onRemove ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${type}`} onPress={confirmRemove} style={styles.removeRecord}>
-          <AppText variant="secondary" tone="danger" centre>Remove this {type === 'careNote' ? 'care information' : type === 'homeMatter' ? 'home matter' : type}</AppText>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${itemName}`} onPress={confirmRemove} style={styles.removeRecord}>
+          <AppText variant="secondary" tone="danger" centre>Remove this {itemName}</AppText>
         </Pressable>
       ) : null}
     </View>

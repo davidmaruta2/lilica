@@ -136,7 +136,7 @@ Physical QA after Phase 5 exposed an accidental one-record-per-category interact
 - The top-level `Let's get [Name] organised` cards remain calm, whole-card category gateways. They show only the existing category copy and a restrained `Added` state, never counts, record names, or `Add another` controls.
 - An empty category opens a fresh editor directly. A populated category opens a scrollable category detail containing compact rows for every matching record and a category-specific Add action.
 - Each row opens exactly its record ID. New saves append, edits replace only the matching ID, and confirmed removal deletes only the selected ID. Saving returns to the category list.
-- Existing lifecycle behavior remains unchanged: tasks, bills and home matters retain their explicit completion control; no unapproved appointment outcome semantics were invented.
+- Existing lifecycle behavior remains unchanged: tasks, bills and home or car matters retain their explicit completion control; no unapproved appointment outcome semantics were invented.
 - Structured date, due-date, expiry-date and time fields are selectors rather than text inputs. They open dedicated dimmed Lilica bottom sheets without reflowing the form. Dates use independent Day/Month/Year wheels with leap-year/day clamping and UK display; times use unrestricted 24-hour Hour/Minute wheels. Cancel does not write; Done confirms.
 
 This corrective task preceded Phase 6 and remains protected by the completed Phase 6 implementation.
@@ -163,3 +163,5 @@ GPT should tell the next implementation agent to:
 - Device checks remain for the product owner and are listed in `docs/PHASE_6_QA.md`.
 
 Phase 7 was not started. Do not add cloud records, sync, invitations or collaboration until separately approved.
+
+Post-Phase-6 product decision, 10 September 2026: the current free-text responsibility field is a temporary legacy/display field, not a member identity. Phase 7 must preserve its exact value and provenance without generating an assignment or matching any name/email. First-class assignments begin in Phase 8, the editor control in Phase 9, To Do projections in Phase 12, and real member population/permissions in Phase 15. Assignment never grants visibility. The detailed approved boundary and regression matrix are authoritative in `docs/CORE_SYSTEM_CONTRACT.md`.

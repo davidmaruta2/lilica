@@ -22,8 +22,8 @@ export const interestOptions: Array<{
   },
   {
     id: 'homeBills',
-    title: 'Home & bills',
-    description: 'Bills, repairs and renewals.',
+    title: 'Home, car & bills',
+    description: 'Bills, repairs, servicing and renewals.',
   },
   {
     id: 'tasks',
@@ -73,8 +73,8 @@ export const firstItemOptions: Array<{
   },
   {
     id: 'homeMatter',
-    title: 'Home matter',
-    description: 'A service, repair or maintenance job',
+    title: 'Home or car matter',
+    description: 'A repair, service, MOT or maintenance job',
     interest: 'homeBills',
   },
   {

@@ -5,7 +5,7 @@ Phase: **2, design and architecture only**
 Prepared: **9 September 2026**
 Implementation authority: **None. This document does not authorise Phase 3 or any code, dependency, schema, cloud, or screen change.**
 
-Implementation note, 10 September 2026: the product owner subsequently approved this contract as the architectural authority and separately authorised Phases 3 through 6. Authentication, organiser profiles and the multi-person care-space ownership kernel are implemented. Cloud records/sync and later roadmap concepts remain future work. Current state is recorded in `docs/LUMEN_HANDOFF.md`; operational limits are in `docs/SUPABASE_OPERATIONS.md`.
+Implementation note, 10 September 2026: the product owner subsequently approved this contract as the architectural authority and separately authorised Phases 3 through 6. Authentication, organiser profiles and the multi-person care-space ownership kernel are implemented. Cloud records/sync and later roadmap concepts remain future work. The product owner also approved the assignment, legacy-responsibility and collaboration boundaries in sections 8, 11, 12, 17 and 19: responsibility uses stable identities; visibility uses independently enforced server permissions; neither implies the other. Current state is recorded in `docs/LUMEN_HANDOFF.md`; operational limits are in `docs/SUPABASE_OPERATIONS.md`.
 
 ## How To Read This Contract
 
@@ -230,7 +230,7 @@ Proposed kinds:
 - `contact`: a person or organisation used as information, not an authenticated member.
 - `update`: a user-authored observation or handover note.
 
-The eight Phase 1 types remain valid user entry points, but may map to different kinds according to intent. `Home matter`, for example, may be an information record for a boiler, an event for a booked service, or an action to arrange a repair. The creation workflow should choose this through plain-language questions rather than expose the word `kind`.
+The eight Phase 1 types remain valid user entry points, but may map to different kinds according to intent. `Home or car matter` (stored under the compatibility key `homeMatter`), for example, may be information about a boiler or vehicle, a booked service, or an action to arrange a repair. The creation workflow should choose this through plain-language questions rather than expose the word `kind`.
 
 ### 4.4 Required Common Fields
 
@@ -340,7 +340,7 @@ Every transition is a domain operation that validates permission and current ver
 | Appointment | Event record plus one scheduled occurrence | Regular visits use recurrence; transport/follow-up are linked actions. |
 | Something to do | Action record plus one open occurrence | May link to any other record. |
 | Bill or renewal | Long-lived obligation record plus actionable due occurrence | A one-off bill still has one occurrence; policy document is linked/versioned, not embedded as status. |
-| Home matter | Ask whether it is information, an action, or a booked event | Boiler details, arrange service, and booked engineer visit are related but distinct. |
+| Home or car matter | Ask whether it is information, an action, or a booked event | Boiler or vehicle details, arrange repair/service, and booked engineer/mechanic visits are related but distinct. |
 | Important document | Document record with immutable versions | Expiry is a milestone; renewal is a linked action when work is required. |
 | Contact | Contact record | May later be linked to a membership, but never silently becomes one. |
 | Care information | Information record, optionally with linked events/actions | Must not become a diagnosis or medication-administration claim. |
@@ -456,15 +456,27 @@ Rescheduling one occurrence never moves completed siblings. Pausing recurrence s
 
 ### 8.1 Responsibility
 
-An assignment states who is expected to deal with an occurrence or record. It is not access permission and not proof of completion.
+An assignment states who is expected to deal with an occurrence or record. It is not access permission and not proof of completion. The authoritative invariant is:
+
+> Responsibility is a domain concept backed by stable identities. Visibility is a security concept backed by server-enforced permissions. They are related only by explicit user intent, never implicitly by implementation.
 
 Assignment target types:
 
 - Active care-space membership: authenticated, permission-checkable, notification-capable.
-- Contact/non-member: display-only responsibility; cannot accept, receive app notifications, or perform attributed app actions.
+- Care-space external contact: stable display-only responsibility; cannot accept, receive app notifications, gain access, or perform attributed app actions.
 - Unassigned: explicit and valid.
 
-Proposed assignment states for members: `assigned`, optionally `accepted`, `declined`, `removed`, `completed`. Initial solo use may treat self-assignment as accepted immediately.
+An assignment is a first-class entity, not a name field on a record. It carries its own ID, care-space ID, one target (`recordId`, `occurrenceId`, or `actionId`), exactly one assignee (`membershipId` or `externalContactId`), status, display-name snapshot, assigning membership, timestamps, and mutation identity. Database constraints must reject cross-space targets and any row with zero or multiple assignee identities.
+
+Records may define a default assignment. A generated occurrence may inherit that default or hold an explicit override. Changing a record default affects eligible future work only; it never rewrites a materialised occurrence's history. Assignment changes create immutable, permission-filtered activity.
+
+Supported states are `assigned`, `accepted`, `declined`, `removed`, and `completed`. The initial collaboration release assigns immediately without requiring acceptance. The schema may support acceptance later, but the first release must not add mandatory workflow friction.
+
+Only active memberships are assignable. Pending, declined, expired, revoked, removed, or left memberships are not valid new assignees. Historical assignments remain attributable through their snapshots; open work assigned to an inactive membership must show `Assignee no longer has access` and require explicit reassignment.
+
+Legacy `responsiblePerson` text is not an assignment identity. Phase 7 preserves it exactly with source/provenance, leaves the stable assignment reference empty, and never links it by display name or email, including exact matches. A later explicit user choice may resolve it to an active membership or external contact.
+
+Assignment never grants visibility. The server must reject an assignment whose work requires data the assignee cannot access, or require a separate explicit permission grant before retrying. Revoking visibility does not erase historical assignment attribution.
 
 ### 8.2 Confirmation
 
@@ -707,21 +719,23 @@ Supabase Auth supports password, magic link, OTP, and social providers and integ
 
 ### 11.3 Roles And Capabilities
 
-Proposed simple roles:
+Initial user-facing role presets:
 
-- `organiser`: manage ordinary records, invitations, memberships, and settings within granted/legal scope.
-- `contributor`: view and change permitted domains/records; cannot manage the care space by default.
-- `viewer`: read permitted domains/records only.
-- `supported_person`: optional linked account with specifically designed autonomy and sharing controls.
+- `organiser`: manage ordinary records, assignments, invitations, memberships, documents, settings, and sensitive domains within granted/legal scope. Prevent removal of the last required organiser.
+- `family_member`: collaborate on ordinary care information and work. Sensitive health, financial, and legal scopes are explicitly granted rather than inferred from family relationship.
+- `helper`: see and complete only authorised operational work, normally assigned work; no membership management and no implicit sensitive or unrelated-record access.
+- `read_only`: view explicitly authorised information; no edit, completion, assignment, invitation, or membership-management capability.
+- `supported_person`: optional linked-account policy with specifically designed autonomy and sharing controls; it is not merely a weaker generic role.
 
-Role is a bundle of capabilities, not the only access decision. Minimum capabilities should distinguish:
+Role is a user-facing preset that resolves to effective capabilities, not the security identity or only access decision. Minimum capability families distinguish:
 
-- View/create/edit/archive/delete ordinary records.
-- Complete/cancel occurrences.
-- Assign work.
-- Upload/download documents.
-- Invite/remove members and change grants.
-- Export or delete the care space.
+- `records.view` and `records.edit`.
+- `actions.complete` and `actions.confirm`.
+- `assignments.create` and `assignments.reassign`.
+- `documents.view` and `documents.upload`.
+- `members.invite`, `members.remove`, and `members.manage_roles`.
+- `activity.view`.
+- `sensitive.health.view`, `sensitive.financial.view`, and `sensitive.legal.view`.
 
 ### 11.4 Domain And Record Access
 
@@ -736,6 +750,10 @@ Access is calculated from:
 5. Record lifecycle and any legal/administrative hold.
 
 Default-deny sensitive domains until explicitly granted. Administrative ability to invite members must not automatically imply visibility into every restricted record. Exact supported-person and organiser defaults require product and legal approval.
+
+Do not begin with an arbitrary access-control matrix on every record. Enforce membership first, then role/capability and domain scope, with exceptional record-specific grants or restrictions only where justified. Permission filtering applies before records, counts, activity, search, realtime, notifications, or document paths can disclose existence.
+
+Assignment and permission are separate authorised operations. `assign_work()` must never call or imply `grant_permission()`. A member may view authorised appointments without any appointment being assigned to them; conversely, assignment must fail while required visibility is absent.
 
 Do not encode memberships only in user-editable JWT metadata. Supabase warns that user metadata is user-changeable and that JWT claims may remain stale until refresh; care-space access and revocation should be checked against indexed membership/grant tables in RLS ([official RLS guidance](https://supabase.com/docs/guides/database/postgres/row-level-security)).
 
@@ -876,11 +894,15 @@ Rules:
 - Convert old `date/time` fields deterministically and flag ambiguous values for review.
 - Convert recurrence intent into a rule plus first occurrence; do not fabricate historical occurrences.
 - Convert completion/confirmation strings into `phase1_import` activities with honest unknown actor attribution where necessary.
+- Preserve every legacy `responsiblePerson` string exactly as unresolved legacy responsibility text with `legacy_local_record` provenance.
+- Leave stable membership/contact assignment empty for migrated legacy strings; do not generate assignment rows or match a display name or email, even exactly.
 - Hash files before upload and use content hash plus legacy attachment ID for deduplication.
 - A failed file does not delete the record; mark attachment `local_only`/`upload_failed` and retry.
 - Web attachment URIs that are no longer readable require reselection and must not be described as uploaded.
 - Interrupted migration resumes from durable per-entity receipts.
 - Never delete or replace local data automatically merely because an upload partially succeeded.
+
+The Phase 7 server record boundary must permit Phase 8 assignment references without schema surgery. It must not claim that unresolved legacy text is an authenticated assignee.
 
 ### 12.9 Private Document Storage
 
@@ -1302,9 +1324,9 @@ Phase 2 ends with approval or revision of this contract. Every later phase follo
 
 **Dependencies:** Phases 3-6; approved record schema and conflict policy.
 
-**Deliverables:** server record/occurrence/link/operation schema; partitioned local cache and outbox; semantic sync protocol; resumable idempotent Phase 1 migration; server verification and rollback checkpoint; sync status/error UX.
+**Deliverables:** server record/occurrence/link/operation schema; partitioned local cache and outbox; semantic sync protocol; resumable idempotent Phase 1 migration; server verification and rollback checkpoint; sync status/error UX; exact preservation of legacy responsibility text and provenance with no inferred assignment; identity-safe extension points for Phase 8 assignment IDs.
 
-**Acceptance:** old fixture states migrate once with IDs/timestamps/attachments intact; offline create/edit/complete syncs; compatible concurrent edits merge; incompatible edits surface; retries never duplicate records/activity.
+**Acceptance:** old fixture states migrate once with IDs/timestamps/attachments and responsibility text intact; no legacy name/email creates an assignment; offline create/edit/complete syncs; compatible concurrent edits merge; incompatible edits surface; retries never duplicate records/activity.
 
 **Regression protection:** legacy `firstItem` and current `records[]` fixtures; forced interruption at every migration checkpoint; no local deletion before verified completion.
 
@@ -1318,9 +1340,9 @@ Phase 2 ends with approval or revision of this contract. Every later phase follo
 
 **Dependencies:** Phase 7; owner decisions D1-D8 in section 19.
 
-**Deliverables:** validated commands/transitions; stable recurrence series and occurrence materialisation; typed links; relative-date handling if approved; cancel/reschedule/reopen/archive; assignment/confirmation primitives; immutable activity.
+**Deliverables:** validated commands/transitions; stable recurrence series and occurrence materialisation; typed links; relative-date handling if approved; cancel/reschedule/reopen/archive; first-class assignment entity; membership and approved external-contact targets; unassigned state; record defaults and occurrence overrides; active/inactive assignee handling; historical display-name snapshots; assignment/confirmation activity.
 
-**Acceptance:** workflows B, C, D, I, K, and L pass end to end; completed history never mutates; a recurring retry produces one occurrence; no whole-record last-write-wins.
+**Acceptance:** workflows B, C, D, I, K, and L pass end to end; completed history never mutates; a recurring retry produces one occurrence; no whole-record last-write-wins; names/emails never act as identity; assignment never grants permission or implies completion.
 
 **Regression protection:** property/transition tests, timezone/DST/leap-year matrix, migration fixtures, current editors and Home characterization.
 
@@ -1334,13 +1356,13 @@ Phase 2 ends with approval or revision of this contract. Every later phase follo
 
 **Dependencies:** Phase 8.
 
-**Deliverables:** universal Add entry; list/detail/edit actions for all eight categories; document source choices; draft persistence across sheet dismissal; archive/cancel/reopen; linked-action creation without duplication.
+**Deliverables:** universal Add entry; list/detail/edit actions for all eight categories; document source choices; draft persistence across sheet dismissal; archive/cancel/reopen; linked-action creation without duplication; reusable assignment control that replaces new arbitrary responsibility text and understands Unassigned, You, active memberships, approved external contacts, unavailable historical assignees, and unresolved legacy text.
 
-**Acceptance:** users can add, edit, close, find, and correct multiple records of each type; sheets expand/retract gracefully; tapping outside, swipe-down, and Done preserve the agreed draft semantics.
+**Acceptance:** users can add, edit, close, find, and correct multiple records of each type; sheets expand/retract gracefully; tapping outside, swipe-down, and Done preserve the agreed draft semantics; any assignment selection stores a stable same-space identity and pending invitations are not offered as active members.
 
 **Regression protection:** exact protected onboarding stack and sheet behaviours remain; keyboard/device tests on supported form factors.
 
-**Explicit exclusions:** tab rebuilds, cloud document maturity, reminders.
+**Explicit exclusions:** tab rebuilds, cloud document maturity, reminders, and a deceptive care-circle picker populated from names before real collaboration exists. Before Phase 15, keep the control restrained if only Unassigned and You are available.
 
 **Stop point:** owner signs off everyday workflows and protected Phase 1 visuals.
 
@@ -1382,9 +1404,9 @@ Phase 2 ends with approval or revision of this contract. Every later phase follo
 
 **Dependencies:** Phase 11.
 
-**Deliverables:** open/overdue/upcoming/assigned groupings; completion/reopen; filters; linked source context; assignment-state presentation.
+**Deliverables:** open/overdue/upcoming groupings; Assigned to me, Assigned to others, and Unassigned projections; stable-membership-ID filters; completion/reopen; linked source context; assignment-state presentation.
 
-**Acceptance:** bills and renewal actions appear once; appointments do not become tasks; completing from To Do updates every view and history atomically.
+**Acceptance:** bills and renewal actions appear once; appointments do not become tasks; display-name changes do not change assignment ownership; completing from To Do updates the canonical occurrence/action, every view, and history exactly once.
 
 **Regression protection:** query-contract tests and workflow B/E fixtures.
 
@@ -1430,9 +1452,9 @@ Phase 2 ends with approval or revision of this contract. Every later phase follo
 
 **Dependencies:** legal/product sharing decisions; Phases 6-14.
 
-**Deliverables:** invite/accept/decline/expire; role/scope management; remove/leave; assignment acceptance if approved; attributable activity; revocation and cache cleanup.
+**Deliverables:** invite/pending/accept/decline/expire/revoke lifecycle; active memberships and member management; role presets, effective capability grants, domain visibility and justified exceptional record restrictions; real care-circle population of assignment controls; assignment eligibility; optional acceptance capability without mandatory acceptance at launch; attributable permission-filtered activity; remove/leave; immediate RLS/storage/realtime/search/API revocation and cache cleanup.
 
-**Acceptance:** workflows E and H pass with two real accounts/devices; forbidden API, realtime, search, and storage reads fail; removal takes effect without waiting for app restart.
+**Acceptance:** workflows E and H pass with two real accounts/devices; pending invitees are not assignable; forbidden API, realtime, search, document, and storage reads fail; removal takes effect without waiting for app restart; inactive members cannot receive new assignments; historical attribution remains; stale offline assignment to a removed member is rejected without recreating access.
 
 **Regression protection:** RLS/storage/realtime adversarial matrix and offline-revocation tests.
 
@@ -1577,6 +1599,21 @@ No phase is complete until:
 - Prefer disabling a failing new capability while retaining readable data over attempting destructive automatic rollback.
 - Record operational correlation IDs without logging sensitive record text, document names, tokens, or signed URLs.
 
+### 18.6 Assignment And Collaboration Regression Matrix
+
+These are roadmap-level acceptance tests and must be implemented in the phase that introduces each boundary:
+
+1. **Stable identity:** changing an assignee's display name does not change assignment ownership.
+2. **Legacy text:** a migrated `responsiblePerson = "Sarah"` remains unresolved when a Sarah later joins; only an explicit user action can resolve it.
+3. **Cross-space isolation:** a membership in one care space cannot be assigned to a record in another unless that user has a separate active membership there.
+4. **Assignment versus visibility:** assigning restricted work never grants access; the server rejects it or requires a separate explicit permission change.
+5. **Visibility without assignment:** an authorised member may view a domain even when none of its records is assigned to them.
+6. **Revocation:** removal immediately denies API, realtime, search, document and storage access, prevents new assignment, clears/quarantines inaccessible cache, and retains minimum historical attribution.
+7. **External contact:** a care-space contact can be displayed as responsible but gains no Lilica access or authenticated activity identity.
+8. **Pending invitation:** an invitee is not assignable before acceptance and becomes eligible only after an active membership and applicable grants exist.
+9. **Helper boundary:** a helper may complete authorised assigned general work but cannot invite members, change roles, read restricted financial data, or download restricted documents.
+10. **Offline stale assignment:** if an assignee is removed while another device is offline, replay rejects the stale assignment and never recreates access.
+
 ---
 
 ## 19. Decisions Requiring Product-Owner Approval
@@ -1592,11 +1629,11 @@ The recommendation column is the architecture default, not an implemented decisi
 | D5 | Completion/confirmation wording | Treat as named member assertion unless externally verified | Phase 3 |
 | D6 | Bill modelling | Due occurrence is actionable; no automatic duplicate task | Phase 8 |
 | D7 | Linked action date changes | Prompt; recompute only explicit relative policies, never silent explicit-date changes | Phase 8 |
-| D8 | Assignment acceptance | Support proposed/accepted; make acceptance optional by care-space preference initially | Phase 8 |
+| D8 | Assignment acceptance | Approved: immediate assignment initially; retain accepted/declined capability for a later optional preference | Phase 8 |
 | D9 | Home horizons and limits | Coming Up 30 days; Latest 14 days; limit rows with See all | Phase 10 |
 | D10 | Calendar scope | All authorised event occurrences plus optional actionable deadlines; visually distinct | Phase 11 |
-| D11 | Initial roles and capabilities | Organiser, contributor, viewer; supported person is identity/capability-based, not merely a weak role | Phase 6 |
-| D12 | Domain/record restriction at launch | Build schema/RLS capability now; expose minimal UI only after user research | Phase 6 |
+| D11 | Initial roles and capabilities | Approved direction: Organiser, Family member, Helper, Read-only presets backed by capabilities; supported person remains identity/policy-based | Phase 15 |
+| D12 | Domain/record restriction at launch | Approved: membership + capability + domain access, default-deny sensitive scopes, exceptional record rules only where justified | Phase 7/15 |
 | D13 | Required organiser profile fields | Display name required; photo and DOB optional/omitted unless justified | Phase 5 |
 | D14 | Supported-person account/linking | Never auto-create an account; explicit invitation/linking flow | Phase 6 |
 | D15 | Supabase organisation/project/region/owners | Dedicated Lilica non-production and production projects; authorised owner to confirm | Phase 4 |
