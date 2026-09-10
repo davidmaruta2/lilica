@@ -194,6 +194,10 @@ Calendar is a month-grid-and-selected-day projection of the same records Home re
 
 To Do projects genuinely actionable work — open task/bill/home-or-car-matter records that are not completed or cancelled — grouped into Overdue, Today / Needs doing, and Upcoming (a 30-day horizon, matching Home's own Coming Up window). Appointments, documents, contacts, care information and updates never appear, even though some are dated. Assignment filters (All/Mine/Unassigned) use Phase 9's stable `assignedMembershipId`, never a display name or the legacy `responsiblePerson` text. Completing or reopening an item uses the same canonical transition `RecordEditor`'s own Save button would produce (`completionUpdate()`, shared by both), so Home, Calendar and To Do can never disagree about what "complete" means for a record. See `docs/PHASE_12_ARCHITECTURE.md`.
 
+## Person (Phase 13)
+
+Person projects durable knowledge about the selected person — contacts, care/health information, home information, documents/paperwork and bills/renewals — each grouped from the same existing record types (`contact`, `careNote`, `homeMatter`, `document`, `bill`). Appointments, tasks and updates never appear here; they belong to Calendar, To Do and Home's Latest respectively. Person never infers a diagnosis, legal authority, or any other fact beyond what a record's own fields state, and never generates a summary sentence. Self-care wording ("You") is driven by the explicit self-care state, never by matching a display name. The tab previously rendered the organiser's account settings under stale "person" copy; that is now reached via a small "Account" link from Person's own header. See `docs/PHASE_13_ARCHITECTURE.md`.
+
 ## Design Direction
 
 Lilica should feel clean, premium, warm, calm, modern, spacious and highly legible. Yuka is a quality benchmark for focus, hierarchy and restraint; Ryeli is a typography reference; Kinlog informs supported-person flow logic only.

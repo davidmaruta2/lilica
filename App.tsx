@@ -28,6 +28,7 @@ import {
 import { RelationshipScreen } from './src/screens/RelationshipScreen';
 import { RecoveryEmailSentScreen, RecoveryPasswordScreen, RecoveryRequestScreen } from './src/screens/RecoveryScreen';
 import { RecoveryCodeScreen, VerificationScreen } from './src/screens/VerificationScreen';
+import { PersonScreen } from './src/screens/PersonScreen';
 import { ToDoScreen } from './src/screens/ToDoScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import {
@@ -62,6 +63,7 @@ import {
   FirstItem,
   Interest,
   LilicaRecord,
+  LilicaRecordType,
   OnboardingStage,
   OnboardingState,
   Relationship,
@@ -132,6 +134,11 @@ function LilicaApp() {
   // consumed and cleared by FirstThingScreen itself (see
   // onInitialOpenHandled) so a later, unrelated visit never reopens it.
   const [calendarOpenRecordId, setCalendarOpenRecordId] = useState<string>();
+  // Phase 13: one-shot "open a NEW draft of this category" request from
+  // Person's per-section Add links -- same consume/clear contract as
+  // calendarOpenRecordId above; only one of the two is ever set at once.
+  const [projectionOpenType, setProjectionOpenType] = useState<LilicaRecordType>();
+  const [showAccount, setShowAccount] = useState(false);
   const storageOwnerId = auth.session?.user.id ?? null;
   const legacyBootstrapInFlight = useRef(false);
   const reconnectedOwnerId = useRef<string | undefined>(undefined);
@@ -521,10 +528,18 @@ function LilicaApp() {
     else setActiveTab('home');
   }
 
-  // Shared by Calendar and To Do: both open a tapped item through the same
-  // established record editor, never a projection-specific one.
+  // Shared by Calendar, To Do and Person: all open a tapped item through
+  // the same established record editor, never a projection-specific one.
   function openRecordFromProjection(recordId: string) {
     setCalendarOpenRecordId(recordId);
+    go('firstThing');
+  }
+
+  // Person's per-section Add links: jump straight into a NEW draft of that
+  // category via the same established category/record creation
+  // architecture -- never a separate "Add" form.
+  function openNewFromProjection(type: LilicaRecordType) {
+    setProjectionOpenType(type);
     go('firstThing');
   }
 
@@ -579,15 +594,31 @@ function LilicaApp() {
           body="Things to do will appear here as you add them."
         />
       );
-    } else {
+    } else if (showAccount) {
       content = (
         <AccountScreen
-          supportedPersonName={currentSpace?.displayName}
           displayName={auth.profile?.displayName ?? 'Your profile'}
           email={auth.session?.user.email}
           signingOut={signingOut}
           error={signOutError}
+          onBack={() => setShowAccount(false)}
           onSignOut={() => void signOut()}
+        />
+      );
+    } else {
+      content = (
+        <PersonScreen
+          records={state.records}
+          displayName={currentSpace?.displayName}
+          relationshipLabel={currentSpace?.relationshipLabel || currentSpace?.relationshipType}
+          isSelf={currentSpace?.relationshipType === 'Myself'}
+          people={spaces}
+          activeCareSpaceId={state.activeCareSpaceId}
+          onSwitchPerson={selectActiveSpace}
+          onAddPerson={startAddPerson}
+          onOpenRecord={openRecordFromProjection}
+          onAddType={openNewFromProjection}
+          onOpenAccount={() => setShowAccount(true)}
         />
       );
     }
@@ -598,7 +629,10 @@ function LilicaApp() {
         <TabBar
           active={activeTab}
           personName={state.supportedPersonName}
-          onChange={setActiveTab}
+          onChange={(tab) => {
+            setActiveTab(tab);
+            if (tab !== 'person') setShowAccount(false);
+          }}
         />
       </SafeAreaView>
     );
@@ -846,7 +880,11 @@ function LilicaApp() {
             activeMembershipId={currentSpace?.membershipId}
             everyday={currentSpace?.setupStatus === 'ready'}
             initialOpenRecordId={calendarOpenRecordId}
-            onInitialOpenHandled={() => setCalendarOpenRecordId(undefined)}
+            initialOpenType={projectionOpenType}
+            onInitialOpenHandled={() => {
+              setCalendarOpenRecordId(undefined);
+              setProjectionOpenType(undefined);
+            }}
             onBack={goBack}
             onSaveRecord={saveRecord}
             onRemoveRecord={removeRecord}

@@ -80,8 +80,8 @@ describe('Phase 5 account screens', () => {
 
   it('provides a usable sign-out route from the organiser profile', async () => {
     const onSignOut = jest.fn();
-    const screen = await render(<AccountScreen supportedPersonName="Margaret" displayName="David" email="david@example.com" signingOut={false} onSignOut={onSignOut} />);
-    screen.getByText('Margaret');
+    const screen = await render(<AccountScreen displayName="David" email="david@example.com" signingOut={false} onSignOut={onSignOut} />);
+    screen.getByText('David');
     await fireEvent.press(screen.getByLabelText('Sign out'));
     expect(onSignOut).toHaveBeenCalledTimes(1);
   });

@@ -40,6 +40,12 @@ type Props = {
   // own one-shot intent so a later, unrelated visit to this screen (e.g.
   // Home's plain Add button) never reopens a stale record.
   initialOpenRecordId?: string;
+  // Phase 13: lets another screen (Person) request that a NEW draft of a
+  // given category opens immediately on mount -- e.g. "Add a contact" jumps
+  // straight to a blank contact editor rather than the plain gateway. Same
+  // one-shot consume/clear contract as initialOpenRecordId above; only one
+  // of the two is ever set at a time.
+  initialOpenType?: LilicaRecordType;
   onInitialOpenHandled?: () => void;
   onBack: () => void;
   onSaveRecord: (record: LilicaRecord) => void;
@@ -69,6 +75,7 @@ export function FirstThingScreen({
   activeMembershipId,
   everyday = false,
   initialOpenRecordId,
+  initialOpenType,
   onInitialOpenHandled,
   onBack,
   onSaveRecord,
@@ -144,15 +151,22 @@ export function FirstThingScreen({
   }
 
   useEffect(() => {
-    if (!initialOpenRecordId) return;
-    const record = records.find((item) => item.id === initialOpenRecordId);
-    const index = record ? ordered.findIndex((item) => item.id === record.type) : -1;
-    if (record && index !== -1) openEditor(index, record.type, record);
-    onInitialOpenHandled?.();
-    // Intentionally runs only when the requested ID changes -- this is a
-    // one-shot "open this record" request, not a continuous binding.
+    if (initialOpenRecordId) {
+      const record = records.find((item) => item.id === initialOpenRecordId);
+      const index = record ? ordered.findIndex((item) => item.id === record.type) : -1;
+      if (record && index !== -1) openEditor(index, record.type, record);
+      onInitialOpenHandled?.();
+      return;
+    }
+    if (initialOpenType) {
+      const index = ordered.findIndex((item) => item.id === initialOpenType);
+      if (index !== -1) openEditor(index, initialOpenType);
+      onInitialOpenHandled?.();
+    }
+    // Intentionally runs only when the requested ID/type changes -- this is
+    // a one-shot "open this" request, not a continuous binding.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialOpenRecordId]);
+  }, [initialOpenRecordId, initialOpenType]);
 
   function save(index: number, record: LilicaRecord) {
     onSaveRecord(record);

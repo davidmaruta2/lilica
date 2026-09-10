@@ -1,5 +1,23 @@
 # Revision Log
 
+## 11 September 2026 - Phase 13 Person projection
+
+Implemented from a written, bounded product-owner brief. `PRE_PHASE_13_BASELINE`: HEAD `b76446f` (in sync with `origin/master`), clean working tree, TypeScript clean, 16 Jest suites/192 tests, secret scan clean, 152 pgTAP assertions across 5 files, clean DB lint, clean web export.
+
+Tracing the current repository (per the brief's own instruction not to assume an old prototype structure survives) found a real structural mismatch worth reporting before building anything: the tab labelled with the supported person's name rendered `AccountScreen` — the organiser's own account settings — under copy that promised a person knowledge space it never delivered ("Keep their appointments, home details, documents and contacts together here."). Phase 13's whole purpose is to make that tab the real thing, so this was fixed as the necessary minimum: `AccountScreen` is now reached via a small "Account" link in the new Person screen's header (its own content unchanged, minus the stale copy), preserving sign-out access without adding a new tab.
+
+- New `src/screens/PersonScreen.tsx`: groups `state.records` — the same projection Home/Calendar/To Do already read — into five durable-knowledge sections (Important contacts / Care & health information / Home / Documents & paperwork / Bills & renewals), each backed by one existing record type (`contact`/`careNote`/`homeMatter`/`document`/`bill`), omitted entirely when empty. Appointments, tasks and updates never appear — they belong to Calendar, To Do and Home's Latest respectively. A static "Care circle" section always shows the organiser as "You", the only member today, with no fake invite affordance. Self-care wording ("You") is driven by the explicit `relationshipType === 'Myself'` check already used elsewhere, never by matching a display name.
+- `FirstThingScreen.tsx` gained a sibling `initialOpenType` prop (alongside Phase 10's `initialOpenRecordId`, same one-shot consume/clear contract) so Person's per-section "Add" links open a *new* draft of the right category directly, through the exact same category/record creation architecture.
+- `AccountScreen.tsx`: removed the stale person-framing copy and its now-orphaned `supportedPersonName` prop; added an optional `onBack` (rendered as the existing shared `Header` component) so it can be reached and left from Person.
+- `App.tsx`: the Person tab now renders `PersonScreen`, with a `showAccount` toggle (cleared when leaving the tab) swapping in `AccountScreen` when its "Account" link is tapped. Opening/adding records reuse the exact same `initialOpenRecordId`/`initialOpenType`/`onSaveRecord` paths Calendar and To Do already use.
+- No database migration, no RLS change, no medical/legal inference anywhere in the new screen — verified by tests.
+
+New `tests/phase13-person.test.tsx` (16 tests) covers the brief's fixed test scenario verbatim, no-inference guarantees (a medication note never implies a diagnosis, a power-of-attorney document is never shown as confirmed legal authority, no generated summaries), empty/sparse states, identity (opening the real record ID, no duplication), explicit (never name-matched) self-care wording, and care-space isolation. `npm run typecheck`, `npm test` (17 suites/208 tests, up from 192) and `npm run validate:all` (152 pgTAP assertions unchanged, clean lint, clean web export) all pass.
+
+Diff audit: 4 files touched (`App.tsx`, `src/screens/AccountScreen.tsx`, `src/screens/FirstThingScreen.tsx`, `tests/auth-flow.test.tsx` — updated for `AccountScreen`'s prop change) plus one new screen and one new test file — all with a clear Phase 13 reason. No welcome/auth/onboarding/fork/Home/Calendar/To-Do/theme-token file appears in the diff beyond the necessary `AccountScreen` routing change. `git diff --check` clean; no secrets, env files or generated exports included.
+
+Not committed or pushed pending product-owner review and physical-device QA, per the implementation brief. Phase 14+ was not started.
+
 ## 10 September 2026 - Phase 12 To Do projection
 
 Roadmap numbering note first: the product owner clarified that the work committed as "Phase 10" (immediately below) implements the canonical roadmap's **Phase 11 — Calendar Projection** (`docs/CORE_SYSTEM_CONTRACT.md` numbers its own Phase 10 as Home Projection, effectively already delivered by the earlier Home redesign). Historical commits/entries saying "Phase 10" for Calendar are not renamed or rewritten; numbering resumes canonically from **Phase 12 — To Do Projection** onward, per this entry.

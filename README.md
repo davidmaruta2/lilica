@@ -2,7 +2,7 @@
 
 Lilica is a React Native care-organising app for Luxford Interactive. It helps an organiser keep separate appointments, tasks, bills, home or car matters, documents, contacts, care information and updates for each person they support.
 
-The repository currently contains the Phase 1 product foundation, Phase 5 authentication, the Phase 6 multi-person ownership kernel, completed Phase 7 persistence, the Phase 8 core Record -> Occurrence engine, Phase 9's everyday add/record management with a stable-identity assignment control, Calendar (canonical roadmap Phase 11), and Phase 12's To Do actionable-work projection. Before making product or design changes, read:
+The repository currently contains the Phase 1 product foundation, Phase 5 authentication, the Phase 6 multi-person ownership kernel, completed Phase 7 persistence, the Phase 8 core Record -> Occurrence engine, Phase 9's everyday add/record management with a stable-identity assignment control, Calendar (canonical roadmap Phase 11), Phase 12's To Do actionable-work projection, and Phase 13's Person durable-knowledge projection. Before making product or design changes, read:
 
 - `docs/PROJECT_BRIEF.md`
 - `docs/LUMEN_HANDOFF.md`
@@ -29,6 +29,7 @@ The repository currently contains the Phase 1 product foundation, Phase 5 authen
 - Home sections populated only from real saved records
 - Calendar: a month grid and selected-day list projecting the same records Home reads, with no separate calendar-event store; opening an item reuses the same record editor everywhere else in the app
 - To Do: open task/bill/home-or-car-matter records grouped into Overdue, Today / Needs doing and Upcoming, with All/Mine/Unassigned assignment filters and completion that reuses the same canonical transition as the record editor
+- Person: the durable-knowledge tab for the selected person — contacts, care/health information, home information, documents and bills/renewals, grouped from the same records seen elsewhere, with no medical or legal inference and a "You" self-care voice where explicitly applicable
 
 The Welcome work should be preserved unless the product owner explicitly requests changes. The record-entry sheet may be dismissed by its Done action, backdrop, system back action or a downward swipe while the form is at the top. Unsaved drafts remain available while the onboarding screen remains mounted.
 
