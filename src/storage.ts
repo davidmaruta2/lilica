@@ -30,6 +30,16 @@ export function prepareOnboardingStateForStartup(
   if (!loaded.privacyDeclarationAccepted && STAGES_AFTER_PRIVACY.includes(loaded.stage)) {
     return { ...loaded, stage: 'privacyConsent' };
   }
+  // A stage of 'relationship' persisted from before the self/someone-else
+  // fork existed (or from simply backing out of that screen earlier) would
+  // otherwise resume the app directly at the old relationship wheel on the
+  // very first person pass, skipping the fork entirely. Mirrors
+  // initialPersonStage()'s own "has onboarding actually started" check in
+  // App.tsx -- keep both in sync if that check ever changes.
+  if (loaded.stage === 'relationship') {
+    const hasStarted = Object.keys(loaded.careSpaces).length > 0 || (loaded.onboardingDraft?.people.length ?? 0) > 0;
+    if (!hasStarted) return { ...loaded, stage: 'careFork' };
+  }
   return loaded;
 }
 

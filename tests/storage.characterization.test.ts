@@ -130,6 +130,41 @@ describe('Phase 1 AsyncStorage characterization', () => {
     }, 'user-a').stage).toBe('home');
   });
 
+  it('re-routes a resumed first-pass relationship stage back through the self/someone-else fork', () => {
+    // A stage of 'relationship' saved before the fork existed (or from
+    // simply backing out of that screen) must not resume the app directly
+    // at the old relationship wheel -- it must resume at the fork instead,
+    // since no care space or draft actually exists yet.
+    expect(prepareOnboardingStateForStartup({
+      ...initialOnboardingState,
+      stage: 'relationship',
+      privacyDeclarationAccepted: true,
+    }, 'user-a').stage).toBe('careFork');
+  });
+
+  it('leaves a resumed relationship stage alone once onboarding has actually started', () => {
+    // Once a care space or in-progress draft exists, the fork has already
+    // been passed (or intentionally skipped for "someone else"); resuming
+    // mid-relationship-selection must not be rewound back to the fork.
+    expect(prepareOnboardingStateForStartup({
+      ...initialOnboardingState,
+      stage: 'relationship',
+      privacyDeclarationAccepted: true,
+      onboardingDraft: {
+        stage: 'relationships',
+        currentDraftId: undefined,
+        people: [{ draftId: 'd1', order: 0, relationshipType: 'Mum', relationshipLabel: undefined, displayName: '' }],
+      },
+    } as any, 'user-a').stage).toBe('relationship');
+
+    expect(prepareOnboardingStateForStartup({
+      ...initialOnboardingState,
+      stage: 'relationship',
+      privacyDeclarationAccepted: true,
+      careSpaces: { 'space-1': {} as any },
+    }, 'user-a').stage).toBe('relationship');
+  });
+
   it('round-trips several records in the same category without collapsing them', async () => {
     const appointments = ['Orthodontist', 'GP', 'Dentist'].map((title, index) => ({
       id: `appointment-${index}`,

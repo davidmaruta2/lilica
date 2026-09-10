@@ -1,5 +1,17 @@
 # Revision Log
 
+## 10 September 2026 - Corrective fix: self/someone-else fork not reachable on resume
+
+Physical-device testing reported that onboarding still went straight to the old "Who are you helping?" relationship screen, bypassing the approved "Whose wellbeing are you looking to support with Lilica?" fork, despite the fork's code being present and correct.
+
+Traced the live routing rather than assuming stale build/cache. `App.tsx`'s own render-time normalization (`renderAuthenticatedOnboarding`) and `completeProfile` both correctly route a genuinely fresh pass through onboarding to `careFork` via `initialPersonStage()`. The actual bypass was in `src/storage.ts`'s `prepareOnboardingStateForStartup`, called on every authenticated app startup/resume: it trusted a previously persisted `stage: 'relationship'` verbatim and returned it unchanged, because `'relationship'` was never in the small list of stages that function re-normalizes. Any account whose local storage had already reached the relationship screen — including from testing before the fork stage existed — would resume directly there on the next app open, permanently skipping the fork, even with zero care spaces or draft people.
+
+Fix (smallest possible integration point, one file): `prepareOnboardingStateForStartup` now re-routes a resumed `stage: 'relationship'` back to `'careFork'` whenever no care space or in-progress draft actually exists yet — the same "has onboarding actually started" test `initialPersonStage()` already uses in `App.tsx`, duplicated inline with a comment to keep both in sync. A resume mid-relationship-selection (care space or draft already present) is left untouched, so an in-progress "Someone else" pass or an existing user is never forced back through the fork.
+
+No other file changed. Nothing in Phase 7/8/9 persistence, occurrence, assignment or sync logic, Home, auth, or the database schema was touched. Two new regression tests added to `tests/storage.characterization.test.ts` covering both directions (fresh resume routes to the fork; a resume with an existing care space or draft does not). `npm run typecheck`, `npm test` (13 suites/145 tests, up from 143) and `npm run validate` (web export included) all pass.
+
+The self/someone-else fork and the existing multi-person relationship carousel remain two independent, coexisting entry points into the same onboarding stage machine, as required — this fix only corrects which one a resumed session lands on.
+
 ## 10 September 2026 - Phase 9 everyday add and record management
 
 Implemented by Claude per a written product-owner brief (`fork.txt`), the first phase-implementation task done directly by this session rather than committed on Codex's behalf. Codex is offline for approximately a week from this date.
