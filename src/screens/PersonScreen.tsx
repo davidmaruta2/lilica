@@ -25,6 +25,11 @@ type Props = {
   // Phase 15: omitted for a local-only care space (never synced, so there
   // is nothing to collaborate on yet) -- see App.tsx's showCareCircle wiring.
   onOpenCareCircle?: () => void;
+  // Phase 15: how many invitations addressed to this account are still
+  // pending -- shown only when greater than 0, as the way back into the
+  // invitations screen after "Not now" dismissed its auto-open.
+  pendingInvitationCount?: number;
+  onOpenInvitations?: () => void;
 };
 
 // Phase 13: durable-knowledge groupings, each backed by an existing record
@@ -97,6 +102,8 @@ export function PersonScreen({
   onAddType,
   onOpenAccount,
   onOpenCareCircle,
+  pendingInvitationCount = 0,
+  onOpenInvitations,
 }: Props) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const name = displayName?.trim() || 'Them';
@@ -120,6 +127,11 @@ export function PersonScreen({
       <View style={styles.header}>
         <Wordmark />
         <View style={styles.headerLinks}>
+          {onOpenInvitations && pendingInvitationCount > 0 ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={`Invitations (${pendingInvitationCount})`} onPress={onOpenInvitations} hitSlop={8}>
+              <AppText variant="secondary" tone="primary" style={styles.accountLink}>Invitations ({pendingInvitationCount})</AppText>
+            </Pressable>
+          ) : null}
           {onOpenCareCircle ? (
             <Pressable accessibilityRole="button" accessibilityLabel="Care Circle" onPress={onOpenCareCircle} hitSlop={8}>
               <AppText variant="secondary" tone="primary" style={styles.accountLink}>Care Circle</AppText>

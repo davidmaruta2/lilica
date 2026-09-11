@@ -1,5 +1,15 @@
 # Revision Log
 
+## 11 September 2026 - Phase 15 follow-up: invitee-facing Invitations screen
+
+Requested directly ("build the invitee-facing invitation screen next") as the first of Phase 15's documented follow-up items. New `src/screens/InvitationsScreen.tsx`: lists the signed-in account's own pending invitations (by authenticated email, via the existing `list_my_invitations()`), with Accept/Decline per invitation and a "Not now" that leaves every invitation untouched.
+
+`App.tsx` fetches invitations in the same effect that already runs `reconnectCareSpaces()` once per signed-in owner. The screen auto-opens the first time that fetch finds any pending invitation — ahead of the normal onboarding/Home flow, so a brand-new invitee who signed up specifically to accept sees it immediately — and does not reopen itself again this session once dismissed. Person's header gained an "Invitations (N)" link (shown only when N > 0) as the way back in after "Not now". Accepting needed no new client-side plumbing to surface the resulting membership: the existing, unmodified `reconnectCareSpaces()`/`integrateReconnectedCareSpaces()` flow already picks it up, since `list_my_supported_people()` was never role-filtered. A failed accept/decline shows the server's own error inline against that invitation and leaves it in the list, never guessing success. `src/careCircle.ts` gained an exported `DOMAIN_LABELS` map (factored out of `CareCircleScreen`'s local one) so both screens describe domains identically.
+
+New `tests/phase15-invitations-screen.test.tsx` (5 tests: content shown, accept/decline call the right id, a failure surfaces inline without removing the invitation, "Not now" touches nothing). `npm run typecheck`, `npm test` (23 suites/263 tests, up from 258) and secret scan/web export all pass; no database change.
+
+Diff audit: `App.tsx`, `src/careCircle.ts`, `src/screens/PersonScreen.tsx`, `src/screens/CareCircleScreen.tsx` (only its `DOMAIN_OPTIONS` now derives from the shared `DOMAIN_LABELS`, no behaviour change), one new screen, one new test file, plus `docs/PHASE_15_ARCHITECTURE.md`/`docs/PHASE_15_QA.md`/`AGENTS.md`/`CLAUDE.md`/`docs/LUMEN_HANDOFF.md` updated to remove the now-resolved "no invitee screen yet" caveat.
+
 ## 11 September 2026 - Phase 15 care-circle invitations and collaboration
 
 Implemented from a written, bounded product-owner brief whose own Hard Start Gate (product-owner confirmation of Phase 14 physical QA) was explicitly waived by the product owner before this phase began — Phase 14 is implemented/validated but not yet physically tested on a development build. `PRE_PHASE_15_BASELINE`: HEAD `52d28c0` (in sync with `origin/master`), clean working tree, TypeScript clean, 20 Jest suites/247 tests, secret scan clean, 183 pgTAP assertions across 5 files (152 Phase 6/7/8/9-era plus 31 already-counted-elsewhere — see note below), clean DB lint, clean web export. (Baseline pgTAP count before this phase's own new test file was 152 across 5 files; this phase adds a 6th file.)

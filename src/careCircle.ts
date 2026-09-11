@@ -13,6 +13,17 @@ export type CareCircleRole = 'organiser' | 'contributor' | 'viewer';
 export type CareCircleDomain = 'general' | 'health' | 'financial' | 'home' | 'documents';
 export type InvitationStatus = 'pending' | 'accepted' | 'declined' | 'expired' | 'revoked';
 
+// Shared, human-friendly labels for the five domains defined server-side by
+// record_domain_for_type() -- used by both CareCircleScreen (choosing what
+// to grant) and InvitationsScreen (showing what was granted).
+export const DOMAIN_LABELS: Record<CareCircleDomain, string> = {
+  general: 'Everyday things',
+  health: 'Care & health',
+  financial: 'Bills & money',
+  home: 'Home & car',
+  documents: 'Documents',
+};
+
 export type CareCircleMember = {
   membershipId: string;
   displayName: string;

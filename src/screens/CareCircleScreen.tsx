@@ -6,6 +6,7 @@ import {
   CareCircleInvitation,
   CareCircleMember,
   CareCircleRole,
+  DOMAIN_LABELS,
   inviteMember,
   removeMember,
   revokeInvitation,
@@ -16,7 +17,6 @@ import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
 import { TextField } from '../components/TextField';
 import { colors, radius, spacing } from '../theme';
-import { Relationship } from '../types';
 
 type Props = {
   personName?: string;
@@ -30,15 +30,9 @@ type Props = {
   onRefresh: () => void;
 };
 
-const DOMAIN_OPTIONS: { value: CareCircleDomain; label: string }[] = [
-  { value: 'general', label: 'Everyday things' },
-  { value: 'health', label: 'Care & health' },
-  { value: 'financial', label: 'Bills & money' },
-  { value: 'home', label: 'Home & car' },
-  { value: 'documents', label: 'Documents' },
-];
-
-const RELATIONSHIP_OPTIONS: Relationship[] = ['Other relative', 'Someone else'];
+const DOMAIN_OPTIONS: { value: CareCircleDomain; label: string }[] = (
+  Object.entries(DOMAIN_LABELS) as [CareCircleDomain, string][]
+).map(([value, label]) => ({ value, label }));
 
 function roleDescription(role: CareCircleRole) {
   if (role === 'organiser') return 'Full access, can manage the care circle';

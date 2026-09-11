@@ -17,7 +17,8 @@ Status: implementation complete, automated tests passing (see `docs/PHASE_15_ARC
 1. **Invite sent** — Account A opens Person → Care Circle → Invite someone, enters Account B's email, a relationship label, role (Contributor), and grants only "Everyday things" and "Home & car" (leave Care & health and Bills & money unchecked). Send.
 2. **Zero access while pending** — before accepting, Account B has no visibility into Account A's care space anywhere in the app (no new person/tab appears).
 3. **Invitation visible to the right account only** — a third account (not invited) sees nothing.
-4. **Accept** — **this build has no dedicated UI for an invitee to discover or accept an invitation yet** (`listMyInvitations()`/`acceptInvitation()` in `src/careCircle.ts` are implemented and server-validated, but no screen calls them for an invitee who isn't already a member of the space). To QA everything downstream of acceptance, call `acceptInvitation(invitationId)` for Account B via a temporary developer hook (e.g. a debug console call, or a short-lived test button), then continue from step 5. Building the real "you've been invited" screen is the top of the Phase 15 follow-up list — see `docs/PHASE_15_ARCHITECTURE.md`'s "What Is Deliberately Not Built Yet".
+4. **Accept** — Account B should see the Invitations screen open automatically shortly after signing in (once per app session, the first time a pending invitation is found). If it was previously dismissed with "Not now", reopen it from Person's header ("Invitations (N)" link, next to Care Circle/Account). Confirm the screen correctly shows the care space name, that it was invited by Account A, the role (Contributor), and exactly the domains granted ("Everyday things, Home & car" — not the withheld ones). Tap Accept.
+4a. **Membership appears without restarting** — after accepting, confirm Account A's supported person now appears as a person/space Account B can switch to, without needing to sign out and back in (this reuses the existing `reconnectCareSpaces()` flow, unchanged since Phase 6).
 5. **Membership is real** — after accepting, Account B can see Account A's supported person's everyday/home records, but NOT care/health or bills/money records.
 6. **Assignment works within granted domains** — Account A assigns a task (everyday domain) to Account B; Account B sees it in their To Do.
 7. **Assignment is rejected outside granted domains (Scenario D)** — Account A attempts to assign a bill (financial domain) to Account B; the assignment control should not even offer Account B for that record (client-side filter), and if forced via a stale/replayed state, the server rejects it — confirm no crash, a clear error, and the bill remains unassigned or assigned to its previous assignee.
@@ -39,7 +40,9 @@ Status: implementation complete, automated tests passing (see `docs/PHASE_15_ARC
 
 ### Re-invitation and terminal states (Scenario K)
 
-14. **Decline** — invite a fourth account; have them decline. Confirm they gain no access and the invitation cannot later be accepted.
+14. **Decline** — invite a fourth account; have them open the Invitations screen and tap Decline. Confirm they gain no access and the invitation cannot later be accepted (re-opening the screen or Person's "Invitations" link no longer shows it, since it's no longer pending).
+14a. **"Not now" then reopen** — invite a fifth account; when their Invitations screen auto-opens, tap "Not now". Confirm they land on normal onboarding/Home, the invitation is untouched, and Person's header still shows "Invitations (1)" — tapping it reopens the same screen with the same invitation still there.
+14b. **Screen closes itself once resolved** — with exactly one pending invitation, accept (or decline) it; confirm the Invitations screen closes on its own back to normal use, without a manual "Not now".
 15. **Revoke** — invite a fifth account; Account A revokes before they respond. Confirm the invitee cannot accept a revoked invitation.
 16. **Re-invite after removal** — Account A re-invites the removed Account B from step 11. Confirm a fresh invite/accept cycle correctly restores exactly the newly granted access (not the old grants from before removal).
 
@@ -54,7 +57,7 @@ Status: implementation complete, automated tests passing (see `docs/PHASE_15_ARC
 
 ## Known limitations (by design, not defects — see `docs/PHASE_15_ARCHITECTURE.md`'s "What Is Deliberately Not Built Yet")
 
-- No email/push delivery of the invitation itself — the invitee currently discovers it only inside the app.
+- No email/push delivery of the invitation itself — the invitee currently discovers it only by opening Lilica (the Invitations screen auto-surfaces once per app session, plus a manual re-entry link on Person's header).
 - No dedicated "assignee no longer has access" visual treatment.
 - No in-app "change role" control yet (server function exists and is tested; UI does not expose it).
 - No guided "hand over organiser, then leave" flow in the UI (both underlying functions exist and are tested independently).

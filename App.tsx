@@ -51,7 +51,17 @@ import {
   validatePersonDraft,
 } from './src/careSpaceState';
 import { provisionSupportedPeople, reconnectCareSpaces } from './src/careSpaces';
-import { CareCircleInvitation, CareCircleMember, listCareSpaceInvitations, listCareSpaceMembers } from './src/careCircle';
+import {
+  acceptInvitation,
+  CareCircleInvitation,
+  CareCircleMember,
+  declineInvitation,
+  listCareSpaceInvitations,
+  listCareSpaceMembers,
+  listMyInvitations,
+  MyInvitation,
+} from './src/careCircle';
+import { InvitationsScreen } from './src/screens/InvitationsScreen';
 import {
   enqueueRecordDelete,
   enqueueRecordUpsert,
@@ -175,6 +185,13 @@ function LilicaApp() {
   const [careCircleMembers, setCareCircleMembers] = useState<CareCircleMember[]>([]);
   const [careCircleInvitations, setCareCircleInvitations] = useState<CareCircleInvitation[]>([]);
   const [showCareCircle, setShowCareCircle] = useState(false);
+  // Phase 15: invitations addressed to the signed-in account itself
+  // (never a care space this account already organises). Auto-surfaces
+  // once per app session the first time any are found; "Not now" or
+  // clearing the list both return to normal use without acting on them.
+  const [myInvitations, setMyInvitations] = useState<MyInvitation[]>([]);
+  const [showInvitations, setShowInvitations] = useState(false);
+  const invitationsAutoOpened = useRef(false);
   const storageOwnerId = auth.session?.user.id ?? null;
   const legacyBootstrapInFlight = useRef(false);
   const reconnectedOwnerId = useRef<string | undefined>(undefined);
@@ -227,6 +244,42 @@ function LilicaApp() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSpace?.careSpaceId, showCareCircle]);
+
+  // Phase 15: surface the invitations screen automatically the first time
+  // this session finds any pending invitation -- but only once, so a user
+  // who dismisses it with "Not now" isn't interrupted again on every
+  // render. They can still return to it manually (see Person's header).
+  useEffect(() => {
+    if (myInvitations.length > 0 && !invitationsAutoOpened.current) {
+      invitationsAutoOpened.current = true;
+      setShowInvitations(true);
+    }
+  }, [myInvitations.length]);
+
+  async function refreshMyInvitations() {
+    const result = await listMyInvitations();
+    if (result.ok) {
+      setMyInvitations(result.data);
+      if (result.data.length === 0) setShowInvitations(false);
+    }
+    return result;
+  }
+
+  async function handleAcceptInvitation(invitationId: string) {
+    const result = await acceptInvitation(invitationId);
+    if (!result.ok) return result;
+    const reconnected = await reconnectCareSpaces();
+    if (reconnected.ok) setState((current) => integrateReconnectedCareSpaces(current, reconnected.people));
+    await refreshMyInvitations();
+    return { ok: true as const };
+  }
+
+  async function handleDeclineInvitation(invitationId: string) {
+    const result = await declineInvitation(invitationId);
+    if (!result.ok) return result;
+    await refreshMyInvitations();
+    return { ok: true as const };
+  }
 
   function refreshCareCircle() {
     if (!currentSpace || currentSpace.careSpaceId.startsWith('local-')) return;
@@ -302,6 +355,12 @@ function LilicaApp() {
     reconnectedOwnerId.current = storageOwnerId;
     reconnectCareSpaces().then((result) => {
       if (result.ok) setState((current) => integrateReconnectedCareSpaces(current, result.people));
+    });
+    // Phase 15: check once per signed-in owner for pending invitations
+    // addressed to this account's own email -- never inferred from any
+    // local state, matching accept_invitation()'s own server-side check.
+    listMyInvitations().then((result) => {
+      if (result.ok) setMyInvitations(result.data);
     });
   }, [auth.profile, loadedStorageOwnerId, localLoading, storageOwnerId]);
 
@@ -795,6 +854,8 @@ function LilicaApp() {
               ? () => setShowCareCircle(true)
               : undefined
           }
+          pendingInvitationCount={myInvitations.length}
+          onOpenInvitations={() => setShowInvitations(true)}
         />
       );
     }
@@ -1135,6 +1196,15 @@ function LilicaApp() {
     );
   } else if (!auth.profile) {
     content = <AboutYouScreen onSave={completeProfile} />;
+  } else if (showInvitations) {
+    content = (
+      <InvitationsScreen
+        invitations={myInvitations}
+        onAccept={handleAcceptInvitation}
+        onDecline={handleDeclineInvitation}
+        onClose={() => setShowInvitations(false)}
+      />
+    );
   } else {
     content = renderAuthenticatedOnboarding();
   }
