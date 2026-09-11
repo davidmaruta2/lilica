@@ -3,6 +3,15 @@
 Status: Implemented and automatically validated; physical-device QA pending (see `docs/PHASE_13_QA.md`)
 Date: 11 September 2026
 
+> **Superseded in part by Corrective Task 10** (see
+> `docs/CORRECTIVE_TASK_10_PEOPLE_IA.md`, same date): the five-section
+> "durable knowledge" design below duplicated Home's own dashboard and
+> gave the tab (now renamed People) no distinct purpose. The
+> identity/self-care/isolation/offline/permissions guarantees documented
+> here are unchanged and still accurate; the section list under "Source
+> Of Truth And Groupings" and the placeholder "Care Circle" section
+> below are not — read the corrective task doc for the current design.
+
 ## Boundary
 
 Phase 13 makes the Person tab a real projection of the same canonical records Home, Calendar and To Do already read. It introduces no Person-specific record type, store, or editor. It does not implement reminders, care-circle collaboration, document cloud maturity, OCR, Ask Lilica, search/history, or any medical/legal inference.

@@ -1,16 +1,26 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { Button } from '../components/Button';
 import { PersonSwitcher } from '../components/PersonSwitcher';
 import { SettingsCogButton } from '../components/SettingsCogButton';
 import { AppText } from '../components/Text';
 import { Wordmark } from '../components/Wordmark';
-import { CategoryIcon, categoryLabel, visualFor } from './HomeScreen';
-import { formatDateForDisplay } from '../records';
+import { CareCircleMember, CareCircleRole } from '../careCircle';
+import { CategoryIcon, visualFor } from './HomeScreen';
 import { colors, radius, spacing } from '../theme';
 import { LilicaRecord, LilicaRecordType, LocalCareSpaceState } from '../types';
 
+// Corrective task 10: People used to repeat Home's own record-category
+// dashboard (bills, home matters, documents, care notes) under a
+// different heading -- the exact same data Home's "Recently added"
+// already shows, giving this tab no distinct purpose. People now centres
+// on the four things Home/Calendar/To Do genuinely don't cover: who is
+// being cared for, the external people/services useful to have on hand,
+// who actually has Lilica access, and (unchanged, still a placeholder)
+// the future assistance entry point. Bills/home/documents/care-note
+// records are untouched in storage and still appear correctly in Home,
+// Calendar and To Do -- nothing here deletes or hides them from those
+// screens, they simply aren't duplicated a second time on this one.
 type Props = {
   records: LilicaRecord[];
   displayName?: string;
@@ -34,63 +44,26 @@ type Props = {
   // invitations screen after "Not now" dismissed its auto-open.
   pendingInvitationCount?: number;
   onOpenInvitations?: () => void;
-};
-
-// Phase 13: durable-knowledge groupings, each backed by an existing record
-// type -- no Person-specific store. Appointments (Calendar), tasks (To Do)
-// and updates (Home's chronological Latest) deliberately have no section
-// here; Person answers "what do we know", not "when" or "what needs doing".
-type SectionDef = {
-  key: string;
-  title: string;
-  type: LilicaRecordType;
-  addLabel: string;
-  detail: (record: LilicaRecord) => string | undefined;
+  // Corrective task 10: the active care space's real, authenticated
+  // members -- the same list Settings' own Care Circle screen reads (see
+  // App.tsx). Never fabricated and never inferred from a contact record
+  // or a relationship label; empty for a local-only care space, which
+  // shows the honest "just you" state below rather than a fake member.
+  careCircleMembers?: CareCircleMember[];
 };
 
 function contactDetail(record: LilicaRecord): string | undefined {
   return [record.role, record.phone, record.email].filter(Boolean).join(' · ') || undefined;
 }
 
-function careDetail(record: LilicaRecord): string | undefined {
-  return record.notes?.trim() || undefined;
-}
-
-function homeDetail(record: LilicaRecord): string | undefined {
-  const parts: string[] = [];
-  if (record.provider) parts.push(record.provider);
-  const due = record.dueDate ?? record.date;
-  if (due) parts.push(`Next due ${formatDateForDisplay(due)}`);
-  return parts.join(' · ') || undefined;
-}
-
-function billDetail(record: LilicaRecord): string | undefined {
-  const parts: string[] = [];
-  if (record.amount) parts.push(record.amount);
-  if (record.reference) parts.push(record.reference);
-  const due = record.dueDate ?? record.date;
-  if (due) parts.push(`Renews ${formatDateForDisplay(due)}`);
-  return parts.join(' · ') || undefined;
-}
-
-function documentDetail(record: LilicaRecord): string | undefined {
-  const parts: string[] = [];
-  const count = record.attachments?.length ?? 0;
-  if (count > 0) parts.push(`${count} file${count === 1 ? '' : 's'}`);
-  if (record.expiryDate) parts.push(`Expires ${formatDateForDisplay(record.expiryDate)}`);
-  return parts.join(' · ') || undefined;
-}
-
-const SECTIONS: SectionDef[] = [
-  { key: 'contacts', title: 'Important contacts', type: 'contact', addLabel: 'Add a contact', detail: contactDetail },
-  { key: 'care', title: 'Care & health information', type: 'careNote', addLabel: 'Add care information', detail: careDetail },
-  { key: 'home', title: 'Home', type: 'homeMatter', addLabel: 'Add home information', detail: homeDetail },
-  { key: 'documents', title: 'Documents & paperwork', type: 'document', addLabel: 'Add a document', detail: documentDetail },
-  { key: 'bills', title: 'Bills & renewals', type: 'bill', addLabel: 'Add a bill or renewal', detail: billDetail },
-];
-
 function recentFirst(a: LilicaRecord, b: LilicaRecord) {
   return (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt);
+}
+
+function roleLabel(role: CareCircleRole) {
+  if (role === 'organiser') return 'Organiser';
+  if (role === 'contributor') return 'Contributor';
+  return 'Viewer';
 }
 
 export function PersonScreen({
@@ -108,39 +81,27 @@ export function PersonScreen({
   onOpenCareCircle,
   pendingInvitationCount = 0,
   onOpenInvitations,
+  careCircleMembers = [],
 }: Props) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const name = displayName?.trim() || 'Them';
-  const possessive = isSelf ? 'you' : name;
 
-  const grouped = useMemo(
-    () => SECTIONS.map((section) => ({
-      ...section,
-      items: records
-        .filter((record) => record.type === section.type && record.status !== 'cancelled')
-        .sort(recentFirst),
-    })),
+  // Key contacts (section 2): external people/services with no Lilica
+  // account of their own -- still exactly the established `contact`
+  // record type/creation architecture, never a new store.
+  const contacts = useMemo(
+    () => records
+      .filter((record) => record.type === 'contact' && record.status !== 'cancelled')
+      .sort(recentFirst),
     [records],
   );
 
-  const populated = grouped.filter((section) => section.items.length > 0);
-  const isSparse = populated.length === 0;
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      {/* Corrective task 4: the former "Account" text link is now the
-          same app-level Settings cog Home/Calendar/To Do use, opening one
-          shared Settings sheet. Invitations and the direct link into the
-          Care Circle screen (labelled "Manage" here, since this tab's own
-          heading is now "Care Circle" -- both saying "Care Circle" read
-          as a duplicated label) keep their own direct links exactly as
-          before -- Manage is also offered a second way in, from inside
-          the Settings sheet, but this direct link is not removed
-          (nothing here is stranded). */}
       <View style={styles.header}>
         <View>
           <Wordmark size="compact" />
-          <AppText variant="title">Care Circle</AppText>
+          <AppText variant="title">People</AppText>
         </View>
         <View style={styles.headerLinks}>
           {onOpenInvitations && pendingInvitationCount > 0 ? (
@@ -148,92 +109,130 @@ export function PersonScreen({
               <AppText variant="secondary" tone="primary" style={styles.accountLink}>Invitations ({pendingInvitationCount})</AppText>
             </Pressable>
           ) : null}
-          {onOpenCareCircle ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Manage Care Circle" onPress={onOpenCareCircle} hitSlop={8}>
-              <AppText variant="secondary" tone="primary" style={styles.accountLink}>Manage</AppText>
-            </Pressable>
-          ) : null}
           <SettingsCogButton onPress={onOpenSettings} />
         </View>
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Switch person, currently ${name}`}
-        onPress={() => setSwitcherOpen(true)}
-        style={styles.personCard}
-      >
-        <View style={styles.personIcon}>
-          <AppText variant="title" tone="primary">{name.charAt(0).toUpperCase()}</AppText>
-        </View>
-        <View style={styles.personCopy}>
-          <AppText variant="title">{isSelf ? 'You' : name}</AppText>
-          {!isSelf && relationshipLabel ? <AppText variant="secondary" tone="soft">{relationshipLabel}</AppText> : null}
-        </View>
-        {people.length > 1 ? <AppText variant="bodyStrong" tone="primary">v</AppText> : null}
-      </Pressable>
+      <AppText variant="body" tone="soft">The people involved in care.</AppText>
 
-      <AppText variant="body" tone="soft">
-        {isSelf ? 'What Lilica knows and keeps track of for you.' : `What Lilica knows and keeps track of for ${possessive}.`}
-      </AppText>
+      {/* Section 1: SUPPORTED PEOPLE -- who this account organises care
+          for. Tapping opens the existing PersonSwitcher, unchanged --
+          never redesigned, never re-implemented here. */}
+      <View style={styles.section}>
+        <AppText variant="section">People you support</AppText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Switch person, currently ${name}`}
+          onPress={() => setSwitcherOpen(true)}
+          style={styles.personCard}
+        >
+          <View style={styles.personIcon}>
+            <AppText variant="title" tone="primary">{name.charAt(0).toUpperCase()}</AppText>
+          </View>
+          <View style={styles.personCopy}>
+            <AppText variant="title">{isSelf ? 'You' : name}</AppText>
+            {!isSelf && relationshipLabel ? <AppText variant="secondary" tone="soft">{relationshipLabel}</AppText> : null}
+          </View>
+          {people.length > 1 ? <View style={styles.personChevron} /> : null}
+        </Pressable>
+      </View>
 
-      {isSparse ? (
-        <View style={styles.emptyState}>
-          <AppText variant="secondary" tone="soft" centre>
-            Nothing saved for {isSelf ? 'you' : name} yet. Add a contact, document or other useful detail whenever it's helpful.
-          </AppText>
-          <Button label="Add something" variant="secondary" onPress={() => onAddType('contact')} style={styles.emptyButton} />
+      {/* Section 2: KEY CONTACTS -- useful external people/services (GP,
+          pharmacy, a neighbour), kept strictly distinct from the
+          authenticated Care circle members below. */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <AppText variant="section">Key contacts</AppText>
+          <Pressable accessibilityRole="button" accessibilityLabel="Add a contact" onPress={() => onAddType('contact')} hitSlop={8}>
+            <AppText variant="secondary" tone="primary">Add</AppText>
+          </Pressable>
         </View>
-      ) : (
-        <View style={styles.sections}>
-          {populated.map((section) => (
-            <View key={section.key} style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <AppText variant="section">{section.title}</AppText>
-                <Pressable accessibilityRole="button" accessibilityLabel={section.addLabel} onPress={() => onAddType(section.type)} hitSlop={8}>
-                  <AppText variant="secondary" tone="primary">Add</AppText>
+        {contacts.length > 0 ? (
+          <View style={styles.sectionList}>
+            {contacts.map((record) => {
+              const visual = visualFor(record.type);
+              const detail = contactDetail(record);
+              return (
+                <Pressable
+                  key={record.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${record.title}`}
+                  onPress={() => onOpenRecord(record.id)}
+                  style={styles.row}
+                >
+                  <View style={[styles.iconChip, { backgroundColor: visual.tint }]}>
+                    <CategoryIcon type={record.type} color={visual.accent} />
+                  </View>
+                  <View style={styles.rowCopy}>
+                    <AppText variant="bodyStrong" numberOfLines={2}>{record.title}</AppText>
+                    {detail ? <AppText variant="secondary" tone="soft" numberOfLines={2}>{detail}</AppText> : null}
+                  </View>
+                  <View style={styles.chevron} />
                 </Pressable>
+              );
+            })}
+          </View>
+        ) : (
+          <AppText variant="secondary" tone="soft">
+            No key contacts saved for {isSelf ? 'you' : name} yet — GP, pharmacy, a neighbour or anyone else useful to have on hand.
+          </AppText>
+        )}
+      </View>
+
+      {/* Section 3: CARE CIRCLE -- authenticated Lilica members who
+          actually have access, never conflated with the external
+          contacts above. Reads the same real membership list Settings'
+          own Care Circle screen already reads (see App.tsx); an empty
+          list (local-only care space, nothing synced yet) shows the
+          honest "just you" state rather than a fabricated member. */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <AppText variant="section">Care circle</AppText>
+          {onOpenCareCircle ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Manage Care Circle" onPress={onOpenCareCircle} hitSlop={8}>
+              <AppText variant="secondary" tone="primary">Manage</AppText>
+            </Pressable>
+          ) : null}
+        </View>
+        <View style={styles.sectionList}>
+          {careCircleMembers.length > 0 ? careCircleMembers.map((member) => (
+            <View key={member.membershipId} style={styles.row}>
+              <View style={[styles.iconChip, { backgroundColor: colors.primarySoft }]}>
+                <AppText variant="bodyStrong" tone="primary">
+                  {(member.isSelf ? 'You' : member.displayName).charAt(0).toUpperCase()}
+                </AppText>
               </View>
-              <View style={styles.sectionList}>
-                {section.items.map((record) => {
-                  const visual = visualFor(record.type);
-                  const detail = section.detail(record);
-                  return (
-                    <Pressable
-                      key={record.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Open ${record.title}`}
-                      onPress={() => onOpenRecord(record.id)}
-                      style={styles.row}
-                    >
-                      <View style={[styles.iconChip, { backgroundColor: visual.tint }]}>
-                        <CategoryIcon type={record.type} color={visual.accent} />
-                      </View>
-                      <View style={styles.rowCopy}>
-                        <AppText variant="bodyStrong" numberOfLines={2}>{record.title}</AppText>
-                        {detail ? <AppText variant="secondary" tone="soft" numberOfLines={2}>{detail}</AppText> : null}
-                        <AppText variant="meta" tone="muted">Added {formatDateForDisplay(record.createdAt.slice(0, 10)) ?? ''}</AppText>
-                      </View>
-                      <AppText variant="section" tone="primary">&gt;</AppText>
-                    </Pressable>
-                  );
-                })}
+              <View style={styles.rowCopy}>
+                <AppText variant="bodyStrong">
+                  {member.isSelf ? 'You' : member.displayName} — {roleLabel(member.role)}
+                </AppText>
+                <AppText variant="secondary" tone="soft">{member.relationshipLabel || member.relationshipType}</AppText>
               </View>
             </View>
-          ))}
+          )) : (
+            <View style={styles.row}>
+              <View style={[styles.iconChip, { backgroundColor: colors.primarySoft }]}>
+                <AppText variant="bodyStrong" tone="primary">Y</AppText>
+              </View>
+              <View style={styles.rowCopy}>
+                <AppText variant="bodyStrong">You</AppText>
+                <AppText variant="secondary" tone="soft">The only person with access right now.</AppText>
+              </View>
+            </View>
+          )}
         </View>
-      )}
+      </View>
 
-      <View style={styles.careCircle}>
-        <AppText variant="section">Care circle</AppText>
-        <View style={styles.careCircleRow}>
-          <View style={[styles.iconChip, { backgroundColor: colors.primarySoft }]}>
-            <AppText variant="bodyStrong" tone="primary">Y</AppText>
-          </View>
-          <View style={styles.rowCopy}>
-            <AppText variant="bodyStrong">You</AppText>
-            <AppText variant="secondary" tone="soft">The only person with access right now.</AppText>
-          </View>
+      {/* Section 4: ASK LILICA -- re-homed from Home exactly as it already
+          existed. No AI functionality is implemented here; this stays
+          the same non-interactive placeholder for a future phase. */}
+      <View style={styles.ask}>
+        <View>
+          <AppText variant="meta" tone="primary">Ask Lilica</AppText>
+          <AppText variant="bodyStrong">What is coming up?</AppText>
+        </View>
+        <View style={styles.askMark}>
+          <AppText variant="bodyStrong" tone="white">?</AppText>
         </View>
       </View>
 
@@ -256,7 +255,7 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   header: {
     marginTop: spacing.md,
@@ -271,6 +270,17 @@ const styles = StyleSheet.create({
   },
   accountLink: {
     fontWeight: '700',
+  },
+  section: {
+    gap: spacing.sm,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionList: {
+    gap: spacing.sm,
   },
   personCard: {
     backgroundColor: colors.surface,
@@ -295,28 +305,14 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  emptyState: {
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.xl,
-  },
-  emptyButton: {
-    width: 'auto',
-    paddingHorizontal: spacing.lg,
-  },
-  sections: {
-    gap: spacing.lg,
-  },
-  section: {
-    gap: spacing.sm,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionList: {
-    gap: spacing.sm,
+  // Same drawn-chevron-down technique as Home's own switcher card.
+  personChevron: {
+    width: 10,
+    height: 10,
+    borderLeftWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: colors.primary,
+    transform: [{ rotate: '-45deg' }],
   },
   row: {
     flexDirection: 'row',
@@ -339,18 +335,29 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  careCircle: {
-    gap: spacing.sm,
-    marginTop: spacing.md,
+  chevron: {
+    width: 10,
+    height: 10,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+    borderColor: colors.muted,
+    transform: [{ rotate: '45deg' }],
   },
-  careCircleRow: {
+  ask: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.md,
+    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  askMark: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -39,20 +39,6 @@ type Props = {
   // only the heading/footer copy — the category-gateway/list/add/edit
   // architecture itself is unchanged and locked either way.
   everyday?: boolean;
-  // Phase 10: lets another screen (Calendar) request that a specific
-  // existing record's editor opens immediately on mount, reusing this
-  // exact category-gateway/list/edit architecture rather than a second
-  // editor. Consumed once; onInitialOpenHandled lets the caller clear its
-  // own one-shot intent so a later, unrelated visit to this screen (e.g.
-  // Home's plain Add button) never reopens a stale record.
-  initialOpenRecordId?: string;
-  // Phase 13: lets another screen (Person) request that a NEW draft of a
-  // given category opens immediately on mount -- e.g. "Add a contact" jumps
-  // straight to a blank contact editor rather than the plain gateway. Same
-  // one-shot consume/clear contract as initialOpenRecordId above; only one
-  // of the two is ever set at a time.
-  initialOpenType?: LilicaRecordType;
-  onInitialOpenHandled?: () => void;
   onBack: () => void;
   onSaveRecord: (record: LilicaRecord) => void;
   onRemoveRecord: (recordId: string) => void;
@@ -82,9 +68,6 @@ export function FirstThingScreen({
   careCircleMembers,
   onRequestReminderPermission,
   everyday = false,
-  initialOpenRecordId,
-  initialOpenType,
-  onInitialOpenHandled,
   onBack,
   onSaveRecord,
   onRemoveRecord,
@@ -95,15 +78,6 @@ export function FirstThingScreen({
   const list = useRef<FlatList<(typeof firstItemOptions)[number]>>(null);
   const sheet = useRef<RecordSheetHandle>(null);
   const focusAfterDismiss = useRef<number | undefined>(undefined);
-  // Bug fix: opening a record via the one-shot initialOpenRecordId/
-  // initialOpenType deep link (from Home/Calendar/To Do/Person/Wellbeing
-  // updates) used to leave the user on THIS screen's own category list
-  // once they saved/removed/dismissed that one record ("records home"),
-  // instead of returning to wherever they actually came from. Set true
-  // only by the deep-link effect below, and consumed (reset to false)
-  // the moment that specific editor closes, so ordinary in-screen
-  // category browsing is completely unaffected.
-  const deepLinked = useRef(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [activeIndex, setActiveIndex] = useState(0);
   const [openType, setOpenType] = useState<LilicaRecordType>();
@@ -141,9 +115,6 @@ export function FirstThingScreen({
   }
 
   function openEditor(index: number, type: LilicaRecordType, record?: LilicaRecord) {
-    // Any direct call defaults to "not a deep link" -- the effect below
-    // sets this true again immediately afterwards for its own call.
-    deepLinked.current = false;
     const key = record?.id ?? `${type}:new`;
     setActiveIndex(index);
     setDrafts((current) => current[key]
@@ -157,7 +128,6 @@ export function FirstThingScreen({
   }
 
   function openCategory(index: number, type: LilicaRecordType) {
-    deepLinked.current = false;
     const existing = records.some((record) => record.type === type);
     if (!existing) {
       openEditor(index, type);
@@ -171,30 +141,6 @@ export function FirstThingScreen({
     focusIndex(index);
   }
 
-  useEffect(() => {
-    if (initialOpenRecordId) {
-      const record = records.find((item) => item.id === initialOpenRecordId);
-      const index = record ? ordered.findIndex((item) => item.id === record.type) : -1;
-      if (record && index !== -1) {
-        openEditor(index, record.type, record);
-        deepLinked.current = true;
-      }
-      onInitialOpenHandled?.();
-      return;
-    }
-    if (initialOpenType) {
-      const index = ordered.findIndex((item) => item.id === initialOpenType);
-      if (index !== -1) {
-        openEditor(index, initialOpenType);
-        deepLinked.current = true;
-      }
-      onInitialOpenHandled?.();
-    }
-    // Intentionally runs only when the requested ID/type changes -- this is
-    // a one-shot "open this" request, not a continuous binding.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialOpenRecordId, initialOpenType]);
-
   function save(index: number, record: LilicaRecord) {
     onSaveRecord(record);
     setDrafts((current) => ({
@@ -202,11 +148,6 @@ export function FirstThingScreen({
       [`${record.type}:${record.id}`]: createRecordDraft(record.type, record),
       ...(openRecordId ? {} : { [`${record.type}:new`]: createRecordDraft(record.type) }),
     }));
-    if (deepLinked.current) {
-      deepLinked.current = false;
-      onBack();
-      return;
-    }
     focusAfterDismiss.current = Math.min(index + 1, ordered.length - 1);
     setOpenRecordId(undefined);
     setOpenDraftKey(undefined);
@@ -220,27 +161,12 @@ export function FirstThingScreen({
       delete next[`${openType}:${recordId}`];
       return next;
     });
-    if (deepLinked.current) {
-      deepLinked.current = false;
-      onBack();
-      return;
-    }
     setOpenRecordId(undefined);
     setOpenDraftKey(undefined);
     setOpenView('list');
   }
 
   function finishDismiss() {
-    // Closing (backdrop tap/swipe) the editor that a deep link opened
-    // returns straight to the caller (Home/Calendar/To Do/Person/
-    // Wellbeing updates) rather than surfacing this screen's own
-    // category-gateway list underneath -- the user never asked to browse
-    // "records home", only to look at the one record they tapped.
-    if (deepLinked.current) {
-      deepLinked.current = false;
-      onBack();
-      return;
-    }
     setOpenType(undefined);
     setOpenRecordId(undefined);
     setOpenDraftKey(undefined);
@@ -381,7 +307,11 @@ export function FirstThingScreen({
         const categoryRecords = records.filter((item) => item.type === openType);
         const terms = categoryTerms[openType];
         return (
-          <RecordSheet ref={sheet} title={openView === 'list' ? terms.heading : option?.title ?? 'Add something'} onDismiss={finishDismiss}>
+          <RecordSheet
+            ref={sheet}
+            title={openView === 'list' ? terms.heading : option?.title ?? 'Add something'}
+            onDismiss={finishDismiss}
+          >
             {openView === 'list' ? (
               <View style={styles.recordList}>
                 {categoryRecords.length > 0 ? categoryRecords.map((item) => {
@@ -407,18 +337,7 @@ export function FirstThingScreen({
                   <Button
                     label={`Back to ${terms.heading}`}
                     variant="text"
-                    onPress={() => {
-                      // Same deep-link short-circuit as save/remove/
-                      // finishDismiss above -- this button only ever
-                      // makes sense as "browse this category's list",
-                      // which a deep-linked visit never asked for.
-                      if (deepLinked.current) {
-                        deepLinked.current = false;
-                        onBack();
-                        return;
-                      }
-                      setOpenView('list');
-                    }}
+                    onPress={() => setOpenView('list')}
                     style={styles.backToList}
                   />
                 ) : null}

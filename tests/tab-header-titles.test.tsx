@@ -36,7 +36,7 @@ describe('Tab header titles', () => {
     screen.getByLabelText('Lilica');
   });
 
-  it('People leads with "Care Circle"', async () => {
+  it('People leads with "People"', async () => {
     const screen = await render(
       <PersonScreen
         records={[]}
@@ -52,7 +52,7 @@ describe('Tab header titles', () => {
         onOpenSettings={jest.fn()}
       />,
     );
-    screen.getByText('Care Circle');
+    screen.getByText('People');
     screen.getByLabelText('Lilica');
   });
 });

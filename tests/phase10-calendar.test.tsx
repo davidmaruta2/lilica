@@ -1,7 +1,6 @@
 import { fireEvent, render } from '@testing-library/react-native';
 
 import { CalendarScreen } from '../src/screens/CalendarScreen';
-import { FirstThingScreen } from '../src/screens/FirstThingScreen';
 import { LilicaRecord } from '../src/types';
 
 // Phase 10: Calendar is a projection of the existing canonical records --
@@ -167,95 +166,9 @@ describe('Phase 10: Calendar month/date rendering', () => {
   });
 });
 
-describe('Phase 10: opening a Calendar item reuses the established record editor', () => {
-  const baseProps = {
-    interests: [] as never[],
-    personName: 'Margaret',
-    supportedPersonId: 'person-1',
-    onBack: jest.fn(),
-    onSaveRecord: jest.fn(),
-    onRemoveRecord: jest.fn(),
-    onFinish: jest.fn(),
-    onSkip: jest.fn(),
-  };
-
-  it('initialOpenRecordId opens the SAME existing record for editing, not a new draft', async () => {
-    const existing: LilicaRecord = {
-      id: 'appt-1', type: 'appointment', title: 'Dentist', status: 'scheduled',
-      eventDate: '2026-09-09', createdAt: '2026-09-01T00:00:00.000Z',
-    };
-    const onInitialOpenHandled = jest.fn();
-    const screen = await render(
-      <FirstThingScreen
-        {...baseProps}
-        records={[existing]}
-        everyday
-        initialOpenRecordId="appt-1"
-        onInitialOpenHandled={onInitialOpenHandled}
-      />,
-    );
-    screen.getByDisplayValue('Dentist');
-    expect(onInitialOpenHandled).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not reopen a stale record on a later, unrelated visit once the request is cleared', async () => {
-    const existing: LilicaRecord = {
-      id: 'appt-1', type: 'appointment', title: 'Dentist', status: 'scheduled',
-      eventDate: '2026-09-09', createdAt: '2026-09-01T00:00:00.000Z',
-    };
-    const screen = await render(
-      <FirstThingScreen {...baseProps} records={[existing]} everyday initialOpenRecordId={undefined} />,
-    );
-    expect(screen.queryByDisplayValue('Dentist')).toBeNull();
-  });
-
-  // Bug fix: closing/saving/dismissing a record opened via the one-shot
-  // deep link used to leave the user on this screen's OWN category list
-  // ("records home") instead of returning to Home/Calendar/To Do/Person
-  // -- the actual caller. Confirms save, "Back to X" and the sheet's own
-  // backdrop dismiss (finishDismiss) all now call onBack instead.
-  describe('dismissing a deep-linked record returns to the caller, not "records home"', () => {
-    const existing: LilicaRecord = {
-      id: 'appt-1', type: 'appointment', title: 'Dentist', status: 'scheduled',
-      eventDate: '2026-09-09', createdAt: '2026-09-01T00:00:00.000Z',
-    };
-
-    it('saving the deep-linked record calls onBack, not the category list', async () => {
-      const onBack = jest.fn();
-      const onSaveRecord = jest.fn();
-      const screen = await render(
-        <FirstThingScreen {...baseProps} onBack={onBack} onSaveRecord={onSaveRecord} records={[existing]} everyday initialOpenRecordId="appt-1" />,
-      );
-      screen.getByDisplayValue('Dentist');
-      await fireEvent.press(screen.getByText('Save changes'));
-      expect(onSaveRecord).toHaveBeenCalledTimes(1);
-      expect(onBack).toHaveBeenCalledTimes(1);
-      // Never fell through to the category list ("Appointments") heading.
-      expect(screen.queryByText('Appointments')).toBeNull();
-    });
-
-    it('"Back to Appointments" on a deep-linked record calls onBack instead of showing the list', async () => {
-      const onBack = jest.fn();
-      const screen = await render(
-        <FirstThingScreen {...baseProps} onBack={onBack} records={[existing]} everyday initialOpenRecordId="appt-1" />,
-      );
-      await fireEvent.press(screen.getByText('Back to Appointments'));
-      expect(onBack).toHaveBeenCalledTimes(1);
-      expect(screen.queryByText('Appointments')).toBeNull();
-    });
-
-    it('ordinary in-screen category browsing (not deep-linked) is completely unaffected -- saving still shows the list', async () => {
-      const onBack = jest.fn();
-      const onSaveRecord = jest.fn();
-      const screen = await render(
-        <FirstThingScreen {...baseProps} onBack={onBack} onSaveRecord={onSaveRecord} records={[existing]} everyday />,
-      );
-      await fireEvent.press(screen.getByLabelText('Open Appointment'));
-      await fireEvent.press(screen.getByLabelText('Edit Dentist'));
-      await fireEvent.press(screen.getByText('Save changes'));
-      expect(onSaveRecord).toHaveBeenCalledTimes(1);
-      expect(onBack).not.toHaveBeenCalled();
-      screen.getByText('Appointments');
-    });
-  });
-});
+// The "opening a Calendar item reuses the established record editor" suite
+// that used to live here (asserting on FirstThingScreen's initialOpenRecordId
+// deep link) moved to tests/record-quick-editor.test.tsx: opening a
+// record from Calendar (and Home/To Do/Care Circle/Wellbeing updates) no
+// longer routes through FirstThingScreen at all -- see that file and
+// src/components/RecordQuickEditor.tsx for why and what replaced it.

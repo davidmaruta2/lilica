@@ -11,8 +11,14 @@ import { LilicaRecord } from '../src/types';
 // untouched -- see that file for items 1-7/11/12 of the brief's
 // numbered validation list).
 
-describe('To Do card: tap targets are separate (items 8/9)', () => {
-  it('tapping the card opens the record and does NOT complete it', async () => {
+// Revised on explicit product instruction: the row is now ONE tap
+// target (a chevron, not a separate outlined completion circle) --
+// completing/reopening happens inside the opened record instead
+// (RecordEditor's own existing "Already sorted" checkbox). This
+// section now proves the row never calls onSaveRecord itself and
+// always opens the real record id, exactly once.
+describe('To Do card: one tap target opens the record; it never saves anything itself', () => {
+  it('tapping the card opens the record and does NOT complete/save it', async () => {
     const onOpenRecord = jest.fn();
     const onSaveRecord = jest.fn();
     const records: LilicaRecord[] = [
@@ -23,22 +29,19 @@ describe('To Do card: tap targets are separate (items 8/9)', () => {
     );
     await fireEvent.press(screen.getByLabelText('Open Water'));
     expect(onOpenRecord).toHaveBeenCalledWith('bill-1');
+    expect(onOpenRecord).toHaveBeenCalledTimes(1);
     expect(onSaveRecord).not.toHaveBeenCalled();
   });
 
-  it('tapping the completion control completes the SAME record once, without opening it', async () => {
-    const onOpenRecord = jest.fn();
-    const onSaveRecord = jest.fn();
+  it('there is no separate completion control on the outside of the tile', async () => {
     const records: LilicaRecord[] = [
       { id: 'bill-1', type: 'bill', title: 'Water', status: 'unresolved', dueDate: '2020-01-01', createdAt: '2020-01-01T00:00:00.000Z' },
     ];
     const screen = await render(
-      <ToDoScreen records={records} onOpenRecord={onOpenRecord} onSaveRecord={onSaveRecord} onAddSomething={jest.fn()} />,
+      <ToDoScreen records={records} onOpenRecord={jest.fn()} onSaveRecord={jest.fn()} onAddSomething={jest.fn()} />,
     );
-    await fireEvent.press(screen.getByLabelText('Mark paid: Water'));
-    expect(onSaveRecord).toHaveBeenCalledTimes(1);
-    expect(onSaveRecord).toHaveBeenCalledWith(expect.objectContaining({ id: 'bill-1', completed: true }));
-    expect(onOpenRecord).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Mark paid: Water')).toBeNull();
+    expect(screen.queryByLabelText('Mark complete: Water')).toBeNull();
   });
 });
 
@@ -109,17 +112,17 @@ describe('To Do card: one quiet metadata line, not competing badges', () => {
   });
 });
 
-describe('To Do card: completed items use the same design with a checked state', () => {
-  it('a completed row shows a filled/checked circle and "Reopen" reverses it', async () => {
-    const onSaveRecord = jest.fn();
+describe('To Do card: completed items use the same one-tap-target design', () => {
+  it('a completed row, once shown, opens the record the same way an active one does -- reopening happens inside', async () => {
+    const onOpenRecord = jest.fn();
     const records: LilicaRecord[] = [
       { id: 'task-1', type: 'task', title: 'Carpet', status: 'completed', completed: true, completedAt: '2020-01-01T00:00:00.000Z', createdAt: '2020-01-01T00:00:00.000Z' },
     ];
     const screen = await render(
-      <ToDoScreen records={records} onOpenRecord={jest.fn()} onSaveRecord={onSaveRecord} onAddSomething={jest.fn()} />,
+      <ToDoScreen records={records} onOpenRecord={onOpenRecord} onSaveRecord={jest.fn()} onAddSomething={jest.fn()} />,
     );
     await fireEvent.press(screen.getByLabelText('Show completed'));
-    await fireEvent.press(screen.getByLabelText('Reopen Carpet'));
-    expect(onSaveRecord).toHaveBeenCalledWith(expect.objectContaining({ id: 'task-1', completed: false }));
+    await fireEvent.press(screen.getByLabelText('Open Carpet'));
+    expect(onOpenRecord).toHaveBeenCalledWith('task-1');
   });
 });

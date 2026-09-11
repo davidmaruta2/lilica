@@ -5,6 +5,7 @@ import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from './src/auth/AuthProvider';
+import { RecordQuickEditor } from './src/components/RecordQuickEditor';
 import { SettingsMenu } from './src/components/SettingsMenu';
 import { TabBar } from './src/components/TabBar';
 import { AppText } from './src/components/Text';
@@ -172,13 +173,13 @@ function LilicaApp() {
   // onboarding. See docs/PHASE_14_ARCHITECTURE.md.
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
   const [reminderPermissionState, setReminderPermissionState] = useState<PermissionState>('undetermined');
-  // Phase 10: one-shot "open this record's editor" request from Calendar,
-  // consumed and cleared by FirstThingScreen itself (see
-  // onInitialOpenHandled) so a later, unrelated visit never reopens it.
+  // "Open this record's editor" request from Home/Calendar/To Do/Care
+  // Circle/Wellbeing updates, rendered by the RecordQuickEditor overlay in
+  // renderShell -- see openRecordFromProjection and RecordQuickEditor.tsx
+  // for why this is an overlay and not a screen/stage switch.
   const [calendarOpenRecordId, setCalendarOpenRecordId] = useState<string>();
-  // Phase 13: one-shot "open a NEW draft of this category" request from
-  // Person's per-section Add links -- same consume/clear contract as
-  // calendarOpenRecordId above; only one of the two is ever set at once.
+  // "Open a NEW draft of this category" request from Person's per-section
+  // Add links -- same overlay, only one of these two is ever set at once.
   const [projectionOpenType, setProjectionOpenType] = useState<LilicaRecordType>();
   // Corrective task 2: Home's at-a-glance strip tiles navigate to To Do
   // with one of these pre-set as a ToDoScreen mount-time initial value.
@@ -762,19 +763,25 @@ function LilicaApp() {
     else setActiveTab('home');
   }
 
-  // Shared by Calendar, To Do and Person: all open a tapped item through
-  // the same established record editor, never a projection-specific one.
+  // Shared by Home, Calendar, To Do, Person and Wellbeing updates: all open
+  // a tapped item through the same established record editor, never a
+  // projection-specific one. Bug fix: this used to also switch stage to
+  // 'firstThing', which replaced the whole screen (Home/Calendar/etc.)
+  // with FirstThingScreen just to host the editor -- that extra screen
+  // swap, both on open and on close, was the actual cause of the "flash"
+  // reported against every tile on every tab. Setting only the target
+  // here (rendered by the RecordQuickEditor overlay in renderShell, below)
+  // opens the sheet directly on top of whichever screen is already
+  // showing, which never unmounts.
   function openRecordFromProjection(recordId: string) {
     setCalendarOpenRecordId(recordId);
-    go('firstThing');
   }
 
   // Person's per-section Add links: jump straight into a NEW draft of that
-  // category via the same established category/record creation
-  // architecture -- never a separate "Add" form.
+  // category via the same established record creation architecture --
+  // never a separate "Add" form. Same fix as above: no stage switch.
   function openNewFromProjection(type: LilicaRecordType) {
     setProjectionOpenType(type);
-    go('firstThing');
   }
 
   // Corrective task 2: Home's Overdue/Due today/Assigned to you tiles
@@ -919,6 +926,7 @@ function LilicaApp() {
           onAddType={openNewFromProjection}
           onOpenSettings={() => setShowSettingsMenu(true)}
           onOpenCareCircle={careCircleAvailable ? () => setShowCareCircle(true) : undefined}
+          careCircleMembers={careCircleMembers}
           pendingInvitationCount={myInvitations.length}
           onOpenInvitations={() => setShowInvitations(true)}
         />
@@ -928,6 +936,24 @@ function LilicaApp() {
     return (
       <SafeAreaView edges={['top', 'bottom']} style={styles.shell}>
         <View style={styles.shellContent}>{content}</View>
+        {(calendarOpenRecordId || projectionOpenType) ? (
+          <RecordQuickEditor
+            key={calendarOpenRecordId ?? projectionOpenType}
+            records={state.records}
+            recordId={calendarOpenRecordId}
+            newType={calendarOpenRecordId ? undefined : projectionOpenType}
+            supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
+            activeMembershipId={currentSpace?.membershipId}
+            careCircleMembers={careCircleMembers}
+            onRequestReminderPermission={requestReminderPermission}
+            onSaveRecord={saveRecord}
+            onRemoveRecord={removeRecord}
+            onDismiss={() => {
+              setCalendarOpenRecordId(undefined);
+              setProjectionOpenType(undefined);
+            }}
+          />
+        ) : null}
         <SettingsMenu
           visible={showSettingsMenu}
           onClose={() => setShowSettingsMenu(false)}
@@ -1196,12 +1222,6 @@ function LilicaApp() {
             careCircleMembers={careCircleMembers}
             onRequestReminderPermission={requestReminderPermission}
             everyday={currentSpace?.setupStatus === 'ready'}
-            initialOpenRecordId={calendarOpenRecordId}
-            initialOpenType={projectionOpenType}
-            onInitialOpenHandled={() => {
-              setCalendarOpenRecordId(undefined);
-              setProjectionOpenType(undefined);
-            }}
             onBack={goBack}
             onSaveRecord={saveRecord}
             onRemoveRecord={removeRecord}

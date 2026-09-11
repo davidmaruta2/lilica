@@ -66,10 +66,17 @@ export const RecordSheet = forwardRef<RecordSheetHandle, Props>(function RecordS
 
   useImperativeHandle(ref, () => ({ dismiss }));
 
+  // Bug fix: this used to sit on the whole sheet (handle+header AND the
+  // scrollable content below), which meant it was competing with the
+  // KeyboardAwareScrollView's own native scroll/bounce gesture for the
+  // touch on every device -- a well-known RN nested-gesture conflict where
+  // the ScrollView's native pan recognizer usually wins, so the swipe
+  // silently never captured and nothing happened except via the explicit
+  // Done button. Scoped now to the handle/header strip only (never
+  // scrollable, so there is nothing to compete with).
   const panResponder = useRef(PanResponder.create({
     onMoveShouldSetPanResponderCapture: (_, gesture) => (
-      scrollOffset.current <= 1
-      && gesture.dy > 8
+      gesture.dy > 8
       && Math.abs(gesture.dy) > Math.abs(gesture.dx)
     ),
     onPanResponderGrant: Keyboard.dismiss,
@@ -92,10 +99,17 @@ export const RecordSheet = forwardRef<RecordSheetHandle, Props>(function RecordS
         <Animated.View
           accessibilityViewIsModal
           style={[styles.sheet, { transform: [{ translateY }] }]}
-          {...panResponder.panHandlers}
         >
-          <View style={styles.sheetTop}>
-            <View style={styles.handle} />
+          <View style={styles.sheetTop} {...panResponder.panHandlers}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Minimise editor"
+              hitSlop={16}
+              onPress={dismiss}
+              style={styles.handleTouchable}
+            >
+              <View style={styles.handle} />
+            </Pressable>
             <View style={styles.header}>
               <AppText variant="section" numberOfLines={1} style={styles.title}>{title}</AppText>
               <Pressable accessibilityRole="button" onPress={dismiss} hitSlop={12} style={styles.done}>
@@ -135,7 +149,8 @@ const styles = StyleSheet.create({
     ...shadow.soft,
   },
   sheetTop: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  handle: { width: 42, height: 5, borderRadius: radius.pill, backgroundColor: colors.line, alignSelf: 'center' },
+  handleTouchable: { alignSelf: 'center', minWidth: 44, minHeight: 32, alignItems: 'center', justifyContent: 'center' },
+  handle: { width: 42, height: 5, borderRadius: radius.pill, backgroundColor: colors.line },
   header: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
   title: { flex: 1 },
   done: { minWidth: 52, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' },

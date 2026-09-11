@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { completionUpdate } from '../components/RecordEditor';
 import { Button } from '../components/Button';
 import { PlusIcon } from '../components/PlusIcon';
 import { SettingsCogButton } from '../components/SettingsCogButton';
@@ -22,6 +21,13 @@ type Props = {
   // a display name.
   activeMembershipId?: string;
   onOpenRecord: (recordId: string) => void;
+  // Revised on explicit product instruction: completing/reopening a
+  // record now happens inside the opened editor (RecordEditor's own
+  // "Already sorted" checkbox), not from a control on this row itself --
+  // this screen no longer calls onSaveRecord directly. Kept in the
+  // prop contract (App.tsx still passes it) rather than removed, to
+  // avoid disturbing every call site for what is, for this screen, now
+  // simply an unused capability.
   onSaveRecord: (record: LilicaRecord) => void;
   onAddSomething: () => void;
   // Corrective task 2: Home's at-a-glance strip navigates here with one of
@@ -63,11 +69,6 @@ type AssignmentFilter = 'all' | 'mine' | 'unassigned';
 // years of future recurring obligations.
 const UPCOMING_HORIZON_DAYS = 30;
 
-function completionLabel(type: LilicaRecord['type']): string {
-  if (type === 'bill') return 'Mark paid';
-  return 'Mark complete';
-}
-
 // "Unassigned"/"You" are exactly as before (Phase 9); a third case now
 // resolves any OTHER assignee to their real Care Circle display name when
 // that data is available (Phase 15), never a name match or guess -- if
@@ -103,7 +104,7 @@ function dueMetaText(record: LilicaRecord, derived: DerivedRecordState): string 
   return formatDateForDisplay(dueDate);
 }
 
-export function ToDoScreen({ records, personName, activeMembershipId, onOpenRecord, onSaveRecord, onAddSomething, initialFilter, initialFocusGroup, onOpenSettings, onBack, careCircleMembers }: Props) {
+export function ToDoScreen({ records, personName, activeMembershipId, onOpenRecord, onAddSomething, initialFilter, initialFocusGroup, onOpenSettings, onBack, careCircleMembers }: Props) {
   const [filter, setFilter] = useState<AssignmentFilter>(initialFilter ?? 'all');
   const [showCompleted, setShowCompleted] = useState(false);
 
@@ -168,25 +169,18 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
     ? [...groupDefs.filter((group) => group.key === initialFocusGroup), ...groupDefs.filter((group) => group.key !== initialFocusGroup)]
     : groupDefs;
 
-  function markComplete(record: LilicaRecord) {
-    onSaveRecord({ ...record, ...completionUpdate(record, true, record.responsiblePerson) });
-  }
-
-  function reopen(record: LilicaRecord) {
-    onSaveRecord({ ...record, ...completionUpdate(record, false, record.responsiblePerson) });
-  }
-
-  // Corrective task 8: strict WHAT / WHEN / WHO hierarchy -- category +
-  // title read first, one quiet metadata line (due state and assignee
-  // together, plain text, never pill-shaped) reads second, and the
-  // completion control is a small outlined circle on the right, entirely
-  // separate from the tappable row. No domain logic changed here: the
-  // same completionUpdate()-backed markComplete()/reopen() handlers, the
-  // same accessibility strings ("Mark Water as paid" / "Mark Carpet
-  // complete" / "Reopen ..."), the same bill-vs-task/homeMatter paid-vs-
-  // complete distinction (that lives in completionLabel()/
-  // completionUpdate(), untouched).
-  function renderRow(record: LilicaRecord, completed: boolean) {
+  // Revised on explicit product instruction: the row is now ONE tap
+  // target (the whole card opens the record), with a plain ">" chevron
+  // as a purely visual "enter" affordance -- no second touch zone on the
+  // outside of the tile. Marking complete/paid or reopening now happens
+  // from INSIDE the opened record, via RecordEditor's own existing
+  // "Already sorted" checkbox (src/components/RecordEditor.tsx), which
+  // already produces the exact same completed/completedAt/
+  // confirmationHistory/status fields as completionUpdate() did here --
+  // same bill-vs-task/homeMatter paid-vs-complete distinction, same
+  // domain logic, just reached one tap further in rather than as a
+  // second control on the card itself.
+  function renderRow(record: LilicaRecord) {
     const visual = visualFor(record.type);
     const derived = deriveRecordState(record);
     const assignee = assignmentLabel(record, activeMembershipId, careCircleMembers);
@@ -194,41 +188,30 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
     const metaLine = [dueText, assignee].filter(Boolean).join(' · ');
 
     return (
-      <View key={record.id} style={styles.row}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Open ${record.title}`}
-          onPress={() => onOpenRecord(record.id)}
-          style={styles.rowMain}
-        >
-          <View style={[styles.iconChip, { backgroundColor: visual.tint }]}>
-            <CategoryIcon type={record.type} color={visual.accent} />
-          </View>
-          <View style={styles.rowCopy}>
-            <AppText variant="meta" tone="muted" numberOfLines={1}>{categoryLabel(record.type)}</AppText>
-            <AppText variant="bodyStrong" numberOfLines={2}>{record.title}</AppText>
-            {metaLine ? (
-              // "Overdue" keeps a restrained warning tone; everything
-              // else (including Unassigned/You/a real name) is ordinary
-              // quiet metadata text, never a filled capsule/button.
-              <AppText variant="secondary" tone={derived.overdue && !completed ? 'danger' : 'soft'} numberOfLines={1}>
-                {metaLine}
-              </AppText>
-            ) : null}
-          </View>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={completed ? `Reopen ${record.title}` : `${completionLabel(record.type)}: ${record.title}`}
-          onPress={() => completed ? reopen(record) : markComplete(record)}
-          hitSlop={8}
-          style={styles.completionControl}
-        >
-          <View style={[styles.completionCircle, completed && styles.completionCircleChecked]}>
-            {completed ? <View style={styles.completionTick} /> : null}
-          </View>
-        </Pressable>
-      </View>
+      <Pressable
+        key={record.id}
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${record.title}`}
+        onPress={() => onOpenRecord(record.id)}
+        style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      >
+        <View style={[styles.iconChip, { backgroundColor: visual.tint }]}>
+          <CategoryIcon type={record.type} color={visual.accent} />
+        </View>
+        <View style={styles.rowCopy}>
+          <AppText variant="meta" tone="muted" numberOfLines={1}>{categoryLabel(record.type)}</AppText>
+          <AppText variant="bodyStrong" numberOfLines={2}>{record.title}</AppText>
+          {metaLine ? (
+            // "Overdue" keeps a restrained warning tone; everything else
+            // (including Unassigned/You/a real name) is ordinary quiet
+            // metadata text, never a filled capsule/button.
+            <AppText variant="secondary" tone={derived.overdue ? 'danger' : 'soft'} numberOfLines={1}>
+              {metaLine}
+            </AppText>
+          ) : null}
+        </View>
+        <View style={styles.chevron} />
+      </Pressable>
     );
   }
 
@@ -292,7 +275,7 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
             items.length > 0 ? (
               <View key={key} style={styles.group}>
                 <AppText variant="section">{title}</AppText>
-                <View style={styles.groupList}>{items.map((record) => renderRow(record, false))}</View>
+                <View style={styles.groupList}>{items.map((record) => renderRow(record))}</View>
               </View>
             ) : null
           ))}
@@ -315,7 +298,7 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
           </Pressable>
           {showCompleted ? (
             <View style={styles.group}>
-              <View style={styles.groupList}>{completedItems.map((record) => renderRow(record, true))}</View>
+              <View style={styles.groupList}>{completedItems.map((record) => renderRow(record))}</View>
             </View>
           ) : null}
         </View>
@@ -419,11 +402,12 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     ...shadow.soft,
   },
-  rowMain: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+  // Revised on explicit product instruction: the row is now ONE
+  // Pressable (no separate completion control on the outside of the
+  // tile) -- press feedback matches the app's other card taps.
+  rowPressed: {
+    transform: [{ scale: 0.99 }],
+    opacity: 0.9,
   },
   iconChip: {
     width: 40,
@@ -436,39 +420,17 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  // Corrective task 8: the completion control is its own separate touch
-  // target (a Pressable sibling of rowMain, never overlapping it), a
-  // small outlined circle rather than a large filled pill -- so it no
-  // longer competes for the row's horizontal space with the category
-  // label or crowds the due/assignment metadata.
-  completionControl: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  completionCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.pill,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  completionCircleChecked: {
-    backgroundColor: colors.primary,
-  },
-  // Same drawn-tick technique already used for PersonSwitcher's selected
-  // check, at the same proportions -- no new visual language.
-  completionTick: {
-    width: 11,
-    height: 7,
-    borderLeftWidth: 2.5,
-    borderBottomWidth: 2.5,
-    borderColor: colors.white,
-    transform: [{ rotate: '-45deg' }],
-    marginTop: -2,
+  // Purely decorative "enter" affordance -- same drawn-chevron technique
+  // as Header.tsx's own back chevron, just pointing right. Completion/
+  // edit now happen inside the opened record (RecordEditor's own
+  // "Already sorted" checkbox), not as a second control here.
+  chevron: {
+    width: 10,
+    height: 10,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+    borderColor: colors.muted,
+    transform: [{ rotate: '45deg' }],
   },
   completedSection: {
     gap: spacing.sm,

@@ -2,6 +2,13 @@
 
 Status: implementation complete, automated tests passing; physical-device QA not yet run.
 
+> **Superseded by Corrective Task 10** (see
+> `docs/CORRECTIVE_TASK_10_QA.md`): the tab is now called People and no
+> longer has the five record-category sections checks 5-9 below refer
+> to (Important contacts/Care & health information/Home/Documents &
+> paperwork/Bills & renewals). Use the corrective task QA checklist
+> instead; this file is kept for history only.
+
 Person is a projection of the same records Home, Calendar and To Do already read. There is no separate data store to verify — these checks confirm the projection, self-care wording, editing and cross-view consistency behave correctly on a real device.
 
 ## Setup

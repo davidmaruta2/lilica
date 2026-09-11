@@ -9,14 +9,15 @@ type Props = {
   onChange: (tab: AppTab) => void;
 };
 
-// Corrective task 5: the fourth tab is now consistently "Care Circle"
-// everywhere (this bar, the screen's own header title, Settings' entry) --
-// it no longer swaps to the supported person's own name.
+// Corrective task 10: the fourth tab is "People" -- "the people involved
+// in care" (supported people, key contacts, care circle), not a second
+// Home dashboard and not only Care Circle management (that stays reachable
+// from inside this tab, and from Settings, as its own destination).
 const tabs: Array<{ id: AppTab; label: string }> = [
   { id: 'home', label: 'Home' },
   { id: 'calendar', label: 'Calendar' },
   { id: 'todo', label: 'To Do' },
-  { id: 'person', label: 'Care Circle' },
+  { id: 'person', label: 'People' },
 ];
 
 export function TabBar({ active, onChange }: Props) {

@@ -611,20 +611,23 @@ Proposed initial filters:
 
 Sort open work by overdue, due today, due soon, no due date, then assignment/title. Completing in To Do performs the same occurrence transition used from Home/detail and records activity once.
 
-### 9.4 Person
+### 9.4 People
 
-Person is the durable knowledge space for the selected supported person:
+> Revised by Corrective Task 10 (11 September 2026, see
+> `docs/CORRECTIVE_TASK_10_PEOPLE_IA.md`): the durable-knowledge-dashboard
+> design originally specified here duplicated Home's own dashboard
+> (bills, home/household information, documents, care information) and
+> gave the tab no distinct purpose. The tab (renamed People) now centres
+> on the people involved in care, not on record categories.
 
-- Basic supported-person details and care-space switcher.
-- Important contacts.
-- Home and household information.
-- Care information and preferences, subject to access.
-- Documents and versions.
-- Bills/renewal arrangements and other long-lived information.
-- Search and history entry points.
-- Care-circle/member management for authorised users.
+People ("the people involved in care") is:
 
-It is not a medical dossier, completion dashboard, or dumping ground for every occurrence. Event/task history is reachable contextually and through History rather than repeated as static profile fields.
+- Supported people and the care-space switcher (unchanged mechanism).
+- Key contacts — external people/services with no Lilica account (GP, pharmacy, a neighbour), scoped to the selected supported person.
+- Care circle — authenticated Lilica members who actually have access to this care space, with their real role (Organiser/Contributor/Viewer). Never fabricated; never inferred from a contact or relationship.
+- Ask Lilica — a future assistance entry point (still a placeholder; re-homed from Home).
+
+Home/household information, care information and preferences, documents, and bills/renewal arrangements remain canonical record categories — they are not deleted or hidden from the app, they simply are not duplicated here; they continue to appear correctly in Home's own projections (and, where actionable, Calendar/To Do). Search/history entry points are deferred, as before. It is not a medical dossier, completion dashboard, or a second Home. Event/task history is reachable contextually and through History rather than repeated as static profile fields.
 
 ### 9.5 Cross-View Invariants
 

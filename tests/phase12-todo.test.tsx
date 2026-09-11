@@ -99,13 +99,6 @@ describe('Phase 12: identity (no duplication, same underlying record)', () => {
     await fireEvent.press(screen.getByLabelText('Open Order repeat prescription'));
     expect(onOpenRecord).toHaveBeenCalledWith('task-1');
   });
-
-  it('marking complete saves the SAME record id -- not a new To Do-specific record', async () => {
-    const onSaveRecord = jest.fn();
-    const screen = await render(<ToDoScreen {...baseProps} records={[prescription]} onSaveRecord={onSaveRecord} />);
-    await fireEvent.press(screen.getByLabelText('Mark complete: Order repeat prescription'));
-    expect(onSaveRecord).toHaveBeenCalledWith(expect.objectContaining({ id: 'task-1', completed: true }));
-  });
 });
 
 describe('Phase 12: completion/reopen use the canonical transition', () => {
@@ -125,16 +118,24 @@ describe('Phase 12: completion/reopen use the canonical transition', () => {
     expect(reopened.confirmationHistory?.length).toBe(1);
   });
 
-  it('a bill uses "Mark paid" wording, a task uses "Mark complete"', async () => {
-    const screen = await render(<ToDoScreen {...baseProps} records={[electricityBill, prescription]} onSaveRecord={jest.fn()} />);
-    screen.getByLabelText('Mark paid: Electricity bill');
-    screen.getByLabelText('Mark complete: Order repeat prescription');
+  // Revised on explicit product instruction: completing/reopening no
+  // longer happens from a row-level control on this screen -- the row
+  // is one tap target that opens the record, and RecordEditor's own
+  // "Already sorted" checkbox (unchanged) is where bill-vs-task/
+  // homeMatter paid-vs-complete wording and behaviour now live.
+  it('an active item opens the same record RecordEditor would show, where its own completion control lives', async () => {
+    const onOpenRecord = jest.fn();
+    const screen = await render(<ToDoScreen {...baseProps} records={[electricityBill]} onOpenRecord={onOpenRecord} onSaveRecord={jest.fn()} />);
+    await fireEvent.press(screen.getByLabelText('Open Electricity bill'));
+    expect(onOpenRecord).toHaveBeenCalledWith('bill-1');
   });
 
-  it('reopening a completed item is offered once "Show completed" is expanded', async () => {
-    const screen = await render(<ToDoScreen {...baseProps} records={[completedShopping]} onSaveRecord={jest.fn()} />);
+  it('a completed item, once "Show completed" is expanded, also just opens for editing (reopening happens inside)', async () => {
+    const onOpenRecord = jest.fn();
+    const screen = await render(<ToDoScreen {...baseProps} records={[completedShopping]} onOpenRecord={onOpenRecord} onSaveRecord={jest.fn()} />);
     await fireEvent.press(screen.getByLabelText('Show completed'));
-    screen.getByLabelText('Reopen Completed shopping task');
+    await fireEvent.press(screen.getByLabelText('Open Completed shopping task'));
+    expect(onOpenRecord).toHaveBeenCalledWith('task-3');
   });
 });
 

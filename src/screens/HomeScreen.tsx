@@ -493,16 +493,6 @@ export function HomeScreen({
         </>
       )}
 
-      <View style={styles.ask}>
-        <View>
-          <AppText variant="meta" tone="primary">Ask Lilica</AppText>
-          <AppText variant="bodyStrong">What is coming up?</AppText>
-        </View>
-        <View style={styles.askMark}>
-          <AppText variant="bodyStrong" tone="white">?</AppText>
-        </View>
-      </View>
-
       <PersonSwitcher
         visible={switcherOpen}
         people={people}
@@ -680,23 +670,6 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     marginTop: spacing.lg,
-  },
-  ask: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  askMark: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });
 
