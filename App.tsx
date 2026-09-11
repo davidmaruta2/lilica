@@ -91,7 +91,6 @@ import { colors } from './src/theme';
 import {
   AppTab,
   FirstItem,
-  Interest,
   LilicaRecord,
   LilicaRecordType,
   OnboardingStage,
@@ -511,11 +510,11 @@ function LilicaApp() {
     if (target) go(target);
   }
 
-  function toggleInterest(interest: Interest) {
+  function toggleInterest(type: LilicaRecordType) {
     if (!currentSpace) return;
     setState((current) => projectActiveCareSpace(replaceCareSpace(current, currentSpace.careSpaceId, (space) => {
-      const exists = space.interests.includes(interest);
-      return { ...space, interests: exists ? space.interests.filter((item) => item !== interest) : [...space.interests, interest] };
+      const exists = space.interests.includes(type);
+      return { ...space, interests: exists ? space.interests.filter((item) => item !== type) : [...space.interests, type] };
     })));
   }
 

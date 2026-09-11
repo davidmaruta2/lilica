@@ -48,14 +48,6 @@ export type MultiPersonOnboardingDraft = {
   addingAfterOnboarding?: boolean;
 };
 
-export type Interest =
-  | 'appointments'
-  | 'homeBills'
-  | 'tasks'
-  | 'paperwork'
-  | 'familyHelp'
-  | 'careInfo';
-
 export type FirstItemType = 'appointment' | 'task' | 'bill' | 'document' | 'careNote';
 
 export type LilicaRecordType =
@@ -163,7 +155,14 @@ export type LocalCareSpaceState = {
   privacyDeclarationAccepted: boolean;
   privacyDeclarationVersion?: string;
   privacyDeclarationAcceptedAt?: string;
-  interests: Interest[];
+  // Corrective task: temporary initial-setup orchestration only -- which
+  // category setup gateways to offer during THIS care space's initial
+  // setup journey ("What do you help X with?"). Keyed directly by the
+  // canonical LilicaRecordType (no separate onboarding taxonomy) so it
+  // can never drift out of sync with the real record categories. Has no
+  // bearing on what the user can do once setupStatus reaches 'ready' --
+  // see FirstThingScreen's `everyday` handling.
+  interests: LilicaRecordType[];
   records: LilicaRecord[];
   setupStatus: CareSpaceSetupStatus;
   allSetDismissed: boolean;
@@ -176,7 +175,7 @@ export type OnboardingState = {
   relationship?: Relationship;
   supportedPersonName?: string;
   supportedPersonId?: string;
-  interests: Interest[];
+  interests: LilicaRecordType[];
   selectedFirstItemType?: FirstItemType;
   firstItem?: FirstItem;
   records: LilicaRecord[];

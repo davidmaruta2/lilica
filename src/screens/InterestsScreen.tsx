@@ -13,12 +13,22 @@ import { Chip } from '../components/Chip';
 import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
-import { interestOptions } from '../data/options';
+import { firstItemOptions } from '../data/options';
 import { colors, radius, shadow, spacing } from '../theme';
-import { Interest } from '../types';
+import { LilicaRecordType } from '../types';
+
+// Corrective task: the choices here are the real canonical record
+// categories (firstItemOptions, minus any not eligible for initial
+// setup) -- never a separate, competing taxonomy. This screen only
+// personalises INITIAL SETUP (which category gateways FirstThingScreen
+// offers first); it does not gate, hide or permanently configure
+// anything -- see FirstThingScreen's `everyday` handling, which always
+// offers the complete category set once setup is done, regardless of
+// what was chosen here.
+const setupOptions = firstItemOptions.filter((option) => option.onboardingEligible !== false);
 
 type Props = {
-  selected: Interest[];
+  selected: LilicaRecordType[];
   personName?: string;
   // True for the organiser's own "Myself" care space. "What do you help
   // David with?" is grammatically fine but conceptually odd once the
@@ -27,7 +37,7 @@ type Props = {
   // the fork already established -- no new domain concept.
   isSelf?: boolean;
   onBack: () => void;
-  onToggle: (interest: Interest) => void;
+  onToggle: (type: LilicaRecordType) => void;
   onContinue: () => void;
   onSkip: () => void;
 };
@@ -84,7 +94,7 @@ export function InterestsScreen({ selected, personName, isSelf = false, onBack, 
         <View style={styles.prompt}>
           <AppText variant="title" centre>{isSelf ? 'What would you like help staying on top of?' : `What do you help ${name} with?`}</AppText>
           <AppText variant="body" tone="soft" centre style={styles.supporting}>
-            Choose what feels familiar.
+            Choose anything you'd like Lilica to help you set up first.
           </AppText>
         </View>
         <View testID="interests-carousel" style={styles.wheel}>
@@ -98,7 +108,7 @@ export function InterestsScreen({ selected, personName, isSelf = false, onBack, 
             scrollEventThrottle={16}
             contentContainerStyle={styles.row}
           >
-            {interestOptions.map((option) => (
+            {setupOptions.map((option) => (
               <Chip
                 key={option.id}
                 title={option.title}
@@ -129,7 +139,7 @@ export function InterestsScreen({ selected, personName, isSelf = false, onBack, 
           </Pressable>
         </View>
         <AppText variant="secondary" tone="soft" centre style={styles.count}>
-          {selected.length > 0 ? `${selected.length} selected` : 'Tap to select. You can change this later.'}
+          {selected.length > 0 ? `${selected.length} selected` : "Tap to select. You'll be able to add anything else later, too."}
         </AppText>
       </View>
     </Screen>

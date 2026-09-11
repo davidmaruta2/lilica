@@ -122,20 +122,20 @@ describe('Phase 6 care-space state', () => {
     let state = integrateProvisionedPeople(initialOnboardingState, drafts, provisioned());
     state = replaceCareSpace(state, 'care-0', (space) => ({
       ...space,
-      interests: ['appointments', 'homeBills'],
+      interests: ['appointment', 'bill'],
       records: [{ id: 'dentist', type: 'appointment', title: 'Dentist', supportedPersonId: space.supportedPersonId, createdAt: '2026-09-10T00:00:00Z' }],
     }));
     state = replaceCareSpace(state, 'care-1', (space) => ({
       ...space,
-      interests: ['careInfo'],
+      interests: ['careNote'],
       records: [{ id: 'gp', type: 'appointment', title: 'GP', supportedPersonId: space.supportedPersonId, createdAt: '2026-09-10T00:00:00Z' }],
     }));
 
     const jackie = projectActiveCareSpace({ ...state, activeCareSpaceId: 'care-0' });
-    expect(jackie.interests).toEqual(['appointments', 'homeBills']);
+    expect(jackie.interests).toEqual(['appointment', 'bill']);
     expect(jackie.records.map((record) => record.id)).toEqual(['dentist']);
     const brian = projectActiveCareSpace({ ...jackie, activeCareSpaceId: 'care-1' });
-    expect(brian.interests).toEqual(['careInfo']);
+    expect(brian.interests).toEqual(['careNote']);
     expect(brian.records.map((record) => record.id)).toEqual(['gp']);
     expect(activeCareSpace(brian)?.displayName).toBe('Brian');
   });

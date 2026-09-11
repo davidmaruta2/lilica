@@ -82,7 +82,7 @@ describe('Corrective task 10: Home no longer duplicates People, and this data st
 describe('Corrective task 10, section 1: supported people', () => {
   it('shows the currently supported person, and switching is still the existing PersonSwitcher', async () => {
     const screen = await render(<PersonScreen {...baseProps} records={[]} />);
-    screen.getByText('People you support');
+    screen.getByText('Person being supported');
     screen.getByLabelText('Switch person, currently Maggie');
   });
 
@@ -134,8 +134,8 @@ describe('Corrective task 10, section 3: Care circle -- real memberships, never 
       { membershipId: 'm-sarah', displayName: 'Sarah', role: 'contributor', relationshipType: 'Other relative', relationshipLabel: 'Family member', isSelf: false, grantedDomains: ['general'] },
     ];
     const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={members} />);
-    screen.getByText('You — Organiser');
-    screen.getByText('Sarah — Contributor');
+    screen.getByText('You - Organiser');
+    screen.getByText('Sarah - Contributor');
   });
 
   it('an external Key contact never appears as, or is conflated with, a care circle member', async () => {
@@ -144,7 +144,7 @@ describe('Corrective task 10, section 3: Care circle -- real memberships, never 
     ];
     const screen = await render(<PersonScreen {...baseProps} records={[gpSurgery]} careCircleMembers={members} />);
     screen.getByText('GP surgery');
-    screen.getByText('You — Organiser');
+    screen.getByText('You - Organiser');
     // "GP surgery" is a Key contact row, not a care circle row -- it never
     // gains a role suffix or membership treatment.
     expect(screen.queryByText(/GP surgery — /)).toBeNull();

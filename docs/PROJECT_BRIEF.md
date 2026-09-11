@@ -94,16 +94,17 @@ Do not invent Privacy Policy or Terms URLs.
 
 ## Interest Selection
 
-The screen asks `What do you help [Name] with?` and displays six selectable areas in a horizontal, arrow-assisted chip carousel:
+The screen asks `What do you help [Name] with?` and displays the real canonical record categories (never a second, separate taxonomy) in a horizontal, arrow-assisted chip carousel — every category from the record stack below except Wellbeing update, which is not offered as an initial-setup choice:
 
-- Appointments and visits
-- Everyday things to sort
-- Care and routines
-- Home, car and bills
-- Important paperwork
-- Keeping family updated
+- Appointment
+- Something to do
+- Bill or renewal
+- Home or car matter
+- Important document
+- Contact
+- Care information
 
-Selections may be skipped. They influence the order of the next record stack but never remove categories.
+Selections may be skipped, and personalise INITIAL SETUP only: they determine which category gateways the next record stack offers while setup is still in progress (an empty selection offers all of them, so "skip"/"add later" is never blocked). Once setup completes, selections have no further effect — the record stack (reached via Home's everyday `Add`) always offers the complete category set, regardless of what was or wasn't chosen here. There is no permanent "areas you help with" setting.
 
 ## Structured Record Entry
 

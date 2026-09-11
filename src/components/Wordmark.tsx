@@ -21,11 +21,16 @@ export function Wordmark({ tone = 'dark', size = 'default' }: WordmarkProps) {
     <View
       accessibilityRole="text"
       accessibilityLabel="Lilica"
-      style={[styles.wrap, isCompact && styles.wrapCompact]}
+      style={[styles.wrap, isCompact && (isLight ? styles.wrapCompactLight : styles.wrapCompact)]}
     >
+      {/* Bug fix: this used to check isCompact BEFORE isLight, so
+          tone="light" was silently ignored whenever size="compact" was
+          set (the tone stayed 'muted' -- a dark grey, invisible against
+          the visual pass's new coloured tab backdrops). isLight now
+          takes priority in both the compact and default case. */}
       <AppText
         variant={isCompact ? 'secondary' : 'wordmark'}
-        tone={isCompact ? 'muted' : isLight ? 'white' : 'default'}
+        tone={isLight ? 'white' : isCompact ? 'muted' : 'default'}
         style={[styles.text, isCompact && styles.textCompact]}
       >
         Lilica
@@ -44,6 +49,15 @@ const styles = StyleSheet.create({
   wrapCompact: {
     alignSelf: 'flex-start',
     opacity: 0.6,
+  },
+  // The 0.6 dimming above was tuned for dark ink on a pale cream page --
+  // faint, watermark-like. On the visual pass's coloured backdrops, white
+  // text at the same 0.6 reads as "gone", not "faint" -- a lighter dim
+  // keeps it legibly present while still clearly secondary to the tab's
+  // own title text.
+  wrapCompactLight: {
+    alignSelf: 'flex-start',
+    opacity: 0.85,
   },
   text: {
     fontFamily: 'Fraunces_800ExtraBold',

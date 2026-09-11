@@ -9,3 +9,5 @@ Corrective Task 10 (11 September 2026, see `docs/CORRECTIVE_TASK_10_PEOPLE_IA.md
 Phase 15's Hard Start Gate (product-owner confirmation of Phase 14 physical QA) was explicitly waived by the product owner on 11 September 2026 before Phase 15 began — do not reopen that question. Do not begin Phase 16+ without its own separate, explicit, bounded implementation prompt.
 
 Preserve the shared safe-area and keyboard-aware form architecture. Read `docs/SUPABASE_OPERATIONS.md` before any hosted operation, use only `lilica-development`, and never run a blind full Auth config push.
+
+**Known false alarm — Expo Go's own dev-menu button, not Lilica's UI**: a floating gear/settings-shaped button that overlaps Lilica's own Settings cog and, when tapped, opens Expo Go's own settings (not anything inside Lilica) is the Expo Go client's own development-mode chrome — grey on Android, blue on iOS (11 September 2026). It never appears in a real build. Do not "fix" it in app code; if reported again, first confirm it's not a stale-bundle artifact (full close + reconnect Expo Go to a freshly started server) rather than re-investigating it as a Lilica bug.

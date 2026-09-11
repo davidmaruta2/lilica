@@ -45,14 +45,25 @@ export function SettingsCogButton({ onPress }: { onPress: () => void }) {
   );
 }
 
+// Explicit product request: a bright, glowing blue chip with a white
+// gear -- distinct from the app's existing muted blueSoft/blue tonal
+// pair (kept as-is everywhere else), so this vivid tone lives only here
+// rather than joining the shared theme.
+const BRIGHT_BLUE = '#2E7DF5';
+
 const styles = StyleSheet.create({
   chip: {
     width: 34,
     height: 34,
     borderRadius: radius.pill,
-    backgroundColor: colors.blueSoft,
+    backgroundColor: BRIGHT_BLUE,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: BRIGHT_BLUE,
+    shadowOpacity: 0.65,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
   },
   chipPressed: {
     transform: [{ scale: 0.96 }],
@@ -69,7 +80,7 @@ const styles = StyleSheet.create({
     width: 2.2,
     height: 17,
     borderRadius: 1.2,
-    backgroundColor: colors.blue,
+    backgroundColor: colors.white,
   },
   cogRing: {
     position: 'absolute',
@@ -77,7 +88,7 @@ const styles = StyleSheet.create({
     height: 11,
     borderRadius: 6,
     borderWidth: 2.2,
-    borderColor: colors.blue,
-    backgroundColor: colors.blueSoft,
+    borderColor: colors.white,
+    backgroundColor: BRIGHT_BLUE,
   },
 });

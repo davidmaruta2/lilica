@@ -28,6 +28,20 @@ export const colors = {
   tealSoft: '#DCEBE9',
 };
 
+// Visual pass (approved mock "Variant D"): each primary tab gets a quiet
+// colour identity borrowed from Welcome's own three slide colours (plus
+// teal, already Care Circle/People's own Key Contacts colour, standing in
+// for the fourth) -- a deep tone at the top of the page, settling into its
+// own much lighter, muted version of the same colour lower down. These are
+// deliberately new tokens, not a restyle of `colors` itself: nothing that
+// already reads `colors.*` changes meaning.
+export const tabAccent = {
+  home: { deep: colors.stageDeep, tint: '#E3CCD3' },
+  calendar: { deep: '#B9674C', tint: '#EBD3C0' },
+  todo: { deep: '#62764F', tint: '#DCE2C8' },
+  people: { deep: colors.teal, tint: '#CFE2DE' },
+};
+
 export const spacing = {
   xxs: 4,
   xs: 8,

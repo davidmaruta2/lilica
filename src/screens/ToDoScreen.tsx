@@ -3,13 +3,14 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button } from '../components/Button';
 import { PlusIcon } from '../components/PlusIcon';
+import { ScreenBackdrop } from '../components/ScreenBackdrop';
 import { SettingsCogButton } from '../components/SettingsCogButton';
 import { AppText } from '../components/Text';
 import { Wordmark } from '../components/Wordmark';
 import { CareCircleMember } from '../careCircle';
 import { CategoryIcon, categoryLabel, visualFor } from './HomeScreen';
 import { DerivedRecordState, deriveRecordState, formatDateForDisplay, isActionableRecord } from '../records';
-import { colors, radius, shadow, spacing } from '../theme';
+import { colors, radius, shadow, spacing, tabAccent } from '../theme';
 import { LilicaRecord } from '../types';
 
 type Props = {
@@ -168,6 +169,11 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
   const orderedGroupDefs = initialFocusGroup
     ? [...groupDefs.filter((group) => group.key === initialFocusGroup), ...groupDefs.filter((group) => group.key !== initialFocusGroup)]
     : groupDefs;
+  // Visual pass: identifies whichever group actually renders FIRST (the
+  // first one with items, not just array position 0 -- Overdue can be
+  // empty while Today/Upcoming aren't), since only that one heading sits
+  // reliably within the backdrop's deep zone.
+  const firstVisibleGroupKey = orderedGroupDefs.find((group) => group.items.length > 0)?.key;
 
   // Revised on explicit product instruction: the row is now ONE tap
   // target (the whole card opens the record), with a plain ">" chevron
@@ -217,8 +223,11 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      {/* Corrective task 4: same fixed-size Settings cog + repositioned
-          Add row as Home -- see HomeScreen.tsx's header comment. */}
+    <ScreenBackdrop deep={tabAccent.todo.deep} tint={tabAccent.todo.tint} gap={spacing.md}>
+      {/* Visual pass: header sits on the shared deep/tint backdrop (see
+          ScreenBackdrop) -- title, wordmark, subtitle and the back
+          chevron (only shown arriving via a Home strip tap, always
+          within the header's own deep region) switch to light-on-dark. */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           {onBack ? (
@@ -233,17 +242,17 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
             </Pressable>
           ) : null}
           <View>
-            <Wordmark size="compact" />
-            <AppText variant="title">To Do</AppText>
+            <Wordmark size="compact" tone="light" />
+            <AppText variant="title" tone="white">To Do</AppText>
           </View>
         </View>
         <View style={styles.headerActions}>
-          <Button label="Add" icon={<PlusIcon />} onPress={onAddSomething} style={styles.addButton} />
+          <Button label="Add" variant="light" icon={<PlusIcon color={colors.primary} />} onPress={onAddSomething} style={styles.addButton} />
           {onOpenSettings ? <SettingsCogButton onPress={onOpenSettings} /> : null}
         </View>
       </View>
 
-      <AppText variant="body" tone="soft">{personName ? `${personName}'s to do list` : 'To do'}</AppText>
+      <AppText variant="body" style={styles.subtitle}>{personName ? `${personName}'s to do list` : 'To do'}</AppText>
 
       <View style={styles.filterRow}>
         {(['all', 'mine', 'unassigned'] as AssignmentFilter[]).map((option) => {
@@ -274,14 +283,14 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
           {orderedGroupDefs.map(({ key, title, items }) => (
             items.length > 0 ? (
               <View key={key} style={styles.group}>
-                <AppText variant="section">{title}</AppText>
+                <AppText variant="section" tone={key === firstVisibleGroupKey ? 'white' : 'default'}>{title}</AppText>
                 <View style={styles.groupList}>{items.map((record) => renderRow(record))}</View>
               </View>
             ) : null
           ))}
         </View>
       ) : (
-        <AppText variant="secondary" tone="soft" style={styles.emptyState}>Nothing needs doing right now.</AppText>
+        <AppText variant="secondary" style={[styles.emptyState, styles.subtitle]}>Nothing needs doing right now.</AppText>
       )}
 
       {completedItems.length > 0 ? (
@@ -303,6 +312,7 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
           ) : null}
         </View>
       ) : null}
+    </ScreenBackdrop>
     </ScrollView>
   );
 }
@@ -312,9 +322,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: spacing.lg,
     paddingBottom: spacing.xxl,
-    gap: spacing.md,
   },
   header: {
     marginTop: spacing.md,
@@ -334,14 +342,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Same drawn-chevron technique as Header.tsx's own back chevron.
+  // Same drawn-chevron technique as Header.tsx's own back chevron. Always
+  // white -- this only ever appears inside the header, which always sits
+  // on the backdrop's deep zone.
   backChevron: {
     width: 12,
     height: 12,
     borderLeftWidth: 2.5,
     borderBottomWidth: 2.5,
-    borderColor: colors.ink,
+    borderColor: colors.white,
     transform: [{ rotate: '45deg' }],
+  },
+  subtitle: {
+    color: 'rgba(255,255,255,0.82)',
   },
   headerActions: {
     flexDirection: 'row',
@@ -391,13 +404,16 @@ const styles = StyleSheet.create({
   // card" language Home's own record cards already use elsewhere in the
   // app -- more breathing room (padding bumped from spacing.sm to
   // spacing.md) and a more premium feel, not a new visual language.
+  // Visual pass: pure white (not colors.surface) so every row matches
+  // the "white cards on a coloured backdrop" treatment now used across
+  // Home/Calendar/People too.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.md,
     borderRadius: radius.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.line,
     ...shadow.soft,

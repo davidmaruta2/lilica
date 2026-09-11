@@ -1,12 +1,20 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+// Approved calendar layout correction (visual hierarchy only): the
+// category key is now a slim, horizontally scrollable white strip
+// directly under the title, and the month grid sits on its own white
+// card, separated from the warm page background. No calendar/event
+// logic below this point was changed -- only JSX structure/order and
+// styles.
+
+import { ScreenBackdrop } from '../components/ScreenBackdrop';
 import { SettingsCogButton } from '../components/SettingsCogButton';
 import { AppText } from '../components/Text';
 import { Wordmark } from '../components/Wordmark';
 import { CategoryIcon, categoryLabel, StatusIcon, visualFor } from './HomeScreen';
 import { calendarDateForRecord, deriveRecordState } from '../records';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, shadow, spacing, tabAccent } from '../theme';
 import { LilicaRecord, LilicaRecordType } from '../types';
 
 // The categories that can genuinely appear in Calendar (calendarDateForRecord
@@ -108,15 +116,15 @@ export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettin
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      {/* Corrective task 4: same fixed-size Settings cog + repositioned
-          secondary-action row as Home/To Do -- see HomeScreen.tsx's
-          header comment. "Go to today" moves below the wordmark row so
-          it never shares a row with a growing wordmark and the cog. */}
+    <ScreenBackdrop deep={tabAccent.calendar.deep} tint={tabAccent.calendar.tint} gap={spacing.md}>
+      {/* Visual pass: header sits on the shared deep/tint backdrop (see
+          ScreenBackdrop) -- title, wordmark and subtitle switch to their
+          light-on-dark treatment. */}
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <View>
-            <Wordmark size="compact" />
-            <AppText variant="title">Calendar</AppText>
+            <Wordmark size="compact" tone="light" />
+            <AppText variant="title" tone="white">Calendar</AppText>
           </View>
           {onOpenSettings ? <SettingsCogButton onPress={onOpenSettings} /> : null}
         </View>
@@ -137,90 +145,113 @@ export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettin
         ) : null}
       </View>
 
-      <AppText variant="body" tone="soft">{personName ? `${personName}'s calendar` : 'Calendar'}</AppText>
+      <AppText variant="body" style={styles.subtitle}>{personName ? `${personName}'s calendar` : 'Calendar'}</AppText>
 
-      <View style={styles.monthBar}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Previous month" onPress={() => changeMonth(-1)} style={styles.monthArrow}>
-          <View style={[styles.chevron, styles.chevronLeft]} />
-        </Pressable>
-        <AppText variant="section">{monthLabel}</AppText>
-        <Pressable accessibilityRole="button" accessibilityLabel="Next month" onPress={() => changeMonth(1)} style={styles.monthArrow}>
-          <View style={[styles.chevron, styles.chevronRight]} />
-        </Pressable>
-      </View>
-
-      <View style={styles.weekdayRow}>
-        {WEEKDAY_LABELS.map((label) => (
-          <AppText key={label} variant="meta" tone="muted" style={styles.weekdayLabel}>{label}</AppText>
-        ))}
-      </View>
-
-      <View style={styles.grid}>
-        {cells.map((cell, index) => {
-          if (!cell) return <View key={`blank-${index}`} style={styles.dayCell} />;
-          const isToday = cell.iso === todayIso;
-          const isSelected = cell.iso === selectedDate;
-          const dayRecords = recordsByDate.get(cell.iso) ?? [];
-          const hasOccurrences = dayRecords.length > 0;
-          const primaryType = hasOccurrences ? primaryCategoryFor(dayRecords) : undefined;
-          const visual = primaryType ? visualFor(primaryType) : undefined;
-          const needsAttention = dayRecords.some((record) => deriveRecordState(record).overdue);
-          const extra = dayRecords.length - 1;
-          return (
-            <Pressable
-              key={cell.iso}
-              accessibilityRole="button"
-              accessibilityLabel={cell.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-              accessibilityState={{ selected: isSelected }}
-              onPress={() => setSelectedDate(cell.iso)}
-              style={styles.dayCell}
-            >
-              <View style={[styles.dayMark, isSelected && styles.dayMarkSelected, !isSelected && isToday && styles.dayMarkToday]}>
-                <AppText
-                  variant="bodyStrong"
-                  tone={isSelected ? 'white' : isToday ? 'primary' : 'default'}
-                >
-                  {cell.date.getDate()}
-                </AppText>
-              </View>
-              {primaryType && visual ? (
-                <View style={[styles.dayBadge, { backgroundColor: visual.tint }]}>
-                  <CategoryIcon type={primaryType} color={visual.accent} />
-                  {needsAttention ? <View style={styles.dayBadgeAttention} /> : null}
+      {/* Approved layout: the category key is now a slim, single-row,
+          horizontally scrollable white strip directly under the title --
+          replacing the old multi-row wrapping legend that used to sit
+          under the calendar. Same categories, same colours/icons/labels,
+          same order; only the container and layout changed. */}
+      <View style={styles.legendCard}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.legendRow}
+        >
+          {CALENDAR_TYPE_PRIORITY.map((type) => {
+            const visual = visualFor(type);
+            return (
+              <View key={type} style={styles.legendItem}>
+                <View style={[styles.legendIcon, { backgroundColor: visual.tint }]}>
+                  <CategoryIcon type={type} color={visual.accent} />
                 </View>
-              ) : (
-                <View style={styles.dayBadgeSpacer} />
-              )}
-              {extra > 0 ? <AppText variant="meta" tone="muted" style={styles.dayMore}>+{extra}</AppText> : null}
-            </Pressable>
-          );
-        })}
+                <AppText variant="secondary" tone="soft" numberOfLines={1}>{categoryLabel(type)}</AppText>
+              </View>
+            );
+          })}
+          <View style={styles.legendItem}>
+            <View style={[styles.legendIcon, { backgroundColor: colors.dangerSoft }]}>
+              <StatusIcon icon="alert" color={colors.danger} />
+            </View>
+            <AppText variant="secondary" tone="soft" numberOfLines={1}>Needs attention</AppText>
+          </View>
+        </ScrollView>
       </View>
 
-      <View style={styles.legendRow}>
-        {CALENDAR_TYPE_PRIORITY.map((type) => {
-          const visual = visualFor(type);
-          return (
-            <View key={type} style={styles.legendItem}>
-              <View style={[styles.legendIcon, { backgroundColor: visual.tint }]}>
-                <CategoryIcon type={type} color={visual.accent} />
-              </View>
-              <AppText variant="secondary" tone="soft">{categoryLabel(type)}</AppText>
-            </View>
-          );
-        })}
-        <View style={styles.legendItem}>
-          <View style={[styles.legendIcon, { backgroundColor: colors.dangerSoft }]}>
-            <StatusIcon icon="alert" color={colors.danger} />
-          </View>
-          <AppText variant="secondary" tone="soft">Needs attention</AppText>
+      {/* Approved layout: the whole month grid now sits on its own pure-
+          white card, visually separated from the warm page background
+          behind it -- everything inside (navigation, heading, weekday
+          row, grid, indicators/counts) is exactly the same markup and
+          logic as before, just moved inside this wrapper. */}
+      <View style={styles.calendarCard}>
+        <View style={styles.monthBar}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Previous month" onPress={() => changeMonth(-1)} style={styles.monthArrow}>
+            <View style={[styles.chevron, styles.chevronLeft]} />
+          </Pressable>
+          <AppText variant="section">{monthLabel}</AppText>
+          <Pressable accessibilityRole="button" accessibilityLabel="Next month" onPress={() => changeMonth(1)} style={styles.monthArrow}>
+            <View style={[styles.chevron, styles.chevronRight]} />
+          </Pressable>
+        </View>
+
+        <View style={styles.weekdayRow}>
+          {WEEKDAY_LABELS.map((label) => (
+            <AppText key={label} variant="meta" tone="muted" style={styles.weekdayLabel}>{label}</AppText>
+          ))}
+        </View>
+
+        <View style={styles.grid}>
+          {cells.map((cell, index) => {
+            if (!cell) return <View key={`blank-${index}`} style={styles.dayCell} />;
+            const isToday = cell.iso === todayIso;
+            const isSelected = cell.iso === selectedDate;
+            const dayRecords = recordsByDate.get(cell.iso) ?? [];
+            const hasOccurrences = dayRecords.length > 0;
+            const primaryType = hasOccurrences ? primaryCategoryFor(dayRecords) : undefined;
+            const visual = primaryType ? visualFor(primaryType) : undefined;
+            const needsAttention = dayRecords.some((record) => deriveRecordState(record).overdue);
+            const extra = dayRecords.length - 1;
+            return (
+              <Pressable
+                key={cell.iso}
+                accessibilityRole="button"
+                accessibilityLabel={cell.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+                accessibilityState={{ selected: isSelected }}
+                onPress={() => setSelectedDate(cell.iso)}
+                style={styles.dayCell}
+              >
+                <View style={[styles.dayMark, isSelected && styles.dayMarkSelected, !isSelected && isToday && styles.dayMarkToday]}>
+                  <AppText
+                    variant="bodyStrong"
+                    tone={isSelected ? 'white' : isToday ? 'primary' : 'default'}
+                  >
+                    {cell.date.getDate()}
+                  </AppText>
+                </View>
+                {primaryType && visual ? (
+                  <View style={[styles.dayBadge, { backgroundColor: visual.tint }]}>
+                    <CategoryIcon type={primaryType} color={visual.accent} />
+                    {needsAttention ? <View style={styles.dayBadgeAttention} /> : null}
+                  </View>
+                ) : (
+                  <View style={styles.dayBadgeSpacer} />
+                )}
+                {extra > 0 ? <AppText variant="meta" tone="muted" style={styles.dayMore}>+{extra}</AppText> : null}
+              </Pressable>
+            );
+          })}
         </View>
       </View>
 
       <View style={styles.agenda}>
-        <AppText variant="section">{selectedDateLabel()}</AppText>
+        {/* Visual pass: this heading sits within the backdrop's deep
+            zone (per explicit product direction), so it goes white --
+            "Nothing planned"/agenda tiles below are unaffected, since
+            they're either inside their own white card or, for the empty
+            state, deliberately muted regardless of background. */}
+        <AppText variant="section" style={styles.agendaHeading}>{selectedDateLabel()}</AppText>
         {selectedRecords.length === 0 ? (
-          <AppText variant="secondary" tone="soft" style={styles.emptyState}>Nothing planned for this day.</AppText>
+          <AppText variant="secondary" style={[styles.emptyState, styles.agendaSubtext]}>Nothing planned for this day.</AppText>
         ) : (
           <View style={styles.agendaList}>
             {selectedRecords.map((record) => {
@@ -256,6 +287,7 @@ export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettin
           </View>
         )}
       </View>
+    </ScreenBackdrop>
     </ScrollView>
   );
 }
@@ -264,10 +296,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  // Horizontal/top padding now lives on ScreenBackdrop itself (see that
+  // component) -- it needs to own that space so its gradient can bleed
+  // past it to the true screen edges.
   content: {
-    padding: spacing.lg,
     paddingBottom: spacing.xxl,
-    gap: spacing.md,
   },
   header: {
     marginTop: spacing.md,
@@ -294,8 +327,29 @@ const styles = StyleSheet.create({
   todayButtonLabel: {
     fontWeight: '700',
   },
+  subtitle: {
+    color: 'rgba(255,255,255,0.82)',
+  },
+  agendaHeading: {
+    color: colors.white,
+  },
+  agendaSubtext: {
+    color: 'rgba(255,255,255,0.75)',
+  },
+  // Approved layout: the whole month grid (nav/heading, weekday row,
+  // dates, indicators) sits on its own pure-white card, separated from
+  // the warm page background. Kept deliberately plain -- a thin border
+  // plus the app's own existing subtle shadow token, nothing more.
+  calendarCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing.md,
+    gap: spacing.sm,
+    ...shadow.soft,
+  },
   monthBar: {
-    marginTop: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -384,10 +438,21 @@ const styles = StyleSheet.create({
     fontSize: 9,
     marginTop: 1,
   },
+  // Approved layout: a slim, pure-white rounded strip -- single row,
+  // horizontally scrollable, compact spacing. Replaces the old wrapping
+  // multi-row legend that lived under the calendar grid.
+  legendCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
   legendRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
   },
   legendItem: {
     flexDirection: 'row',
@@ -411,13 +476,15 @@ const styles = StyleSheet.create({
   agendaList: {
     gap: spacing.sm,
   },
+  // Approved layout: individual event tiles are pure white against the
+  // warm Today/agenda background (which is deliberately NOT a card).
   agendaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     padding: spacing.sm,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.line,
   },

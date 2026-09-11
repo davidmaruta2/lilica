@@ -11,7 +11,7 @@ import { PrivacyConsentScreen, PRIVACY_DECLARATION_VERSION } from '../src/screen
 import { RelationshipScreen } from '../src/screens/RelationshipScreen';
 import { WelcomeScreen } from '../src/screens/WelcomeScreen';
 import { initialOnboardingState } from '../src/storage';
-import { Interest, LilicaRecord } from '../src/types';
+import { LilicaRecord, LilicaRecordType } from '../src/types';
 
 describe('protected Phase 1 onboarding surfaces', () => {
   it('retains the three-page Welcome journey and its entry actions', async () => {
@@ -96,7 +96,10 @@ describe('protected Phase 1 onboarding surfaces', () => {
     expect(onContinue).not.toHaveBeenCalled();
   });
 
-  it('keeps all six interest choices, skipping, and selection callbacks', async () => {
+  // Corrective task: the choices here are now the real canonical record
+  // categories (minus Wellbeing update, not offered as an initial-setup
+  // choice) -- never a separate, competing taxonomy.
+  it('keeps all seven canonical setup choices, skipping, and selection callbacks', async () => {
     const onToggle = jest.fn();
     const onSkip = jest.fn();
     const screen = await render(
@@ -111,15 +114,19 @@ describe('protected Phase 1 onboarding surfaces', () => {
     );
     screen.getByText('What do you help Margaret with?');
     [
-      'Appointments & visits',
-      'Home, car & bills',
-      'Everyday things to sort',
-      'Important paperwork',
-      'Keeping family updated',
-      'Care & routines',
+      'Appointment',
+      'Something to do',
+      'Bill or renewal',
+      'Home or car matter',
+      'Important document',
+      'Contact',
+      'Care information',
     ].forEach((label) => screen.getByText(label));
-    await fireEvent.press(screen.getByText('Appointments & visits'));
-    expect(onToggle).toHaveBeenCalledWith('appointments');
+    // Wellbeing update is a canonical category, but not an initial-setup
+    // choice -- it remains fully available from Add once setup is done.
+    expect(screen.queryByText('Wellbeing update')).toBeNull();
+    await fireEvent.press(screen.getByText('Appointment'));
+    expect(onToggle).toHaveBeenCalledWith('appointment');
     await fireEvent.press(screen.getByLabelText('Skip for now'));
     expect(onSkip).toHaveBeenCalledTimes(1);
   });
@@ -127,7 +134,7 @@ describe('protected Phase 1 onboarding surfaces', () => {
 
 describe('protected structured-record onboarding', () => {
   const props = {
-    interests: [] as Interest[],
+    interests: [] as LilicaRecordType[],
     personName: 'Margaret',
     supportedPersonId: 'person-margaret',
     records: [] as LilicaRecord[],
@@ -158,12 +165,53 @@ describe('protected structured-record onboarding', () => {
     expect(props.onSkip).toHaveBeenCalledTimes(1);
   });
 
-  it('orders interest-matched categories first without removing any category', async () => {
-    const screen = await render(<FirstThingScreen {...props} interests={['paperwork']} />);
+  // Corrective task, brief's own worked example: David selects
+  // Appointments + Bills for Beauty and does not select Medication
+  // (Care information). Initial setup (everyday false, the default
+  // here) offers ONLY the chosen categories, in canonical order --
+  // acceptance tests 2/3.
+  it('offers only the chosen categories during initial setup (selecting Appointments/Bills; not Medication)', async () => {
+    const screen = await render(<FirstThingScreen {...props} interests={['appointment', 'bill']} />);
     const categoryLabels = screen.getAllByRole('button')
       .map((item) => item.props.accessibilityLabel as string | undefined)
       .filter((label): label is string => Boolean(label?.startsWith('Add ')));
-    expect(categoryLabels[0]).toBe('Add Important document');
+    expect(categoryLabels).toEqual(['Add Appointment', 'Add Bill or renewal']);
+    expect(screen.queryByLabelText('Add Care information')).toBeNull();
+  });
+
+  // Acceptance test 4: after setup completes (everyday true), the exact
+  // same unselected category (Care information/"Medication") is
+  // nevertheless offered through the normal Add flow -- with no return
+  // to onboarding and no profile-setting change (acceptance tests 4-6).
+  it('the everyday Add flow always offers the complete category set, regardless of what was chosen during initial setup', async () => {
+    const screen = await render(<FirstThingScreen {...props} everyday interests={['appointment', 'bill']} />);
+    const categoryLabels = screen.getAllByRole('button')
+      .map((item) => item.props.accessibilityLabel as string | undefined)
+      .filter((label): label is string => Boolean(label?.startsWith('Add ')));
+    expect(categoryLabels).toHaveLength(8);
+    screen.getByLabelText('Add Care information');
+  });
+
+  // Acceptance test 5/6: a record CAN be created in a category that was
+  // not selected during onboarding, without returning to onboarding --
+  // proven directly against the everyday Add flow's own save path.
+  it('a record can be created in a category that was not selected during onboarding', async () => {
+    const onSaveRecord = jest.fn();
+    const screen = await render(<FirstThingScreen {...props} everyday interests={['appointment', 'bill']} onSaveRecord={onSaveRecord} />);
+    await fireEvent.press(screen.getByLabelText('Add Care information'));
+    await fireEvent.changeText(screen.getAllByDisplayValue('')[0], 'Metformin');
+    await fireEvent.press(screen.getByText('Add care information'));
+    expect(onSaveRecord).toHaveBeenCalledWith(expect.objectContaining({ type: 'careNote', title: 'Metformin' }));
+  });
+
+  // An empty selection (skipped, or continued without choosing anything)
+  // must never produce an empty gateway -- initial setup still offers
+  // everything, exactly like today.
+  it('falls back to the complete category set during initial setup when nothing was chosen', async () => {
+    const screen = await render(<FirstThingScreen {...props} interests={[]} />);
+    const categoryLabels = screen.getAllByRole('button')
+      .map((item) => item.props.accessibilityLabel as string | undefined)
+      .filter((label): label is string => Boolean(label?.startsWith('Add ')));
     expect(categoryLabels).toHaveLength(8);
   });
 
@@ -177,7 +225,10 @@ describe('protected structured-record onboarding', () => {
     expect(screen.getByDisplayValue('Order prescription')).toBeTruthy();
   });
 
-  it('opens a category list before selecting or adding another record', async () => {
+  // Corrective task (view/edit separation): tapping an EXISTING record in
+  // the category list now opens its read-only detail first, never the
+  // editor directly -- Edit (from inside the detail) is what reaches it.
+  it('opens a category list, then a read-only detail, before the editor', async () => {
     const appointment: LilicaRecord = {
       id: 'appointment-1',
       type: 'appointment',
@@ -191,7 +242,16 @@ describe('protected structured-record onboarding', () => {
     const screen = await render(<FirstThingScreen {...props} records={[appointment]} />);
 
     await fireEvent.press(screen.getByLabelText('Open Appointment'));
-    screen.getByLabelText('Edit Orthodontist');
+    await fireEvent.press(screen.getByLabelText('Open Orthodontist'));
+    // Read-only detail: the title is shown, but no editable field/Save.
+    screen.getByText('Orthodontist');
+    expect(screen.queryByLabelText('Save changes')).toBeNull();
+    expect(screen.queryByDisplayValue('Orthodontist')).toBeNull();
+
+    await fireEvent.press(screen.getByLabelText('Edit Orthodontist'));
+    screen.getByLabelText('Save changes');
+
+    await fireEvent.press(screen.getByLabelText('Back to Appointments'));
     await fireEvent.press(screen.getByLabelText('Add appointment'));
     screen.getByLabelText('Add appointment');
     expect(screen.queryByLabelText('Save changes')).toBeNull();
@@ -212,7 +272,7 @@ describe('protected structured-record onboarding', () => {
     expect(screen.queryByText('Add another')).toBeNull();
 
     await fireEvent.press(screen.getByLabelText('Open Appointment'));
-    appointments.forEach((appointment) => screen.getByLabelText(`Edit ${appointment.title}`));
+    appointments.forEach((appointment) => screen.getByLabelText(`Open ${appointment.title}`));
     screen.getByLabelText('Add appointment');
   });
 
@@ -228,6 +288,7 @@ describe('protected structured-record onboarding', () => {
     const screen = await render(<FirstThingScreen {...props} records={[appointment]} />);
 
     await fireEvent.press(screen.getByLabelText('Open Appointment'));
+    await fireEvent.press(screen.getByLabelText('Open Orthodontist'));
     await fireEvent.press(screen.getByLabelText('Edit Orthodontist'));
     await fireEvent.press(screen.getByLabelText('Remove appointment'));
     const buttons = alert.mock.calls[0][2];

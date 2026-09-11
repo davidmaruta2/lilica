@@ -2,12 +2,13 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PersonSwitcher } from '../components/PersonSwitcher';
+import { ScreenBackdrop } from '../components/ScreenBackdrop';
 import { SettingsCogButton } from '../components/SettingsCogButton';
 import { AppText } from '../components/Text';
 import { Wordmark } from '../components/Wordmark';
 import { CareCircleMember, CareCircleRole } from '../careCircle';
 import { CategoryIcon, visualFor } from './HomeScreen';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, spacing, tabAccent } from '../theme';
 import { LilicaRecord, LilicaRecordType, LocalCareSpaceState } from '../types';
 
 // Corrective task 10: People used to repeat Home's own record-category
@@ -98,28 +99,35 @@ export function PersonScreen({
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScreenBackdrop deep={tabAccent.people.deep} tint={tabAccent.people.tint} gap={spacing.lg}>
+      {/* Visual pass: header sits on the shared deep/tint backdrop (see
+          ScreenBackdrop) -- title, wordmark and the Invitations link
+          switch to light-on-dark. */}
       <View style={styles.header}>
         <View>
-          <Wordmark size="compact" />
-          <AppText variant="title">People</AppText>
+          <Wordmark size="compact" tone="light" />
+          <AppText variant="title" tone="white">People</AppText>
         </View>
         <View style={styles.headerLinks}>
           {onOpenInvitations && pendingInvitationCount > 0 ? (
             <Pressable accessibilityRole="button" accessibilityLabel={`Invitations (${pendingInvitationCount})`} onPress={onOpenInvitations} hitSlop={8}>
-              <AppText variant="secondary" tone="primary" style={styles.accountLink}>Invitations ({pendingInvitationCount})</AppText>
+              <AppText variant="secondary" style={[styles.accountLink, styles.onDarkLink]}>Invitations ({pendingInvitationCount})</AppText>
             </Pressable>
           ) : null}
           <SettingsCogButton onPress={onOpenSettings} />
         </View>
       </View>
 
-      <AppText variant="body" tone="soft">The people involved in care.</AppText>
-
       {/* Section 1: SUPPORTED PEOPLE -- who this account organises care
           for. Tapping opens the existing PersonSwitcher, unchanged --
-          never redesigned, never re-implemented here. */}
+          never redesigned, never re-implemented here. The standalone
+          "The people involved in care." subtitle was removed -- it said
+          the same thing as this section's own heading, one line below.
+          This heading, and Key contacts/Care circle's below, sit within
+          the backdrop's deep zone for any realistic amount of content,
+          so all three go white -- see ScreenBackdrop. */}
       <View style={styles.section}>
-        <AppText variant="section">People you support</AppText>
+        <AppText variant="section" tone="white">Person being supported</AppText>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Switch person, currently ${name}`}
@@ -142,9 +150,9 @@ export function PersonScreen({
           authenticated Care circle members below. */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <AppText variant="section">Key contacts</AppText>
+          <AppText variant="section" tone="white">Key contacts</AppText>
           <Pressable accessibilityRole="button" accessibilityLabel="Add a contact" onPress={() => onAddType('contact')} hitSlop={8}>
-            <AppText variant="secondary" tone="primary">Add</AppText>
+            <AppText variant="secondary" style={styles.onDarkLink}>Add</AppText>
           </Pressable>
         </View>
         {contacts.length > 0 ? (
@@ -173,8 +181,8 @@ export function PersonScreen({
             })}
           </View>
         ) : (
-          <AppText variant="secondary" tone="soft">
-            No key contacts saved for {isSelf ? 'you' : name} yet — GP, pharmacy, a neighbour or anyone else useful to have on hand.
+          <AppText variant="secondary" style={styles.onDarkSoft}>
+            No key contacts saved for {isSelf ? 'you' : name} yet - GP, pharmacy, a neighbour or anyone else useful to have on hand.
           </AppText>
         )}
       </View>
@@ -187,10 +195,10 @@ export function PersonScreen({
           honest "just you" state rather than a fabricated member. */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <AppText variant="section">Care circle</AppText>
+          <AppText variant="section" tone="white">Care circle</AppText>
           {onOpenCareCircle ? (
             <Pressable accessibilityRole="button" accessibilityLabel="Manage Care Circle" onPress={onOpenCareCircle} hitSlop={8}>
-              <AppText variant="secondary" tone="primary">Manage</AppText>
+              <AppText variant="secondary" style={styles.onDarkLink}>Manage</AppText>
             </Pressable>
           ) : null}
         </View>
@@ -204,7 +212,7 @@ export function PersonScreen({
               </View>
               <View style={styles.rowCopy}>
                 <AppText variant="bodyStrong">
-                  {member.isSelf ? 'You' : member.displayName} — {roleLabel(member.role)}
+                  {member.isSelf ? 'You' : member.displayName} - {roleLabel(member.role)}
                 </AppText>
                 <AppText variant="secondary" tone="soft">{member.relationshipLabel || member.relationshipType}</AppText>
               </View>
@@ -244,6 +252,7 @@ export function PersonScreen({
         onSelect={onSwitchPerson}
         onAdd={onAddPerson}
       />
+    </ScreenBackdrop>
     </ScrollView>
   );
 }
@@ -253,9 +262,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: spacing.lg,
     paddingBottom: spacing.xxl,
-    gap: spacing.lg,
   },
   header: {
     marginTop: spacing.md,
@@ -271,6 +278,13 @@ const styles = StyleSheet.create({
   accountLink: {
     fontWeight: '700',
   },
+  onDarkLink: {
+    color: colors.white,
+    fontWeight: '700',
+  },
+  onDarkSoft: {
+    color: 'rgba(255,255,255,0.8)',
+  },
   section: {
     gap: spacing.sm,
   },
@@ -283,7 +297,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   personCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.line,
@@ -314,13 +328,16 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     transform: [{ rotate: '-45deg' }],
   },
+  // Visual pass: pure white (not colors.surface), matching the same
+  // "white cards on a coloured backdrop" treatment used across
+  // Home/Calendar/To Do too.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     padding: spacing.sm,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.line,
   },

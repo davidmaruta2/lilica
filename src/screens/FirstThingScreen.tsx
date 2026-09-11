@@ -11,6 +11,7 @@ import {
 
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
+import { canEditRecord, RecordDetail } from '../components/RecordDetail';
 import { createRecordDraft, RecordDraft, RecordEditor } from '../components/RecordEditor';
 import { RecordSheet, RecordSheetHandle } from '../components/RecordSheet';
 import { Screen } from '../components/Screen';
@@ -19,10 +20,15 @@ import { CareCircleMember } from '../careCircle';
 import { firstItemOptions } from '../data/options';
 import { formatDateForDisplay } from '../records';
 import { colors, radius, spacing } from '../theme';
-import { Interest, LilicaRecord, LilicaRecordType } from '../types';
+import { LilicaRecord, LilicaRecordType } from '../types';
 
 type Props = {
-  interests: Interest[];
+  // Corrective task: which categories were chosen on "What do you help
+  // X with?" -- initial-setup orchestration ONLY. Used below (see
+  // `ordered`) to decide which category cards this screen offers WHILE
+  // `everyday` is false; has no effect at all once `everyday` is true
+  // (or here in any other way) -- never a filter/permission/capability.
+  interests: LilicaRecordType[];
   personName?: string;
   supportedPersonId: string;
   records: LilicaRecord[];
@@ -36,8 +42,11 @@ type Props = {
   onRequestReminderPermission?: () => Promise<boolean>;
   // True once setup is already complete and this screen is reached from
   // Home's everyday Add action rather than first-time onboarding. Changes
-  // only the heading/footer copy — the category-gateway/list/add/edit
-  // architecture itself is unchanged and locked either way.
+  // the heading/footer copy AND (corrective task) makes `interests`
+  // inert: the everyday Add gateway always offers the complete canonical
+  // category set, exactly as before this task, regardless of what was
+  // chosen during initial setup. The category-gateway/list/add/edit
+  // architecture itself is otherwise unchanged and locked either way.
   everyday?: boolean;
   onBack: () => void;
   onSaveRecord: (record: LilicaRecord) => void;
@@ -83,25 +92,28 @@ export function FirstThingScreen({
   const [openType, setOpenType] = useState<LilicaRecordType>();
   const [openRecordId, setOpenRecordId] = useState<string>();
   const [openDraftKey, setOpenDraftKey] = useState<string>();
-  const [openView, setOpenView] = useState<'list' | 'editor'>('editor');
+  // Corrective task (view/edit separation): a category list's existing
+  // records open in read-only 'view' first, never straight to 'editor' --
+  // 'editor' is now reached only by explicitly creating a new record or
+  // pressing Edit from that record's own detail. See openDetail/openEditor.
+  const [openView, setOpenView] = useState<'list' | 'view' | 'editor'>('editor');
   const [drafts, setDrafts] = useState<Record<string, RecordDraft>>({});
   const [stackHeight, setStackHeight] = useState(0);
 
+  // Corrective task: initial setup (everyday === false) offers ONLY the
+  // categories chosen on "What do you help X with?" -- in their normal
+  // canonical order, never reordered by preference. An empty selection
+  // (skipped, or continued without choosing anything) falls back to the
+  // complete list rather than an empty gateway, so "add later" always
+  // works. Once setup is done (everyday === true), `interests` is
+  // completely inert: Add always offers the complete canonical category
+  // set, exactly as if nothing had ever been selected -- this is the
+  // one thing this task exists to guarantee never regresses.
   const ordered = useMemo(() => {
-    return firstItemOptions
-      .map((option, originalIndex) => ({
-        ...option,
-        originalIndex,
-        selectedIndex: option.interest ? interests.indexOf(option.interest) : -1,
-      }))
-      .sort((a, b) => {
-        const aSelected = a.selectedIndex >= 0;
-        const bSelected = b.selectedIndex >= 0;
-        if (aSelected !== bSelected) return aSelected ? -1 : 1;
-        if (aSelected && bSelected && a.selectedIndex !== b.selectedIndex) return a.selectedIndex - b.selectedIndex;
-        return a.originalIndex - b.originalIndex;
-      });
-  }, [interests]);
+    if (everyday || interests.length === 0) return firstItemOptions;
+    const chosen = firstItemOptions.filter((option) => interests.includes(option.id));
+    return chosen.length > 0 ? chosen : firstItemOptions;
+  }, [interests, everyday]);
 
   const stackBottomPadding = Math.max(spacing.sm, stackHeight - CLOSED_HEIGHT);
   const snapOffsets = useMemo(
@@ -127,6 +139,18 @@ export function FirstThingScreen({
     focusIndex(index);
   }
 
+  // Corrective task: tapping an EXISTING record (from the category list)
+  // opens its read-only detail, not the editor -- Edit (from within
+  // RecordDetail) is what calls openEditor for that same record.
+  function openDetail(index: number, type: LilicaRecordType, record: LilicaRecord) {
+    setActiveIndex(index);
+    setOpenType(type);
+    setOpenRecordId(record.id);
+    setOpenDraftKey(undefined);
+    setOpenView('view');
+    focusIndex(index);
+  }
+
   function openCategory(index: number, type: LilicaRecordType) {
     const existing = records.some((record) => record.type === type);
     if (!existing) {
@@ -142,12 +166,24 @@ export function FirstThingScreen({
   }
 
   function save(index: number, record: LilicaRecord) {
+    const wasEditingExisting = Boolean(openRecordId);
     onSaveRecord(record);
     setDrafts((current) => ({
       ...current,
       [`${record.type}:${record.id}`]: createRecordDraft(record.type, record),
       ...(openRecordId ? {} : { [`${record.type}:new`]: createRecordDraft(record.type) }),
     }));
+    // Corrective task: editing an existing record returns to its own
+    // (now updated) read-only detail, staying open -- never falling back
+    // to the category list. A brand-new record has no detail to return
+    // to, so creation stays exactly as efficient as before: save returns
+    // to the list, now showing it.
+    if (wasEditingExisting) {
+      setOpenRecordId(record.id);
+      setOpenDraftKey(undefined);
+      setOpenView('view');
+      return;
+    }
     focusAfterDismiss.current = Math.min(index + 1, ordered.length - 1);
     setOpenRecordId(undefined);
     setOpenDraftKey(undefined);
@@ -319,7 +355,7 @@ export function FirstThingScreen({
                   const detail = [date, item.eventTime ?? item.time].filter(Boolean).join(' - ');
                   const tertiary = item.location ?? item.provider ?? item.role ?? item.responsiblePerson ?? item.phone;
                   return (
-                    <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Edit ${item.title}`} onPress={() => openEditor(index, openType, item)} style={styles.recordRow}>
+                    <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Open ${item.title}`} onPress={() => openDetail(index, openType, item)} style={styles.recordRow}>
                       <View style={styles.recordCopy}>
                         <AppText variant="bodyStrong">{item.title}</AppText>
                         {detail ? <AppText variant="secondary" tone="soft">{detail}</AppText> : null}
@@ -341,18 +377,27 @@ export function FirstThingScreen({
                     style={styles.backToList}
                   />
                 ) : null}
-                <RecordEditor
-                  type={openType}
-                  record={record}
-                  draft={draft}
-                  supportedPersonId={supportedPersonId}
-                  activeMembershipId={activeMembershipId}
-                  careCircleMembers={careCircleMembers}
-                  onRequestReminderPermission={onRequestReminderPermission}
-                  onChange={(nextDraft) => setDrafts((current) => ({ ...current, [draftKey]: nextDraft }))}
-                  onSave={(savedRecord) => save(index, savedRecord)}
-                  onRemove={record ? () => remove(record.id) : undefined}
-                />
+                {openView === 'view' && record ? (
+                  <RecordDetail
+                    record={record}
+                    activeMembershipId={activeMembershipId}
+                    careCircleMembers={careCircleMembers}
+                    onEdit={canEditRecord(record, careCircleMembers) ? () => openEditor(index, openType, record) : undefined}
+                  />
+                ) : (
+                  <RecordEditor
+                    type={openType}
+                    record={record}
+                    draft={draft}
+                    supportedPersonId={supportedPersonId}
+                    activeMembershipId={activeMembershipId}
+                    careCircleMembers={careCircleMembers}
+                    onRequestReminderPermission={onRequestReminderPermission}
+                    onChange={(nextDraft) => setDrafts((current) => ({ ...current, [draftKey]: nextDraft }))}
+                    onSave={(savedRecord) => save(index, savedRecord)}
+                    onRemove={record ? () => remove(record.id) : undefined}
+                  />
+                )}
               </View>
             )}
           </RecordSheet>

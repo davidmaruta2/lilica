@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { CareCircleMember } from '../careCircle';
 import { firstItemOptions } from '../data/options';
 import { LilicaRecord, LilicaRecordType } from '../types';
+import { canEditRecord, RecordDetail } from './RecordDetail';
 import { createRecordDraft, RecordDraft, RecordEditor } from './RecordEditor';
 import { RecordSheet } from './RecordSheet';
 
@@ -54,6 +55,13 @@ export function RecordQuickEditor({
   const record = recordId ? records.find((item) => item.id === recordId) : undefined;
   const type = record?.type ?? newType;
   const [draft, setDraft] = useState<RecordDraft | undefined>(undefined);
+  // Corrective task (view/edit separation): an EXISTING record opens in
+  // read-only view first -- a brand-new draft (no record yet) skips
+  // straight to the editor exactly as before, since Add is a create
+  // action, never something to view first. Initialised once per mount;
+  // App.tsx keys this component by recordId/newType, so a different
+  // target is always a fresh mount, never a stale carried-over mode.
+  const [mode, setMode] = useState<'view' | 'edit'>(record ? 'view' : 'edit');
 
   if (!type) return null;
 
@@ -62,24 +70,39 @@ export function RecordQuickEditor({
 
   return (
     <RecordSheet title={option?.title ?? 'Record'} onDismiss={onDismiss}>
-      <RecordEditor
-        type={type}
-        record={record}
-        draft={resolvedDraft}
-        supportedPersonId={supportedPersonId}
-        activeMembershipId={activeMembershipId}
-        careCircleMembers={careCircleMembers}
-        onRequestReminderPermission={onRequestReminderPermission}
-        onChange={setDraft}
-        onSave={(savedRecord) => {
-          onSaveRecord(savedRecord);
-          onDismiss();
-        }}
-        onRemove={record ? () => {
-          onRemoveRecord(record.id);
-          onDismiss();
-        } : undefined}
-      />
+      {record && mode === 'view' ? (
+        <RecordDetail
+          record={record}
+          activeMembershipId={activeMembershipId}
+          careCircleMembers={careCircleMembers}
+          onEdit={canEditRecord(record, careCircleMembers) ? () => setMode('edit') : undefined}
+        />
+      ) : (
+        <RecordEditor
+          type={type}
+          record={record}
+          draft={resolvedDraft}
+          supportedPersonId={supportedPersonId}
+          activeMembershipId={activeMembershipId}
+          careCircleMembers={careCircleMembers}
+          onRequestReminderPermission={onRequestReminderPermission}
+          onChange={setDraft}
+          onSave={(savedRecord) => {
+            onSaveRecord(savedRecord);
+            // Editing an existing record returns to its own (now updated)
+            // read-only detail, staying open -- never closing the sheet or
+            // falling back to wherever it was opened from. A brand-new
+            // record has no detail to return to, so creation stays exactly
+            // as efficient as before: save closes the sheet.
+            if (record) setMode('view');
+            else onDismiss();
+          }}
+          onRemove={record ? () => {
+            onRemoveRecord(record.id);
+            onDismiss();
+          } : undefined}
+        />
+      )}
     </RecordSheet>
   );
 }
