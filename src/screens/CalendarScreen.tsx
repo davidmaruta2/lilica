@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { SettingsCogButton } from '../components/SettingsCogButton';
 import { AppText } from '../components/Text';
 import { Wordmark } from '../components/Wordmark';
 import { CategoryIcon, categoryLabel, StatusIcon, visualFor } from './HomeScreen';
@@ -24,6 +25,9 @@ type Props = {
   records: LilicaRecord[];
   personName?: string;
   onOpenRecord: (recordId: string) => void;
+  // Corrective task 4: app-level Settings entry point, same component and
+  // placement as Home/To Do/People. Omitted (no cog) when not supplied.
+  onOpenSettings?: () => void;
 };
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -65,7 +69,7 @@ function agendaDetail(record: LilicaRecord): string | undefined {
   return undefined;
 }
 
-export function CalendarScreen({ records, personName, onOpenRecord }: Props) {
+export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettings }: Props) {
   const today = useMemo(() => new Date(), []);
   const todayIso = useMemo(() => isoDate(today), [today]);
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(today));
@@ -104,20 +108,32 @@ export function CalendarScreen({ records, personName, onOpenRecord }: Props) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Corrective task 4: same fixed-size Settings cog + repositioned
+          secondary-action row as Home/To Do -- see HomeScreen.tsx's
+          header comment. "Go to today" moves below the wordmark row so
+          it never shares a row with a growing wordmark and the cog. */}
       <View style={styles.header}>
-        <Wordmark />
+        <View style={styles.headerTopRow}>
+          <View>
+            <Wordmark size="compact" />
+            <AppText variant="title">Calendar</AppText>
+          </View>
+          {onOpenSettings ? <SettingsCogButton onPress={onOpenSettings} /> : null}
+        </View>
         {!isCurrentMonth ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Go to today"
-            onPress={() => {
-              setVisibleMonth(startOfMonth(today));
-              setSelectedDate(todayIso);
-            }}
-            style={styles.todayButton}
-          >
-            <AppText variant="secondary" tone="primary" style={styles.todayButtonLabel}>Today</AppText>
-          </Pressable>
+          <View style={styles.headerActionRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Go to today"
+              onPress={() => {
+                setVisibleMonth(startOfMonth(today));
+                setSelectedDate(todayIso);
+              }}
+              style={styles.todayButton}
+            >
+              <AppText variant="secondary" tone="primary" style={styles.todayButtonLabel}>Today</AppText>
+            </Pressable>
+          </View>
         ) : null}
       </View>
 
@@ -255,10 +271,17 @@ const styles = StyleSheet.create({
   },
   header: {
     marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
+  },
+  headerActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
   todayButton: {
     minHeight: 36,

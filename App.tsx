@@ -5,6 +5,7 @@ import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from './src/auth/AuthProvider';
+import { SettingsMenu } from './src/components/SettingsMenu';
 import { TabBar } from './src/components/TabBar';
 import { AppText } from './src/components/Text';
 import { AboutYouScreen } from './src/screens/AboutYouScreen';
@@ -31,6 +32,7 @@ import { RecoveryCodeScreen, VerificationScreen } from './src/screens/Verificati
 import { PersonScreen } from './src/screens/PersonScreen';
 import { CareCircleScreen } from './src/screens/CareCircleScreen';
 import { ToDoScreen } from './src/screens/ToDoScreen';
+import { WellbeingUpdatesScreen } from './src/screens/WellbeingUpdatesScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import {
   initialOnboardingState,
@@ -185,6 +187,10 @@ function LilicaApp() {
   const [todoInitialFilter, setTodoInitialFilter] = useState<'mine'>();
   const [todoInitialFocusGroup, setTodoInitialFocusGroup] = useState<'overdue' | 'today'>();
   const [showAccount, setShowAccount] = useState(false);
+  // Corrective task 4: the one shared Settings sheet, reachable from
+  // Home/Calendar/To Do/People's cog. Opens Account/Care Circle exactly
+  // via the same showAccount/showCareCircle state those already used.
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   // Phase 15: the active care space's real members, for the record
   // editor's assignment selector and the Care Circle screen. Never
   // includes pending/declined/expired/revoked/removed/left memberships --
@@ -192,6 +198,11 @@ function LilicaApp() {
   const [careCircleMembers, setCareCircleMembers] = useState<CareCircleMember[]>([]);
   const [careCircleInvitations, setCareCircleInvitations] = useState<CareCircleInvitation[]>([]);
   const [showCareCircle, setShowCareCircle] = useState(false);
+  // Home's "Updates this week" tile opens this real destination screen
+  // (WellbeingUpdatesScreen) rather than an in-page scroll, on explicit
+  // product instruction -- same app-level-overlay pattern as showAccount/
+  // showCareCircle above.
+  const [showWellbeingUpdates, setShowWellbeingUpdates] = useState(false);
   // Phase 15: invitations addressed to the signed-in account itself
   // (never a care space this account already organises). Auto-surfaces
   // once per app session the first time any are found; "Not now" or
@@ -779,60 +790,23 @@ function LilicaApp() {
     setActiveTab('todo');
   }
 
+  // Corrective task 4: Settings is app-level, so Account/Care Circle must
+  // override whichever tab is active, not only Person's -- checked here
+  // BEFORE the activeTab branches (previously these were only reachable
+  // as Person-tab fallbacks, meaning they could not have been opened from
+  // Home/Calendar/To Do at all).
+  const careCircleAvailable = Boolean(currentSpace && !currentSpace.careSpaceId.startsWith('local-') && currentSpace.membershipId);
+
   function renderShell() {
     let content;
 
-    if (activeTab === 'home') {
+    if (showWellbeingUpdates) {
       content = (
-        <HomeScreen
-          state={state}
-          people={spaces}
-          activeCareSpaceId={state.activeCareSpaceId}
-          setupStatus={currentSpace?.setupStatus}
-          onSwitchPerson={selectActiveSpace}
-          onAddPerson={startAddPerson}
-          onContinueSetup={continueActiveSetup}
-          onAddSomething={() => currentSpace?.setupStatus === 'ready' ? go('firstThing') : continueActiveSetup()}
-          onDismissAllSet={() => {
-            if (!currentSpace) return;
-            setState((current) => projectActiveCareSpace(replaceCareSpace(current, currentSpace.careSpaceId, (space) => ({ ...space, allSetDismissed: true }))));
-          }}
-          onOpenOverdue={() => openToDoFocusedOn('overdue')}
-          onOpenDueToday={() => openToDoFocusedOn('today')}
-          onOpenAssignedToYou={openToDoAssignedToMe}
-        />
-      );
-    } else if (activeTab === 'calendar') {
-      content = currentSpace?.setupStatus === 'ready' ? (
-        <CalendarScreen
-          key={currentSpace.careSpaceId}
+        <WellbeingUpdatesScreen
           records={state.records}
           personName={currentSpace?.displayName}
           onOpenRecord={openRecordFromProjection}
-        />
-      ) : (
-        <FoundationScreen
-          title="Calendar"
-          body="Appointments, renewals and other dates will appear here."
-        />
-      );
-    } else if (activeTab === 'todo') {
-      content = currentSpace?.setupStatus === 'ready' ? (
-        <ToDoScreen
-          key={currentSpace.careSpaceId}
-          records={state.records}
-          personName={currentSpace?.displayName}
-          activeMembershipId={currentSpace?.membershipId}
-          initialFilter={todoInitialFilter}
-          initialFocusGroup={todoInitialFocusGroup}
-          onOpenRecord={openRecordFromProjection}
-          onSaveRecord={saveRecord}
-          onAddSomething={() => go('firstThing')}
-        />
-      ) : (
-        <FoundationScreen
-          title="To Do"
-          body="Things to do will appear here as you add them."
+          onBack={() => setShowWellbeingUpdates(false)}
         />
       );
     } else if (showCareCircle) {
@@ -863,6 +837,63 @@ function LilicaApp() {
           onSignOut={() => void signOut()}
         />
       );
+    } else if (activeTab === 'home') {
+      content = (
+        <HomeScreen
+          state={state}
+          people={spaces}
+          activeCareSpaceId={state.activeCareSpaceId}
+          setupStatus={currentSpace?.setupStatus}
+          onSwitchPerson={selectActiveSpace}
+          onAddPerson={startAddPerson}
+          onContinueSetup={continueActiveSetup}
+          onAddSomething={() => currentSpace?.setupStatus === 'ready' ? go('firstThing') : continueActiveSetup()}
+          onDismissAllSet={() => {
+            if (!currentSpace) return;
+            setState((current) => projectActiveCareSpace(replaceCareSpace(current, currentSpace.careSpaceId, (space) => ({ ...space, allSetDismissed: true }))));
+          }}
+          onOpenOverdue={() => openToDoFocusedOn('overdue')}
+          onOpenDueToday={() => openToDoFocusedOn('today')}
+          onOpenAssignedToYou={openToDoAssignedToMe}
+          onOpenWellbeingUpdates={() => setShowWellbeingUpdates(true)}
+          onOpenSettings={() => setShowSettingsMenu(true)}
+        />
+      );
+    } else if (activeTab === 'calendar') {
+      content = currentSpace?.setupStatus === 'ready' ? (
+        <CalendarScreen
+          key={currentSpace.careSpaceId}
+          records={state.records}
+          personName={currentSpace?.displayName}
+          onOpenRecord={openRecordFromProjection}
+          onOpenSettings={() => setShowSettingsMenu(true)}
+        />
+      ) : (
+        <FoundationScreen
+          title="Calendar"
+          body="Appointments, renewals and other dates will appear here."
+        />
+      );
+    } else if (activeTab === 'todo') {
+      content = currentSpace?.setupStatus === 'ready' ? (
+        <ToDoScreen
+          key={currentSpace.careSpaceId}
+          records={state.records}
+          personName={currentSpace?.displayName}
+          activeMembershipId={currentSpace?.membershipId}
+          initialFilter={todoInitialFilter}
+          initialFocusGroup={todoInitialFocusGroup}
+          onOpenRecord={openRecordFromProjection}
+          onSaveRecord={saveRecord}
+          onAddSomething={() => go('firstThing')}
+          onOpenSettings={() => setShowSettingsMenu(true)}
+        />
+      ) : (
+        <FoundationScreen
+          title="To Do"
+          body="Things to do will appear here as you add them."
+        />
+      );
     } else {
       content = (
         <PersonScreen
@@ -876,12 +907,8 @@ function LilicaApp() {
           onAddPerson={startAddPerson}
           onOpenRecord={openRecordFromProjection}
           onAddType={openNewFromProjection}
-          onOpenAccount={() => setShowAccount(true)}
-          onOpenCareCircle={
-            currentSpace && !currentSpace.careSpaceId.startsWith('local-') && currentSpace.membershipId
-              ? () => setShowCareCircle(true)
-              : undefined
-          }
+          onOpenSettings={() => setShowSettingsMenu(true)}
+          onOpenCareCircle={careCircleAvailable ? () => setShowCareCircle(true) : undefined}
           pendingInvitationCount={myInvitations.length}
           onOpenInvitations={() => setShowInvitations(true)}
         />
@@ -891,12 +918,19 @@ function LilicaApp() {
     return (
       <SafeAreaView edges={['top', 'bottom']} style={styles.shell}>
         <View style={styles.shellContent}>{content}</View>
+        <SettingsMenu
+          visible={showSettingsMenu}
+          onClose={() => setShowSettingsMenu(false)}
+          onOpenAccount={() => setShowAccount(true)}
+          onOpenCareCircle={careCircleAvailable ? () => setShowCareCircle(true) : undefined}
+        />
         <TabBar
           active={activeTab}
-          personName={state.supportedPersonName}
           onChange={(tab) => {
             setActiveTab(tab);
-            if (tab !== 'person') setShowAccount(false);
+            setShowAccount(false);
+            setShowCareCircle(false);
+            setShowWellbeingUpdates(false);
             // A direct tab-bar tap always starts To Do at its normal
             // defaults, never inheriting an earlier Home strip tap's
             // target -- only openToDoFocusedOn/openToDoAssignedToMe set

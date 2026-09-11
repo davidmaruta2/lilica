@@ -9,6 +9,8 @@ import { deriveRecordState, formatDateForDisplay } from '../records';
 import { colors, radius, shadow, spacing } from '../theme';
 import { CareSpaceSetupStatus, FirstItem, LilicaRecordType, LocalCareSpaceState, OnboardingState } from '../types';
 import { PersonSwitcher } from '../components/PersonSwitcher';
+import { PlusIcon } from '../components/PlusIcon';
+import { SettingsCogButton } from '../components/SettingsCogButton';
 import { useRef, useState } from 'react';
 
 type Props = {
@@ -26,11 +28,20 @@ type Props = {
   // (whichever active care space is already selected -- these callbacks
   // never take or change a care space id themselves). "Coming up" instead
   // scrolls to Home's own "Upcoming" section (same records, same page, no
-  // navigation needed) and "Updates this week" is intentionally left
-  // non-interactive -- see the statusChips comment below for why.
+  // navigation needed).
   onOpenOverdue?: () => void;
   onOpenDueToday?: () => void;
   onOpenAssignedToYou?: () => void;
+  // Opens WellbeingUpdatesScreen (a real destination screen, not an
+  // in-page scroll) listing exactly the wellbeing-update records this
+  // tile counts.
+  onOpenWellbeingUpdates?: () => void;
+  // Corrective task 4: app-level Settings entry point, consistently
+  // positioned top-right across Home/Calendar/To Do/People. Omitted
+  // entirely (no cog rendered) when not supplied, rather than shown as a
+  // dead button -- matches this app's existing "never a fake affordance"
+  // discipline (see Assigned-to-you's own omit-not-fake-zero precedent).
+  onOpenSettings?: () => void;
 };
 
 function itemTiming(item: FirstItem) {
@@ -238,6 +249,8 @@ export function HomeScreen({
   onOpenOverdue,
   onOpenDueToday,
   onOpenAssignedToYou,
+  onOpenWellbeingUpdates,
+  onOpenSettings,
 }: Props) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const records = state.records.length > 0 ? state.records : state.firstItem ? [state.firstItem] : [];
@@ -256,8 +269,8 @@ export function HomeScreen({
   const sectionsContainerY = useRef(0);
   const sectionOffsetsWithinContainer = useRef<Record<string, number>>({});
 
-  function scrollToUpcoming() {
-    const offset = sectionOffsetsWithinContainer.current['Upcoming'];
+  function scrollToSection(title: string) {
+    const offset = sectionOffsetsWithinContainer.current[title];
     if (offset === undefined) return;
     scrollRef.current?.scrollTo({ y: Math.max(sectionsContainerY.current + offset - spacing.md, 0), animated: true });
   }
@@ -267,7 +280,11 @@ export function HomeScreen({
   const overdueCount = derived.filter((item) => item.overdue).length;
   const dueTodayCount = derived.filter((item) => item.dueToday).length;
   const comingUpCount = derived.filter((item) => item.upcoming).length;
-  const updatesThisWeekCount = derived.filter((item) => item.recentlyUpdated).length;
+  // Narrowed to wellbeing-update records specifically (matching the tile's
+  // own name and its destination, WellbeingUpdatesScreen) -- was every
+  // record type edited recently; now exactly the records that screen lists.
+  const wellbeingUpdates = records.filter((record, index) => record.type === 'update' && derived[index].recentlyUpdated);
+  const updatesThisWeekCount = wellbeingUpdates.length;
   const assignedToYouCount = currentSpace?.membershipId
     ? records.filter((record) => record.assignedMembershipId === currentSpace.membershipId).length
     : undefined;
@@ -277,15 +294,14 @@ export function HomeScreen({
   //   Overdue / Due today / Assigned to you -> To Do's own matching group/
   //     filter, the app's existing canonical "actionable work" projection.
   //   Coming up -> this screen's own "Upcoming" section (see
-  //     scrollToUpcoming above) -- an exact, zero-drift match.
-  //   Updates this week -> intentionally NOT a navigation target. No
-  //     screen anywhere in the app lists "records edited in the last 7
-  //     days" (recentlyUpdated is otherwise unused -- see
-  //     docs/CORE_SYSTEM_CONTRACT.md's "recentlyUpdated is calculated but
-  //     not used by Home"), and inventing one would be exactly the
-  //     "duplicate category store merely to support this" corrective task
-  //     2 forbids. A tile with nowhere true to send the user stays
-  //     informational rather than navigating to a mismatched destination.
+  //     scrollToSection above) -- an exact, zero-drift match.
+  //   Updates this week -> opens WellbeingUpdatesScreen, a real
+  //     destination listing exactly the wellbeing-update (type 'update')
+  //     records entered/edited in the last 7 days. The count itself was
+  //     narrowed to match: previously ANY record type edited recently,
+  //     now specifically wellbeing-update records (see wellbeingUpdates
+  //     above) -- an explicit, deliberate scope change, not the earlier
+  //     in-page-scroll workaround.
   // Every navigable tile is disabled at zero count -- there is nothing to
   // explore, so it deliberately does not become a button (requirement 5:
   // do not navigate to nonsense).
@@ -302,7 +318,7 @@ export function HomeScreen({
     },
     {
       key: 'comingUp', label: 'Coming up', count: comingUpCount, icon: 'calendar', tint: colors.oliveSoft, accent: colors.olive,
-      onPress: comingUpCount > 0 ? scrollToUpcoming : undefined,
+      onPress: comingUpCount > 0 ? () => scrollToSection('Upcoming') : undefined,
       actionHint: 'Jump to Upcoming below',
     },
     ...(assignedToYouCount !== undefined
@@ -312,7 +328,11 @@ export function HomeScreen({
           actionHint: 'View in To Do',
         }]
       : []),
-    { key: 'updatesThisWeek', label: 'Updates this week', count: updatesThisWeekCount, icon: 'clock' as const, tint: colors.blueSoft, accent: colors.blue },
+    {
+      key: 'updatesThisWeek', label: 'Updates this week', count: updatesThisWeekCount, icon: 'clock' as const, tint: colors.blueSoft, accent: colors.blue,
+      onPress: updatesThisWeekCount > 0 ? onOpenWellbeingUpdates : undefined,
+      actionHint: 'View wellbeing updates',
+    },
   ];
 
   return (
@@ -322,22 +342,40 @@ export function HomeScreen({
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
+      {/* Corrective task 4: Settings shares the top row with the wordmark
+          -- a fixed-size icon button that never grows with accessibility
+          text size, so it can never collide with anything. Add and the
+          cog sit together, small, in the same row as the title. */}
       <View style={styles.header}>
-        <Wordmark />
-        <Button label="Add" onPress={onAddSomething} style={styles.addButton} />
+        <View>
+          <Wordmark size="compact" />
+          <AppText variant="title">Home</AppText>
+        </View>
+        <View style={styles.headerActions}>
+          <Button label="Add" icon={<PlusIcon />} onPress={onAddSomething} style={styles.addButton} />
+          {onOpenSettings ? <SettingsCogButton onPress={onOpenSettings} /> : null}
+        </View>
       </View>
 
+      {/* Corrective task 3: same wording, same component concept -- opens
+          the existing PersonSwitcher exactly as before. Only the tile's
+          own visual affordance changed: elevation + a stronger border to
+          read as a real tappable surface (matching the card treatment
+          Home's own record cards already use), a drawn chevron (the same
+          border+rotate technique Header.tsx's back chevron already uses,
+          just pointing down) replacing the plain "v" character, and a
+          clearer pressed state -- never a loud primary-color CTA. */}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Switch person, currently ${personName}`}
         onPress={() => setSwitcherOpen(true)}
-        style={styles.switcherCard}
+        style={({ pressed }) => [styles.switcherCard, pressed && styles.switcherCardPressed]}
       >
         <View style={styles.switcherIcon}>
           <AppText variant="bodyStrong" tone="primary">{personName.charAt(0).toUpperCase()}</AppText>
         </View>
-        <AppText variant="body" tone="soft" style={styles.switcherCopy}>Everything for {personName}, in one place.</AppText>
-        {people.length > 1 ? <AppText variant="bodyStrong" tone="primary">v</AppText> : null}
+        <AppText variant="bodyStrong" style={styles.switcherCopy}>Everything for {personName}, in one place.</AppText>
+        <View style={styles.switcherChevron} />
       </Pressable>
 
       {setupStatus !== 'ready' ? (
@@ -471,26 +509,52 @@ const styles = StyleSheet.create({
   header: {
     marginTop: spacing.md,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
   },
-  addButton: {
-    width: 'auto',
-    minHeight: 50,
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.xs,
-  },
-  switcherCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+  headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  addButton: {
+    width: 'auto',
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+    gap: spacing.xxs,
+  },
+  switcherCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    ...shadow.soft,
+  },
+  // Corrective task 3: the same scale+opacity feedback already used for
+  // the strip tiles and Button.tsx, plus a warm (not loud) border-color
+  // shift toward the brand accent -- clearly "pressed", never a bold CTA.
+  switcherCardPressed: {
+    transform: [{ scale: 0.99 }],
+    opacity: 0.9,
+    borderColor: colors.primary,
+  },
+  // A small drawn down-chevron, the same border+rotate technique
+  // Header.tsx's back chevron already uses (just pointing down instead
+  // of left) -- no new icon dependency, no new visual language.
+  switcherChevron: {
+    width: 10,
+    height: 10,
+    borderLeftWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: colors.primary,
+    transform: [{ rotate: '-45deg' }],
   },
   switcherIcon: {
     width: 34,

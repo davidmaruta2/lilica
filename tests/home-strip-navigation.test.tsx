@@ -141,14 +141,39 @@ describe('Home strip: Updates this week tile', () => {
   });
   afterEach(() => jest.useRealTimers());
 
-  it('is never a button -- no existing screen represents exactly this count, so it stays informational', async () => {
+  it('is a button that opens WellbeingUpdatesScreen when there is a wellbeing update entered this week', async () => {
     const records: LilicaRecord[] = [
       { id: 'recent', type: 'update', title: 'Called the GP', status: 'saved', createdAt: '2026-09-08T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' },
+    ];
+    const onOpenWellbeingUpdates = jest.fn();
+    const screen = await render(
+      <HomeScreen state={withMembership(records)} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} onOpenWellbeingUpdates={onOpenWellbeingUpdates} />,
+    );
+    const tile = screen.getByLabelText('1 updates this week. View wellbeing updates.');
+    expect(tile.props.accessibilityRole).toBe('button');
+    await fireEvent.press(tile);
+    expect(onOpenWellbeingUpdates).toHaveBeenCalledTimes(1);
+  });
+
+  it('only counts wellbeing-update records, not every recently-edited type', async () => {
+    const records: LilicaRecord[] = [
+      { id: 'recent-update', type: 'update', title: 'Called the GP', status: 'saved', createdAt: '2026-09-08T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' },
+      { id: 'recent-task', type: 'task', title: 'Book haircut', status: 'unresolved', dueDate: '2026-10-01', createdAt: '2026-09-08T00:00:00.000Z', updatedAt: '2026-09-08T00:00:00.000Z' },
     ];
     const screen = await render(
       <HomeScreen state={withMembership(records)} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
     );
-    const tile = screen.getByLabelText('1 updates this week');
+    screen.getByLabelText('1 updates this week');
+  });
+
+  it('is not a button when there is no wellbeing update entered this week', async () => {
+    const records: LilicaRecord[] = [
+      { id: 'old-update', type: 'update', title: 'Old note', status: 'saved', createdAt: '2020-01-01T00:00:00.000Z', updatedAt: '2020-01-01T00:00:00.000Z' },
+    ];
+    const screen = await render(
+      <HomeScreen state={withMembership(records)} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
+    );
+    const tile = screen.getByLabelText('0 updates this week');
     expect(tile.props.accessibilityRole).toBeUndefined();
   });
 });

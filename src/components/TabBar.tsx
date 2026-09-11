@@ -6,35 +6,36 @@ import { AppText } from './Text';
 
 type Props = {
   active: AppTab;
-  personName?: string;
   onChange: (tab: AppTab) => void;
 };
 
+// Corrective task 5: the fourth tab is now consistently "Care Circle"
+// everywhere (this bar, the screen's own header title, Settings' entry) --
+// it no longer swaps to the supported person's own name.
 const tabs: Array<{ id: AppTab; label: string }> = [
   { id: 'home', label: 'Home' },
   { id: 'calendar', label: 'Calendar' },
   { id: 'todo', label: 'To Do' },
-  { id: 'person', label: 'Person' },
+  { id: 'person', label: 'Care Circle' },
 ];
 
-export function TabBar({ active, personName, onChange }: Props) {
+export function TabBar({ active, onChange }: Props) {
   return (
     <View style={styles.wrap}>
       {tabs.map((tab) => {
-        const label = tab.id === 'person' && personName ? personName : tab.label;
         const selected = active === tab.id;
         return (
           <Pressable
             key={tab.id}
             accessibilityRole="tab"
             accessibilityState={{ selected }}
-            accessibilityLabel={label}
+            accessibilityLabel={tab.label}
             onPress={() => onChange(tab.id)}
             style={[styles.tab, selected && styles.active]}
           >
             <View style={[styles.dot, selected && styles.activeDot]} />
-            <AppText variant="secondary" tone={selected ? 'primary' : 'muted'} numberOfLines={1}>
-              {label}
+            <AppText variant="secondary" tone={selected ? 'primary' : 'muted'} numberOfLines={1} centre style={styles.label}>
+              {tab.label}
             </AppText>
           </Pressable>
         );
@@ -60,6 +61,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: radius.md,
     gap: spacing.xxs,
+    paddingHorizontal: spacing.xxs,
+  },
+  // Corrective task 5: explicit centring for the (now two-word) "Care
+  // Circle" label -- belt-and-suspenders alongside the row's own
+  // alignItems: 'center', so it stays centred even if a device's larger
+  // accessibility text size pushes it to use its full tab width.
+  label: {
+    width: '100%',
+    textAlign: 'center',
   },
   active: {
     backgroundColor: colors.primarySoft,

@@ -3,6 +3,8 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { completionUpdate } from '../components/RecordEditor';
 import { Button } from '../components/Button';
+import { PlusIcon } from '../components/PlusIcon';
+import { SettingsCogButton } from '../components/SettingsCogButton';
 import { AppText } from '../components/Text';
 import { Wordmark } from '../components/Wordmark';
 import { CategoryIcon, categoryLabel, visualFor } from './HomeScreen';
@@ -31,6 +33,9 @@ type Props = {
   // count represented is always still here, just reordered for visibility.
   initialFilter?: AssignmentFilter;
   initialFocusGroup?: 'overdue' | 'today' | 'upcoming';
+  // Corrective task 4: app-level Settings entry point, same component and
+  // placement as Home/Calendar/People. Omitted (no cog) when not supplied.
+  onOpenSettings?: () => void;
 };
 
 type AssignmentFilter = 'all' | 'mine' | 'unassigned';
@@ -53,7 +58,7 @@ function assignmentLabel(record: LilicaRecord, activeMembershipId?: string): 'Yo
   return undefined;
 }
 
-export function ToDoScreen({ records, personName, activeMembershipId, onOpenRecord, onSaveRecord, onAddSomething, initialFilter, initialFocusGroup }: Props) {
+export function ToDoScreen({ records, personName, activeMembershipId, onOpenRecord, onSaveRecord, onAddSomething, initialFilter, initialFocusGroup, onOpenSettings }: Props) {
   const [filter, setFilter] = useState<AssignmentFilter>(initialFilter ?? 'all');
   const [showCompleted, setShowCompleted] = useState(false);
 
@@ -178,9 +183,17 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Corrective task 4: same fixed-size Settings cog + repositioned
+          Add row as Home -- see HomeScreen.tsx's header comment. */}
       <View style={styles.header}>
-        <Wordmark />
-        <Button label="Add" onPress={onAddSomething} style={styles.addButton} />
+        <View>
+          <Wordmark size="compact" />
+          <AppText variant="title">To Do</AppText>
+        </View>
+        <View style={styles.headerActions}>
+          <Button label="Add" icon={<PlusIcon />} onPress={onAddSomething} style={styles.addButton} />
+          {onOpenSettings ? <SettingsCogButton onPress={onOpenSettings} /> : null}
+        </View>
       </View>
 
       <AppText variant="body" tone="soft">{personName ? `${personName}'s to do list` : 'To do'}</AppText>
@@ -259,15 +272,20 @@ const styles = StyleSheet.create({
   header: {
     marginTop: spacing.md,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   addButton: {
     width: 'auto',
-    minHeight: 50,
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.xs,
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+    gap: spacing.xxs,
   },
   filterRow: {
     flexDirection: 'row',

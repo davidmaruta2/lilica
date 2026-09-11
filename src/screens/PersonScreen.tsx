@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button } from '../components/Button';
 import { PersonSwitcher } from '../components/PersonSwitcher';
+import { SettingsCogButton } from '../components/SettingsCogButton';
 import { AppText } from '../components/Text';
 import { Wordmark } from '../components/Wordmark';
 import { CategoryIcon, categoryLabel, visualFor } from './HomeScreen';
@@ -21,7 +22,10 @@ type Props = {
   onAddPerson: () => void;
   onOpenRecord: (recordId: string) => void;
   onAddType: (type: LilicaRecordType) => void;
-  onOpenAccount: () => void;
+  // Corrective task 4: opens the shared Settings sheet -- People no longer
+  // has its own direct "Account" link; Account is one of the Settings
+  // sheet's own entries now (see src/components/SettingsMenu.tsx).
+  onOpenSettings: () => void;
   // Phase 15: omitted for a local-only care space (never synced, so there
   // is nothing to collaborate on yet) -- see App.tsx's showCareCircle wiring.
   onOpenCareCircle?: () => void;
@@ -100,7 +104,7 @@ export function PersonScreen({
   onAddPerson,
   onOpenRecord,
   onAddType,
-  onOpenAccount,
+  onOpenSettings,
   onOpenCareCircle,
   pendingInvitationCount = 0,
   onOpenInvitations,
@@ -124,8 +128,20 @@ export function PersonScreen({
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Corrective task 4: the former "Account" text link is now the
+          same app-level Settings cog Home/Calendar/To Do use, opening one
+          shared Settings sheet. Invitations and the direct link into the
+          Care Circle screen (labelled "Manage" here, since this tab's own
+          heading is now "Care Circle" -- both saying "Care Circle" read
+          as a duplicated label) keep their own direct links exactly as
+          before -- Manage is also offered a second way in, from inside
+          the Settings sheet, but this direct link is not removed
+          (nothing here is stranded). */}
       <View style={styles.header}>
-        <Wordmark />
+        <View>
+          <Wordmark size="compact" />
+          <AppText variant="title">Care Circle</AppText>
+        </View>
         <View style={styles.headerLinks}>
           {onOpenInvitations && pendingInvitationCount > 0 ? (
             <Pressable accessibilityRole="button" accessibilityLabel={`Invitations (${pendingInvitationCount})`} onPress={onOpenInvitations} hitSlop={8}>
@@ -133,13 +149,11 @@ export function PersonScreen({
             </Pressable>
           ) : null}
           {onOpenCareCircle ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Care Circle" onPress={onOpenCareCircle} hitSlop={8}>
-              <AppText variant="secondary" tone="primary" style={styles.accountLink}>Care Circle</AppText>
+            <Pressable accessibilityRole="button" accessibilityLabel="Manage Care Circle" onPress={onOpenCareCircle} hitSlop={8}>
+              <AppText variant="secondary" tone="primary" style={styles.accountLink}>Manage</AppText>
             </Pressable>
           ) : null}
-          <Pressable accessibilityRole="button" accessibilityLabel="Account" onPress={onOpenAccount} hitSlop={8}>
-            <AppText variant="secondary" tone="primary" style={styles.accountLink}>Account</AppText>
-          </Pressable>
+          <SettingsCogButton onPress={onOpenSettings} />
         </View>
       </View>
 

@@ -98,7 +98,7 @@ export const firstItemOptions: Array<{
   },
   {
     id: 'update',
-    title: 'Update',
+    title: 'Wellbeing update',
     description: 'A short note about what has happened',
     interest: 'familyHelp',
   },

@@ -151,7 +151,7 @@ describe('protected structured-record onboarding', () => {
       'Important document',
       'Contact',
       'Care information',
-      'Update',
+      'Wellbeing update',
     ].forEach((label) => screen.getByLabelText(`Add ${label}`));
     screen.getByText('A repair, service, MOT or maintenance job');
     await fireEvent.press(screen.getByLabelText("I'll add things later"));

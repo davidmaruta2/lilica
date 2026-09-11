@@ -18,7 +18,7 @@ const baseProps = {
   onAddPerson: jest.fn(),
   onOpenRecord: jest.fn(),
   onAddType: jest.fn(),
-  onOpenAccount: jest.fn(),
+  onOpenSettings: jest.fn(),
 };
 
 // The exact fixed scenario from the brief, for Maggie.

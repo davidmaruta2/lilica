@@ -1,6 +1,11 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
+// Type-only import: erased at compile time, so it has no runtime side
+// effect. The actual module is loaded lazily by notifications() below --
+// see the IS_EXPO_GO comment for why a plain top-level `import` of the
+// real module is exactly what crashes the app.
+import type * as NotificationsModule from 'expo-notifications';
 
 import {
   ALL_REMINDER_OFFSET_KEYS,
@@ -23,7 +28,34 @@ import { LilicaRecord } from './types';
 // throwing, so web export and runtime never break (brief section 46).
 
 const SETTINGS_KEY = 'lilica:notificationSettings:v1';
-const SUPPORTED = Platform.OS === 'ios' || Platform.OS === 'android';
+
+// Fixed since this crash was found on a physical Android device: merely
+// IMPORTING expo-notifications (not calling anything in particular)
+// registers an internal push-token listener at module load time, and on
+// Android under Expo Go that registration THROWS ("[runtime not ready]",
+// crashing the whole app) rather than warning, because Expo Go removed
+// push entirely in SDK 53. iOS only warns, which is why this previously
+// looked like it "mostly worked" there. A real development build is
+// unaffected (it isn't Expo Go), so this only ever downgrades the
+// in-Expo-Go experience to exactly what was already documented as
+// unsupported -- see docs/PHASE_14_ARCHITECTURE.md and docs/PHASE_14_QA.md.
+// appOwnership (not executionEnvironment) is used deliberately: it is the
+// only field that tells Expo Go apart from a dev-client build, which
+// reports the same executionEnvironment but must keep full support.
+const IS_EXPO_GO = Constants.appOwnership === 'expo';
+const SUPPORTED = (Platform.OS === 'ios' || Platform.OS === 'android') && !IS_EXPO_GO;
+
+// The real expo-notifications module is required lazily, and only from
+// inside a call already guarded by `if (!SUPPORTED) return`, so its
+// module-scope side effect never runs at all in Expo Go or on web.
+let cachedNotifications: typeof NotificationsModule | undefined;
+function notifications(): typeof NotificationsModule {
+  if (!cachedNotifications) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    cachedNotifications = require('expo-notifications');
+  }
+  return cachedNotifications as typeof NotificationsModule;
+}
 
 export type PermissionState = 'unsupported' | 'undetermined' | 'granted' | 'denied';
 
@@ -61,7 +93,7 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
 // Foreground presentation: a calm banner, no alarm-style intrusiveness.
 export function configureNotificationHandler() {
   if (!SUPPORTED) return;
-  Notifications.setNotificationHandler({
+  notifications().setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
       shouldPlaySound: false,
@@ -71,9 +103,9 @@ export function configureNotificationHandler() {
     }),
   });
   if (Platform.OS === 'android') {
-    void Notifications.setNotificationChannelAsync('reminders', {
+    void notifications().setNotificationChannelAsync('reminders', {
       name: 'Reminders',
-      importance: Notifications.AndroidImportance.DEFAULT,
+      importance: notifications().AndroidImportance.DEFAULT,
       sound: undefined,
     });
   }
@@ -81,7 +113,7 @@ export function configureNotificationHandler() {
 
 export async function getPermissionState(): Promise<PermissionState> {
   if (!SUPPORTED) return 'unsupported';
-  const result = await Notifications.getPermissionsAsync();
+  const result = await notifications().getPermissionsAsync();
   if (result.granted) return 'granted';
   if (result.status === 'denied') return 'denied';
   return 'undetermined';
@@ -92,7 +124,7 @@ export async function getPermissionState(): Promise<PermissionState> {
 // unrelated onboarding (brief section 13).
 export async function requestPermission(): Promise<PermissionState> {
   if (!SUPPORTED) return 'unsupported';
-  const result = await Notifications.requestPermissionsAsync();
+  const result = await notifications().requestPermissionsAsync();
   if (result.granted) return 'granted';
   if (result.status === 'denied') return 'denied';
   return 'undetermined';
@@ -115,21 +147,21 @@ async function scheduleOne(
   if (!SUPPORTED) return;
   if (fireAt.getTime() <= Date.now()) return;
   const data: ReminderNotificationData = { recordId: record.id, careSpaceId, offsetKey };
-  await Notifications.scheduleNotificationAsync({
+  await notifications().scheduleNotificationAsync({
     identifier,
     content: {
       title: reminderTitle(record, personName),
       body: reminderBody(record, offsetKey),
       data,
     },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireAt, channelId: 'reminders' },
+    trigger: { type: notifications().SchedulableTriggerInputTypes.DATE, date: fireAt, channelId: 'reminders' },
   });
 }
 
 async function cancelIfScheduled(identifier: string) {
   if (!SUPPORTED) return;
   try {
-    await Notifications.cancelScheduledNotificationAsync(identifier);
+    await notifications().cancelScheduledNotificationAsync(identifier);
   } catch {
     // Nothing was scheduled under this identifier -- not an error.
   }
@@ -222,7 +254,7 @@ export async function snoozeReminder(
 // and rescheduled the next time each record is saved with reminders back on.
 export async function disableAllReminders() {
   if (!SUPPORTED) return;
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  await notifications().cancelAllScheduledNotificationsAsync();
 }
 
 export function extractReminderData(data: unknown): ReminderNotificationData | undefined {
@@ -236,7 +268,7 @@ export function extractReminderData(data: unknown): ReminderNotificationData | u
 
 export function addNotificationResponseListener(handler: (data: ReminderNotificationData) => void) {
   if (!SUPPORTED) return { remove: () => undefined };
-  const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+  const subscription = notifications().addNotificationResponseReceivedListener((response) => {
     const data = extractReminderData(response.notification.request.content.data);
     if (data) handler(data);
   });

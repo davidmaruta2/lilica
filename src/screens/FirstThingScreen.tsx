@@ -70,7 +70,7 @@ const categoryTerms: Record<LilicaRecordType, { heading: string; singular: strin
   document: { heading: 'Important documents', singular: 'document', plural: 'documents', add: 'Add document' },
   contact: { heading: 'Contacts', singular: 'contact', plural: 'contacts', add: 'Add contact' },
   careNote: { heading: 'Care information', singular: 'care item', plural: 'care items', add: 'Add care information' },
-  update: { heading: 'Updates', singular: 'update', plural: 'updates', add: 'Add update' },
+  update: { heading: 'Wellbeing updates', singular: 'wellbeing update', plural: 'wellbeing updates', add: 'Add wellbeing update' },
 };
 
 export function FirstThingScreen({
