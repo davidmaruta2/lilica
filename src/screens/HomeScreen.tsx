@@ -9,7 +9,7 @@ import { deriveRecordState, formatDateForDisplay } from '../records';
 import { colors, radius, shadow, spacing } from '../theme';
 import { CareSpaceSetupStatus, FirstItem, LilicaRecordType, LocalCareSpaceState, OnboardingState } from '../types';
 import { PersonSwitcher } from '../components/PersonSwitcher';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 type Props = {
   state: OnboardingState;
@@ -21,6 +21,16 @@ type Props = {
   onSwitchPerson?: (careSpaceId: string) => void;
   onAddPerson?: () => void;
   onContinueSetup?: () => void;
+  // Corrective task 2: the at-a-glance strip's Overdue/Due today/Assigned
+  // to you tiles navigate to their existing canonical To Do projection
+  // (whichever active care space is already selected -- these callbacks
+  // never take or change a care space id themselves). "Coming up" instead
+  // scrolls to Home's own "Upcoming" section (same records, same page, no
+  // navigation needed) and "Updates this week" is intentionally left
+  // non-interactive -- see the statusChips comment below for why.
+  onOpenOverdue?: () => void;
+  onOpenDueToday?: () => void;
+  onOpenAssignedToYou?: () => void;
 };
 
 function itemTiming(item: FirstItem) {
@@ -169,6 +179,15 @@ type StatusChipDef = {
   icon: StatusIconKey;
   tint: string;
   accent: string;
+  // Corrective task 2: undefined means this tile is intentionally not a
+  // navigation target right now -- either its count is 0 (nothing to
+  // explore) or, for "Updates this week" specifically, no existing
+  // canonical destination represents exactly this count (see below).
+  // Never a Pressable/button role when undefined.
+  onPress?: () => void;
+  // What the tile's accessibility label says it does, appended after the
+  // count/label -- e.g. "View in To Do" or "Jump to Upcoming below".
+  actionHint?: string;
 };
 
 export function StatusIcon({ icon, color }: { icon: StatusIconKey; color: string }) {
@@ -216,6 +235,9 @@ export function HomeScreen({
   onSwitchPerson = () => undefined,
   onAddPerson = () => undefined,
   onContinueSetup = () => undefined,
+  onOpenOverdue,
+  onOpenDueToday,
+  onOpenAssignedToYou,
 }: Props) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const records = state.records.length > 0 ? state.records : state.firstItem ? [state.firstItem] : [];
@@ -223,6 +245,22 @@ export function HomeScreen({
   const sections = ['Today', 'Upcoming', 'Recently added']
     .map((title) => ({ title, records: records.filter((record) => sectionFor(record) === title) }))
     .filter((section) => section.records.length > 0);
+
+  // Corrective task 2: "Coming up" scrolls to this screen's own "Upcoming"
+  // section -- the exact same `derived.upcoming` records the chip counts,
+  // so there is zero risk of the destination disagreeing with the count.
+  // Measured via plain onLayout offsets (no native measureLayout calls,
+  // which are fragile across RN versions and awkward to test) captured as
+  // the sections render, then looked up when the chip is actually pressed.
+  const scrollRef = useRef<ScrollView>(null);
+  const sectionsContainerY = useRef(0);
+  const sectionOffsetsWithinContainer = useRef<Record<string, number>>({});
+
+  function scrollToUpcoming() {
+    const offset = sectionOffsetsWithinContainer.current['Upcoming'];
+    if (offset === undefined) return;
+    scrollRef.current?.scrollTo({ y: Math.max(sectionsContainerY.current + offset - spacing.md, 0), animated: true });
+  }
 
   const currentSpace = activeCareSpace(state);
   const derived = records.map((record) => deriveRecordState(record));
@@ -234,18 +272,52 @@ export function HomeScreen({
     ? records.filter((record) => record.assignedMembershipId === currentSpace.membershipId).length
     : undefined;
 
+  // Corrective task 2 mapping (see docs/CORE_SYSTEM_CONTRACT.md and the
+  // Home-strip revision log entry this extends):
+  //   Overdue / Due today / Assigned to you -> To Do's own matching group/
+  //     filter, the app's existing canonical "actionable work" projection.
+  //   Coming up -> this screen's own "Upcoming" section (see
+  //     scrollToUpcoming above) -- an exact, zero-drift match.
+  //   Updates this week -> intentionally NOT a navigation target. No
+  //     screen anywhere in the app lists "records edited in the last 7
+  //     days" (recentlyUpdated is otherwise unused -- see
+  //     docs/CORE_SYSTEM_CONTRACT.md's "recentlyUpdated is calculated but
+  //     not used by Home"), and inventing one would be exactly the
+  //     "duplicate category store merely to support this" corrective task
+  //     2 forbids. A tile with nowhere true to send the user stays
+  //     informational rather than navigating to a mismatched destination.
+  // Every navigable tile is disabled at zero count -- there is nothing to
+  // explore, so it deliberately does not become a button (requirement 5:
+  // do not navigate to nonsense).
   const statusChips: StatusChipDef[] = [
-    { key: 'overdue', label: 'Overdue', count: overdueCount, icon: 'alert', tint: colors.dangerSoft, accent: colors.danger },
-    { key: 'dueToday', label: 'Due today', count: dueTodayCount, icon: 'calendar', tint: colors.warningSoft, accent: colors.warning },
-    { key: 'comingUp', label: 'Coming up', count: comingUpCount, icon: 'calendar', tint: colors.oliveSoft, accent: colors.olive },
+    {
+      key: 'overdue', label: 'Overdue', count: overdueCount, icon: 'alert', tint: colors.dangerSoft, accent: colors.danger,
+      onPress: overdueCount > 0 ? onOpenOverdue : undefined,
+      actionHint: 'View in To Do',
+    },
+    {
+      key: 'dueToday', label: 'Due today', count: dueTodayCount, icon: 'calendar', tint: colors.warningSoft, accent: colors.warning,
+      onPress: dueTodayCount > 0 ? onOpenDueToday : undefined,
+      actionHint: 'View in To Do',
+    },
+    {
+      key: 'comingUp', label: 'Coming up', count: comingUpCount, icon: 'calendar', tint: colors.oliveSoft, accent: colors.olive,
+      onPress: comingUpCount > 0 ? scrollToUpcoming : undefined,
+      actionHint: 'Jump to Upcoming below',
+    },
     ...(assignedToYouCount !== undefined
-      ? [{ key: 'assignedToYou', label: 'Assigned to you', count: assignedToYouCount, icon: 'people' as const, tint: colors.primarySoft, accent: colors.primary }]
+      ? [{
+          key: 'assignedToYou', label: 'Assigned to you', count: assignedToYouCount, icon: 'people' as const, tint: colors.primarySoft, accent: colors.primary,
+          onPress: assignedToYouCount > 0 ? onOpenAssignedToYou : undefined,
+          actionHint: 'View in To Do',
+        }]
       : []),
     { key: 'updatesThisWeek', label: 'Updates this week', count: updatesThisWeekCount, icon: 'clock' as const, tint: colors.blueSoft, accent: colors.blue },
   ];
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
@@ -278,24 +350,54 @@ export function HomeScreen({
         <>
           {records.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.snapshotRow}>
-              {statusChips.map((chip) => (
-                <View key={chip.key} style={[styles.statusChip, { backgroundColor: chip.tint }]}>
-                  <View style={styles.statusTopRow}>
-                    <View style={styles.statusIconChip}>
-                      <StatusIcon icon={chip.icon} color={chip.accent} />
+              {statusChips.map((chip) => {
+                // Corrective task 2: the whole tile is one Pressable
+                // (requirement 1), not just its icon/text -- and it only
+                // becomes a button at all when there is somewhere genuine
+                // to send the user (zero count, or "Updates this week"'s
+                // deliberate no-destination case, leave it informational).
+                const interactive = Boolean(chip.onPress);
+                return (
+                  <Pressable
+                    key={chip.key}
+                    accessibilityRole={interactive ? 'button' : undefined}
+                    accessibilityLabel={interactive ? `${chip.count} ${chip.label.toLowerCase()}. ${chip.actionHint}.` : `${chip.count} ${chip.label.toLowerCase()}`}
+                    disabled={!interactive}
+                    onPress={chip.onPress}
+                    style={({ pressed }) => [
+                      styles.statusChip,
+                      { backgroundColor: chip.tint },
+                      pressed && interactive && styles.statusChipPressed,
+                    ]}
+                  >
+                    <View style={styles.statusTopRow}>
+                      <View style={styles.statusIconChip}>
+                        <StatusIcon icon={chip.icon} color={chip.accent} />
+                      </View>
+                      <AppText variant="title" style={styles.statusCount}>{chip.count}</AppText>
                     </View>
-                    <AppText variant="title" style={styles.statusCount}>{chip.count}</AppText>
-                  </View>
-                  <AppText variant="secondary" tone="soft" numberOfLines={1}>{chip.label}</AppText>
-                </View>
-              ))}
+                    <AppText variant="secondary" tone="soft" numberOfLines={1}>{chip.label}</AppText>
+                  </Pressable>
+                );
+              })}
             </ScrollView>
           ) : null}
 
           {sections.length > 0 ? (
-            <View style={styles.sections}>
+            <View
+              style={styles.sections}
+              onLayout={(event) => {
+                sectionsContainerY.current = event.nativeEvent.layout.y;
+              }}
+            >
               {sections.map((section) => (
-                <View key={section.title} style={styles.section}>
+                <View
+                  key={section.title}
+                  style={styles.section}
+                  onLayout={(event) => {
+                    sectionOffsetsWithinContainer.current[section.title] = event.nativeEvent.layout.y;
+                  }}
+                >
                   <View style={styles.sectionHeader}>
                     <AppText variant="section">{section.title}</AppText>
                   </View>
@@ -411,6 +513,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     padding: spacing.md,
     gap: spacing.xs,
+  },
+  // Corrective task 2: same scale+opacity feedback Button.tsx already
+  // uses elsewhere in the app, so this reads as native/premium and
+  // consistent rather than a one-off new interaction style.
+  statusChipPressed: {
+    transform: [{ scale: 0.99 }],
+    opacity: 0.9,
   },
   statusTopRow: {
     flexDirection: 'row',

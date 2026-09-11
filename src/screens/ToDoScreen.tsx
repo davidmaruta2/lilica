@@ -21,6 +21,16 @@ type Props = {
   onOpenRecord: (recordId: string) => void;
   onSaveRecord: (record: LilicaRecord) => void;
   onAddSomething: () => void;
+  // Corrective task 2: Home's at-a-glance strip navigates here with one of
+  // these set as a one-shot initial value (read once at mount -- this
+  // screen already remounts fresh every time its tab becomes active, see
+  // App.tsx's `key={currentSpace.careSpaceId}` plus the tab-switch
+  // conditional render). Every group/filter still renders exactly as it
+  // always did -- initialFocusGroup only changes which one appears FIRST,
+  // never which records are included, so the full record set the strip's
+  // count represented is always still here, just reordered for visibility.
+  initialFilter?: AssignmentFilter;
+  initialFocusGroup?: 'overdue' | 'today' | 'upcoming';
 };
 
 type AssignmentFilter = 'all' | 'mine' | 'unassigned';
@@ -43,8 +53,8 @@ function assignmentLabel(record: LilicaRecord, activeMembershipId?: string): 'Yo
   return undefined;
 }
 
-export function ToDoScreen({ records, personName, activeMembershipId, onOpenRecord, onSaveRecord, onAddSomething }: Props) {
-  const [filter, setFilter] = useState<AssignmentFilter>('all');
+export function ToDoScreen({ records, personName, activeMembershipId, onOpenRecord, onSaveRecord, onAddSomething, initialFilter, initialFocusGroup }: Props) {
+  const [filter, setFilter] = useState<AssignmentFilter>(initialFilter ?? 'all');
   const [showCompleted, setShowCompleted] = useState(false);
 
   const actionable = useMemo(() => records.filter(isActionableRecord), [records]);
@@ -95,6 +105,18 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
   );
 
   const hasActiveWork = grouped.overdue.length + grouped.today.length + grouped.upcoming.length > 0;
+
+  // Corrective task 2: promotes the focused group to the top -- the same
+  // three groups always render (any non-empty one), just reordered, so
+  // the record set never differs from the unfocused view.
+  const groupDefs = [
+    { key: 'overdue', title: 'Overdue', items: grouped.overdue },
+    { key: 'today', title: 'Today / Needs doing', items: grouped.today },
+    { key: 'upcoming', title: 'Upcoming', items: grouped.upcoming },
+  ];
+  const orderedGroupDefs = initialFocusGroup
+    ? [...groupDefs.filter((group) => group.key === initialFocusGroup), ...groupDefs.filter((group) => group.key !== initialFocusGroup)]
+    : groupDefs;
 
   function markComplete(record: LilicaRecord) {
     onSaveRecord({ ...record, ...completionUpdate(record, true, record.responsiblePerson) });
@@ -185,24 +207,18 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
 
       {hasActiveWork ? (
         <View style={styles.groups}>
-          {grouped.overdue.length > 0 ? (
-            <View style={styles.group}>
-              <AppText variant="section">Overdue</AppText>
-              <View style={styles.groupList}>{grouped.overdue.map((record) => renderRow(record, false))}</View>
-            </View>
-          ) : null}
-          {grouped.today.length > 0 ? (
-            <View style={styles.group}>
-              <AppText variant="section">Today / Needs doing</AppText>
-              <View style={styles.groupList}>{grouped.today.map((record) => renderRow(record, false))}</View>
-            </View>
-          ) : null}
-          {grouped.upcoming.length > 0 ? (
-            <View style={styles.group}>
-              <AppText variant="section">Upcoming</AppText>
-              <View style={styles.groupList}>{grouped.upcoming.map((record) => renderRow(record, false))}</View>
-            </View>
-          ) : null}
+          {/* Corrective task 2: same three groups, same records, same
+              non-empty-only filtering as always -- initialFocusGroup only
+              changes which order they render in, so a chip's destination
+              always shows every record the tapped count represented. */}
+          {orderedGroupDefs.map(({ key, title, items }) => (
+            items.length > 0 ? (
+              <View key={key} style={styles.group}>
+                <AppText variant="section">{title}</AppText>
+                <View style={styles.groupList}>{items.map((record) => renderRow(record, false))}</View>
+              </View>
+            ) : null
+          ))}
         </View>
       ) : (
         <AppText variant="secondary" tone="soft" style={styles.emptyState}>Nothing needs doing right now.</AppText>

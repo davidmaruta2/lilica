@@ -177,6 +177,13 @@ function LilicaApp() {
   // Person's per-section Add links -- same consume/clear contract as
   // calendarOpenRecordId above; only one of the two is ever set at once.
   const [projectionOpenType, setProjectionOpenType] = useState<LilicaRecordType>();
+  // Corrective task 2: Home's at-a-glance strip tiles navigate to To Do
+  // with one of these pre-set as a ToDoScreen mount-time initial value.
+  // Cleared whenever the tab bar itself is used to switch tabs (see its
+  // onChange below), so navigating to To Do directly never inherits a
+  // stale target from an earlier chip tap.
+  const [todoInitialFilter, setTodoInitialFilter] = useState<'mine'>();
+  const [todoInitialFocusGroup, setTodoInitialFocusGroup] = useState<'overdue' | 'today'>();
   const [showAccount, setShowAccount] = useState(false);
   // Phase 15: the active care space's real members, for the record
   // editor's assignment selector and the Care Circle screen. Never
@@ -756,6 +763,22 @@ function LilicaApp() {
     go('firstThing');
   }
 
+  // Corrective task 2: Home's Overdue/Due today/Assigned to you tiles
+  // land here. This only switches which tab is active and what To Do
+  // opens focused on -- the active care space (and so activeCareSpaceId)
+  // is never touched, exactly like every other tab switch in this app.
+  function openToDoFocusedOn(group: 'overdue' | 'today') {
+    setTodoInitialFilter(undefined);
+    setTodoInitialFocusGroup(group);
+    setActiveTab('todo');
+  }
+
+  function openToDoAssignedToMe() {
+    setTodoInitialFocusGroup(undefined);
+    setTodoInitialFilter('mine');
+    setActiveTab('todo');
+  }
+
   function renderShell() {
     let content;
 
@@ -774,6 +797,9 @@ function LilicaApp() {
             if (!currentSpace) return;
             setState((current) => projectActiveCareSpace(replaceCareSpace(current, currentSpace.careSpaceId, (space) => ({ ...space, allSetDismissed: true }))));
           }}
+          onOpenOverdue={() => openToDoFocusedOn('overdue')}
+          onOpenDueToday={() => openToDoFocusedOn('today')}
+          onOpenAssignedToYou={openToDoAssignedToMe}
         />
       );
     } else if (activeTab === 'calendar') {
@@ -797,6 +823,8 @@ function LilicaApp() {
           records={state.records}
           personName={currentSpace?.displayName}
           activeMembershipId={currentSpace?.membershipId}
+          initialFilter={todoInitialFilter}
+          initialFocusGroup={todoInitialFocusGroup}
           onOpenRecord={openRecordFromProjection}
           onSaveRecord={saveRecord}
           onAddSomething={() => go('firstThing')}
@@ -869,6 +897,12 @@ function LilicaApp() {
           onChange={(tab) => {
             setActiveTab(tab);
             if (tab !== 'person') setShowAccount(false);
+            // A direct tab-bar tap always starts To Do at its normal
+            // defaults, never inheriting an earlier Home strip tap's
+            // target -- only openToDoFocusedOn/openToDoAssignedToMe set
+            // these, immediately before switching tabs themselves.
+            setTodoInitialFilter(undefined);
+            setTodoInitialFocusGroup(undefined);
           }}
         />
       </SafeAreaView>
