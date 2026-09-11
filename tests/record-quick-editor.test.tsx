@@ -169,7 +169,7 @@ describe('RecordQuickEditor: saving/dismissing a NEW record still closes back to
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
-  it('the sheet\'s own Done button calls onDismiss directly, without saving anything', async () => {
+  it('Done from the read-only detail (nothing being edited) just closes, without saving anything', async () => {
     const onSaveRecord = jest.fn();
     const onDismiss = jest.fn();
     const screen = await render(
@@ -181,5 +181,46 @@ describe('RecordQuickEditor: saving/dismissing a NEW record still closes back to
     // finish and call onDismiss, same as any other RecordSheet consumer.
     await waitFor(() => expect(onDismiss).toHaveBeenCalledTimes(1));
     expect(onSaveRecord).not.toHaveBeenCalled();
+  });
+});
+
+describe('RecordQuickEditor: explicit product direction -- closing while editing saves pending valid changes', () => {
+  it('pressing Done after Edit (without ever pressing "Save changes") still saves the change', async () => {
+    const onSaveRecord = jest.fn();
+    const onDismiss = jest.fn();
+    const screen = await render(
+      <RecordQuickEditor {...baseProps} onSaveRecord={onSaveRecord} onDismiss={onDismiss} records={[existing]} recordId="appt-1" />,
+    );
+    await fireEvent.press(screen.getByLabelText('Edit Dentist'));
+    await fireEvent.changeText(screen.getByDisplayValue('Dentist'), 'Dentist (rescheduled)');
+    await fireEvent.press(screen.getByText('Done'));
+    expect(onSaveRecord).toHaveBeenCalledWith(expect.objectContaining({ id: 'appt-1', title: 'Dentist (rescheduled)' }));
+    await waitFor(() => expect(onDismiss).toHaveBeenCalledTimes(1));
+  });
+
+  it('closing a brand-new draft via Done saves it exactly once -- no duplicate onDismiss-then-save race', async () => {
+    const onSaveRecord = jest.fn();
+    const onDismiss = jest.fn();
+    const screen = await render(
+      <RecordQuickEditor {...baseProps} onSaveRecord={onSaveRecord} onDismiss={onDismiss} records={[]} newType="task" />,
+    );
+    await fireEvent.changeText(screen.getAllByDisplayValue('')[0], 'Book a taxi');
+    await fireEvent.press(screen.getByText('Done'));
+    expect(onSaveRecord).toHaveBeenCalledTimes(1);
+    expect(onSaveRecord).toHaveBeenCalledWith(expect.objectContaining({ type: 'task', title: 'Book a taxi' }));
+    await waitFor(() => expect(onDismiss).toHaveBeenCalledTimes(1));
+  });
+
+  it('closing via Done does not force-save an invalid draft', async () => {
+    const onSaveRecord = jest.fn();
+    const onDismiss = jest.fn();
+    const screen = await render(
+      <RecordQuickEditor {...baseProps} onSaveRecord={onSaveRecord} onDismiss={onDismiss} records={[]} newType="appointment" />,
+    );
+    // Title left blank -- an appointment also requires a date, which is
+    // never filled in here either.
+    await fireEvent.press(screen.getByText('Done'));
+    expect(onSaveRecord).not.toHaveBeenCalled();
+    await waitFor(() => expect(onDismiss).toHaveBeenCalledTimes(1));
   });
 });

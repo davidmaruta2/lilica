@@ -12,7 +12,7 @@ import {
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { canEditRecord, RecordDetail } from '../components/RecordDetail';
-import { createRecordDraft, RecordDraft, RecordEditor } from '../components/RecordEditor';
+import { createRecordDraft, RecordDraft, RecordEditor, RecordEditorHandle } from '../components/RecordEditor';
 import { RecordSheet, RecordSheetHandle } from '../components/RecordSheet';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
@@ -86,6 +86,11 @@ export function FirstThingScreen({
   const name = personName?.trim() || 'them';
   const list = useRef<FlatList<(typeof firstItemOptions)[number]>>(null);
   const sheet = useRef<RecordSheetHandle>(null);
+  // Explicit product direction: closing the sheet (Done, backdrop tap or
+  // swipe) should save pending valid changes first, not just discard
+  // them back to an in-memory draft -- see RecordSheet's onBeforeDismiss
+  // and RecordEditor's imperative save() handle.
+  const editorRef = useRef<RecordEditorHandle>(null);
   const focusAfterDismiss = useRef<number | undefined>(undefined);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [activeIndex, setActiveIndex] = useState(0);
@@ -347,6 +352,7 @@ export function FirstThingScreen({
             ref={sheet}
             title={openView === 'list' ? terms.heading : option?.title ?? 'Add something'}
             onDismiss={finishDismiss}
+            onBeforeDismiss={openView === 'editor' ? () => editorRef.current?.save() : undefined}
           >
             {openView === 'list' ? (
               <View style={styles.recordList}>
@@ -386,6 +392,7 @@ export function FirstThingScreen({
                   />
                 ) : (
                   <RecordEditor
+                    ref={editorRef}
                     type={openType}
                     record={record}
                     draft={draft}

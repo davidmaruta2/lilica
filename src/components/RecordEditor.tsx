@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { Directory, File, Paths } from 'expo-file-system';
@@ -157,7 +157,23 @@ export function completionUpdate(
   };
 }
 
-export function RecordEditor({ type, record, draft, supportedPersonId, activeMembershipId, careCircleMembers, onRequestReminderPermission, onChange, onSave, onRemove }: Props) {
+// Explicit product direction: closing the sheet (Done, backdrop tap, or
+// swipe) should save pending valid changes, not just discard them back
+// to an in-memory draft -- the user should never have to remember to
+// press Save/Add first. RecordSheet's host (RecordQuickEditor/
+// FirstThingScreen) calls this imperative handle right before the sheet
+// starts closing; it calls the exact same internal save() the Save/Add
+// button already uses -- same validation (a genuinely invalid draft,
+// e.g. a required date left blank, still isn't saved), same domain
+// logic, never a second save path.
+export type RecordEditorHandle = {
+  save: () => boolean;
+};
+
+export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function RecordEditor(
+  { type, record, draft, supportedPersonId, activeMembershipId, careCircleMembers, onRequestReminderPermission, onChange, onSave, onRemove },
+  ref,
+) {
   const [attachmentError, setAttachmentError] = useState('');
   const parsedDate = draft.date ? toIsoDate(draft.date) : undefined;
   const parsedExpiry = draft.expiryDate ? toIsoDate(draft.expiryDate) : undefined;
@@ -165,6 +181,14 @@ export function RecordEditor({ type, record, draft, supportedPersonId, activeMem
   const dateValid = (!dateRequired || Boolean(parsedDate)) && (!draft.date || Boolean(parsedDate));
   const expiryValid = !draft.expiryDate || Boolean(parsedExpiry);
   const canSave = draft.title.trim().length > 0 && dateValid && expiryValid;
+
+  useImperativeHandle(ref, () => ({
+    save: () => {
+      if (!canSave) return false;
+      save();
+      return true;
+    },
+  }));
   const usesDueDate = type === 'task' || type === 'bill' || type === 'homeMatter';
   const usesEventDate = type === 'appointment' || type === 'document' || type === 'careNote' || type === 'update';
   const supportsCompletion = type === 'task' || type === 'bill' || type === 'homeMatter';
@@ -511,7 +535,7 @@ export function RecordEditor({ type, record, draft, supportedPersonId, activeMem
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   form: { gap: spacing.md, paddingBottom: spacing.xl },

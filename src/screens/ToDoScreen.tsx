@@ -283,7 +283,11 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
           {orderedGroupDefs.map(({ key, title, items }) => (
             items.length > 0 ? (
               <View key={key} style={styles.group}>
-                <AppText variant="section" tone={key === firstVisibleGroupKey ? 'white' : 'default'}>{title}</AppText>
+                {/* Explicit product direction: "Today / Needs doing"
+                    is always white, regardless of whether Overdue
+                    renders above it -- not just whichever group happens
+                    to render first. */}
+                <AppText variant="section" tone={key === 'today' || key === firstVisibleGroupKey ? 'white' : 'default'}>{title}</AppText>
                 <View style={styles.groupList}>{items.map((record) => renderRow(record))}</View>
               </View>
             ) : null

@@ -21,6 +21,14 @@ type Props = {
   title: string;
   children: ReactNode;
   onDismiss: () => void;
+  // Explicit product direction: closing the sheet -- by any of the three
+  // routes below (Done, backdrop tap, swipe-down) -- should save pending
+  // valid changes first, not just discard them back to an in-memory
+  // draft. Called synchronously right before the close animation starts;
+  // the host (RecordQuickEditor/FirstThingScreen) is what actually knows
+  // how to trigger its own RecordEditor's save (via RecordEditorHandle),
+  // this component only ever guarantees it is asked once per close.
+  onBeforeDismiss?: () => void;
 };
 
 export type RecordSheetHandle = {
@@ -30,7 +38,7 @@ export type RecordSheetHandle = {
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 export const RecordSheet = forwardRef<RecordSheetHandle, Props>(function RecordSheet(
-  { title, children, onDismiss },
+  { title, children, onDismiss, onBeforeDismiss },
   ref,
 ) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -50,6 +58,7 @@ export const RecordSheet = forwardRef<RecordSheetHandle, Props>(function RecordS
   function dismiss() {
     if (closing.current) return;
     closing.current = true;
+    onBeforeDismiss?.();
     Animated.timing(translateY, {
       toValue: SCREEN_HEIGHT,
       duration: 220,

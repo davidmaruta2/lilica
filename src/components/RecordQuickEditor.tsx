@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { CareCircleMember } from '../careCircle';
 import { firstItemOptions } from '../data/options';
 import { LilicaRecord, LilicaRecordType } from '../types';
 import { canEditRecord, RecordDetail } from './RecordDetail';
-import { createRecordDraft, RecordDraft, RecordEditor } from './RecordEditor';
+import { createRecordDraft, RecordDraft, RecordEditor, RecordEditorHandle } from './RecordEditor';
 import { RecordSheet } from './RecordSheet';
 
 // Bug fix: opening a record from Home/Calendar/To Do/Care Circle/Wellbeing
@@ -62,6 +62,17 @@ export function RecordQuickEditor({
   // App.tsx keys this component by recordId/newType, so a different
   // target is always a fresh mount, never a stale carried-over mode.
   const [mode, setMode] = useState<'view' | 'edit'>(record ? 'view' : 'edit');
+  const editorRef = useRef<RecordEditorHandle>(null);
+  // Explicit product direction: closing the sheet (Done, backdrop tap or
+  // swipe) should save pending valid changes first -- see RecordSheet's
+  // onBeforeDismiss. For a brand-new record, that save's own onSave
+  // handler must NOT also call onDismiss directly (as the plain Save/Add
+  // button press still does) -- RecordSheet's own closing animation is
+  // already under way at that point, and calling onDismiss immediately
+  // would unmount this component mid-animation, skipping it entirely.
+  // This flag is the one signal distinguishing "closing" from "the user
+  // pressed Save/Add" -- both call the exact same onSave.
+  const closingViaSheet = useRef(false);
 
   if (!type) return null;
 
@@ -69,7 +80,14 @@ export function RecordQuickEditor({
   const resolvedDraft = draft ?? createRecordDraft(type, record);
 
   return (
-    <RecordSheet title={option?.title ?? 'Record'} onDismiss={onDismiss}>
+    <RecordSheet
+      title={option?.title ?? 'Record'}
+      onDismiss={onDismiss}
+      onBeforeDismiss={mode === 'edit' ? () => {
+        closingViaSheet.current = true;
+        editorRef.current?.save();
+      } : undefined}
+    >
       {record && mode === 'view' ? (
         <RecordDetail
           record={record}
@@ -79,6 +97,7 @@ export function RecordQuickEditor({
         />
       ) : (
         <RecordEditor
+          ref={editorRef}
           type={type}
           record={record}
           draft={resolvedDraft}
@@ -93,9 +112,12 @@ export function RecordQuickEditor({
             // read-only detail, staying open -- never closing the sheet or
             // falling back to wherever it was opened from. A brand-new
             // record has no detail to return to, so creation stays exactly
-            // as efficient as before: save closes the sheet.
+            // as efficient as before when explicitly saved via the
+            // Save/Add button; when saved by closing instead, the sheet's
+            // own closing animation (already in progress) owns calling
+            // onDismiss once it finishes.
             if (record) setMode('view');
-            else onDismiss();
+            else if (!closingViaSheet.current) onDismiss();
           }}
           onRemove={record ? () => {
             onRemoveRecord(record.id);

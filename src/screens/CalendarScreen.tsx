@@ -244,12 +244,9 @@ export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettin
       </View>
 
       <View style={styles.agenda}>
-        {/* Visual pass: this heading sits within the backdrop's deep
-            zone (per explicit product direction), so it goes white --
-            "Nothing planned"/agenda tiles below are unaffected, since
-            they're either inside their own white card or, for the empty
-            state, deliberately muted regardless of background. */}
-        <AppText variant="section" style={styles.agendaHeading}>{selectedDateLabel()}</AppText>
+        {/* Explicit product direction: this heading stays the normal
+            dark heading colour (not white) on Calendar specifically. */}
+        <AppText variant="section">{selectedDateLabel()}</AppText>
         {selectedRecords.length === 0 ? (
           <AppText variant="secondary" style={[styles.emptyState, styles.agendaSubtext]}>Nothing planned for this day.</AppText>
         ) : (
@@ -329,9 +326,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: 'rgba(255,255,255,0.82)',
-  },
-  agendaHeading: {
-    color: colors.white,
   },
   agendaSubtext: {
     color: 'rgba(255,255,255,0.75)',

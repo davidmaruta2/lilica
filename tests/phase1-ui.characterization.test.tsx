@@ -215,14 +215,35 @@ describe('protected structured-record onboarding', () => {
     expect(categoryLabels).toHaveLength(8);
   });
 
-  it('retains a draft after Done dismisses the sheet while the screen remains mounted', async () => {
-    const screen = await render(<FirstThingScreen {...props} />);
+  // Explicit product direction: closing the sheet (Done) now saves
+  // pending valid changes rather than silently discarding them back to
+  // an in-memory draft -- the user should never have to remember to
+  // press Save/Add first. Same validation as the Save/Add button (an
+  // invalid draft still isn't force-saved) -- see the second test below.
+  it('Done saves a valid new draft, rather than just parking it unsaved', async () => {
+    const onSaveRecord = jest.fn();
+    const screen = await render(<FirstThingScreen {...props} onSaveRecord={onSaveRecord} />);
     await fireEvent.press(screen.getByLabelText('Add Something to do'));
     await fireEvent.changeText(screen.getAllByDisplayValue('')[0], 'Order prescription');
     await fireEvent.press(screen.getByText('Done'));
     await waitFor(() => expect(screen.queryByText('What needs doing?')).toBeNull());
+    expect(onSaveRecord).toHaveBeenCalledWith(expect.objectContaining({ type: 'task', title: 'Order prescription' }));
+    // Saved, not parked -- reopening the category offers a fresh blank
+    // draft, not the same typed text again.
     await fireEvent.press(screen.getByLabelText('Add Something to do'));
-    expect(screen.getByDisplayValue('Order prescription')).toBeTruthy();
+    expect(screen.queryByDisplayValue('Order prescription')).toBeNull();
+  });
+
+  it('Done does not force-save an invalid draft (e.g. a required date left blank)', async () => {
+    const onSaveRecord = jest.fn();
+    const screen = await render(<FirstThingScreen {...props} onSaveRecord={onSaveRecord} />);
+    await fireEvent.press(screen.getByLabelText('Add Appointment'));
+    await fireEvent.changeText(screen.getAllByDisplayValue('')[0], 'Dentist');
+    // No date entered -- appointments require one, same as the Save/Add
+    // button's own validation.
+    await fireEvent.press(screen.getByText('Done'));
+    await waitFor(() => expect(screen.queryByText("What's it for?")).toBeNull());
+    expect(onSaveRecord).not.toHaveBeenCalled();
   });
 
   // Corrective task (view/edit separation): tapping an EXISTING record in
