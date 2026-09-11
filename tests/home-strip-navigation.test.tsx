@@ -218,4 +218,20 @@ describe('To Do: focused entry from the Home strip', () => {
     screen.getByText('My task');
     expect(screen.queryByText('Unassigned task')).toBeNull();
   });
+
+  // Reported gap: arriving at To Do via a Home strip tap left no way
+  // back except the bottom tab bar.
+  it('shows a "Back to Home" button only when arriving via a strip tap (onBack supplied)', async () => {
+    const withoutBack = await render(
+      <ToDoScreen records={[]} onOpenRecord={jest.fn()} onSaveRecord={jest.fn()} onAddSomething={jest.fn()} />,
+    );
+    expect(withoutBack.queryByLabelText('Back to Home')).toBeNull();
+
+    const onBack = jest.fn();
+    const withBack = await render(
+      <ToDoScreen records={[]} onOpenRecord={jest.fn()} onSaveRecord={jest.fn()} onAddSomething={jest.fn()} initialFocusGroup="overdue" onBack={onBack} />,
+    );
+    await fireEvent.press(withBack.getByLabelText('Back to Home'));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
 });

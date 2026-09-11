@@ -23,6 +23,11 @@ type Props = {
   onSwitchPerson?: (careSpaceId: string) => void;
   onAddPerson?: () => void;
   onContinueSetup?: () => void;
+  // Bug fix: unlike every other projection (Calendar/To Do/Person), Home's
+  // own Today/Upcoming/Recently added record cards were never wrapped in
+  // a Pressable at all -- there was no way to open one from here. Reuses
+  // the exact same onOpenRecord contract those screens already use.
+  onOpenRecord?: (recordId: string) => void;
   // Corrective task 2: the at-a-glance strip's Overdue/Due today/Assigned
   // to you tiles navigate to their existing canonical To Do projection
   // (whichever active care space is already selected -- these callbacks
@@ -246,6 +251,7 @@ export function HomeScreen({
   onSwitchPerson = () => undefined,
   onAddPerson = () => undefined,
   onContinueSetup = () => undefined,
+  onOpenRecord,
   onOpenOverdue,
   onOpenDueToday,
   onOpenAssignedToYou,
@@ -443,8 +449,21 @@ export function HomeScreen({
                     {section.records.map((item) => {
                       const visual = visualFor(item.type);
                       const overdue = deriveRecordState(item).overdue;
+                      // Bug fix: this card was a plain, non-interactive
+                      // View -- unlike every other projection (Calendar/
+                      // To Do/Person/Wellbeing updates), there was no way
+                      // to open it from Home at all. Same onOpenRecord
+                      // contract, same destination (the normal record
+                      // editor), just reached from a different screen.
                       return (
-                        <View key={item.id} style={styles.card}>
+                        <Pressable
+                          key={item.id}
+                          accessibilityRole={onOpenRecord ? 'button' : undefined}
+                          accessibilityLabel={`Open ${item.title}`}
+                          disabled={!onOpenRecord}
+                          onPress={() => onOpenRecord?.(item.id)}
+                          style={({ pressed }) => [styles.card, pressed && onOpenRecord && styles.cardPressed]}
+                        >
                           <View style={styles.cardTop}>
                             <View style={[styles.cardIconChip, { backgroundColor: visual.tint }]}>
                               <CategoryIcon type={item.type} color={visual.accent} />
@@ -458,7 +477,7 @@ export function HomeScreen({
                           <AppText variant="meta" tone="muted" numberOfLines={1}>{categoryLabel(item.type)}</AppText>
                           <AppText variant="bodyStrong" numberOfLines={2}>{item.title}</AppText>
                           <AppText variant="secondary" tone="soft" numberOfLines={2}>{itemMeta(item)}</AppText>
-                        </View>
+                        </Pressable>
                       );
                     })}
                   </View>
@@ -626,6 +645,10 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.xxs,
     ...shadow.soft,
+  },
+  cardPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.9,
   },
   cardTop: {
     flexDirection: 'row',

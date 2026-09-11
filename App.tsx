@@ -855,6 +855,7 @@ function LilicaApp() {
             if (!currentSpace) return;
             setState((current) => projectActiveCareSpace(replaceCareSpace(current, currentSpace.careSpaceId, (space) => ({ ...space, allSetDismissed: true }))));
           }}
+          onOpenRecord={openRecordFromProjection}
           onOpenOverdue={() => openToDoFocusedOn('overdue')}
           onOpenDueToday={() => openToDoFocusedOn('today')}
           onOpenAssignedToYou={openToDoAssignedToMe}
@@ -884,12 +885,18 @@ function LilicaApp() {
           records={state.records}
           personName={currentSpace?.displayName}
           activeMembershipId={currentSpace?.membershipId}
+          careCircleMembers={careCircleMembers}
           initialFilter={todoInitialFilter}
           initialFocusGroup={todoInitialFocusGroup}
           onOpenRecord={openRecordFromProjection}
           onSaveRecord={saveRecord}
           onAddSomething={() => go('firstThing')}
           onOpenSettings={() => setShowSettingsMenu(true)}
+          onBack={todoInitialFilter || todoInitialFocusGroup ? () => {
+            setTodoInitialFilter(undefined);
+            setTodoInitialFocusGroup(undefined);
+            setActiveTab('home');
+          } : undefined}
         />
       ) : (
         <FoundationScreen

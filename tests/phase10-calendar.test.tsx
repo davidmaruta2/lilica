@@ -208,4 +208,54 @@ describe('Phase 10: opening a Calendar item reuses the established record editor
     );
     expect(screen.queryByDisplayValue('Dentist')).toBeNull();
   });
+
+  // Bug fix: closing/saving/dismissing a record opened via the one-shot
+  // deep link used to leave the user on this screen's OWN category list
+  // ("records home") instead of returning to Home/Calendar/To Do/Person
+  // -- the actual caller. Confirms save, "Back to X" and the sheet's own
+  // backdrop dismiss (finishDismiss) all now call onBack instead.
+  describe('dismissing a deep-linked record returns to the caller, not "records home"', () => {
+    const existing: LilicaRecord = {
+      id: 'appt-1', type: 'appointment', title: 'Dentist', status: 'scheduled',
+      eventDate: '2026-09-09', createdAt: '2026-09-01T00:00:00.000Z',
+    };
+
+    it('saving the deep-linked record calls onBack, not the category list', async () => {
+      const onBack = jest.fn();
+      const onSaveRecord = jest.fn();
+      const screen = await render(
+        <FirstThingScreen {...baseProps} onBack={onBack} onSaveRecord={onSaveRecord} records={[existing]} everyday initialOpenRecordId="appt-1" />,
+      );
+      screen.getByDisplayValue('Dentist');
+      await fireEvent.press(screen.getByText('Save changes'));
+      expect(onSaveRecord).toHaveBeenCalledTimes(1);
+      expect(onBack).toHaveBeenCalledTimes(1);
+      // Never fell through to the category list ("Appointments") heading.
+      expect(screen.queryByText('Appointments')).toBeNull();
+    });
+
+    it('"Back to Appointments" on a deep-linked record calls onBack instead of showing the list', async () => {
+      const onBack = jest.fn();
+      const screen = await render(
+        <FirstThingScreen {...baseProps} onBack={onBack} records={[existing]} everyday initialOpenRecordId="appt-1" />,
+      );
+      await fireEvent.press(screen.getByText('Back to Appointments'));
+      expect(onBack).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText('Appointments')).toBeNull();
+    });
+
+    it('ordinary in-screen category browsing (not deep-linked) is completely unaffected -- saving still shows the list', async () => {
+      const onBack = jest.fn();
+      const onSaveRecord = jest.fn();
+      const screen = await render(
+        <FirstThingScreen {...baseProps} onBack={onBack} onSaveRecord={onSaveRecord} records={[existing]} everyday />,
+      );
+      await fireEvent.press(screen.getByLabelText('Open Appointment'));
+      await fireEvent.press(screen.getByLabelText('Edit Dentist'));
+      await fireEvent.press(screen.getByText('Save changes'));
+      expect(onSaveRecord).toHaveBeenCalledTimes(1);
+      expect(onBack).not.toHaveBeenCalled();
+      screen.getByText('Appointments');
+    });
+  });
 });

@@ -7,9 +7,10 @@ import { PlusIcon } from '../components/PlusIcon';
 import { SettingsCogButton } from '../components/SettingsCogButton';
 import { AppText } from '../components/Text';
 import { Wordmark } from '../components/Wordmark';
+import { CareCircleMember } from '../careCircle';
 import { CategoryIcon, categoryLabel, visualFor } from './HomeScreen';
-import { deriveRecordState, formatDateForDisplay, isActionableRecord } from '../records';
-import { colors, radius, spacing } from '../theme';
+import { DerivedRecordState, deriveRecordState, formatDateForDisplay, isActionableRecord } from '../records';
+import { colors, radius, shadow, spacing } from '../theme';
 import { LilicaRecord } from '../types';
 
 type Props = {
@@ -36,6 +37,23 @@ type Props = {
   // Corrective task 4: app-level Settings entry point, same component and
   // placement as Home/Calendar/People. Omitted (no cog) when not supplied.
   onOpenSettings?: () => void;
+  // Reported gap: arriving here via a Home strip tap (Overdue/Due today/
+  // Assigned to you) left no way back except the bottom tab bar -- the
+  // user had visibly "gone into" To Do from Home, not chosen the To Do
+  // tab themselves. App.tsx supplies this only when initialFilter/
+  // initialFocusGroup are set (the same explicit signal that already
+  // distinguishes a strip-tap entry from an ordinary tab-bar visit, per
+  // corrective task 5's "never guess from screen history" discipline),
+  // and it returns to Home specifically, not a generic stageOrder walk.
+  onBack?: () => void;
+  // Corrective task 8: lets the metadata line show a real Care Circle
+  // member's own name (e.g. "Tomorrow · Marion") instead of staying
+  // silent for anyone who isn't the organiser -- reusing the same real
+  // membership data Phase 15's assignment selector already resolves
+  // names from, never a name match/guess. Omitted entirely (falls back
+  // to exactly the previous Unassigned/You-only behaviour) when not
+  // supplied, so no assignment semantics change.
+  careCircleMembers?: CareCircleMember[];
 };
 
 type AssignmentFilter = 'all' | 'mine' | 'unassigned';
@@ -50,15 +68,42 @@ function completionLabel(type: LilicaRecord['type']): string {
   return 'Mark complete';
 }
 
-function assignmentLabel(record: LilicaRecord, activeMembershipId?: string): 'You' | 'Unassigned' | undefined {
+// "Unassigned"/"You" are exactly as before (Phase 9); a third case now
+// resolves any OTHER assignee to their real Care Circle display name when
+// that data is available (Phase 15), never a name match or guess -- if
+// the assignee isn't found in careCircleMembers, this stays undefined
+// exactly as it always did, rather than fabricating anything.
+function assignmentLabel(record: LilicaRecord, activeMembershipId?: string, careCircleMembers?: CareCircleMember[]): string | undefined {
   if (!record.assignedMembershipId) return 'Unassigned';
   if (activeMembershipId && record.assignedMembershipId === activeMembershipId) return 'You';
-  // A membership ID that isn't the organiser's own doesn't exist under the
-  // current Phase 9 scope (Unassigned/You only) -- never fabricate a name.
-  return undefined;
+  return careCircleMembers?.find((member) => member.membershipId === record.assignedMembershipId)?.displayName;
 }
 
-export function ToDoScreen({ records, personName, activeMembershipId, onOpenRecord, onSaveRecord, onAddSomething, initialFilter, initialFocusGroup, onOpenSettings }: Props) {
+// Corrective task 8: presentational-only date wording layered on top of
+// the EXISTING derived.overdue/dueToday booleans -- deriveRecordState()
+// itself is untouched, and this never changes which group (overdue/
+// today/upcoming) a record falls into, only how its due date reads in
+// the one compact metadata line. "Tomorrow" is a plain local date
+// comparison, not a new stored/derived field.
+function dueMetaText(record: LilicaRecord, derived: DerivedRecordState): string | undefined {
+  if (derived.completed) return undefined;
+  if (derived.overdue) return `Overdue · ${formatDateForDisplay(record.dueDate ?? record.date) ?? ''}`;
+  if (derived.dueToday) return 'Today';
+  const dueDate = record.dueDate ?? record.date;
+  if (!dueDate) return 'No due date';
+  const parsed = new Date(`${dueDate}T00:00:00`);
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (!Number.isNaN(parsed.getTime())
+    && parsed.getFullYear() === tomorrow.getFullYear()
+    && parsed.getMonth() === tomorrow.getMonth()
+    && parsed.getDate() === tomorrow.getDate()) {
+    return 'Tomorrow';
+  }
+  return formatDateForDisplay(dueDate);
+}
+
+export function ToDoScreen({ records, personName, activeMembershipId, onOpenRecord, onSaveRecord, onAddSomething, initialFilter, initialFocusGroup, onOpenSettings, onBack, careCircleMembers }: Props) {
   const [filter, setFilter] = useState<AssignmentFilter>(initialFilter ?? 'all');
   const [showCompleted, setShowCompleted] = useState(false);
 
@@ -131,19 +176,22 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
     onSaveRecord({ ...record, ...completionUpdate(record, false, record.responsiblePerson) });
   }
 
+  // Corrective task 8: strict WHAT / WHEN / WHO hierarchy -- category +
+  // title read first, one quiet metadata line (due state and assignee
+  // together, plain text, never pill-shaped) reads second, and the
+  // completion control is a small outlined circle on the right, entirely
+  // separate from the tappable row. No domain logic changed here: the
+  // same completionUpdate()-backed markComplete()/reopen() handlers, the
+  // same accessibility strings ("Mark Water as paid" / "Mark Carpet
+  // complete" / "Reopen ..."), the same bill-vs-task/homeMatter paid-vs-
+  // complete distinction (that lives in completionLabel()/
+  // completionUpdate(), untouched).
   function renderRow(record: LilicaRecord, completed: boolean) {
     const visual = visualFor(record.type);
     const derived = deriveRecordState(record);
-    const badge = assignmentLabel(record, activeMembershipId);
-    const dueLabel = completed
-      ? undefined
-      : derived.overdue
-        ? `Overdue · ${formatDateForDisplay(record.dueDate ?? record.date) ?? ''}`
-        : derived.dueToday
-          ? 'Due today'
-          : (record.dueDate ?? record.date)
-            ? `Due ${formatDateForDisplay(record.dueDate ?? record.date)}`
-            : 'No due date';
+    const assignee = assignmentLabel(record, activeMembershipId, careCircleMembers);
+    const dueText = dueMetaText(record, derived);
+    const metaLine = [dueText, assignee].filter(Boolean).join(' · ');
 
     return (
       <View key={record.id} style={styles.row}>
@@ -159,23 +207,26 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
           <View style={styles.rowCopy}>
             <AppText variant="meta" tone="muted" numberOfLines={1}>{categoryLabel(record.type)}</AppText>
             <AppText variant="bodyStrong" numberOfLines={2}>{record.title}</AppText>
-            <View style={styles.rowMeta}>
-              {dueLabel ? (
-                <AppText variant="secondary" tone={derived.overdue ? 'danger' : 'soft'}>{dueLabel}</AppText>
-              ) : null}
-              {badge ? <View style={styles.assignmentBadge}><AppText variant="meta" tone="soft">{badge}</AppText></View> : null}
-            </View>
+            {metaLine ? (
+              // "Overdue" keeps a restrained warning tone; everything
+              // else (including Unassigned/You/a real name) is ordinary
+              // quiet metadata text, never a filled capsule/button.
+              <AppText variant="secondary" tone={derived.overdue && !completed ? 'danger' : 'soft'} numberOfLines={1}>
+                {metaLine}
+              </AppText>
+            ) : null}
           </View>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={completed ? `Reopen ${record.title}` : `${completionLabel(record.type)}: ${record.title}`}
           onPress={() => completed ? reopen(record) : markComplete(record)}
-          style={styles.actionButton}
+          hitSlop={8}
+          style={styles.completionControl}
         >
-          <AppText variant="secondary" tone="primary" style={styles.actionButtonLabel}>
-            {completed ? 'Reopen' : completionLabel(record.type)}
-          </AppText>
+          <View style={[styles.completionCircle, completed && styles.completionCircleChecked]}>
+            {completed ? <View style={styles.completionTick} /> : null}
+          </View>
         </Pressable>
       </View>
     );
@@ -186,9 +237,22 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
       {/* Corrective task 4: same fixed-size Settings cog + repositioned
           Add row as Home -- see HomeScreen.tsx's header comment. */}
       <View style={styles.header}>
-        <View>
-          <Wordmark size="compact" />
-          <AppText variant="title">To Do</AppText>
+        <View style={styles.headerLeft}>
+          {onBack ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Back to Home"
+              onPress={onBack}
+              hitSlop={8}
+              style={styles.backButton}
+            >
+              <View style={styles.backChevron} />
+            </Pressable>
+          ) : null}
+          <View>
+            <Wordmark size="compact" />
+            <AppText variant="title">To Do</AppText>
+          </View>
         </View>
         <View style={styles.headerActions}>
           <Button label="Add" icon={<PlusIcon />} onPress={onAddSomething} style={styles.addButton} />
@@ -276,6 +340,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  backButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Same drawn-chevron technique as Header.tsx's own back chevron.
+  backChevron: {
+    width: 12,
+    height: 12,
+    borderLeftWidth: 2.5,
+    borderBottomWidth: 2.5,
+    borderColor: colors.ink,
+    transform: [{ rotate: '45deg' }],
+  },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -320,15 +404,20 @@ const styles = StyleSheet.create({
   emptyState: {
     marginTop: spacing.xxs,
   },
+  // Corrective task 8: radius.lg + shadow.soft matches the "elevated
+  // card" language Home's own record cards already use elsewhere in the
+  // app -- more breathing room (padding bumped from spacing.sm to
+  // spacing.md) and a more premium feel, not a new visual language.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radius.md,
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
+    ...shadow.soft,
   },
   rowMain: {
     flex: 1,
@@ -347,28 +436,39 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  rowMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: 2,
-  },
-  assignmentBadge: {
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primarySoft,
-  },
-  actionButton: {
-    minHeight: 36,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primarySoft,
+  // Corrective task 8: the completion control is its own separate touch
+  // target (a Pressable sibling of rowMain, never overlapping it), a
+  // small outlined circle rather than a large filled pill -- so it no
+  // longer competes for the row's horizontal space with the category
+  // label or crowds the due/assignment metadata.
+  completionControl: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionButtonLabel: {
-    fontWeight: '700',
+  completionCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  completionCircleChecked: {
+    backgroundColor: colors.primary,
+  },
+  // Same drawn-tick technique already used for PersonSwitcher's selected
+  // check, at the same proportions -- no new visual language.
+  completionTick: {
+    width: 11,
+    height: 7,
+    borderLeftWidth: 2.5,
+    borderBottomWidth: 2.5,
+    borderColor: colors.white,
+    transform: [{ rotate: '-45deg' }],
+    marginTop: -2,
   },
   completedSection: {
     gap: spacing.sm,

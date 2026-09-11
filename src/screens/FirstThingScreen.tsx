@@ -95,6 +95,15 @@ export function FirstThingScreen({
   const list = useRef<FlatList<(typeof firstItemOptions)[number]>>(null);
   const sheet = useRef<RecordSheetHandle>(null);
   const focusAfterDismiss = useRef<number | undefined>(undefined);
+  // Bug fix: opening a record via the one-shot initialOpenRecordId/
+  // initialOpenType deep link (from Home/Calendar/To Do/Person/Wellbeing
+  // updates) used to leave the user on THIS screen's own category list
+  // once they saved/removed/dismissed that one record ("records home"),
+  // instead of returning to wherever they actually came from. Set true
+  // only by the deep-link effect below, and consumed (reset to false)
+  // the moment that specific editor closes, so ordinary in-screen
+  // category browsing is completely unaffected.
+  const deepLinked = useRef(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [activeIndex, setActiveIndex] = useState(0);
   const [openType, setOpenType] = useState<LilicaRecordType>();
@@ -132,6 +141,9 @@ export function FirstThingScreen({
   }
 
   function openEditor(index: number, type: LilicaRecordType, record?: LilicaRecord) {
+    // Any direct call defaults to "not a deep link" -- the effect below
+    // sets this true again immediately afterwards for its own call.
+    deepLinked.current = false;
     const key = record?.id ?? `${type}:new`;
     setActiveIndex(index);
     setDrafts((current) => current[key]
@@ -145,6 +157,7 @@ export function FirstThingScreen({
   }
 
   function openCategory(index: number, type: LilicaRecordType) {
+    deepLinked.current = false;
     const existing = records.some((record) => record.type === type);
     if (!existing) {
       openEditor(index, type);
@@ -162,13 +175,19 @@ export function FirstThingScreen({
     if (initialOpenRecordId) {
       const record = records.find((item) => item.id === initialOpenRecordId);
       const index = record ? ordered.findIndex((item) => item.id === record.type) : -1;
-      if (record && index !== -1) openEditor(index, record.type, record);
+      if (record && index !== -1) {
+        openEditor(index, record.type, record);
+        deepLinked.current = true;
+      }
       onInitialOpenHandled?.();
       return;
     }
     if (initialOpenType) {
       const index = ordered.findIndex((item) => item.id === initialOpenType);
-      if (index !== -1) openEditor(index, initialOpenType);
+      if (index !== -1) {
+        openEditor(index, initialOpenType);
+        deepLinked.current = true;
+      }
       onInitialOpenHandled?.();
     }
     // Intentionally runs only when the requested ID/type changes -- this is
@@ -183,6 +202,11 @@ export function FirstThingScreen({
       [`${record.type}:${record.id}`]: createRecordDraft(record.type, record),
       ...(openRecordId ? {} : { [`${record.type}:new`]: createRecordDraft(record.type) }),
     }));
+    if (deepLinked.current) {
+      deepLinked.current = false;
+      onBack();
+      return;
+    }
     focusAfterDismiss.current = Math.min(index + 1, ordered.length - 1);
     setOpenRecordId(undefined);
     setOpenDraftKey(undefined);
@@ -196,12 +220,27 @@ export function FirstThingScreen({
       delete next[`${openType}:${recordId}`];
       return next;
     });
+    if (deepLinked.current) {
+      deepLinked.current = false;
+      onBack();
+      return;
+    }
     setOpenRecordId(undefined);
     setOpenDraftKey(undefined);
     setOpenView('list');
   }
 
   function finishDismiss() {
+    // Closing (backdrop tap/swipe) the editor that a deep link opened
+    // returns straight to the caller (Home/Calendar/To Do/Person/
+    // Wellbeing updates) rather than surfacing this screen's own
+    // category-gateway list underneath -- the user never asked to browse
+    // "records home", only to look at the one record they tapped.
+    if (deepLinked.current) {
+      deepLinked.current = false;
+      onBack();
+      return;
+    }
     setOpenType(undefined);
     setOpenRecordId(undefined);
     setOpenDraftKey(undefined);
@@ -300,11 +339,6 @@ export function FirstThingScreen({
               >
                   <View style={[styles.categoryMark, hasRecords && styles.categoryMarkSaved]}>
                     <View style={styles.categoryMarkInner} />
-                    {hasRecords ? (
-                      <View style={styles.countBadge} accessibilityLabel={`${savedRecords.length} saved`}>
-                        <AppText variant="secondary" tone="white" style={styles.countBadgeLabel}>{savedRecords.length}</AppText>
-                      </View>
-                    ) : null}
                   </View>
                   <View style={styles.itemCopy}>
                     <AppText variant="bodyStrong" numberOfLines={2}>{item.title}</AppText>
@@ -316,6 +350,23 @@ export function FirstThingScreen({
                     <AppText variant="secondary" tone="primary">Add</AppText>
                   </View>
               </Pressable>
+              {/* Corrective task 7: anchored to the whole card (not the
+                  small category icon), overlapping its top-right corner
+                  like a refined notification/count badge. Sits OUTSIDE
+                  the Pressable and is pointerEvents="none", so it can
+                  never intercept or interfere with the card's own tap
+                  target -- purely decorative. */}
+              {hasRecords ? (
+                <View
+                  style={styles.countBadge}
+                  pointerEvents="none"
+                  accessibilityLabel={`${savedRecords.length} saved`}
+                >
+                  <AppText variant="secondary" tone="white" style={styles.countBadgeLabel} numberOfLines={1}>
+                    {savedRecords.length}
+                  </AppText>
+                </View>
+              ) : null}
             </Animated.View>
           );
         }}
@@ -352,7 +403,25 @@ export function FirstThingScreen({
               </View>
             ) : (
               <View style={styles.editorView}>
-                {categoryRecords.length > 0 ? <Button label={`Back to ${terms.heading}`} variant="text" onPress={() => setOpenView('list')} style={styles.backToList} /> : null}
+                {categoryRecords.length > 0 ? (
+                  <Button
+                    label={`Back to ${terms.heading}`}
+                    variant="text"
+                    onPress={() => {
+                      // Same deep-link short-circuit as save/remove/
+                      // finishDismiss above -- this button only ever
+                      // makes sense as "browse this category's list",
+                      // which a deep-linked visit never asked for.
+                      if (deepLinked.current) {
+                        deepLinked.current = false;
+                        onBack();
+                        return;
+                      }
+                      setOpenView('list');
+                    }}
+                    style={styles.backToList}
+                  />
+                ) : null}
                 <RecordEditor
                   type={openType}
                   record={record}
@@ -388,19 +457,26 @@ const styles = StyleSheet.create({
   categoryMarkInner: { width: 13, height: 13, borderRadius: radius.pill, backgroundColor: colors.primary },
   itemCopy: { flex: 1, gap: spacing.xxs },
   addAffordance: { minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  // Corrective task 7: anchored to the card's own top-right corner (not
+  // the small category icon), overlapping the card boundary like a
+  // refined notification/count badge. minWidth (not a fixed width) plus
+  // horizontal padding lets 1, 2 and 3+ digit counts grow without ever
+  // clipping the number.
   countBadge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 20,
-    height: 20,
-    paddingHorizontal: 4,
+    top: -8,
+    right: -8,
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
     borderRadius: radius.pill,
     backgroundColor: colors.olive,
     borderWidth: 2,
     borderColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
+    elevation: 2,
   },
   countBadgeLabel: { fontWeight: '700', fontSize: 11, lineHeight: 13 },
   recordList: { gap: spacing.sm, paddingBottom: spacing.xl },
