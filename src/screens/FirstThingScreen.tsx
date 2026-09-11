@@ -15,6 +15,7 @@ import { createRecordDraft, RecordDraft, RecordEditor } from '../components/Reco
 import { RecordSheet, RecordSheetHandle } from '../components/RecordSheet';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
+import { CareCircleMember } from '../careCircle';
 import { firstItemOptions } from '../data/options';
 import { formatDateForDisplay } from '../records';
 import { colors, radius, spacing } from '../theme';
@@ -28,6 +29,9 @@ type Props = {
   // The organiser's own membership ID for the active care space, threaded
   // down to RecordEditor's Assigned-to control. See fork.txt Part 5.
   activeMembershipId?: string;
+  // Phase 15: threaded straight down to RecordEditor's real assignment
+  // selector. See src/careCircle.ts.
+  careCircleMembers?: CareCircleMember[];
   // Phase 14: threaded straight down to RecordEditor's "Remind me" toggle.
   onRequestReminderPermission?: () => Promise<boolean>;
   // True once setup is already complete and this screen is reached from
@@ -75,6 +79,7 @@ export function FirstThingScreen({
   supportedPersonId,
   records,
   activeMembershipId,
+  careCircleMembers,
   onRequestReminderPermission,
   everyday = false,
   initialOpenRecordId,
@@ -354,6 +359,7 @@ export function FirstThingScreen({
                   draft={draft}
                   supportedPersonId={supportedPersonId}
                   activeMembershipId={activeMembershipId}
+                  careCircleMembers={careCircleMembers}
                   onRequestReminderPermission={onRequestReminderPermission}
                   onChange={(nextDraft) => setDrafts((current) => ({ ...current, [draftKey]: nextDraft }))}
                   onSave={(savedRecord) => save(index, savedRecord)}

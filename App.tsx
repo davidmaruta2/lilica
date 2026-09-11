@@ -29,6 +29,7 @@ import { RelationshipScreen } from './src/screens/RelationshipScreen';
 import { RecoveryEmailSentScreen, RecoveryPasswordScreen, RecoveryRequestScreen } from './src/screens/RecoveryScreen';
 import { RecoveryCodeScreen, VerificationScreen } from './src/screens/VerificationScreen';
 import { PersonScreen } from './src/screens/PersonScreen';
+import { CareCircleScreen } from './src/screens/CareCircleScreen';
 import { ToDoScreen } from './src/screens/ToDoScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import {
@@ -50,6 +51,7 @@ import {
   validatePersonDraft,
 } from './src/careSpaceState';
 import { provisionSupportedPeople, reconnectCareSpaces } from './src/careSpaces';
+import { CareCircleInvitation, CareCircleMember, listCareSpaceInvitations, listCareSpaceMembers } from './src/careCircle';
 import {
   enqueueRecordDelete,
   enqueueRecordUpsert,
@@ -166,6 +168,13 @@ function LilicaApp() {
   // calendarOpenRecordId above; only one of the two is ever set at once.
   const [projectionOpenType, setProjectionOpenType] = useState<LilicaRecordType>();
   const [showAccount, setShowAccount] = useState(false);
+  // Phase 15: the active care space's real members, for the record
+  // editor's assignment selector and the Care Circle screen. Never
+  // includes pending/declined/expired/revoked/removed/left memberships --
+  // list_care_space_members() only returns active ones.
+  const [careCircleMembers, setCareCircleMembers] = useState<CareCircleMember[]>([]);
+  const [careCircleInvitations, setCareCircleInvitations] = useState<CareCircleInvitation[]>([]);
+  const [showCareCircle, setShowCareCircle] = useState(false);
   const storageOwnerId = auth.session?.user.id ?? null;
   const legacyBootstrapInFlight = useRef(false);
   const reconnectedOwnerId = useRef<string | undefined>(undefined);
@@ -193,6 +202,41 @@ function LilicaApp() {
   useEffect(() => {
     if (showAccount) getPermissionState().then(setReminderPermissionState).catch(() => undefined);
   }, [showAccount]);
+
+  // Phase 15: reload the active care space's real membership/invitation
+  // lists whenever the active space changes, and again whenever Care
+  // Circle is opened (an invite/removal/role change may have just
+  // happened). A local-only care space (never synced -- careSpaceId
+  // starts with "local-") has no server membership list, so this is left
+  // empty rather than queried.
+  useEffect(() => {
+    if (!currentSpace || currentSpace.careSpaceId.startsWith('local-')) {
+      setCareCircleMembers([]);
+      setCareCircleInvitations([]);
+      return;
+    }
+    let cancelled = false;
+    listCareSpaceMembers(currentSpace.careSpaceId).then((result) => {
+      if (!cancelled && result.ok) setCareCircleMembers(result.data);
+    });
+    listCareSpaceInvitations(currentSpace.careSpaceId).then((result) => {
+      if (!cancelled && result.ok) setCareCircleInvitations(result.data);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSpace?.careSpaceId, showCareCircle]);
+
+  function refreshCareCircle() {
+    if (!currentSpace || currentSpace.careSpaceId.startsWith('local-')) return;
+    listCareSpaceMembers(currentSpace.careSpaceId).then((result) => {
+      if (result.ok) setCareCircleMembers(result.data);
+    });
+    listCareSpaceInvitations(currentSpace.careSpaceId).then((result) => {
+      if (result.ok) setCareCircleInvitations(result.data);
+    });
+  }
 
   // Phase 14: a tapped notification must resolve its OWN referenced care
   // space, never trust the currently active one (brief section 17) -- a
@@ -704,6 +748,17 @@ function LilicaApp() {
           body="Things to do will appear here as you add them."
         />
       );
+    } else if (showCareCircle) {
+      content = currentSpace ? (
+        <CareCircleScreen
+          personName={currentSpace.displayName}
+          members={careCircleMembers}
+          invitations={careCircleInvitations}
+          careSpaceId={currentSpace.careSpaceId}
+          onBack={() => setShowCareCircle(false)}
+          onRefresh={refreshCareCircle}
+        />
+      ) : null;
     } else if (showAccount) {
       content = (
         <AccountScreen
@@ -735,6 +790,11 @@ function LilicaApp() {
           onOpenRecord={openRecordFromProjection}
           onAddType={openNewFromProjection}
           onOpenAccount={() => setShowAccount(true)}
+          onOpenCareCircle={
+            currentSpace && !currentSpace.careSpaceId.startsWith('local-') && currentSpace.membershipId
+              ? () => setShowCareCircle(true)
+              : undefined
+          }
         />
       );
     }
@@ -994,6 +1054,7 @@ function LilicaApp() {
             supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
             records={currentSpace?.records ?? []}
             activeMembershipId={currentSpace?.membershipId}
+            careCircleMembers={careCircleMembers}
             onRequestReminderPermission={requestReminderPermission}
             everyday={currentSpace?.setupStatus === 'ready'}
             initialOpenRecordId={calendarOpenRecordId}
@@ -1024,6 +1085,7 @@ function LilicaApp() {
             supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
             records={currentSpace?.records ?? []}
             activeMembershipId={currentSpace?.membershipId}
+            careCircleMembers={careCircleMembers}
             onRequestReminderPermission={requestReminderPermission}
             everyday={currentSpace?.setupStatus === 'ready'}
             onBack={goBack}

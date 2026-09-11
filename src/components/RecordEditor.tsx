@@ -4,8 +4,9 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 
+import { CareCircleMember } from '../careCircle';
 import { createUuid } from '../identifiers';
-import { formatDateForInput, toIsoDate } from '../records';
+import { formatDateForInput, recordDomainForType, toIsoDate } from '../records';
 import { colors, radius, spacing } from '../theme';
 import {
   LilicaRecord,
@@ -51,6 +52,12 @@ type Props = {
   // and You are offered today because no other active membership exists
   // yet (Phase 15 owns invitations/collaboration) — see fork.txt Part 5.
   activeMembershipId?: string;
+  // Phase 15: the real active care-circle members (never pending/declined/
+  // expired/revoked/removed/left -- see list_care_space_members()). When
+  // present, "Assigned to" offers everyone in it instead of only You;
+  // members without visibility into this record's domain are filtered out
+  // client-side as a courtesy (the server is what actually enforces it).
+  careCircleMembers?: CareCircleMember[];
   // Phase 14: called when the user turns the "Remind me" toggle on. Resolves
   // true once notification permission is confirmed granted (requesting it
   // first if not yet determined); resolves false on denial/no-op on
@@ -150,7 +157,7 @@ export function completionUpdate(
   };
 }
 
-export function RecordEditor({ type, record, draft, supportedPersonId, activeMembershipId, onRequestReminderPermission, onChange, onSave, onRemove }: Props) {
+export function RecordEditor({ type, record, draft, supportedPersonId, activeMembershipId, careCircleMembers, onRequestReminderPermission, onChange, onSave, onRemove }: Props) {
   const [attachmentError, setAttachmentError] = useState('');
   const parsedDate = draft.date ? toIsoDate(draft.date) : undefined;
   const parsedExpiry = draft.expiryDate ? toIsoDate(draft.expiryDate) : undefined;
@@ -163,6 +170,20 @@ export function RecordEditor({ type, record, draft, supportedPersonId, activeMem
   const supportsCompletion = type === 'task' || type === 'bill' || type === 'homeMatter';
   const supportsRecurrence = type === 'bill' || type === 'homeMatter';
   const supportsAssignment = (type === 'appointment' || type === 'task' || type === 'bill' || type === 'homeMatter') && Boolean(activeMembershipId);
+  // Phase 15: real members, filtered to those with visibility into this
+  // record's domain -- an organiser always qualifies; a contributor/viewer
+  // only if explicitly granted that domain. Falls back to "You" alone when
+  // the care circle hasn't loaded yet, matching the pre-Phase-15 behaviour.
+  const recordDomain = recordDomainForType(type);
+  const assignableMembers = (careCircleMembers ?? []).filter(
+    (member) => member.role === 'organiser' || member.grantedDomains.includes(recordDomain),
+  );
+  const assignmentOptions = assignableMembers.length > 0
+    ? assignableMembers.map((member) => ({
+        label: member.isSelf ? 'You' : member.displayName,
+        value: member.membershipId,
+      }))
+    : [{ label: 'You', value: activeMembershipId }];
   // Phase 14: only genuinely time/action-relevant types can meaningfully
   // remind -- matches isReminderEligible() in src/reminders.ts exactly.
   const supportsReminder = type === 'appointment' || type === 'task' || type === 'bill' || type === 'homeMatter';
@@ -391,7 +412,7 @@ export function RecordEditor({ type, record, draft, supportedPersonId, activeMem
           <View style={styles.segmented}>
             {[
               { label: 'Unassigned', value: undefined },
-              { label: 'You', value: activeMembershipId },
+              ...assignmentOptions,
             ].map((option) => {
               const selected = option.value === undefined
                 ? !draft.assignedMembershipId

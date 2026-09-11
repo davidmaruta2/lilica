@@ -1,5 +1,25 @@
 import { LilicaRecord, LilicaRecordType, RecordRecurrence } from './types';
 
+// Phase 15: mirrors the server's record_domain_for_type() exactly (see
+// supabase/migrations/20260910150000_phase7_records.sql). Client-side use is
+// advisory only -- it lets the assignment selector avoid offering a member
+// who plainly cannot see this record's domain, but apply_record_mutation()'s
+// own server-side check is what actually enforces it.
+export function recordDomainForType(type: LilicaRecordType): 'general' | 'health' | 'financial' | 'home' | 'documents' {
+  switch (type) {
+    case 'careNote':
+      return 'health';
+    case 'bill':
+      return 'financial';
+    case 'homeMatter':
+      return 'home';
+    case 'document':
+      return 'documents';
+    default:
+      return 'general';
+  }
+}
+
 export type DerivedRecordState = {
   dueToday: boolean;
   overdue: boolean;

@@ -22,6 +22,9 @@ type Props = {
   onOpenRecord: (recordId: string) => void;
   onAddType: (type: LilicaRecordType) => void;
   onOpenAccount: () => void;
+  // Phase 15: omitted for a local-only care space (never synced, so there
+  // is nothing to collaborate on yet) -- see App.tsx's showCareCircle wiring.
+  onOpenCareCircle?: () => void;
 };
 
 // Phase 13: durable-knowledge groupings, each backed by an existing record
@@ -93,6 +96,7 @@ export function PersonScreen({
   onOpenRecord,
   onAddType,
   onOpenAccount,
+  onOpenCareCircle,
 }: Props) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const name = displayName?.trim() || 'Them';
@@ -115,9 +119,16 @@ export function PersonScreen({
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Wordmark />
-        <Pressable accessibilityRole="button" accessibilityLabel="Account" onPress={onOpenAccount} hitSlop={8}>
-          <AppText variant="secondary" tone="primary" style={styles.accountLink}>Account</AppText>
-        </Pressable>
+        <View style={styles.headerLinks}>
+          {onOpenCareCircle ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Care Circle" onPress={onOpenCareCircle} hitSlop={8}>
+              <AppText variant="secondary" tone="primary" style={styles.accountLink}>Care Circle</AppText>
+            </Pressable>
+          ) : null}
+          <Pressable accessibilityRole="button" accessibilityLabel="Account" onPress={onOpenAccount} hitSlop={8}>
+            <AppText variant="secondary" tone="primary" style={styles.accountLink}>Account</AppText>
+          </Pressable>
+        </View>
       </View>
 
       <Pressable
@@ -226,6 +237,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  headerLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
   accountLink: {
     fontWeight: '700',

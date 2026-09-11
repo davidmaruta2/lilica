@@ -1,14 +1,14 @@
 # Lilica Supabase Operations
 
-Date: 10 September 2026
-Scope: Phase 4 foundation through Phase 7 record persistence
+Date: 11 September 2026
+Scope: Phase 4 foundation through Phase 15 care-circle invitations and collaboration
 
 ## Environment Model
 
 | Environment | Purpose | Location | Status |
 |---|---|---|---|
 | Local | Disposable migration, constraint, and RLS testing with synthetic data | Docker on a developer machine | Configured in `supabase/config.toml` |
-| Development | Shared non-production integration environment | `lilica-development`, Luxford Interactive, West Europe (London), `micro` compute | Created and linked; profile/Phase 6 migrations applied; Phase 7 deployment recorded below |
+| Development | Shared non-production integration environment | `lilica-development`, Luxford Interactive, West Europe (London), `micro` compute | Created and linked; migrations through Phase 15 applied (deployment history recorded below) |
 | Production | Future live user data | Separate dedicated Lilica project, region and plan to be approved | Does not exist and was not created or touched |
 
 A staging project is not justified yet. Add one only when release rehearsal needs an environment isolated from active development. Never reuse `goalbuddy`, `tandemly`, `waddl-production`, or another Luxford application's project.
@@ -34,7 +34,9 @@ Phase 6 adds:
 
 Phase 7 adds `records` and `record_mutation_receipts`. Record writes use the idempotent `apply_record_mutation(...)` RPC; direct application writes are not granted. Record domain/sensitivity, audit membership, source, version and change sequence are server-managed. `list_my_supported_people()` now returns the active member's supported-person display/relationship data so a new device can rediscover spaces without inventing local privacy consent.
 
-Phase 8 adds cloud `occurrences`, immutable occurrence snapshots, recurrence series/rules, mutation receipts, assignments and external contacts. Assignment/contact tables are foundations only and grant no account access. Invitations, documents and attachment bytes are not cloud tables; records include attachment metadata without local device URI.
+Phase 8 adds cloud `occurrences`, immutable occurrence snapshots, recurrence series/rules, mutation receipts, assignments and external contacts. Assignment/contact tables are foundations only and grant no account access. Documents and attachment bytes are not cloud tables; records include attachment metadata without local device URI.
+
+Phase 15 adds `care_space_domain_grants` (explicit per-membership, per-domain read/write, default-deny) and `care_space_invitations` (pending/accepted/declined/expired/revoked lifecycle). `care_space_memberships.role` is extended from organiser-only to `organiser`/`contributor`/`viewer`. `can_access_care_space_records()` (the Phase 7-anticipated extension point) and a new `membership_has_domain_access()` now decide access by role-or-grant. `apply_record_mutation()` is redefined (same signature) to check write access against a record's real domain and to reject any assignment to a membership lacking active status or domain read access. New RPCs: `invite_member`, `list_my_invitations`, `accept_invitation`, `decline_invitation`, `revoke_invitation`, `change_member_role`, `remove_member`, `leave_care_space`, `list_care_space_members`, `list_care_space_invitations`. See `docs/PHASE_15_ARCHITECTURE.md`.
 
 ## Migration Workflow
 
@@ -69,6 +71,13 @@ The migration in `supabase/migrations/` is authoritative schema history. `supaba
 - Local and linked database suites each passed all 89 pgTAP assertions across three files.
 - Linked database lint reported no schema errors, and migration history lists `20260910150000` on both local and remote.
 - Existing profile/care-space tests scope row counts to their transactional synthetic fixture IDs so hosted development rows do not affect assertions. Test transactions roll back their synthetic data.
+
+### Hosted Phase 15 deployment - 11 September 2026
+
+- `npx supabase db push --linked --dry-run` listed only `20260911120000_phase15_care_circle.sql`, with no seeds or roles.
+- `npx supabase db push --linked` applied that migration only to `lilica-development`.
+- Local and linked suites each passed all 183 pgTAP assertions across six files (152 pre-existing plus 31 new Phase 15 assertions); warning-level database lint returned no issues in either environment.
+- Local and linked migration histories match through `20260911120000`. No Auth configuration, Storage resource, seed, role or production project was changed.
 
 ### Hosted Phase 8 deployment - 10 September 2026
 
