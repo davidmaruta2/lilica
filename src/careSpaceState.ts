@@ -1,6 +1,8 @@
 import {
+  CareSpaceSetupStatus,
   LocalCareSpaceState,
   MultiPersonOnboardingDraft,
+  OnboardingStage,
   OnboardingState,
   Relationship,
   SupportedPersonDraft,
@@ -157,6 +159,37 @@ export function replaceCareSpace(
 
 export function activeCareSpace(state: OnboardingState): LocalCareSpaceState | undefined {
   return state.activeCareSpaceId ? state.careSpaces[state.activeCareSpaceId] : undefined;
+}
+
+// Corrective task 5 (Everyday Add navigation defect): App.tsx's top-level
+// "Back" walks a fixed onboarding stageOrder array backward by default.
+// That is correct for the genuine first-time onboarding sequence
+// (interests -> firstThing), but 'firstThing' is ALSO where Home's
+// everyday "Add" button jumps straight to (from 'home' itself) -- both
+// leave state.stage identically 'firstThing', so stage position alone
+// cannot distinguish onboarding entry from everyday-add entry. Walking
+// stageOrder blindly in the everyday case lands back on 'interests'
+// ("What do you help X with?"), an onboarding screen the person has
+// already completed -- the reported bug.
+//
+// setupStatus is the real, already-explicit distinguishing signal, never
+// inferred from navigation/screen history: it only ever reaches 'ready'
+// once onboarding has genuinely finished for this care space (set by
+// completeOnboarding()), so a 'firstThing' visit while it is already
+// 'ready' is necessarily an everyday Add, never onboarding -- back must
+// return to Home instead of continuing further back through stageOrder.
+// This must hold for "Back" both before and after a save, since App.tsx
+// wires the identical onBack handler to both moments.
+export function resolveBackStage(
+  currentStage: OnboardingStage,
+  setupStatus: CareSpaceSetupStatus | undefined,
+  stageOrder: OnboardingStage[],
+): OnboardingStage | undefined {
+  if (currentStage === 'firstThing' && setupStatus === 'ready') {
+    return 'home';
+  }
+  const currentIndex = stageOrder.indexOf(currentStage);
+  return currentIndex > 0 ? stageOrder[currentIndex - 1] : undefined;
 }
 
 export function projectActiveCareSpace(state: OnboardingState): OnboardingState {

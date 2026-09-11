@@ -50,6 +50,7 @@ import {
   linkProvisionedCareSpaces,
   projectActiveCareSpace,
   replaceCareSpace,
+  resolveBackStage,
   validatePersonDraft,
 } from './src/careSpaceState';
 import { provisionSupportedPeople, reconnectCareSpaces } from './src/careSpaces';
@@ -501,10 +502,12 @@ function LilicaApp() {
       return;
     }
 
-    const currentIndex = stageOrder.indexOf(state.stage);
-    if (currentIndex > 0) {
-      go(stageOrder[currentIndex - 1]);
-    }
+    // See resolveBackStage() in src/careSpaceState.ts for why this needs
+    // setupStatus, not just stage position, to correctly distinguish
+    // Home's everyday Add from genuine onboarding -- both reach the
+    // identical 'firstThing' stage.
+    const target = resolveBackStage(state.stage, currentSpace?.setupStatus, stageOrder);
+    if (target) go(target);
   }
 
   function toggleInterest(interest: Interest) {
