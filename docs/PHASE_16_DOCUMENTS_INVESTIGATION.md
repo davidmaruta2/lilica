@@ -1,0 +1,43 @@
+# Phase 16 Candidate: Documents Architecture Investigation
+
+Date: 12 September 2026. Status: **investigation only — Phase 16 has not been authorised or started.** This document is the condensed, permanent record of an architecture-tracing pass done before any Phase 16 brief is written, so a future agent does not need to re-derive it. See `docs/PHASE_15_ARCHITECTURE.md`'s addendum for the companion RLS-gap verification this investigation triggered.
+
+## Product problem
+
+Adding an "Important document" today risks being little more than storing an item that is then rarely surfaced, connected to anything, or acted upon. The emerging product direction (not yet approved) is that a document may: simply be stored for reference; be LINKED to another existing record (an appointment, a bill, a Home & Car matter, a task); and/or lead to a real, separate TASK ("Call hospital to confirm"). A document must never become a pseudo-task itself, and linking a document to an appointment must not turn the document into an appointment.
+
+## What already exists
+
+- **Record model**: "Important document" is not a separate type — it is the ordinary `LilicaRecord` (`src/types.ts`) with `type: 'document'`, sharing every field/table/RLS/sync path every other record type uses. No `DocumentRecord` type, no document-specific table.
+- **Date semantics**: a document's own `expiryDate` is already architecturally isolated from a task's `dueDate` and an appointment's `eventDate` — three separate fields on three separate record instances, never conflated. But `expiryDate` is currently inert beyond Calendar placement (`calendarDateForRecord()`, `src/records.ts`) and its own detail-view text: it never drives Home's Today/Upcoming (`deriveRecordState()` only reads `dueDate`/`eventDate`), is not reminder-eligible (`RecordEditor.tsx`'s `supportsReminder` excludes `document`), and has no "expiring soon" derivation anywhere.
+- **Task/To Do pipeline is fully reusable as-is.** Creating a real task needs no new machinery — the existing `RecordEditor.save()` → `onSave(record)` → host `onSaveRecord` chain (already exercised by every "Add" button) is exactly what a document-driven task would call. What is missing is not task creation but the LINK back to the document that prompted it.
+- **A typed link concept was designed once but never implemented.** `docs/CORE_SYSTEM_CONTRACT.md` describes `Record *--* Record (through typed RecordLink)` narratively, and `src/domain/types.ts:60-66` defines a matching `RecordLink` TypeScript type (`sourceRecordId`, `targetRecordId`, `type: 'action_for'|'transport_for'|'follow_up_to'|'renews'|'documents'|'contact_for'|'result_of'|'related_to'`, `datePolicy`) with exactly one pure function against it (`planLinkedDateChange`, `src/domain/core.ts`). This is exercised only by `tests/domain-contract.test.ts` — it has zero imports anywhere else in the app, no persistence table, no RLS, no UI. It already anticipates the "related vs action-causing" distinction the product brief wants (`'related_to'` vs `'action_for'`/`'follow_up_to'`), which is a useful, already-agreed starting shape for Phase 16, not a working implementation.
+- **Attachment/file-byte architecture**: file bytes are copied into the device's own sandboxed document directory (`Paths.document/attachments/`, `RecordEditor.tsx`'s `keepAttachment()`) and never leave the device — no Supabase Storage bucket exists anywhere in this repo. Only metadata (id/kind/name/mimeType/size/width/height/createdAt, never `uri`) syncs to `records.attachment_manifest jsonb`.
+- **Critical existing gap, found during this pass (not caused by it)**: that synced attachment metadata is never read back. `localRecordFromRow()` (`src/recordSync.ts`) sets `attachments: local?.attachments` when reconstructing a pulled record — i.e. it always keeps whatever the SAME device already has locally, and never reconstructs `attachments` from `row.attachment_manifest`. A document's attachments are therefore invisible on any second device, or after a reinstall, even though the metadata is sitting in Supabase the whole time. This predates and is independent of Phase 16 — worth fixing (or at least explicitly deferring) before Phase 16 makes documents more visible, so it isn't rediscovered later as a "regression."
+- **No document viewer exists.** `RecordDetail.tsx` renders only the attachment's file NAME as plain text — there is no tap handler, `Linking.openURL`, preview, or share action anywhere in the repository.
+- **RecordDetail.tsx is already the single, shared, category-aware detail view** (used by both `RecordQuickEditor` and `FirstThingScreen`'s inline sheet) with an established per-type conditional-row pattern. Adding "Related to"/"Documents"/"Action" rows would extend this one file, not fork a new detail architecture.
+- **Discoverability**: Corrective Task 10 (11 September 2026) deliberately removed Person's documents section as a duplicate of Home's own listing. There is currently no dedicated Documents screen. "Recently added" is fully derivable today from existing data for any record type; "Needs attention"/"Expiring soon" groupings would need new (but straightforward, `expiryDate`-based) derivation logic, not new stored state; category buckets (Appointments & health / Bills & finances / etc.) are only cleanly derivable once document→record linking exists — grouping by a document's own field, absent a link, would need a new field or unreliable title-text heuristics (explicitly ruled out — no heuristic auto-linking from names/filenames/dates/notes).
+- **Security/RLS**: `documents` is already a first-class domain (`record_domain_for_type()`) and `sensitive` a first-class sensitivity tier (`record_sensitivity_for_type()`), both server- and client-mirrored — a solid foundation. `sensitivity` is descriptive only today (no RLS predicate reads it yet). See `docs/PHASE_15_ARCHITECTURE.md`'s addendum: the previously-suspected organiser-only enforcement gap for Contributor/Viewer domain grants is **not real** — verified end-to-end against the deployed database and pgTAP tests.
+- **Backward compatibility**: every existing document record already has zero link/task data (since no link mechanism exists), so it is automatically valid as a "reference-only document" under any future model where a link/task is optional. Any Phase 16 schema change here is purely additive — no backfill needed.
+
+## Recommended Phase 16 model (not proposed for implementation by this investigation)
+
+Four concepts, three of which need no change:
+
+- **RECORD** — unchanged `LilicaRecord`. A "document" record stays exactly what it is today.
+- **DOCUMENT** — not a new concept; simply `type: 'document'`, one instance of RECORD.
+- **LINK** — new: a real implementation of the already-shaped `RecordLink` type — source/target record id, a `type`, care-space-scoped (a field it doesn't yet have), its own RLS, and a client store/query layer, all of which need building from scratch.
+- **TASK** — unchanged `type: 'task'` (or bill/homeMatter) RECORD. A document-driven task is an ordinary task that happens to have a LINK pointing at the document that prompted it.
+
+## Open product decisions (need product-owner/GPT approval before Phase 16 starts)
+
+- Whether "Related to" (document→record) and "Does anything need doing?" (document→task) share one link mechanism with two `type` values, or are modelled separately (the existing `RecordLink.type` enum already anticipates one mechanism, two values).
+- Whether `LINK` storage stays one-directional (`sourceRecordId`→`targetRecordId`) with app-level both-directions querying, or needs bidirectional schema/index support — the product's own example (a document showing "Related to: appointment" AND the appointment showing "Documents: hospital letter") needs both-direction querying regardless of storage direction.
+- Whether `sensitivity: 'sensitive'` gains real RLS teeth in Phase 16 or stays descriptive-only longer.
+- Whether the attachment-manifest round-trip gap (above) is a Phase 16 prerequisite fix or a separately-scoped follow-up.
+- Whether real cloud file-byte storage (a Storage bucket, signed URLs) ships as part of Phase 16 itself or is deferred to its own later phase while LINK/TASK-creation ships first.
+- Exact thresholds for any "expiring soon" derivation (a product call, not an architecture one).
+
+## Explicit non-goals of this investigation
+
+No code was edited; no migration was created, previewed or applied; no RLS policy was changed; no linking UI was created; no task was created as a side effect; no `followUp` boolean or equivalent field was added anywhere; no attachment behaviour was changed (the round-trip gap was identified, not fixed); no Documents screen/redesign was built.

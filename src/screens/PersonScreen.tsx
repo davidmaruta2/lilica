@@ -195,10 +195,10 @@ export function PersonScreen({
           honest "just you" state rather than a fabricated member. */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <AppText variant="section" tone="white">Care circle</AppText>
+          <AppText variant="section" tone="primary">Care circle</AppText>
           {onOpenCareCircle ? (
             <Pressable accessibilityRole="button" accessibilityLabel="Manage Care Circle" onPress={onOpenCareCircle} hitSlop={8}>
-              <AppText variant="secondary" style={styles.onDarkLink}>Manage</AppText>
+              <AppText variant="secondary" tone="primary" style={styles.manageLink}>Manage</AppText>
             </Pressable>
           ) : null}
         </View>
@@ -280,6 +280,12 @@ const styles = StyleSheet.create({
   },
   onDarkLink: {
     color: colors.white,
+    fontWeight: '700',
+  },
+  // Product direction: Care circle's heading and Manage link match the
+  // Ask Lilica question-mark circle's own color (colors.primary) instead
+  // of the white used by the other headings in this backdrop's deep zone.
+  manageLink: {
     fontWeight: '700',
   },
   onDarkSoft: {
