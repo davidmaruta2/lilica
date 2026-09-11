@@ -49,17 +49,22 @@ export function categoryLabel(type: LilicaRecordType) {
 
 function sectionFor(item: FirstItem) {
   const derived = deriveRecordState(item);
-  // An appointment happening today hasn't been missed -- it belongs in
-  // "Today", not "Needs attention". Overdue (missed) appointments, and
-  // any other record type due today (a bill, task or home/car matter),
-  // still need attention exactly as before.
+  // Corrective task 1 (presentation only): the section heading that used
+  // to read "Needs attention" is now labelled "Today", and an appointment
+  // happening today already belonged there too -- so both now share the
+  // one "Today" heading. This changes no classification: overdue, due
+  // today, upcoming and unresolved are computed by deriveRecordState()
+  // exactly as before. A genuinely overdue item still gets its own small
+  // "Overdue" pill (see the per-item badge below) and the horizontal
+  // at-a-glance strip's "Overdue" chip is unaffected -- only this
+  // section's heading text changed.
   const isAppointmentToday = item.type === 'appointment' && item.eventDate === new Date().toISOString().slice(0, 10);
-  if (derived.overdue) return 'Needs attention';
+  if (derived.overdue) return 'Today';
   if (isAppointmentToday) return 'Today';
-  if (derived.dueToday) return 'Needs attention';
-  if (derived.upcoming) return 'Coming up';
-  if ((item.type === 'task' || item.type === 'bill' || item.type === 'homeMatter') && derived.unresolved) return 'Needs attention';
-  return 'Latest';
+  if (derived.dueToday) return 'Today';
+  if (derived.upcoming) return 'Upcoming';
+  if ((item.type === 'task' || item.type === 'bill' || item.type === 'homeMatter') && derived.unresolved) return 'Today';
+  return 'Recently added';
 }
 
 // Presentation-only tonal treatment per category, built entirely from
@@ -215,7 +220,7 @@ export function HomeScreen({
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const records = state.records.length > 0 ? state.records : state.firstItem ? [state.firstItem] : [];
   const personName = state.supportedPersonName?.trim() || 'Them';
-  const sections = ['Needs attention', 'Today', 'Coming up', 'Latest']
+  const sections = ['Today', 'Upcoming', 'Recently added']
     .map((title) => ({ title, records: records.filter((record) => sectionFor(record) === title) }))
     .filter((section) => section.records.length > 0);
 

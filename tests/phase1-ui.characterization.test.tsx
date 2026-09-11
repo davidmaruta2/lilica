@@ -264,13 +264,19 @@ describe('real-record-only Home characterization', () => {
       <HomeScreen state={{ ...initialOnboardingState, stage: 'home', supportedPersonName: 'Margaret' }} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
     );
     screen.getByText('Start with one thing you want to keep track of.');
-    expect(screen.queryByText('Needs attention')).toBeNull();
     expect(screen.queryByText('Today')).toBeNull();
-    expect(screen.queryByText('Coming up')).toBeNull();
-    expect(screen.queryByText('Latest')).toBeNull();
+    expect(screen.queryByText('Upcoming')).toBeNull();
+    expect(screen.queryByText('Recently added')).toBeNull();
   });
 
-  it('places a passed appointment in Needs attention and a today appointment in Today', async () => {
+  // Corrective task 1 (presentation only, 11 September 2026): the section
+  // heading that used to read "Needs attention" is now "Today", and an
+  // appointment happening today already belonged in a "Today" heading of
+  // its own -- so both now share the one heading. No classification
+  // changed: a passed (overdue) appointment and a today appointment are
+  // still two distinct records with distinct deriveRecordState() results;
+  // they simply render under the same section title now.
+  it('places a passed appointment and a today appointment together under one "Today" heading', async () => {
     const records: LilicaRecord[] = [
       { id: 'today', type: 'appointment', title: 'Today visit', status: 'scheduled', eventDate: '2026-09-09', createdAt: '2026-09-01T00:00:00.000Z' },
       { id: 'past', type: 'appointment', title: 'Past visit', status: 'scheduled', eventDate: '2026-09-08', createdAt: '2026-09-01T00:00:00.000Z' },
@@ -278,22 +284,25 @@ describe('real-record-only Home characterization', () => {
     const screen = await render(
       <HomeScreen state={{ ...initialOnboardingState, stage: 'home', records, allSetDismissed: true }} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
     );
-    screen.getByText('Needs attention');
+    // Exactly one "Today" heading, not two -- both records fall under it.
+    expect(screen.getAllByText('Today').length).toBe(1);
     screen.getByText('Past visit');
-    screen.getByText('Today');
     screen.getByText('Today visit');
+    // The passed appointment still gets its own small "Overdue" pill --
+    // the per-item status indicator is unaffected by the heading rename.
+    // (The at-a-glance strip also reads "Overdue", hence getAllByText.)
+    expect(screen.getAllByText('Overdue').length).toBeGreaterThan(0);
   });
 
-  it('still places a bill or task due today in Needs attention, unlike an appointment', async () => {
+  it('places a bill or task due today under the same "Today" heading as an appointment', async () => {
     const records: LilicaRecord[] = [
       { id: 'bill-today', type: 'bill', title: 'Electric bill', status: 'unresolved', dueDate: '2026-09-09', createdAt: '2026-09-01T00:00:00.000Z' },
     ];
     const screen = await render(
       <HomeScreen state={{ ...initialOnboardingState, stage: 'home', records, allSetDismissed: true }} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
     );
-    screen.getByText('Needs attention');
+    screen.getByText('Today');
     screen.getByText('Electric bill');
-    expect(screen.queryByText('Today')).toBeNull();
   });
 
   it('summarises real state in the at-a-glance strip: overdue, due today, coming up, updates -- not category counts', async () => {
@@ -306,8 +315,11 @@ describe('real-record-only Home characterization', () => {
     const screen = await render(
       <HomeScreen state={{ ...initialOnboardingState, stage: 'home', records, allSetDismissed: true }} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
     );
-    // "Overdue" and "Coming up" also label a section/per-record pill
-    // elsewhere on Home, so assert the strip's copies via getAllByText.
+    // "Overdue" also labels the per-item pill on the passed appointment
+    // below, so assert the strip's own copy via getAllByText. The
+    // "Coming up" section heading was renamed to "Upcoming" (corrective
+    // task 1); this strip chip is a separate at-a-glance element and
+    // still reads "Coming up".
     expect(screen.getAllByText('Overdue').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Coming up').length).toBeGreaterThan(0);
     screen.getByText('Due today');
