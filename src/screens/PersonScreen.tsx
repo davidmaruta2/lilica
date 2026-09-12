@@ -195,12 +195,17 @@ export function PersonScreen({
           honest "just you" state rather than a fabricated member. */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <AppText variant="section" tone="primary">Care circle</AppText>
           {onOpenCareCircle ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Manage Care Circle" onPress={onOpenCareCircle} hitSlop={8}>
-              <AppText variant="secondary" tone="primary" style={styles.manageLink}>Manage</AppText>
+            // The heading itself IS the action -- no separate "Manage"
+            // link needed once the whole label is already a button.
+            <Pressable accessibilityRole="button" accessibilityLabel="Manage Care Circle" onPress={onOpenCareCircle} hitSlop={8} style={styles.careCircleHeaderChip}>
+              <AppText variant="section" tone="primary">Manage care circle</AppText>
             </Pressable>
-          ) : null}
+          ) : (
+            <View style={styles.careCircleHeaderChip}>
+              <AppText variant="section" tone="primary">Care circle</AppText>
+            </View>
+          )}
         </View>
         <View style={styles.sectionList}>
           {careCircleMembers.length > 0 ? careCircleMembers.map((member) => (
@@ -211,10 +216,10 @@ export function PersonScreen({
                 </AppText>
               </View>
               <View style={styles.rowCopy}>
-                <AppText variant="bodyStrong">
+                <AppText variant="bodyStrong" numberOfLines={2}>
                   {member.isSelf ? 'You' : member.displayName} - {roleLabel(member.role)}
                 </AppText>
-                <AppText variant="secondary" tone="soft">{member.relationshipLabel || member.relationshipType}</AppText>
+                <AppText variant="secondary" tone="soft" numberOfLines={2}>{member.relationshipLabel || member.relationshipType}</AppText>
               </View>
             </View>
           )) : (
@@ -223,8 +228,8 @@ export function PersonScreen({
                 <AppText variant="bodyStrong" tone="primary">Y</AppText>
               </View>
               <View style={styles.rowCopy}>
-                <AppText variant="bodyStrong">You</AppText>
-                <AppText variant="secondary" tone="soft">The only person with access right now.</AppText>
+                <AppText variant="bodyStrong" numberOfLines={2}>You</AppText>
+                <AppText variant="secondary" tone="soft" numberOfLines={2}>The only person with access right now.</AppText>
               </View>
             </View>
           )}
@@ -282,11 +287,22 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '700',
   },
-  // Product direction: Care circle's heading and Manage link match the
-  // Ask Lilica question-mark circle's own color (colors.primary) instead
-  // of the white used by the other headings in this backdrop's deep zone.
-  manageLink: {
-    fontWeight: '700',
+  // Product direction: Care circle's own position on the shared backdrop
+  // is content-dependent (it follows the variable-length Key contacts
+  // list above it), so unlike the other headings it can land in EITHER
+  // the deep teal zone or the lighter tint zone depending on how much is
+  // above it. Rather than chase a single text colour that reads on both
+  // (white, bright blue and clay were all tried and none felt right),
+  // the heading carries its own small light chip -- the same
+  // primarySoft/primary pairing already used for the person/contact
+  // avatar circles on this screen -- so it stays legible and premium
+  // regardless of where it lands. The heading doubles as the "Manage"
+  // action itself (a separate adjacent link would now be redundant).
+  careCircleHeaderChip: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
   },
   onDarkSoft: {
     color: 'rgba(255,255,255,0.8)',
@@ -299,7 +315,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  // Product direction: Key contacts/Care circle render as a 2-up grid of
+  // tiles rather than one full-width row per person.
   sectionList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
   },
   personCard: {
@@ -338,6 +358,7 @@ const styles = StyleSheet.create({
   // "white cards on a coloured backdrop" treatment used across
   // Home/Calendar/To Do too.
   row: {
+    width: '48%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,

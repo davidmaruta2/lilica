@@ -72,13 +72,24 @@ export type RecordConfirmation = {
 export type RecordAttachment = {
   id: string;
   kind: 'file' | 'scan';
-  uri: string;
+  // Device-local sandbox URI. Present only on the device that captured or
+  // most recently downloaded this file -- never assume another device can
+  // use it (Phase 16: see docs/PHASE_16_ARCHITECTURE.md). A record pulled
+  // fresh on a second device has attachment metadata but no local `uri`
+  // until that device downloads its own copy via `src/attachments.ts`.
+  uri?: string;
   name: string;
   mimeType?: string;
   size?: number;
   width?: number;
   height?: number;
   createdAt: string;
+  // Phase 16: cloud file-byte tracking, independent of the local `uri`
+  // above. Undefined means "never uploaded" (including every attachment
+  // that existed before Phase 16). `uploadStatus` only ever becomes
+  // 'uploaded' once the byte transfer has genuinely completed.
+  storageObjectPath?: string;
+  uploadStatus?: 'pending' | 'uploaded' | 'failed';
 };
 
 export type AuthState = {

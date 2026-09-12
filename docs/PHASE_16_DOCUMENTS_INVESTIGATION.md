@@ -1,6 +1,8 @@
 # Phase 16 Candidate: Documents Architecture Investigation
 
-Date: 12 September 2026. Status: **investigation only — Phase 16 has not been authorised or started.** This document is the condensed, permanent record of an architecture-tracing pass done before any Phase 16 brief is written, so a future agent does not need to re-derive it. See `docs/PHASE_15_ARCHITECTURE.md`'s addendum for the companion RLS-gap verification this investigation triggered.
+**Update, later on 12 September 2026: Phase 16 was subsequently authorised and its foundation implemented — see `docs/PHASE_16_ARCHITECTURE.md`.** This investigation document is kept as-is (historical record of the reasoning that shaped that implementation), not rewritten.
+
+Date: 12 September 2026. Status at the time of writing: **investigation only — Phase 16 had not been authorised or started.** This document is the condensed, permanent record of an architecture-tracing pass done before any Phase 16 brief is written, so a future agent does not need to re-derive it. See `docs/PHASE_15_ARCHITECTURE.md`'s addendum for the companion RLS-gap verification this investigation triggered.
 
 ## Product problem
 

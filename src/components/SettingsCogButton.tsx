@@ -48,7 +48,9 @@ export function SettingsCogButton({ onPress }: { onPress: () => void }) {
 // Explicit product request: a bright, glowing blue chip with a white
 // gear -- distinct from the app's existing muted blueSoft/blue tonal
 // pair (kept as-is everywhere else), so this vivid tone lives only here
-// rather than joining the shared theme.
+// rather than joining the shared theme. (People's Care circle heading
+// briefly tried matching this same tone too; that direction was tried
+// and rejected -- see docs/REVISION_LOG.md.)
 const BRIGHT_BLUE = '#2E7DF5';
 
 const styles = StyleSheet.create({

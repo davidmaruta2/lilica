@@ -381,16 +381,29 @@ function retryDelay(attempts: number, operationId: string) {
   return capped + jitter;
 }
 
+// Phase 16 fix: this used to keep only `local?.attachments` -- whatever
+// attachments THIS device already happened to have -- and never actually
+// read `row.attachment_manifest` back into the reconstructed record. That
+// meant a document's attachments were invisible on any second device (or
+// after a reinstall) even though the metadata was sitting in Supabase the
+// whole time (see docs/PHASE_16_DOCUMENTS_INVESTIGATION.md section 3).
+// Now the server's manifest is the authoritative attachment LIST; a local
+// `uri` is preserved only for an attachment id this same device already
+// has a copy of (never fabricated for one it doesn't -- see
+// RecordAttachment's own `uri` comment).
 function localRecordFromRow(row: ServerRecordRow, local?: LilicaRecord): LilicaRecord | undefined {
   if (row.deleted_at) return undefined;
   const data = row.record_data;
   if (!data || typeof data !== 'object' || typeof data.title !== 'string') return local;
+  const localUriById = new Map((local?.attachments ?? []).flatMap((item) => item.uri ? [[item.id, item.uri] as const] : []));
   return {
     ...data,
     id: row.local_record_id,
     type: row.record_type,
     responsiblePerson: row.legacy_responsibility_text ?? undefined,
-    attachments: local?.attachments,
+    attachments: row.attachment_manifest.length > 0
+      ? row.attachment_manifest.map((metadata) => ({ ...metadata, uri: localUriById.get(metadata.id) }))
+      : undefined,
   } as LilicaRecord;
 }
 

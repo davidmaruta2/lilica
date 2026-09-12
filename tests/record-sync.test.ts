@@ -350,7 +350,14 @@ describe('Phase 7 record cache, migration and sync', () => {
     expect((await readRecordCache(ownerId)).spaces[jackieSpaceId].records).toEqual([]);
   });
 
-  it('pulls cloud records for a second device while keeping unavailable attachment bytes local', async () => {
+  it('pulls cloud records for a second device, surfacing attachment metadata with no local bytes yet (Phase 16)', async () => {
+    // Phase 16 fix: a second device used to never see `attachment_manifest`
+    // at all (only ever kept its OWN local `attachments`, which is empty
+    // on a fresh device) -- the metadata was reaching Supabase but never
+    // reaching the pulling client. It now surfaces, with `uri` correctly
+    // left undefined -- this device has never downloaded the actual bytes,
+    // and must never pretend it has (see RecordAttachment's own `uri`
+    // comment and src/attachments.ts's on-demand download path).
     await prepareRecordCache(ownerId, [space(jackieSpaceId, [])]);
     const server = new FakeTransport();
     server.rows.set('a7300000-0000-4000-a000-000000000008', {
@@ -367,7 +374,25 @@ describe('Phase 7 record cache, migration and sync', () => {
     });
     const pulled = await synchronizeRecords(ownerId, [jackieSpaceId], server);
     expect(pulled[jackieSpaceId][0]).toMatchObject({ id: 'a7300000-0000-4000-a000-000000000008', title: 'Power of attorney' });
-    expect(pulled[jackieSpaceId][0].attachments).toBeUndefined();
+    expect(pulled[jackieSpaceId][0].attachments).toEqual([
+      { id: 'file-1', kind: 'file', name: 'poa.pdf', createdAt: '2026-09-01T09:00:00.000Z', uri: undefined },
+    ]);
+  });
+
+  it('preserves this same device\'s own already-downloaded local file when its own create syncs back', async () => {
+    const localRecordWithAttachment: LilicaRecord = {
+      id: 'a7300000-0000-4000-a000-000000000009', type: 'document', title: 'Power of attorney', status: 'saved',
+      createdAt: '2026-09-01T09:00:00.000Z',
+      attachments: [{ id: 'file-1', kind: 'file', name: 'poa.pdf', uri: 'file:///local/poa.pdf', createdAt: '2026-09-01T09:00:00.000Z' }],
+    };
+    await prepareRecordCache(ownerId, [space(jackieSpaceId, [localRecordWithAttachment])]);
+    // One synchronizeRecords pass both uploads this device's own pending
+    // import (attachment metadata, minus the local-only uri) AND pulls the
+    // resulting row straight back -- exactly the normal create-then-echo
+    // flow. This device's own local `uri` must survive that round trip.
+    const server = new FakeTransport();
+    const pulled = await synchronizeRecords(ownerId, [jackieSpaceId], server);
+    expect(pulled[jackieSpaceId][0].attachments?.[0].uri).toBe('file:///local/poa.pdf');
   });
 
   it('reconciles the same canonical occurrence identity from a second device', async () => {

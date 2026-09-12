@@ -216,7 +216,6 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
             </AppText>
           ) : null}
         </View>
-        <View style={styles.chevron} />
       </Pressable>
     );
   }
@@ -398,7 +397,11 @@ const styles = StyleSheet.create({
   group: {
     gap: spacing.sm,
   },
+  // Product direction: To Do's cards now lay out as a 2-up grid of tiles,
+  // in line with People's own Key contacts/Care circle tiles.
   groupList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
   },
   emptyState: {
@@ -411,10 +414,15 @@ const styles = StyleSheet.create({
   // Visual pass: pure white (not colors.surface) so every row matches
   // the "white cards on a coloured backdrop" treatment now used across
   // Home/Calendar/People too.
+  // Product direction: as a 2-up tile rather than a full-width row, the
+  // icon now sits above the text (not squeezed beside it) so the title/
+  // meta text can spread out across the tile's own full width instead of
+  // being crushed into half a row's worth of space.
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+    width: '48%',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
     padding: spacing.md,
     borderRadius: radius.lg,
     backgroundColor: colors.white,
@@ -437,20 +445,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rowCopy: {
-    flex: 1,
+    width: '100%',
     gap: 2,
-  },
-  // Purely decorative "enter" affordance -- same drawn-chevron technique
-  // as Header.tsx's own back chevron, just pointing right. Completion/
-  // edit now happen inside the opened record (RecordEditor's own
-  // "Already sorted" checkbox), not as a second control here.
-  chevron: {
-    width: 10,
-    height: 10,
-    borderTopWidth: 2,
-    borderRightWidth: 2,
-    borderColor: colors.muted,
-    transform: [{ rotate: '45deg' }],
   },
   completedSection: {
     gap: spacing.sm,

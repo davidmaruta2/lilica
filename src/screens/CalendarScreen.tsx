@@ -248,7 +248,7 @@ export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettin
             dark heading colour (not white) on Calendar specifically. */}
         <AppText variant="section">{selectedDateLabel()}</AppText>
         {selectedRecords.length === 0 ? (
-          <AppText variant="secondary" style={[styles.emptyState, styles.agendaSubtext]}>Nothing planned for this day.</AppText>
+          <AppText variant="secondary" style={styles.emptyState}>Nothing planned for this day.</AppText>
         ) : (
           <View style={styles.agendaList}>
             {selectedRecords.map((record) => {
@@ -326,9 +326,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: 'rgba(255,255,255,0.82)',
-  },
-  agendaSubtext: {
-    color: 'rgba(255,255,255,0.75)',
   },
   // Approved layout: the whole month grid (nav/heading, weekday row,
   // dates, indicators) sits on its own pure-white card, separated from
