@@ -197,6 +197,7 @@ describe('responsive onboarding composition', () => {
         interests={[]}
         personName="David"
         supportedPersonId="person-david"
+        careSpaceId="space-david"
         records={[]}
         onBack={jest.fn()}
         onSaveRecord={jest.fn()}

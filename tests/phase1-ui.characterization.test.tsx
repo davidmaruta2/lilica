@@ -137,6 +137,7 @@ describe('protected structured-record onboarding', () => {
     interests: [] as LilicaRecordType[],
     personName: 'Margaret',
     supportedPersonId: 'person-margaret',
+    careSpaceId: 'space-margaret',
     records: [] as LilicaRecord[],
     onBack: jest.fn(),
     onSaveRecord: jest.fn(),

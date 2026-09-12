@@ -6,7 +6,8 @@ import * as ImagePicker from 'expo-image-picker';
 
 import { CareCircleMember } from '../careCircle';
 import { createUuid } from '../identifiers';
-import { formatDateForInput, recordDomainForType, toIsoDate } from '../records';
+import { LinkedRecordSummary, RecordLinkType } from '../recordLinks';
+import { formatDateForInput, linkPickerSummary, recordDomainForType, toIsoDate } from '../records';
 import { colors, radius, spacing } from '../theme';
 import {
   LilicaRecord,
@@ -17,6 +18,7 @@ import {
 } from '../types';
 import { Button } from './Button';
 import { DateTimeWheelField } from './DateTimeWheelField';
+import { PickableRecord, RelatedRecordPicker } from './RelatedRecordPicker';
 import { AppText } from './Text';
 import { TextField } from './TextField';
 
@@ -67,6 +69,22 @@ type Props = {
   onChange: (draft: RecordDraft) => void;
   onSave: (record: LilicaRecord) => void;
   onRemove?: () => void;
+  // Phase 17: "Related to" -- provided only for type === 'document'.
+  // `relatableRecords` is the host's own care-space-scoped candidate list
+  // (this record already excluded); `existingLinks` are this record's
+  // OWN already-persisted links (undefined/empty for a brand-new draft,
+  // since nothing can be linked before the record itself has a stable
+  // id). Picking a candidate on an EXISTING record calls `onLinkRecord`
+  // immediately; on a brand-new draft it is staged locally and flushed
+  // via `onLinkRecord` from inside save(), once the new record's id is
+  // known. Symmetrically, `onCreateLinkedTask` is called immediately for
+  // an existing record's own separate "Add this task" action, or staged
+  // and flushed from inside save() for a brand-new draft.
+  relatableRecords?: PickableRecord[];
+  existingLinks?: LinkedRecordSummary[];
+  onLinkRecord?: (sourceRecordId: string, targetRecordId: string, linkType: RecordLinkType) => void;
+  onUnlinkRecord?: (linkId: string) => void;
+  onCreateLinkedTask?: (sourceRecordId: string, task: { title: string; dueDate?: string; assignedMembershipId?: string }) => void;
 };
 
 const titleLabels: Record<LilicaRecordType, string> = {
@@ -171,10 +189,24 @@ export type RecordEditorHandle = {
 };
 
 export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function RecordEditor(
-  { type, record, draft, supportedPersonId, activeMembershipId, careCircleMembers, onRequestReminderPermission, onChange, onSave, onRemove },
+  {
+    type, record, draft, supportedPersonId, activeMembershipId, careCircleMembers, onRequestReminderPermission,
+    onChange, onSave, onRemove,
+    relatableRecords, existingLinks, onLinkRecord, onUnlinkRecord, onCreateLinkedTask,
+  },
   ref,
 ) {
   const [attachmentError, setAttachmentError] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
+  // Staged only for a brand-new draft, where there is no stable record id
+  // yet to link against -- flushed from inside save() once one exists.
+  // For an existing record, picking/removing acts immediately instead
+  // (see onLinkRecord/onUnlinkRecord above) and these two stay unused.
+  const [pendingRelatedRecordId, setPendingRelatedRecordId] = useState<string>();
+  const [wantsTask, setWantsTask] = useState(false);
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskDate, setTaskDate] = useState('');
+  const [taskAssignee, setTaskAssignee] = useState<string | undefined>(activeMembershipId);
   const parsedDate = draft.date ? toIsoDate(draft.date) : undefined;
   const parsedExpiry = draft.expiryDate ? toIsoDate(draft.expiryDate) : undefined;
   const dateRequired = type === 'appointment' || type === 'bill';
@@ -247,9 +279,10 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
     const relevantDateChanged = supportsReminder
       && (record?.eventDate !== finalEventDate || record?.eventTime !== finalEventTime || record?.dueDate !== finalDueDate);
     const reminderScheduleVersion = relevantDateChanged ? (record?.reminderScheduleVersion ?? 0) + 1 : record?.reminderScheduleVersion ?? 0;
+    const recordId = record?.id ?? createUuid();
 
     onSave({
-      id: record?.id ?? createUuid(),
+      id: recordId,
       type,
       title: draft.title.trim(),
       supportedPersonId,
@@ -280,6 +313,22 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
       createdAt: record?.createdAt ?? now,
       updatedAt: now,
     });
+
+    // Phase 17: a brand-new document's own id only exists from this point
+    // -- flush whatever was staged locally while it was still being
+    // created. An existing record's Related-to/task actions already fired
+    // immediately when picked (see the JSX below), so there is nothing
+    // pending here for that case.
+    if (!record && type === 'document') {
+      if (pendingRelatedRecordId) onLinkRecord?.(recordId, pendingRelatedRecordId, 'related_to');
+      if (wantsTask && taskTitle.trim()) {
+        onCreateLinkedTask?.(recordId, {
+          title: taskTitle.trim(),
+          dueDate: taskDate ? toIsoDate(taskDate) : undefined,
+          assignedMembershipId: taskAssignee,
+        });
+      }
+    }
   }
 
   function confirmRemove() {
@@ -465,6 +514,136 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
       {type === 'document' ? (
         <DateTimeWheelField label="Expiry date" mode="date" value={draft.expiryDate} onChange={(expiryDate) => change({ expiryDate })} optional />
       ) : null}
+
+      {/* Phase 17: "Related to" -- optional, never forced. A reference-
+          only document (passport copy, Power of Attorney) is left with
+          nothing here, exactly as valid as one that's linked. */}
+      {type === 'document' ? (
+        <View style={styles.fieldGroup}>
+          <AppText variant="secondary" tone="soft">Related to</AppText>
+          {(existingLinks ?? []).map((link) => (
+            <View key={link.linkId} style={styles.relatedRow}>
+              <View style={styles.relatedCopy}>
+                <AppText variant="bodyStrong" numberOfLines={1}>{link.title}</AppText>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Remove link to ${link.title}`}
+                hitSlop={8}
+                onPress={() => onUnlinkRecord?.(link.linkId)}
+              >
+                <AppText variant="secondary" tone="danger">Remove</AppText>
+              </Pressable>
+            </View>
+          ))}
+          {!record && pendingRelatedRecordId ? (() => {
+            const picked = relatableRecords?.find((item) => item.id === pendingRelatedRecordId);
+            return picked ? (
+              <View style={styles.relatedRow}>
+                <View style={styles.relatedCopy}>
+                  <AppText variant="bodyStrong" numberOfLines={1}>{picked.title}</AppText>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove link to ${picked.title}`}
+                  hitSlop={8}
+                  onPress={() => setPendingRelatedRecordId(undefined)}
+                >
+                  <AppText variant="secondary" tone="danger">Remove</AppText>
+                </Pressable>
+              </View>
+            ) : null;
+          })() : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Link something"
+            onPress={() => setPickerOpen(true)}
+            style={styles.linkSomething}
+          >
+            <AppText variant="secondary" tone="primary">+ Link something</AppText>
+          </Pressable>
+          <RelatedRecordPicker
+            visible={pickerOpen}
+            records={relatableRecords ?? []}
+            onClose={() => setPickerOpen(false)}
+            onSelect={(targetId) => {
+              setPickerOpen(false);
+              if (record) onLinkRecord?.(record.id, targetId, 'related_to');
+              else setPendingRelatedRecordId(targetId);
+            }}
+          />
+        </View>
+      ) : null}
+
+      {/* Phase 17: "Does anything need doing?" -- optional, calm wording,
+          never a generic follow-up checkbox. Choosing Yes creates a REAL
+          canonical task through the existing task save path, linked back
+          to this document -- never a second task system, never state
+          embedded in the document itself. */}
+      {type === 'document' ? (
+        <View style={styles.fieldGroup}>
+          <AppText variant="secondary" tone="soft">Does anything need doing?</AppText>
+          <View style={styles.segmented}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: !wantsTask }}
+              onPress={() => setWantsTask(false)}
+              style={[styles.segment, !wantsTask && styles.segmentSelected]}
+            >
+              <AppText variant="secondary" tone={!wantsTask ? 'primary' : 'soft'} centre>No — just keep this</AppText>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: wantsTask }}
+              onPress={() => setWantsTask(true)}
+              style={[styles.segment, wantsTask && styles.segmentSelected]}
+            >
+              <AppText variant="secondary" tone={wantsTask ? 'primary' : 'soft'} centre>Yes — add something to do</AppText>
+            </Pressable>
+          </View>
+          {wantsTask ? (
+            <View style={styles.taskFields}>
+              <TextField compact label="What needs doing?" value={taskTitle} onChangeText={setTaskTitle} />
+              <DateTimeWheelField label="By when" mode="date" value={taskDate} onChange={setTaskDate} optional />
+              <View style={styles.segmented}>
+                {[{ label: 'Unassigned', value: undefined as string | undefined }, ...assignmentOptions].map((option) => {
+                  const selected = option.value === undefined ? !taskAssignee : taskAssignee === option.value;
+                  return (
+                    <Pressable
+                      key={option.label}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      onPress={() => setTaskAssignee(option.value)}
+                      style={[styles.segment, selected && styles.segmentSelected]}
+                    >
+                      <AppText variant="secondary" tone={selected ? 'primary' : 'soft'} centre>{option.label}</AppText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {record ? (
+                <Button
+                  label="Add this task"
+                  variant="secondary"
+                  disabled={!taskTitle.trim()}
+                  onPress={() => {
+                    onCreateLinkedTask?.(record.id, {
+                      title: taskTitle.trim(),
+                      dueDate: taskDate ? toIsoDate(taskDate) : undefined,
+                      assignedMembershipId: taskAssignee,
+                    });
+                    setWantsTask(false);
+                    setTaskTitle('');
+                    setTaskDate('');
+                  }}
+                  style={styles.addTaskButton}
+                />
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       {type === 'contact' ? (
         <>
           <TextField compact label="Role or relationship" placeholder="e.g. GP or family member" value={draft.role} onChangeText={(role) => change({ role })} />
@@ -555,6 +734,21 @@ const styles = StyleSheet.create({
   attachmentCopy: { flex: 1, gap: spacing.xxs },
   removeAttachment: { minWidth: 58, minHeight: 40, alignItems: 'flex-end', justifyContent: 'center' },
   fieldGroup: { gap: spacing.xs },
+  relatedRow: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceMuted,
+  },
+  relatedCopy: { flex: 1 },
+  linkSomething: { minHeight: 40, justifyContent: 'center' },
+  taskFields: { gap: spacing.sm, marginTop: spacing.xxs },
+  addTaskButton: { borderRadius: radius.md },
   segmented: { flexDirection: 'row', borderWidth: 1, borderColor: colors.line, borderRadius: radius.sm, overflow: 'hidden' },
   segment: { flex: 1, minHeight: 44, paddingHorizontal: spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   segmentSelected: { backgroundColor: colors.primarySoft },

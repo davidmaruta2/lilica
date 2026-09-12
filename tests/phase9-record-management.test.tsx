@@ -14,6 +14,7 @@ const baseProps = {
   interests: [] as never[],
   personName: 'Margaret',
   supportedPersonId: 'person-1',
+  careSpaceId: 'space-1',
   onBack: jest.fn(),
   onSaveRecord: jest.fn(),
   onRemoveRecord: jest.fn(),

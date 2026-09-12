@@ -77,3 +77,14 @@ export async function removeRecordLink(linkId: string): Promise<Result<void>> {
   if (error) return fail(error);
   return { ok: true, data: undefined };
 }
+
+// Phase 17: completes record deletion's file/link lifecycle (brief
+// section 28) -- removing a record must tombstone ITS OWN links so
+// nothing keeps pointing at a record that's gone, without ever touching
+// the record on the other end of the link. Best-effort; a failure here
+// never blocks or undoes the record deletion that already happened.
+export async function removeAllLinksForRecord(recordId: string): Promise<void> {
+  const result = await listRecordLinks(recordId);
+  if (!result.ok) return;
+  await Promise.all(result.data.map((link) => removeRecordLink(link.linkId)));
+}

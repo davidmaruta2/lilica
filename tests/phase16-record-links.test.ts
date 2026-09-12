@@ -11,7 +11,7 @@ jest.mock('../src/auth/client', () => ({
   supabase: { rpc: (...args: unknown[]) => mockRpc(...args) },
 }));
 
-import { createRecordLink, listRecordLinks, removeRecordLink } from '../src/recordLinks';
+import { createRecordLink, listRecordLinks, removeAllLinksForRecord, removeRecordLink } from '../src/recordLinks';
 
 beforeEach(() => {
   mockRpc.mockReset();
@@ -89,5 +89,28 @@ describe('removeRecordLink', () => {
     const result = await removeRecordLink('link-1');
     expect(mockRpc).toHaveBeenCalledWith('remove_record_link', { target_link_id: 'link-1' });
     expect(result).toEqual({ ok: true, data: undefined });
+  });
+});
+
+describe('removeAllLinksForRecord (Phase 17: completes record deletion\'s link lifecycle)', () => {
+  it('removes every link belonging to the record, never touching the record on the other end', async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: [
+        { link_id: 'link-1', link_type: 'related_to', direction: 'outgoing', other_record_id: 'appt-1', other_record_type: 'appointment', other_record_title: 'Orthopaedic appointment', created_at: '2026-09-12T00:00:00.000Z' },
+        { link_id: 'link-2', link_type: 'action_for', direction: 'incoming', other_record_id: 'task-1', other_record_type: 'task', other_record_title: 'Call hospital to confirm', created_at: '2026-09-12T00:00:00.000Z' },
+      ],
+      error: null,
+    });
+    mockRpc.mockResolvedValue({ error: null });
+    await removeAllLinksForRecord('doc-1');
+    expect(mockRpc).toHaveBeenCalledWith('list_record_links', { target_record_id: 'doc-1' });
+    expect(mockRpc).toHaveBeenCalledWith('remove_record_link', { target_link_id: 'link-1' });
+    expect(mockRpc).toHaveBeenCalledWith('remove_record_link', { target_link_id: 'link-2' });
+  });
+
+  it('is a no-op, never throws, when the record has no links', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null });
+    await expect(removeAllLinksForRecord('doc-1')).resolves.toBeUndefined();
+    expect(mockRpc).toHaveBeenCalledTimes(1);
   });
 });

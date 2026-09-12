@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   FlatList,
   NativeScrollEvent,
@@ -9,16 +10,19 @@ import {
   View,
 } from 'react-native';
 
+import { openAttachment, queuePendingAttachmentUploads } from '../attachments';
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
-import { canEditRecord, RecordDetail } from '../components/RecordDetail';
+import { canEditRecord, RecordDetail, RelatedRecordEntry } from '../components/RecordDetail';
 import { createRecordDraft, RecordDraft, RecordEditor, RecordEditorHandle } from '../components/RecordEditor';
 import { RecordSheet, RecordSheetHandle } from '../components/RecordSheet';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
 import { CareCircleMember } from '../careCircle';
 import { firstItemOptions } from '../data/options';
-import { formatDateForDisplay } from '../records';
+import { createUuid } from '../identifiers';
+import { createRecordLink, LinkedRecordSummary, listRecordLinks, removeRecordLink } from '../recordLinks';
+import { formatDateForDisplay, isLinkableRecordType, linkPickerSummary } from '../records';
 import { colors, radius, spacing } from '../theme';
 import { LilicaRecord, LilicaRecordType } from '../types';
 
@@ -31,6 +35,9 @@ type Props = {
   interests: LilicaRecordType[];
   personName?: string;
   supportedPersonId: string;
+  // Phase 17: needed for record-link and cloud-attachment RPCs, both
+  // always care-space-scoped.
+  careSpaceId: string;
   records: LilicaRecord[];
   // The organiser's own membership ID for the active care space, threaded
   // down to RecordEditor's Assigned-to control. See fork.txt Part 5.
@@ -72,6 +79,7 @@ export function FirstThingScreen({
   interests,
   personName,
   supportedPersonId,
+  careSpaceId,
   records,
   activeMembershipId,
   careCircleMembers,
@@ -104,6 +112,10 @@ export function FirstThingScreen({
   const [openView, setOpenView] = useState<'list' | 'view' | 'editor'>('editor');
   const [drafts, setDrafts] = useState<Record<string, RecordDraft>>({});
   const [stackHeight, setStackHeight] = useState(0);
+  // Phase 17: the currently-open record's own persisted links -- see
+  // RecordQuickEditor's identical comment for why this re-fetches
+  // whenever the open record itself changes.
+  const [links, setLinks] = useState<LinkedRecordSummary[]>([]);
 
   // Corrective task: initial setup (everyday === false) offers ONLY the
   // categories chosen on "What do you help X with?" -- in their normal
@@ -154,6 +166,26 @@ export function FirstThingScreen({
     setOpenDraftKey(undefined);
     setOpenView('view');
     focusIndex(index);
+  }
+
+  useEffect(() => {
+    if (openView !== 'view' || !openRecordId) { setLinks([]); return; }
+    let cancelled = false;
+    listRecordLinks(openRecordId).then((result) => {
+      if (!cancelled && result.ok) setLinks(result.data);
+    });
+    return () => { cancelled = true; };
+  }, [openView, openRecordId]);
+
+  // Phase 17: "Document -> Orthopaedic appointment -> Appointment
+  // Detail" and back -- the target may belong to a different category
+  // than whatever is currently focused, so this looks it up across every
+  // record rather than assuming the same category/index.
+  function openLinkedRecord(targetId: string) {
+    const target = records.find((item) => item.id === targetId);
+    if (!target) return;
+    const index = ordered.findIndex((item) => item.id === target.type);
+    openDetail(index >= 0 ? index : activeIndex, target.type, target);
   }
 
   function openCategory(index: number, type: LilicaRecordType) {
@@ -347,6 +379,18 @@ export function FirstThingScreen({
         const index = ordered.findIndex((item) => item.id === openType);
         const categoryRecords = records.filter((item) => item.type === openType);
         const terms = categoryTerms[openType];
+        const relatedRecords: RelatedRecordEntry[] = links.flatMap((link) => {
+          const other = records.find((item) => item.id === link.recordId);
+          return other ? [{ linkId: link.linkId, linkType: link.linkType, direction: link.direction, record: other }] : [];
+        });
+        const relatableRecords = records
+          .filter((item) => item.id !== record?.id && item.status !== 'cancelled' && isLinkableRecordType(item.type))
+          .map(linkPickerSummary);
+        async function afterDocumentSaved(savedRecord: LilicaRecord) {
+          if (savedRecord.type !== 'document') return;
+          const uploaded = await queuePendingAttachmentUploads(careSpaceId, savedRecord);
+          if (uploaded) onSaveRecord({ ...savedRecord, attachments: uploaded });
+        }
         return (
           <RecordSheet
             ref={sheet}
@@ -389,6 +433,15 @@ export function FirstThingScreen({
                     activeMembershipId={activeMembershipId}
                     careCircleMembers={careCircleMembers}
                     onEdit={canEditRecord(record, careCircleMembers) ? () => openEditor(index, openType, record) : undefined}
+                    relatedRecords={relatedRecords}
+                    onOpenLinkedRecord={openLinkedRecord}
+                    onViewDocument={(attachmentId) => {
+                      const attachment = record.attachments?.find((item) => item.id === attachmentId);
+                      if (!attachment) return;
+                      void openAttachment(attachment).then((result) => {
+                        if (!result.ok) Alert.alert('Could not open document', result.message);
+                      });
+                    }}
                   />
                 ) : (
                   <RecordEditor
@@ -401,7 +454,45 @@ export function FirstThingScreen({
                     careCircleMembers={careCircleMembers}
                     onRequestReminderPermission={onRequestReminderPermission}
                     onChange={(nextDraft) => setDrafts((current) => ({ ...current, [draftKey]: nextDraft }))}
-                    onSave={(savedRecord) => save(index, savedRecord)}
+                    relatableRecords={relatableRecords}
+                    existingLinks={links.filter((link) => link.linkType === 'related_to' && link.direction === 'outgoing')}
+                    onLinkRecord={(sourceId, targetId, linkType) => {
+                      void createRecordLink({ careSpaceId, sourceRecordId: sourceId, targetRecordId: targetId, linkType }).then((result) => {
+                        if (result.ok && record?.id === sourceId) {
+                          listRecordLinks(sourceId).then((refreshed) => { if (refreshed.ok) setLinks(refreshed.data); });
+                        }
+                      });
+                    }}
+                    onUnlinkRecord={(linkId) => {
+                      void removeRecordLink(linkId).then((result) => {
+                        if (result.ok) setLinks((current) => current.filter((item) => item.linkId !== linkId));
+                      });
+                    }}
+                    onCreateLinkedTask={(sourceId, task) => {
+                      const now = new Date().toISOString();
+                      const taskRecord: LilicaRecord = {
+                        id: createUuid(),
+                        type: 'task',
+                        title: task.title,
+                        supportedPersonId,
+                        status: 'unresolved',
+                        dueDate: task.dueDate,
+                        assignedMembershipId: task.assignedMembershipId,
+                        completed: false,
+                        createdAt: now,
+                        updatedAt: now,
+                      };
+                      onSaveRecord(taskRecord);
+                      void createRecordLink({ careSpaceId, sourceRecordId: taskRecord.id, targetRecordId: sourceId, linkType: 'action_for' }).then((result) => {
+                        if (result.ok && record?.id === sourceId) {
+                          listRecordLinks(sourceId).then((refreshed) => { if (refreshed.ok) setLinks(refreshed.data); });
+                        }
+                      });
+                    }}
+                    onSave={(savedRecord) => {
+                      void afterDocumentSaved(savedRecord);
+                      save(index, savedRecord);
+                    }}
                     onRemove={record ? () => remove(record.id) : undefined}
                   />
                 )}

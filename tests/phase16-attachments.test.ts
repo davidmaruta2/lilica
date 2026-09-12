@@ -9,11 +9,18 @@
 const mockRpc = jest.fn();
 const mockUpload = jest.fn();
 const mockCreateSignedUrl = jest.fn();
+const mockRemove = jest.fn();
 
 jest.mock('../src/auth/client', () => ({
   supabase: {
     rpc: (...args: unknown[]) => mockRpc(...args),
-    storage: { from: () => ({ upload: (...args: unknown[]) => mockUpload(...args), createSignedUrl: (...args: unknown[]) => mockCreateSignedUrl(...args) }) },
+    storage: {
+      from: () => ({
+        upload: (...args: unknown[]) => mockUpload(...args),
+        createSignedUrl: (...args: unknown[]) => mockCreateSignedUrl(...args),
+        remove: (...args: unknown[]) => mockRemove(...args),
+      }),
+    },
   },
 }));
 
@@ -46,7 +53,7 @@ jest.mock('expo-sharing', () => ({
   shareAsync: (...args: unknown[]) => mockShareAsync(...args),
 }));
 
-import { attachmentStoragePath, openAttachment, queuePendingAttachmentUploads } from '../src/attachments';
+import { attachmentStoragePath, cleanupDocumentAttachments, openAttachment, queuePendingAttachmentUploads } from '../src/attachments';
 import { LilicaRecord, RecordAttachment } from '../src/types';
 
 const baseAttachment: RecordAttachment = {
@@ -166,5 +173,39 @@ describe('openAttachment', () => {
     mockSharingAvailable.mockReturnValue(false);
     const result = await openAttachment(baseAttachment);
     expect(result.ok).toBe(false);
+  });
+});
+
+describe('cleanupDocumentAttachments (Phase 17: completes the file lifecycle)', () => {
+  const document: LilicaRecord = {
+    id: 'doc-1', type: 'document', title: 'Hospital appointment letter', status: 'saved',
+    createdAt: '2026-09-12T00:00:00.000Z',
+    attachments: [{ ...baseAttachment, storageObjectPath: 'space-1/doc-1/att-1-hospital_letter.pdf', uploadStatus: 'uploaded' }],
+  };
+
+  it('removes the cloud object then tombstones the attachment metadata, for every attachment', async () => {
+    mockRemove.mockResolvedValue({ error: null });
+    mockRpc.mockResolvedValue({ error: null });
+    await cleanupDocumentAttachments(document);
+    expect(mockRemove).toHaveBeenCalledWith(['space-1/doc-1/att-1-hospital_letter.pdf']);
+    expect(mockRpc).toHaveBeenCalledWith('remove_record_attachment', { target_attachment_id: 'att-1' });
+  });
+
+  it('is a no-op for a non-document record', async () => {
+    await cleanupDocumentAttachments({ ...document, type: 'task' });
+    expect(mockRemove).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('skips the storage removal for an attachment that was never actually uploaded', async () => {
+    mockRpc.mockResolvedValue({ error: null });
+    await cleanupDocumentAttachments({ ...document, attachments: [{ ...baseAttachment, storageObjectPath: undefined }] });
+    expect(mockRemove).not.toHaveBeenCalled();
+    expect(mockRpc).toHaveBeenCalledWith('remove_record_attachment', { target_attachment_id: 'att-1' });
+  });
+
+  it('never throws when cleanup fails -- best-effort only, the record deletion already happened', async () => {
+    mockRemove.mockRejectedValue(new Error('offline'));
+    await expect(cleanupDocumentAttachments(document)).resolves.toBeUndefined();
   });
 });

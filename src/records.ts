@@ -106,6 +106,35 @@ export function calendarDateForRecord(record: LilicaRecord): string | undefined 
   return undefined;
 }
 
+// Phase 17: a human-readable one-line summary for the "Related to" picker
+// and for RecordDetail's own related-record rows -- title plus whatever
+// date the record already presents elsewhere (calendarDateForRecord's
+// exact same field priority, plus a due-date fallback for task/bill/
+// homeMatter so a task with no calendar-eligible date still gets a
+// useful subtitle). Built only from existing canonical fields -- no new
+// field, no fabricated text, never a UUID/type/domain name.
+export function linkPickerSummary(record: LilicaRecord): { id: string; title: string; subtitle?: string } {
+  const date = calendarDateForRecord(record) ?? record.dueDate ?? record.date;
+  const time = record.eventTime ?? record.time;
+  const dateLabel = formatDateForDisplay(date);
+  const subtitle = dateLabel
+    ? (time ? `${dateLabel} · ${time}` : dateLabel)
+    : undefined;
+  return { id: record.id, title: record.title, subtitle };
+}
+
+// Phase 17: which record types are appropriate "Related to" targets for a
+// document -- audited against the current canonical categories rather
+// than assumed from memory. A document may relate to the everyday things
+// it's evidence for; it is never offered as its own target, and contacts/
+// care notes/updates/other documents are excluded as not meaningfully
+// "the thing a document is related to" for this first pass.
+const LINKABLE_TYPES: LilicaRecordType[] = ['appointment', 'task', 'bill', 'homeMatter'];
+
+export function isLinkableRecordType(type: LilicaRecordType): boolean {
+  return LINKABLE_TYPES.includes(type);
+}
+
 // Phase 12: which records are genuinely actionable "To Do" work, per
 // docs/CORE_SYSTEM_CONTRACT.md section 9.3 -- explicit tasks, actionable
 // bill/renewal occurrences, and actionable home/car matters. Appointments,

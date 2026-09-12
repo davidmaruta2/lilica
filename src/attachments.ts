@@ -86,6 +86,28 @@ export async function queuePendingAttachmentUploads(careSpaceId: string, record:
   return record.attachments.map((attachment) => byId.get(attachment.id) ?? attachment);
 }
 
+// Phase 17: completes the file lifecycle Phase 16 deliberately left
+// unwired. Called AFTER a document record's own tombstone/sync has
+// already been enqueued (see App.tsx's removeRecord) -- never before, so
+// a failed or offline cleanup never leaves the canonical record deletion
+// itself in an inconsistent state. Best-effort and silent on failure: an
+// offline delete's cloud bytes are not yet retried automatically (a known
+// limitation -- see docs/PHASE_16_ARCHITECTURE.md/the Phase 17 report),
+// but the record itself is always safely gone either way.
+export async function cleanupDocumentAttachments(record: LilicaRecord): Promise<void> {
+  if (record.type !== 'document' || !record.attachments?.length) return;
+  await Promise.all(record.attachments.map(async (attachment) => {
+    try {
+      if (attachment.storageObjectPath) {
+        await supabase.storage.from(BUCKET).remove([attachment.storageObjectPath]);
+      }
+      await supabase.rpc('remove_record_attachment', { target_attachment_id: attachment.id });
+    } catch {
+      // See comment above -- best-effort only.
+    }
+  }));
+}
+
 export type OpenAttachmentResult = { ok: true } | { ok: false; message: string };
 
 // "View document" (brief section 9). Prefers this device's own local

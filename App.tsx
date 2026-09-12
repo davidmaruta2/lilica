@@ -41,6 +41,8 @@ import {
   prepareOnboardingStateForStartup,
   saveOnboardingState,
 } from './src/storage';
+import { cleanupDocumentAttachments, queuePendingAttachmentUploads } from './src/attachments';
+import { removeAllLinksForRecord } from './src/recordLinks';
 import { removeRecordById, upsertRecord } from './src/records';
 import {
   activeCareSpace,
@@ -215,6 +217,9 @@ function LilicaApp() {
   const legacyBootstrapInFlight = useRef(false);
   const reconnectedOwnerId = useRef<string | undefined>(undefined);
   const localRecordRevision = useRef(0);
+  // Phase 17: which attachment ids this session has already queued for
+  // upload -- see the retry effect below.
+  const uploadAttemptedThisSession = useRef<Set<string>>(new Set());
   const recordRetryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const activeStorageOwnerId = useRef<string | null>(storageOwnerId);
   activeStorageOwnerId.current = storageOwnerId;
@@ -455,6 +460,33 @@ function LilicaApp() {
     return () => subscription.remove();
   }, [linkedCareSpaceSignature, storageOwnerId]);
 
+  // Phase 17: retries/resumes pending document uploads at existing
+  // lifecycle points -- app startup once an authenticated, non-local care
+  // space's records are available, and after each successful
+  // reconciliation pass above (both land here, since both update
+  // `currentSpace.records`). `uploadAttemptedThisSession` is the smallest
+  // reliable guard against re-attempting the same attachment id every
+  // render within one app session -- queuePendingAttachmentUploads()
+  // itself is already idempotent, so this is purely to avoid wasted RPC
+  // calls, not a correctness requirement. A genuine restart (a fresh
+  // session) naturally retries anything still pending, satisfying "a
+  // restart must not strand a valid pending upload forever" without a
+  // separate background-job system.
+  useEffect(() => {
+    if (!currentSpace || currentSpace.careSpaceId.startsWith('local-')) return;
+    const careSpaceId = currentSpace.careSpaceId;
+    for (const record of currentSpace.records) {
+      if (record.type !== 'document') continue;
+      const pending = record.attachments?.filter((attachment) => attachment.uri && attachment.uploadStatus !== 'uploaded');
+      if (!pending || pending.length === 0) continue;
+      if (pending.every((attachment) => uploadAttemptedThisSession.current.has(attachment.id))) continue;
+      pending.forEach((attachment) => uploadAttemptedThisSession.current.add(attachment.id));
+      queuePendingAttachmentUploads(careSpaceId, record).then((uploaded) => {
+        if (uploaded) saveRecord({ ...record, attachments: uploaded });
+      });
+    }
+  }, [currentSpace?.careSpaceId, currentSpace?.records]);
+
   function syncAfterLocalMutation(operation: Promise<LilicaRecord[]>) {
     if (!storageOwnerId) return;
     const revision = localRecordRevision.current;
@@ -555,6 +587,14 @@ function LilicaApp() {
     }
     // Phase 14: deleting a record must suppress its pending reminders too.
     if (existing) void cancelRecordReminders(existing.id, existing.reminderScheduleVersion ?? 0);
+    // Phase 17: complete the file/link lifecycle Phase 16 deliberately
+    // left unwired -- fires only after the canonical record's own
+    // tombstone/sync above has already been enqueued, never before.
+    // Never touches the record on the other end of any link.
+    if (existing) {
+      void removeAllLinksForRecord(existing.id);
+      void cleanupDocumentAttachments(existing);
+    }
   }
 
   async function requestReminderPermission(): Promise<boolean> {
@@ -942,6 +982,7 @@ function LilicaApp() {
             recordId={calendarOpenRecordId}
             newType={calendarOpenRecordId ? undefined : projectionOpenType}
             supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
+            careSpaceId={currentSpace?.careSpaceId ?? ''}
             activeMembershipId={currentSpace?.membershipId}
             careCircleMembers={careCircleMembers}
             onRequestReminderPermission={requestReminderPermission}
@@ -1216,6 +1257,7 @@ function LilicaApp() {
             interests={currentSpace?.interests ?? []}
             personName={currentSpace?.displayName}
             supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
+            careSpaceId={currentSpace?.careSpaceId ?? ''}
             records={currentSpace?.records ?? []}
             activeMembershipId={currentSpace?.membershipId}
             careCircleMembers={careCircleMembers}
@@ -1241,6 +1283,7 @@ function LilicaApp() {
             interests={currentSpace?.interests ?? []}
             personName={currentSpace?.displayName}
             supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
+            careSpaceId={currentSpace?.careSpaceId ?? ''}
             records={currentSpace?.records ?? []}
             activeMembershipId={currentSpace?.membershipId}
             careCircleMembers={careCircleMembers}

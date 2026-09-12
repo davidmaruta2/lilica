@@ -24,6 +24,7 @@ import { LilicaRecord } from '../src/types';
 
 const baseProps = {
   supportedPersonId: 'person-1',
+  careSpaceId: 'space-1',
   onSaveRecord: jest.fn(),
   onRemoveRecord: jest.fn(),
   onDismiss: jest.fn(),
