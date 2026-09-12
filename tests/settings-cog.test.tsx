@@ -29,7 +29,7 @@ describe('SettingsMenu', () => {
   it('always offers Account -- the one destination that already bundles profile, reminders and sign out', async () => {
     const onOpenAccount = jest.fn();
     const screen = await render(
-      <SettingsMenu visible onClose={jest.fn()} onOpenAccount={onOpenAccount} onOpenPrivacyData={jest.fn()} />,
+      <SettingsMenu visible section="menu" onClose={jest.fn()} onOpenAccount={onOpenAccount} onOpenPrivacyData={jest.fn()} />,
     );
     await fireEvent.press(screen.getByLabelText('Account'));
     expect(onOpenAccount).toHaveBeenCalledTimes(1);
@@ -37,41 +37,65 @@ describe('SettingsMenu', () => {
 
   it('offers Care Circle only when a callback is supplied -- never a dead row', async () => {
     const withoutCareCircle = await render(
-      <SettingsMenu visible onClose={jest.fn()} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} />,
+      <SettingsMenu visible section="menu" onClose={jest.fn()} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} />,
     );
     expect(withoutCareCircle.queryByLabelText('Care Circle')).toBeNull();
 
     const onOpenCareCircle = jest.fn();
     const withCareCircle = await render(
-      <SettingsMenu visible onClose={jest.fn()} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenCareCircle={onOpenCareCircle} />,
+      <SettingsMenu visible section="menu" onClose={jest.fn()} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenCareCircle={onOpenCareCircle} />,
     );
     await fireEvent.press(withCareCircle.getByLabelText('Care Circle'));
     expect(onOpenCareCircle).toHaveBeenCalledTimes(1);
   });
 
-  it('closes when a row is tapped, and Close closes without acting', async () => {
+  // Settings navigation correction: a menu row no longer closes the whole
+  // drawer -- it hands off to App.tsx's settingsSection state, which swaps
+  // the drawer's own body while the drawer itself stays open (verified
+  // end-to-end in tests/settings-navigation.test.tsx). Only the drawer's
+  // own Close (or the dimmed backdrop) calls onClose.
+  it('a row press calls its own callback but never onClose -- the drawer stays open, the section changes underneath it', async () => {
     const onClose = jest.fn();
     const onOpenAccount = jest.fn();
     const screen = await render(
-      <SettingsMenu visible onClose={onClose} onOpenAccount={onOpenAccount} onOpenPrivacyData={jest.fn()} />,
+      <SettingsMenu visible section="menu" onClose={onClose} onOpenAccount={onOpenAccount} onOpenPrivacyData={jest.fn()} />,
     );
     await fireEvent.press(screen.getByLabelText('Account'));
-    expect(onClose).toHaveBeenCalledTimes(1);
     expect(onOpenAccount).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('Close (header) and the dimmed backdrop both call onClose', async () => {
+    const onClose = jest.fn();
+    const screen = await render(
+      <SettingsMenu visible section="menu" onClose={onClose} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} />,
+    );
+    await fireEvent.press(screen.getByLabelText('Close settings'));
+    expect(onClose).toHaveBeenCalledTimes(1);
 
     onClose.mockClear();
     const second = await render(
-      <SettingsMenu visible onClose={onClose} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} />,
+      <SettingsMenu visible section="menu" onClose={onClose} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} />,
     );
-    await fireEvent.press(second.getByLabelText('Close settings'));
+    await fireEvent.press(second.getByLabelText('Dismiss settings'));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('offers no Privacy/Help/About row -- neither is a genuinely implemented destination', async () => {
+  it('renders the passed-in section content, not the menu list, whenever section is not "menu"', async () => {
+    const { Text } = require('react-native');
     const screen = await render(
-      <SettingsMenu visible onClose={jest.fn()} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenCareCircle={jest.fn()} />,
+      <SettingsMenu visible section="privacyData" onClose={jest.fn()} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()}>
+        <Text>Privacy & data body</Text>
+      </SettingsMenu>,
     );
-    expect(screen.queryByText('Privacy')).toBeNull();
+    screen.getByText('Privacy & data body');
+    expect(screen.queryByLabelText('Account')).toBeNull();
+  });
+
+  it('offers no Help/About row -- neither is a genuinely implemented destination', async () => {
+    const screen = await render(
+      <SettingsMenu visible section="menu" onClose={jest.fn()} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenCareCircle={jest.fn()} />,
+    );
     expect(screen.queryByText('Help')).toBeNull();
     expect(screen.queryByText('About')).toBeNull();
   });

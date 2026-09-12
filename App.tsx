@@ -191,12 +191,17 @@ function LilicaApp() {
   // stale target from an earlier chip tap.
   const [todoInitialFilter, setTodoInitialFilter] = useState<'mine'>();
   const [todoInitialFocusGroup, setTodoInitialFocusGroup] = useState<'overdue' | 'today'>();
-  const [showAccount, setShowAccount] = useState(false);
-  // Phase 18: same app-level-overlay pattern as showAccount/showCareCircle.
-  const [showPrivacyData, setShowPrivacyData] = useState(false);
-  // Corrective task 4: the one shared Settings sheet, reachable from
-  // Home/Calendar/To Do/People's cog. Opens Account/Care Circle exactly
-  // via the same showAccount/showCareCircle state those already used.
+  // Corrective task 4 / Phase 18 revision: Account, Care Circle (when
+  // reached from the drawer) and Privacy & Data are no longer separate
+  // top-level screens that replace the current tab -- that made the
+  // Settings drawer feel like it "flicked" the user to another page, and
+  // its own Back button dropped them on the dashboard instead of back
+  // into the drawer. They now render INSIDE the SettingsMenu drawer
+  // itself (see its `section`/children below); this tracks which one.
+  // Care Circle keeps a second, separate direct entry point from People's
+  // own "Manage care circle" link -- see showCareCircle below -- which is
+  // deliberately unchanged (full-screen, not the drawer).
+  const [settingsSection, setSettingsSection] = useState<'menu' | 'account' | 'careCircle' | 'privacyData'>('menu');
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   // Phase 15: the active care space's real members, for the record
   // editor's assignment selector and the Care Circle screen. Never
@@ -207,8 +212,8 @@ function LilicaApp() {
   const [showCareCircle, setShowCareCircle] = useState(false);
   // Home's "Updates this week" tile opens this real destination screen
   // (WellbeingUpdatesScreen) rather than an in-page scroll, on explicit
-  // product instruction -- same app-level-overlay pattern as showAccount/
-  // showCareCircle above.
+  // product instruction -- same app-level-overlay pattern as showCareCircle
+  // above.
   const [showWellbeingUpdates, setShowWellbeingUpdates] = useState(false);
   // Phase 15: invitations addressed to the signed-in account itself
   // (never a care space this account already organises). Auto-surfaces
@@ -245,8 +250,13 @@ function LilicaApp() {
   // Refresh the displayed permission status whenever Account is opened --
   // the user may have changed it in device settings since last time.
   useEffect(() => {
-    if (showAccount) getPermissionState().then(setReminderPermissionState).catch(() => undefined);
-  }, [showAccount]);
+    if (settingsSection === 'account') getPermissionState().then(setReminderPermissionState).catch(() => undefined);
+  }, [settingsSection]);
+
+  // Care Circle can be opened two ways -- People's own direct link
+  // (showCareCircle) or the Settings drawer (settingsSection) -- both
+  // should refresh the membership/invitation lists on open.
+  const careCircleScreenActive = showCareCircle || settingsSection === 'careCircle';
 
   // Phase 15: reload the active care space's real membership/invitation
   // lists whenever the active space changes, and again whenever Care
@@ -271,7 +281,7 @@ function LilicaApp() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSpace?.careSpaceId, showCareCircle]);
+  }, [currentSpace?.careSpaceId, careCircleScreenActive]);
 
   // Phase 15: surface the invitations screen automatically the first time
   // this session finds any pending invitation -- but only once, so a user
@@ -308,7 +318,10 @@ function LilicaApp() {
   async function handlePrivacyCareSpaceLeft() {
     const reconnected = await reconnectCareSpaces();
     if (reconnected.ok) setState((current) => integrateReconnectedCareSpaces(current, reconnected.people));
-    setShowPrivacyData(false);
+    // Leaving a care space changes what the rest of the app shows -- exit
+    // the drawer entirely here rather than returning to its menu list.
+    setShowSettingsMenu(false);
+    setSettingsSection('menu');
   }
 
   // Phase 18: the safest resolution to "what happens after I clear local
@@ -896,48 +909,18 @@ function LilicaApp() {
         />
       );
     } else if (showCareCircle) {
+      // People's own direct "Manage care circle" link -- deliberately
+      // still a full top-level screen, not the Settings drawer below.
       content = currentSpace ? (
         <CareCircleScreen
           personName={currentSpace.displayName}
           members={careCircleMembers}
           invitations={careCircleInvitations}
           careSpaceId={currentSpace.careSpaceId}
-          onBack={() => { setShowCareCircle(false); setShowSettingsMenu(true); }}
+          onBack={() => setShowCareCircle(false)}
           onRefresh={refreshCareCircle}
         />
       ) : null;
-    } else if (showPrivacyData) {
-      const selfMember = careCircleMembers.find((member) => member.isSelf);
-      content = (
-        <PrivacyDataScreen
-          storageOwnerId={storageOwnerId ?? undefined}
-          currentCareSpaceId={currentSpace?.careSpaceId}
-          currentCareSpaceName={currentSpace?.displayName}
-          canLeaveCurrentCareSpace={Boolean(currentSpace && !currentSpace.careSpaceId.startsWith('local-') && selfMember && selfMember.role !== 'organiser')}
-          currentRecords={currentSpace?.records ?? []}
-          onBack={() => { setShowPrivacyData(false); setShowSettingsMenu(true); }}
-          onCareSpaceLeft={() => void handlePrivacyCareSpaceLeft()}
-          onClearLocalData={handlePrivacyClearLocalData}
-        />
-      );
-    } else if (showAccount) {
-      content = (
-        <AccountScreen
-          displayName={auth.profile?.displayName ?? 'Your profile'}
-          email={auth.session?.user.email}
-          signingOut={signingOut}
-          error={signOutError}
-          remindersEnabled={notificationSettings.remindersEnabled}
-          reminderPermissionState={reminderPermissionState}
-          quietHoursEnabled={notificationSettings.quietHoursEnabled}
-          quietHoursLabel={`${formatQuietHour(notificationSettings.quietHours.startHour)}–${formatQuietHour(notificationSettings.quietHours.endHour)}`}
-          onToggleReminders={(enabled) => void toggleGlobalReminders(enabled)}
-          onToggleQuietHours={toggleQuietHours}
-          onSaveDisplayName={auth.saveProfile}
-          onBack={() => { setShowAccount(false); setShowSettingsMenu(true); }}
-          onSignOut={() => void signOut()}
-        />
-      );
     } else if (activeTab === 'home') {
       content = (
         <HomeScreen
@@ -1048,17 +1031,59 @@ function LilicaApp() {
         ) : null}
         <SettingsMenu
           visible={showSettingsMenu}
-          onClose={() => setShowSettingsMenu(false)}
-          onOpenAccount={() => setShowAccount(true)}
-          onOpenPrivacyData={() => setShowPrivacyData(true)}
-          onOpenCareCircle={careCircleAvailable ? () => setShowCareCircle(true) : undefined}
-        />
+          section={settingsSection}
+          onClose={() => { setShowSettingsMenu(false); setSettingsSection('menu'); }}
+          onOpenAccount={() => setSettingsSection('account')}
+          onOpenPrivacyData={() => setSettingsSection('privacyData')}
+          onOpenCareCircle={careCircleAvailable ? () => setSettingsSection('careCircle') : undefined}
+        >
+          {settingsSection === 'account' ? (
+            <AccountScreen
+              displayName={auth.profile?.displayName ?? 'Your profile'}
+              email={auth.session?.user.email}
+              signingOut={signingOut}
+              error={signOutError}
+              remindersEnabled={notificationSettings.remindersEnabled}
+              reminderPermissionState={reminderPermissionState}
+              quietHoursEnabled={notificationSettings.quietHoursEnabled}
+              quietHoursLabel={`${formatQuietHour(notificationSettings.quietHours.startHour)}–${formatQuietHour(notificationSettings.quietHours.endHour)}`}
+              onToggleReminders={(enabled) => void toggleGlobalReminders(enabled)}
+              onToggleQuietHours={toggleQuietHours}
+              onSaveDisplayName={auth.saveProfile}
+              onBack={() => setSettingsSection('menu')}
+              onSignOut={() => void signOut()}
+            />
+          ) : settingsSection === 'careCircle' && currentSpace ? (
+            <CareCircleScreen
+              personName={currentSpace.displayName}
+              members={careCircleMembers}
+              invitations={careCircleInvitations}
+              careSpaceId={currentSpace.careSpaceId}
+              onBack={() => setSettingsSection('menu')}
+              onRefresh={refreshCareCircle}
+            />
+          ) : settingsSection === 'privacyData' ? (
+            <PrivacyDataScreen
+              storageOwnerId={storageOwnerId ?? undefined}
+              currentCareSpaceId={currentSpace?.careSpaceId}
+              currentCareSpaceName={currentSpace?.displayName}
+              canLeaveCurrentCareSpace={(() => {
+                const selfMember = careCircleMembers.find((member) => member.isSelf);
+                return Boolean(currentSpace && !currentSpace.careSpaceId.startsWith('local-') && selfMember && selfMember.role !== 'organiser');
+              })()}
+              currentRecords={currentSpace?.records ?? []}
+              onBack={() => setSettingsSection('menu')}
+              onCareSpaceLeft={() => void handlePrivacyCareSpaceLeft()}
+              onClearLocalData={handlePrivacyClearLocalData}
+            />
+          ) : null}
+        </SettingsMenu>
         <TabBar
           active={activeTab}
           onChange={(tab) => {
             setActiveTab(tab);
-            setShowAccount(false);
-            setShowPrivacyData(false);
+            setShowSettingsMenu(false);
+            setSettingsSection('menu');
             setShowCareCircle(false);
             setShowWellbeingUpdates(false);
             // A direct tab-bar tap always starts To Do at its normal
