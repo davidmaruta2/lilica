@@ -51,7 +51,22 @@ type Props = {
   // or a relationship label; empty for a local-only care space, which
   // shows the honest "just you" state below rather than a fake member.
   careCircleMembers?: CareCircleMember[];
+  // Final People-screen mock (Downloads\peopleimproved.png): the overview
+  // shows at most four Key Contacts; "View all (N)" opens the complete
+  // list (src/screens/ContactsListScreen.tsx) via this callback.
+  onViewAllContacts?: () => void;
 };
+
+const CONTACT_PREVIEW_LIMIT = 4;
+const CARE_CIRCLE_PREVIEW_LIMIT = 3;
+// Cycles through existing palette tones only -- no new colour introduced
+// for this. Deterministic by position, never per-name/random, so a given
+// member's avatar tint doesn't shift between renders.
+const MEMBER_AVATAR_TONES = [
+  { chip: colors.primarySoft, text: colors.primary },
+  { chip: colors.tealSoft, text: colors.teal },
+  { chip: colors.blueSoft, text: colors.blue },
+];
 
 function contactDetail(record: LilicaRecord): string | undefined {
   return [record.role, record.phone, record.email].filter(Boolean).join(' · ') || undefined;
@@ -83,6 +98,7 @@ export function PersonScreen({
   pendingInvitationCount = 0,
   onOpenInvitations,
   careCircleMembers = [],
+  onViewAllContacts,
 }: Props) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const name = displayName?.trim() || 'Them';
@@ -96,6 +112,18 @@ export function PersonScreen({
       .sort(recentFirst),
     [records],
   );
+  // Final mock: the overview is a bounded preview, never the whole
+  // directory -- at most four, in the same order the list already uses
+  // (its own existing "most recently added/updated first" ordering,
+  // simplest deterministic choice available -- no new ranking system).
+  const contactsPreview = contacts.slice(0, CONTACT_PREVIEW_LIMIT);
+  const hasMoreContacts = contacts.length > CONTACT_PREVIEW_LIMIT;
+
+  const namedMembers = careCircleMembers.length > 0
+    ? careCircleMembers
+    : [{ membershipId: 'self', displayName: 'You', role: 'organiser' as CareCircleRole, relationshipType: 'Myself' as const, relationshipLabel: undefined, isSelf: true, grantedDomains: [] }];
+  const memberPreview = namedMembers.slice(0, CARE_CIRCLE_PREVIEW_LIMIT);
+  const extraMemberCount = namedMembers.length - memberPreview.length;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -104,9 +132,12 @@ export function PersonScreen({
           ScreenBackdrop) -- title, wordmark and the Invitations link
           switch to light-on-dark. */}
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerCopy}>
           <Wordmark size="compact" tone="light" />
           <AppText variant="title" tone="white">People</AppText>
+          <AppText variant="body" tone="white" style={styles.headerSubtitle}>
+            The people you support, and those who help.
+          </AppText>
         </View>
         <View style={styles.headerLinks}>
           {onOpenInvitations && pendingInvitationCount > 0 ? (
@@ -147,17 +178,27 @@ export function PersonScreen({
 
       {/* Section 2: KEY CONTACTS -- useful external people/services (GP,
           pharmacy, a neighbour), kept strictly distinct from the
-          authenticated Care circle members below. */}
+          authenticated Care circle members below. Final mock: an
+          overview, never the whole directory -- at most four preview
+          cards, with "View all (N)" replacing the plain "Add" link once
+          there are more than that to see (Add is still reachable there). */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <AppText variant="section" tone="white">Key contacts</AppText>
-          <Pressable accessibilityRole="button" accessibilityLabel="Add a contact" onPress={() => onAddType('contact')} hitSlop={8}>
-            <AppText variant="secondary" style={styles.onDarkLink}>Add</AppText>
-          </Pressable>
+          {hasMoreContacts && onViewAllContacts ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={`View all contacts (${contacts.length})`} onPress={onViewAllContacts} hitSlop={8} style={styles.viewAllLink}>
+              <AppText variant="secondary" style={styles.onDarkLink}>View all ({contacts.length})</AppText>
+              <View style={styles.viewAllChevron} />
+            </Pressable>
+          ) : (
+            <Pressable accessibilityRole="button" accessibilityLabel="Add a contact" onPress={() => onAddType('contact')} hitSlop={8}>
+              <AppText variant="secondary" style={styles.onDarkLink}>Add</AppText>
+            </Pressable>
+          )}
         </View>
-        {contacts.length > 0 ? (
+        {contactsPreview.length > 0 ? (
           <View style={styles.sectionList}>
-            {contacts.map((record) => {
+            {contactsPreview.map((record) => {
               const visual = visualFor(record.type);
               const detail = contactDetail(record);
               return (
@@ -192,47 +233,53 @@ export function PersonScreen({
           contacts above. Reads the same real membership list Settings'
           own Care Circle screen already reads (see App.tsx); an empty
           list (local-only care space, nothing synced yet) shows the
-          honest "just you" state rather than a fabricated member. */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
+          honest "just you" state rather than a fabricated member.
+          Final mock: a SUMMARY, not a management surface -- its own
+          stable, opaque card (never fading with the page gradient
+          behind it), one heading, one "Manage" action, and a bounded
+          member preview. Every other Care Circle control (invite,
+          permissions, roles, removal) lives behind Manage only -- never
+          duplicated here. */}
+      <View style={styles.careCircleCard}>
+        <View style={styles.careCircleHeader}>
+          <View style={styles.careCircleHeaderCopy}>
+            <AppText variant="section">Care circle</AppText>
+            <AppText variant="secondary" tone="soft" style={styles.careCircleSubtitle}>
+              People who can help, what they can see, and how they're involved.
+            </AppText>
+          </View>
           {onOpenCareCircle ? (
-            // The heading itself IS the action -- no separate "Manage"
-            // link needed once the whole label is already a button.
-            <Pressable accessibilityRole="button" accessibilityLabel="Manage Care Circle" onPress={onOpenCareCircle} hitSlop={8} style={styles.careCircleHeaderChip}>
-              <AppText variant="section" tone="primary">Manage care circle</AppText>
+            <Pressable accessibilityRole="button" accessibilityLabel="Manage Care Circle" onPress={onOpenCareCircle} hitSlop={8} style={styles.manageButton}>
+              <AppText variant="bodyStrong" tone="primary" style={styles.manageLabel}>Manage</AppText>
+              <View style={styles.manageChevron} />
             </Pressable>
-          ) : (
-            <View style={styles.careCircleHeaderChip}>
-              <AppText variant="section" tone="primary">Care circle</AppText>
-            </View>
-          )}
+          ) : null}
         </View>
-        <View style={styles.sectionList}>
-          {careCircleMembers.length > 0 ? careCircleMembers.map((member) => (
-            <View key={member.membershipId} style={styles.row}>
-              <View style={[styles.iconChip, { backgroundColor: colors.primarySoft }]}>
-                <AppText variant="bodyStrong" tone="primary" style={styles.tileTitle}>
-                  {(member.isSelf ? 'You' : member.displayName).charAt(0).toUpperCase()}
-                </AppText>
+        <View style={styles.memberPreviewRow}>
+          {memberPreview.map((member, index) => {
+            const tone = MEMBER_AVATAR_TONES[index % MEMBER_AVATAR_TONES.length];
+            const label = member.isSelf ? 'You' : member.displayName;
+            return (
+              <View key={member.membershipId} style={styles.memberPreviewItem}>
+                <View style={[styles.memberAvatar, { backgroundColor: tone.chip }]}>
+                  <AppText variant="bodyStrong" style={[styles.memberAvatarInitial, { color: tone.text }]}>
+                    {label.charAt(0).toUpperCase()}
+                  </AppText>
+                </View>
+                <AppText variant="secondary" style={styles.memberName} numberOfLines={1}>{label}</AppText>
+                <AppText variant="secondary" tone="soft" style={styles.memberRole} numberOfLines={1}>{roleLabel(member.role)}</AppText>
               </View>
-              <View style={styles.rowCopy}>
-                <AppText variant="bodyStrong" style={styles.tileTitle} numberOfLines={2}>
-                  {member.isSelf ? 'You' : member.displayName} - {roleLabel(member.role)}
-                </AppText>
-                <AppText variant="secondary" tone="soft" style={styles.tileDetail} numberOfLines={2}>{member.relationshipLabel || member.relationshipType}</AppText>
+            );
+          })}
+          {extraMemberCount > 0 ? (
+            <View style={styles.memberPreviewItem}>
+              <View style={[styles.memberAvatar, { backgroundColor: colors.tealSoft }]}>
+                <AppText variant="bodyStrong" style={[styles.memberAvatarInitial, { color: colors.teal }]}>+{extraMemberCount}</AppText>
               </View>
+              <AppText variant="secondary" style={styles.memberName} numberOfLines={1}>More</AppText>
+              <AppText variant="secondary" tone="soft" style={styles.memberRole} numberOfLines={1}>Members</AppText>
             </View>
-          )) : (
-            <View style={styles.row}>
-              <View style={[styles.iconChip, { backgroundColor: colors.primarySoft }]}>
-                <AppText variant="bodyStrong" tone="primary" style={styles.tileTitle}>Y</AppText>
-              </View>
-              <View style={styles.rowCopy}>
-                <AppText variant="bodyStrong" style={styles.tileTitle} numberOfLines={2}>You</AppText>
-                <AppText variant="secondary" tone="soft" style={styles.tileDetail} numberOfLines={2}>The only person with access right now.</AppText>
-              </View>
-            </View>
-          )}
+          ) : null}
         </View>
       </View>
 
@@ -240,9 +287,12 @@ export function PersonScreen({
           existed. No AI functionality is implemented here; this stays
           the same non-interactive placeholder for a future phase. */}
       <View style={styles.ask}>
-        <View>
+        <View style={styles.askCopy}>
           <AppText variant="meta" tone="primary">Ask Lilica</AppText>
           <AppText variant="bodyStrong">What is coming up?</AppText>
+          <AppText variant="secondary" tone="soft">
+            Ask about {isSelf ? 'your' : `${name}'s`} appointments, tasks or care information.
+          </AppText>
         </View>
         <View style={styles.askMark}>
           <AppText variant="bodyStrong" tone="white">?</AppText>
@@ -272,8 +322,16 @@ const styles = StyleSheet.create({
   header: {
     marginTop: spacing.md,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
+  },
+  headerCopy: {
+    flex: 1,
+    paddingRight: spacing.sm,
+  },
+  headerSubtitle: {
+    marginTop: spacing.xxs,
+    opacity: 0.9,
   },
   headerLinks: {
     flexDirection: 'row',
@@ -287,22 +345,18 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '700',
   },
-  // Product direction: Care circle's own position on the shared backdrop
-  // is content-dependent (it follows the variable-length Key contacts
-  // list above it), so unlike the other headings it can land in EITHER
-  // the deep teal zone or the lighter tint zone depending on how much is
-  // above it. Rather than chase a single text colour that reads on both
-  // (white, bright blue and clay were all tried and none felt right),
-  // the heading carries its own small light chip -- the same
-  // primarySoft/primary pairing already used for the person/contact
-  // avatar circles on this screen -- so it stays legible and premium
-  // regardless of where it lands. The heading doubles as the "Manage"
-  // action itself (a separate adjacent link would now be redundant).
-  careCircleHeaderChip: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
+  viewAllLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+  },
+  viewAllChevron: {
+    width: 8,
+    height: 8,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+    borderColor: colors.white,
+    transform: [{ rotate: '45deg' }],
   },
   onDarkSoft: {
     color: 'rgba(255,255,255,0.8)',
@@ -401,6 +455,75 @@ const styles = StyleSheet.create({
     borderColor: colors.muted,
     transform: [{ rotate: '45deg' }],
   },
+  // Final mock: Care circle is its own stable, opaque surface -- a solid
+  // fill (never transparent, never a gradient), so it reads exactly the
+  // same regardless of where it lands on the page's own fading backdrop
+  // behind it. tealSoft is already this screen's own Key Contacts icon
+  // colour, reused rather than inventing a new tone.
+  careCircleCard: {
+    backgroundColor: colors.tealSoft,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  careCircleHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  careCircleHeaderCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  careCircleSubtitle: {
+    lineHeight: 18,
+  },
+  manageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
+  manageLabel: {
+    fontSize: 14,
+  },
+  manageChevron: {
+    width: 8,
+    height: 8,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+    borderColor: colors.primary,
+    transform: [{ rotate: '45deg' }],
+  },
+  memberPreviewRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  memberPreviewItem: {
+    alignItems: 'center',
+    width: 64,
+    gap: 2,
+  },
+  memberAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberAvatarInitial: {
+    fontSize: 18,
+  },
+  memberName: {
+    fontWeight: '700',
+  },
+  memberRole: {
+    fontSize: 11.5,
+  },
   ask: {
     backgroundColor: colors.primarySoft,
     borderRadius: radius.md,
@@ -409,6 +532,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
+  },
+  askCopy: {
+    flex: 1,
+    gap: 2,
   },
   askMark: {
     width: 40,

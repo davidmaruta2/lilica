@@ -32,6 +32,7 @@ import { RelationshipScreen } from './src/screens/RelationshipScreen';
 import { RecoveryEmailSentScreen, RecoveryPasswordScreen, RecoveryRequestScreen } from './src/screens/RecoveryScreen';
 import { RecoveryCodeScreen, VerificationScreen } from './src/screens/VerificationScreen';
 import { PersonScreen } from './src/screens/PersonScreen';
+import { ContactsListScreen } from './src/screens/ContactsListScreen';
 import { CareCircleScreen } from './src/screens/CareCircleScreen';
 import { ToDoScreen } from './src/screens/ToDoScreen';
 import { WellbeingUpdatesScreen } from './src/screens/WellbeingUpdatesScreen';
@@ -210,6 +211,10 @@ function LilicaApp() {
   const [careCircleMembers, setCareCircleMembers] = useState<CareCircleMember[]>([]);
   const [careCircleInvitations, setCareCircleInvitations] = useState<CareCircleInvitation[]>([]);
   const [showCareCircle, setShowCareCircle] = useState(false);
+  // Final People-screen mock: Key Contacts is a bounded preview (at most
+  // four) with "View all" opening the complete list -- same app-level-
+  // overlay pattern as showCareCircle above.
+  const [showAllContacts, setShowAllContacts] = useState(false);
   // Home's "Updates this week" tile opens this real destination screen
   // (WellbeingUpdatesScreen) rather than an in-page scroll, on explicit
   // product instruction -- same app-level-overlay pattern as showCareCircle
@@ -331,6 +336,18 @@ function LilicaApp() {
   // everything fresh from the cloud, exactly as a genuinely fresh device
   // would.
   async function handlePrivacyClearLocalData() {
+    if (!storageOwnerId) return;
+    await clearLocalDataForOwner(storageOwnerId);
+    await signOut();
+  }
+
+  // Phase 18B: called only after PrivacyDataScreen's own deleteMyAccount()
+  // call has genuinely succeeded server-side (brief section 24 -- server
+  // deletion always happens first). Reuses the exact same local-cleanup +
+  // sign-out sequence as clearing local data, above -- deletion and
+  // "clear this device" remain two distinct user-facing actions (section
+  // 52), they just happen to share this one low-level cleanup step.
+  async function handleAccountDeleted() {
     if (!storageOwnerId) return;
     await clearLocalDataForOwner(storageOwnerId);
     await signOut();
@@ -921,6 +938,22 @@ function LilicaApp() {
           onRefresh={refreshCareCircle}
         />
       ) : null;
+    } else if (showAllContacts) {
+      // Final People-screen mock: "View all (N)" from the bounded Key
+      // Contacts preview -- same filter/sort PersonScreen's own preview
+      // already uses, just unbounded here.
+      const allContacts = (currentSpace?.records ?? [])
+        .filter((record) => record.type === 'contact' && record.status !== 'cancelled')
+        .sort((a, b) => (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt));
+      content = (
+        <ContactsListScreen
+          contacts={allContacts}
+          personName={currentSpace?.displayName}
+          onBack={() => setShowAllContacts(false)}
+          onOpenRecord={openRecordFromProjection}
+          onAddContact={() => openNewFromProjection('contact')}
+        />
+      );
     } else if (activeTab === 'home') {
       content = (
         <HomeScreen
@@ -1003,6 +1036,7 @@ function LilicaApp() {
           careCircleMembers={careCircleMembers}
           pendingInvitationCount={myInvitations.length}
           onOpenInvitations={() => setShowInvitations(true)}
+          onViewAllContacts={() => setShowAllContacts(true)}
         />
       );
     }
@@ -1075,6 +1109,7 @@ function LilicaApp() {
               onBack={() => setSettingsSection('menu')}
               onCareSpaceLeft={() => void handlePrivacyCareSpaceLeft()}
               onClearLocalData={handlePrivacyClearLocalData}
+              onAccountDeleted={handleAccountDeleted}
             />
           ) : null}
         </SettingsMenu>
@@ -1085,6 +1120,7 @@ function LilicaApp() {
             setShowSettingsMenu(false);
             setSettingsSection('menu');
             setShowCareCircle(false);
+            setShowAllContacts(false);
             setShowWellbeingUpdates(false);
             // A direct tab-bar tap always starts To Do at its normal
             // defaults, never inheriting an earlier Home strip tap's

@@ -122,20 +122,23 @@ describe('Corrective task 10, section 2: Key contacts', () => {
 });
 
 describe('Corrective task 10, section 3: Care circle -- real memberships, never fabricated', () => {
-  it('shows the honest "just you" state when there are no real memberships yet (e.g. a local-only care space)', async () => {
+  it('shows a real "You"/"Organiser" preview when there are no real memberships yet (e.g. a local-only care space)', async () => {
     const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={[]} />);
     screen.getByText('Care circle');
-    screen.getByText('The only person with access right now.');
+    screen.getByText('You');
+    screen.getByText('Organiser');
   });
 
-  it('shows real members with their real role -- "Name — Role", never a placeholder', async () => {
+  it('shows real members with their real name and role as separate lines, never a placeholder', async () => {
     const members: CareCircleMember[] = [
       { membershipId: 'm-organiser', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
       { membershipId: 'm-sarah', displayName: 'Sarah', role: 'contributor', relationshipType: 'Other relative', relationshipLabel: 'Family member', isSelf: false, grantedDomains: ['general'] },
     ];
     const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={members} />);
-    screen.getByText('You - Organiser');
-    screen.getByText('Sarah - Contributor');
+    screen.getByText('You');
+    screen.getByText('Organiser');
+    screen.getByText('Sarah');
+    screen.getByText('Contributor');
   });
 
   it('an external Key contact never appears as, or is conflated with, a care circle member', async () => {
@@ -144,7 +147,8 @@ describe('Corrective task 10, section 3: Care circle -- real memberships, never 
     ];
     const screen = await render(<PersonScreen {...baseProps} records={[gpSurgery]} careCircleMembers={members} />);
     screen.getByText('GP surgery');
-    screen.getByText('You - Organiser');
+    screen.getByText('You');
+    screen.getByText('Organiser');
     // "GP surgery" is a Key contact row, not a care circle row -- it never
     // gains a role suffix or membership treatment.
     expect(screen.queryByText(/GP surgery — /)).toBeNull();
@@ -197,5 +201,85 @@ describe('Corrective task 10: offline-safe (no network dependency)', () => {
   it('renders already-cached records with no fetch/sync call of its own', async () => {
     const screen = await render(<PersonScreen {...baseProps} records={[gpSurgery]} />);
     screen.getByText('GP surgery');
+  });
+});
+
+// People-screen final implementation (Downloads\peopleimproved.png): the
+// overview is a bounded summary, never an unbounded growing directory.
+describe('People-screen final implementation: Key Contacts preview is bounded', () => {
+  const manyContacts: LilicaRecord[] = Array.from({ length: 12 }, (_, index) => ({
+    id: `contact-${index + 1}`,
+    type: 'contact',
+    title: `Contact ${index + 1}`,
+    createdAt: `2026-09-${String(index + 1).padStart(2, '0')}T00:00:00.000Z`,
+  }));
+
+  it('renders at most four contact cards even when far more exist', async () => {
+    const screen = await render(<PersonScreen {...baseProps} records={manyContacts} onViewAllContacts={jest.fn()} />);
+    expect(screen.getAllByRole('button').filter((node) => node.props.accessibilityLabel?.startsWith('Open Contact')).length).toBe(4);
+  });
+
+  it('shows "View all (N)" with the REAL total count once more than four contacts exist, replacing Add', async () => {
+    const onViewAllContacts = jest.fn();
+    const screen = await render(<PersonScreen {...baseProps} records={manyContacts} onViewAllContacts={onViewAllContacts} />);
+    screen.getByText('View all (12)');
+    expect(screen.queryByLabelText('Add a contact')).toBeNull();
+    await fireEvent.press(screen.getByLabelText('View all contacts (12)'));
+    expect(onViewAllContacts).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows every contact (no "View all") and keeps Add when four or fewer exist', async () => {
+    const screen = await render(<PersonScreen {...baseProps} records={[gpSurgery, pharmacy]} onViewAllContacts={jest.fn()} />);
+    screen.getByText('GP surgery');
+    screen.getByText('Pharmacy');
+    expect(screen.queryByText(/View all/)).toBeNull();
+    screen.getByLabelText('Add a contact');
+  });
+
+  it('0 contacts renders the honest empty state, not an error, and keeps Add', async () => {
+    const screen = await render(<PersonScreen {...baseProps} records={[]} onViewAllContacts={jest.fn()} />);
+    screen.getByText(/No key contacts saved/);
+    screen.getByLabelText('Add a contact');
+  });
+});
+
+describe('People-screen final implementation: Care Circle preview is bounded', () => {
+  const eightMembers: CareCircleMember[] = Array.from({ length: 8 }, (_, index) => ({
+    membershipId: `m-${index + 1}`,
+    displayName: `Member ${index + 1}`,
+    role: 'contributor' as const,
+    relationshipType: 'Other relative' as const,
+    isSelf: index === 0,
+    grantedDomains: ['general'] as const,
+  }));
+
+  it('shows at most three named members plus a real "+N More" tile', async () => {
+    const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={eightMembers} />);
+    screen.getByText('You');
+    screen.getByText('Member 2');
+    screen.getByText('Member 3');
+    expect(screen.queryByText('Member 4')).toBeNull();
+    screen.getByText('+5');
+    screen.getByText('More');
+  });
+
+  it('shows exactly the members available when there are three or fewer, with no "+N More" tile', async () => {
+    const twoMembers: CareCircleMember[] = [
+      { membershipId: 'm-1', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
+      { membershipId: 'm-2', displayName: 'Sarah', role: 'viewer', relationshipType: 'Other relative', isSelf: false, grantedDomains: ['general'] },
+    ];
+    const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={twoMembers} />);
+    screen.getByText('You');
+    screen.getByText('Sarah');
+    expect(screen.queryByText(/More/)).toBeNull();
+  });
+
+  it('offers exactly ONE management action ("Manage"), never a separate Invite or member-detail action', async () => {
+    const onOpenCareCircle = jest.fn();
+    const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={eightMembers} onOpenCareCircle={onOpenCareCircle} />);
+    screen.getByText('Manage');
+    expect(screen.queryByText(/Invite/)).toBeNull();
+    await fireEvent.press(screen.getByLabelText('Manage Care Circle'));
+    expect(onOpenCareCircle).toHaveBeenCalledTimes(1);
   });
 });
