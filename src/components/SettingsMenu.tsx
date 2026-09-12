@@ -15,20 +15,25 @@ import { Button } from './Button';
 //   - Care Circle: opens the existing CareCircleScreen (Phase 15), when
 //     the active care space is real and synced -- matching exactly the
 //     same condition Person's own former link used.
-// No Privacy/Help/About row: neither is reachable as a standalone,
-// already-implemented destination outside onboarding, so none is offered
-// here rather than inventing one.
-export function SettingsMenu({ visible, onClose, onOpenAccount, onOpenCareCircle }: {
+//   - Privacy & data (Phase 18): opens the new PrivacyDataScreen -- what
+//     Lilica stores, export, device/local data, leaving a care space and
+//     account-deletion eligibility. Always offered (unlike Care Circle,
+//     it's meaningful even for a local-only space).
+// No Help/About row: not yet a standalone, already-implemented
+// destination, so none is offered here rather than inventing one.
+export function SettingsMenu({ visible, onClose, onOpenAccount, onOpenCareCircle, onOpenPrivacyData }: {
   visible: boolean;
   onClose: () => void;
   onOpenAccount: () => void;
   onOpenCareCircle?: () => void;
+  onOpenPrivacyData: () => void;
 }) {
   const entries = [
     { key: 'account', label: 'Account', description: 'Your profile, reminders and sign out', onPress: onOpenAccount },
     ...(onOpenCareCircle
       ? [{ key: 'careCircle', label: 'Care Circle', description: 'Who can help, and what they can see', onPress: onOpenCareCircle }]
       : []),
+    { key: 'privacyData', label: 'Privacy & data', description: 'What Lilica stores, export, and device data', onPress: onOpenPrivacyData },
   ];
 
   return (

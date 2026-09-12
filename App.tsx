@@ -11,6 +11,7 @@ import { TabBar } from './src/components/TabBar';
 import { AppText } from './src/components/Text';
 import { AboutYouScreen } from './src/screens/AboutYouScreen';
 import { AccountScreen, ProfileErrorScreen } from './src/screens/AccountScreen';
+import { PrivacyDataScreen } from './src/screens/PrivacyDataScreen';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { CalendarScreen } from './src/screens/CalendarScreen';
 import { CareForkScreen } from './src/screens/CareForkScreen';
@@ -41,8 +42,9 @@ import {
   prepareOnboardingStateForStartup,
   saveOnboardingState,
 } from './src/storage';
-import { cleanupDocumentAttachments, queuePendingAttachmentUploads } from './src/attachments';
-import { removeAllLinksForRecord } from './src/recordLinks';
+import { queuePendingAttachmentUploads } from './src/attachments';
+import { enqueueDocumentCleanup, retryPendingDocumentCleanup } from './src/documentCleanupQueue';
+import { clearLocalDataForOwner } from './src/localData';
 import { removeRecordById, upsertRecord } from './src/records';
 import {
   activeCareSpace,
@@ -190,6 +192,8 @@ function LilicaApp() {
   const [todoInitialFilter, setTodoInitialFilter] = useState<'mine'>();
   const [todoInitialFocusGroup, setTodoInitialFocusGroup] = useState<'overdue' | 'today'>();
   const [showAccount, setShowAccount] = useState(false);
+  // Phase 18: same app-level-overlay pattern as showAccount/showCareCircle.
+  const [showPrivacyData, setShowPrivacyData] = useState(false);
   // Corrective task 4: the one shared Settings sheet, reachable from
   // Home/Calendar/To Do/People's cog. Opens Account/Care Circle exactly
   // via the same showAccount/showCareCircle state those already used.
@@ -296,6 +300,27 @@ function LilicaApp() {
     if (reconnected.ok) setState((current) => integrateReconnectedCareSpaces(current, reconnected.people));
     await refreshMyInvitations();
     return { ok: true as const };
+  }
+
+  // Phase 18: after leaving succeeds server-side, re-run the exact same
+  // reconciliation the app already uses after accepting an invitation --
+  // the (now revoked) space simply won't come back from it.
+  async function handlePrivacyCareSpaceLeft() {
+    const reconnected = await reconnectCareSpaces();
+    if (reconnected.ok) setState((current) => integrateReconnectedCareSpaces(current, reconnected.people));
+    setShowPrivacyData(false);
+  }
+
+  // Phase 18: the safest resolution to "what happens after I clear local
+  // data" -- rather than attempting a risky live rebuild of in-memory
+  // state from an AsyncStorage cache that was just wiped out from under
+  // it, sign out immediately afterward. Signing back in reconstructs
+  // everything fresh from the cloud, exactly as a genuinely fresh device
+  // would.
+  async function handlePrivacyClearLocalData() {
+    if (!storageOwnerId) return;
+    await clearLocalDataForOwner(storageOwnerId);
+    await signOut();
   }
 
   async function handleDeclineInvitation(invitationId: string) {
@@ -487,6 +512,16 @@ function LilicaApp() {
     }
   }, [currentSpace?.careSpaceId, currentSpace?.records]);
 
+  // Phase 18: the same lifecycle points also retry any still-pending
+  // document cloud cleanup (see src/documentCleanupQueue.ts) -- app
+  // startup once authenticated, and every reconciliation pass. Guarded
+  // only by storageOwnerId being known; the queue itself is empty in the
+  // common case, so this is a cheap no-op read most of the time.
+  useEffect(() => {
+    if (!storageOwnerId) return;
+    void retryPendingDocumentCleanup(storageOwnerId);
+  }, [storageOwnerId, currentSpace?.records]);
+
   function syncAfterLocalMutation(operation: Promise<LilicaRecord[]>) {
     if (!storageOwnerId) return;
     const revision = localRecordRevision.current;
@@ -587,13 +622,15 @@ function LilicaApp() {
     }
     // Phase 14: deleting a record must suppress its pending reminders too.
     if (existing) void cancelRecordReminders(existing.id, existing.reminderScheduleVersion ?? 0);
-    // Phase 17: complete the file/link lifecycle Phase 16 deliberately
-    // left unwired -- fires only after the canonical record's own
-    // tombstone/sync above has already been enqueued, never before.
-    // Never touches the record on the other end of any link.
-    if (existing) {
-      void removeAllLinksForRecord(existing.id);
-      void cleanupDocumentAttachments(existing);
+    // Phase 18: durably queues the file/link cleanup Phase 16 left
+    // unwired and Phase 17 only attempted best-effort -- enqueue() is
+    // awaited (a synchronous AsyncStorage write) before any network
+    // attempt, so an offline delete or app kill mid-attempt can never
+    // forget this record still owes cloud cleanup; the immediate retry
+    // right after is just today's best chance to finish it right away.
+    if (existing && storageOwnerId) {
+      const ownerId = storageOwnerId;
+      void enqueueDocumentCleanup(ownerId, existing).then(() => retryPendingDocumentCleanup(ownerId));
     }
   }
 
@@ -869,6 +906,20 @@ function LilicaApp() {
           onRefresh={refreshCareCircle}
         />
       ) : null;
+    } else if (showPrivacyData) {
+      const selfMember = careCircleMembers.find((member) => member.isSelf);
+      content = (
+        <PrivacyDataScreen
+          storageOwnerId={storageOwnerId ?? undefined}
+          currentCareSpaceId={currentSpace?.careSpaceId}
+          currentCareSpaceName={currentSpace?.displayName}
+          canLeaveCurrentCareSpace={Boolean(currentSpace && !currentSpace.careSpaceId.startsWith('local-') && selfMember && selfMember.role !== 'organiser')}
+          currentRecords={currentSpace?.records ?? []}
+          onBack={() => setShowPrivacyData(false)}
+          onCareSpaceLeft={() => void handlePrivacyCareSpaceLeft()}
+          onClearLocalData={handlePrivacyClearLocalData}
+        />
+      );
     } else if (showAccount) {
       content = (
         <AccountScreen
@@ -882,6 +933,7 @@ function LilicaApp() {
           quietHoursLabel={`${formatQuietHour(notificationSettings.quietHours.startHour)}–${formatQuietHour(notificationSettings.quietHours.endHour)}`}
           onToggleReminders={(enabled) => void toggleGlobalReminders(enabled)}
           onToggleQuietHours={toggleQuietHours}
+          onSaveDisplayName={auth.saveProfile}
           onBack={() => setShowAccount(false)}
           onSignOut={() => void signOut()}
         />
@@ -998,6 +1050,7 @@ function LilicaApp() {
           visible={showSettingsMenu}
           onClose={() => setShowSettingsMenu(false)}
           onOpenAccount={() => setShowAccount(true)}
+          onOpenPrivacyData={() => setShowPrivacyData(true)}
           onOpenCareCircle={careCircleAvailable ? () => setShowCareCircle(true) : undefined}
         />
         <TabBar
@@ -1005,6 +1058,7 @@ function LilicaApp() {
           onChange={(tab) => {
             setActiveTab(tab);
             setShowAccount(false);
+            setShowPrivacyData(false);
             setShowCareCircle(false);
             setShowWellbeingUpdates(false);
             // A direct tab-bar tap always starts To Do at its normal

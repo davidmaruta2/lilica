@@ -72,6 +72,20 @@ The migration in `supabase/migrations/` is authoritative schema history. `supaba
 - Linked database lint reported no schema errors, and migration history lists `20260910150000` on both local and remote.
 - Existing profile/care-space tests scope row counts to their transactional synthetic fixture IDs so hosted development rows do not affect assertions. Test transactions roll back their synthetic data.
 
+### Hosted Phase 18 deployment - 12 September 2026
+
+- `npx supabase db push --linked --dry-run` listed only `20260912150000_phase18_privacy_export.sql`, with no seeds or roles.
+- `npx supabase db push --linked` applied that migration only to `lilica-development`.
+- Local and linked suites each passed all 245 pgTAP assertions across eight files (228 pre-existing plus 17 new Phase 18 assertions); warning-level database lint returned no issues in either environment.
+- Local and linked migration histories match through `20260912150000`. No Auth configuration, Storage resource, seed, role or production project was changed. The migration adds exactly two read-only-in-effect functions (`account_deletion_precheck()`, `export_my_data()`) -- no new table, no new destructive capability.
+
+### Hosted Phase 16 deployment - 12 September 2026
+
+- `npx supabase db push --linked --dry-run` listed only `20260912100000_phase16_document_maturity.sql`, with no seeds or roles. (Deliberately left unapplied when Phase 16 itself was implemented, per that phase's own instruction; applied as Phase 17's own first step once Phase 16's UI integration was ready to build against it.)
+- `npx supabase db push --linked` applied that migration only to `lilica-development`.
+- Local and linked suites each passed all 228 pgTAP assertions across seven files (183 pre-existing plus 45 new Phase 16 assertions); warning-level database lint returned no issues in either environment.
+- Local and linked migration histories match through `20260912100000`. No Auth configuration, seed, role or production project was changed. This migration also creates the private `document-attachments` Storage bucket and its RLS policies -- independently verified to exist on `lilica-development` after apply (`public: false`, 25 MB limit).
+
 ### Hosted Phase 15 deployment - 11 September 2026
 
 - `npx supabase db push --linked --dry-run` listed only `20260911120000_phase15_care_circle.sql`, with no seeds or roles.

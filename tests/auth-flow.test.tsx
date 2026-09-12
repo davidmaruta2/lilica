@@ -91,6 +91,7 @@ describe('Phase 5 account screens', () => {
         quietHoursLabel="9pm–8am"
         onToggleReminders={jest.fn()}
         onToggleQuietHours={jest.fn()}
+        onSaveDisplayName={jest.fn()}
         onSignOut={onSignOut}
       />,
     );
