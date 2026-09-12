@@ -1,8 +1,8 @@
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, radius, shadow, spacing } from '../theme';
 import { AppText } from './Text';
-import { Button } from './Button';
 
 // Corrective task 4: the one shared Settings surface for Home/Calendar/To
 // Do/People -- never a separate implementation per tab. Lists ONLY
@@ -38,49 +38,67 @@ export function SettingsMenu({ visible, onClose, onOpenAccount, onOpenCareCircle
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable accessibilityLabel="Close settings" style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
-          <AppText variant="section">Settings</AppText>
-          <View style={styles.list}>
-            {entries.map((entry) => (
-              <Pressable
-                key={entry.key}
-                accessibilityRole="button"
-                accessibilityLabel={entry.label}
-                onPress={() => { onClose(); entry.onPress(); }}
-                style={styles.row}
-              >
-                <View style={styles.copy}>
-                  <AppText variant="bodyStrong">{entry.label}</AppText>
-                  <AppText variant="secondary" tone="soft">{entry.description}</AppText>
-                </View>
-                <View style={styles.chevron} />
+      <Pressable accessibilityLabel="Dismiss settings" style={styles.backdrop} onPress={onClose}>
+        {/* Anchored near the Settings cog (top-right of every tab header)
+            rather than a full-width bottom sheet -- the previous layout
+            opened far down the screen, disconnected from the button that
+            triggered it. */}
+        <SafeAreaView edges={['top']} style={styles.anchor} pointerEvents="box-none">
+          <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
+            <View style={styles.header}>
+              <AppText variant="bodyStrong">Settings</AppText>
+              <Pressable accessibilityRole="button" accessibilityLabel="Close settings" onPress={onClose} hitSlop={8}>
+                <AppText variant="secondary" tone="soft">Close</AppText>
               </Pressable>
-            ))}
-          </View>
-          <Button label="Done" variant="secondary" onPress={onClose} />
-        </Pressable>
+            </View>
+            <View style={styles.list}>
+              {entries.map((entry) => (
+                <Pressable
+                  key={entry.key}
+                  accessibilityRole="button"
+                  accessibilityLabel={entry.label}
+                  onPress={() => { onClose(); entry.onPress(); }}
+                  style={styles.row}
+                >
+                  <View style={styles.copy}>
+                    <AppText variant="bodyStrong" style={styles.rowLabel}>{entry.label}</AppText>
+                    <AppText variant="secondary" tone="soft" style={styles.rowDescription}>{entry.description}</AppText>
+                  </View>
+                  <View style={styles.chevron} />
+                </Pressable>
+              ))}
+            </View>
+          </Pressable>
+        </SafeAreaView>
       </Pressable>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(36,29,28,0.35)' },
-  sheet: { padding: spacing.lg, paddingBottom: spacing.xxl, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, backgroundColor: colors.surface, gap: spacing.md, ...shadow.soft },
+  backdrop: { flex: 1, backgroundColor: 'rgba(36,29,28,0.35)' },
+  // Same top offset every tab header uses before its own content
+  // (spacing.md) plus roughly the cog's own height, so the panel sits
+  // just under the button that opened it rather than at the screen edge.
+  anchor: { alignItems: 'flex-end', paddingTop: spacing.xl, paddingRight: spacing.lg },
+  sheet: { width: 260, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surface, gap: spacing.sm, ...shadow.soft },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   list: { gap: spacing.xs },
   row: {
-    minHeight: 62,
-    paddingHorizontal: spacing.md,
+    minHeight: 50,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.md,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
-  copy: { flex: 1, gap: 2 },
+  copy: { flex: 1, gap: 1 },
+  rowLabel: { fontSize: 14, lineHeight: 18 },
+  rowDescription: { fontSize: 12, lineHeight: 16 },
   // Same drawn-chevron technique as Header.tsx's back chevron, pointing
   // right here (top+right border) to read as "opens something further".
   chevron: {

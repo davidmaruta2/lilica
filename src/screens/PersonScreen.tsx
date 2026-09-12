@@ -172,8 +172,8 @@ export function PersonScreen({
                     <CategoryIcon type={record.type} color={visual.accent} />
                   </View>
                   <View style={styles.rowCopy}>
-                    <AppText variant="bodyStrong" numberOfLines={2}>{record.title}</AppText>
-                    {detail ? <AppText variant="secondary" tone="soft" numberOfLines={2}>{detail}</AppText> : null}
+                    <AppText variant="bodyStrong" style={styles.tileTitle} numberOfLines={2}>{record.title}</AppText>
+                    {detail ? <AppText variant="secondary" tone="soft" style={styles.tileDetail} numberOfLines={2}>{detail}</AppText> : null}
                   </View>
                   <View style={styles.chevron} />
                 </Pressable>
@@ -211,25 +211,25 @@ export function PersonScreen({
           {careCircleMembers.length > 0 ? careCircleMembers.map((member) => (
             <View key={member.membershipId} style={styles.row}>
               <View style={[styles.iconChip, { backgroundColor: colors.primarySoft }]}>
-                <AppText variant="bodyStrong" tone="primary">
+                <AppText variant="bodyStrong" tone="primary" style={styles.tileTitle}>
                   {(member.isSelf ? 'You' : member.displayName).charAt(0).toUpperCase()}
                 </AppText>
               </View>
               <View style={styles.rowCopy}>
-                <AppText variant="bodyStrong" numberOfLines={2}>
+                <AppText variant="bodyStrong" style={styles.tileTitle} numberOfLines={2}>
                   {member.isSelf ? 'You' : member.displayName} - {roleLabel(member.role)}
                 </AppText>
-                <AppText variant="secondary" tone="soft" numberOfLines={2}>{member.relationshipLabel || member.relationshipType}</AppText>
+                <AppText variant="secondary" tone="soft" style={styles.tileDetail} numberOfLines={2}>{member.relationshipLabel || member.relationshipType}</AppText>
               </View>
             </View>
           )) : (
             <View style={styles.row}>
               <View style={[styles.iconChip, { backgroundColor: colors.primarySoft }]}>
-                <AppText variant="bodyStrong" tone="primary">Y</AppText>
+                <AppText variant="bodyStrong" tone="primary" style={styles.tileTitle}>Y</AppText>
               </View>
               <View style={styles.rowCopy}>
-                <AppText variant="bodyStrong" numberOfLines={2}>You</AppText>
-                <AppText variant="secondary" tone="soft" numberOfLines={2}>The only person with access right now.</AppText>
+                <AppText variant="bodyStrong" style={styles.tileTitle} numberOfLines={2}>You</AppText>
+                <AppText variant="secondary" tone="soft" style={styles.tileDetail} numberOfLines={2}>The only person with access right now.</AppText>
               </View>
             </View>
           )}
@@ -361,23 +361,37 @@ const styles = StyleSheet.create({
     width: '48%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.sm,
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
     borderRadius: radius.md,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.line,
   },
   iconChip: {
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowCopy: {
     flex: 1,
-    gap: 2,
+    gap: 1,
+  },
+  // Compact, neat card typography for the Key contacts/Care circle tiles --
+  // deliberately smaller than the shared bodyStrong/secondary variants,
+  // which read oversized once packed into a half-width tile. The person
+  // switcher card above (personCard/personCopy, using the "title" variant)
+  // is intentionally left alone -- this only affects these tiles.
+  tileTitle: {
+    fontSize: 13,
+    lineHeight: 17,
+  },
+  tileDetail: {
+    fontSize: 11.5,
+    lineHeight: 15,
   },
   chevron: {
     width: 10,

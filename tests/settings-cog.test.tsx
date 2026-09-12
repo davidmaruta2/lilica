@@ -49,7 +49,7 @@ describe('SettingsMenu', () => {
     expect(onOpenCareCircle).toHaveBeenCalledTimes(1);
   });
 
-  it('closes when a row is tapped, and Done closes without acting', async () => {
+  it('closes when a row is tapped, and Close closes without acting', async () => {
     const onClose = jest.fn();
     const onOpenAccount = jest.fn();
     const screen = await render(
@@ -63,7 +63,7 @@ describe('SettingsMenu', () => {
     const second = await render(
       <SettingsMenu visible onClose={onClose} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} />,
     );
-    await fireEvent.press(second.getByText('Done'));
+    await fireEvent.press(second.getByLabelText('Close settings'));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

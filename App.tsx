@@ -902,7 +902,7 @@ function LilicaApp() {
           members={careCircleMembers}
           invitations={careCircleInvitations}
           careSpaceId={currentSpace.careSpaceId}
-          onBack={() => setShowCareCircle(false)}
+          onBack={() => { setShowCareCircle(false); setShowSettingsMenu(true); }}
           onRefresh={refreshCareCircle}
         />
       ) : null;
@@ -915,7 +915,7 @@ function LilicaApp() {
           currentCareSpaceName={currentSpace?.displayName}
           canLeaveCurrentCareSpace={Boolean(currentSpace && !currentSpace.careSpaceId.startsWith('local-') && selfMember && selfMember.role !== 'organiser')}
           currentRecords={currentSpace?.records ?? []}
-          onBack={() => setShowPrivacyData(false)}
+          onBack={() => { setShowPrivacyData(false); setShowSettingsMenu(true); }}
           onCareSpaceLeft={() => void handlePrivacyCareSpaceLeft()}
           onClearLocalData={handlePrivacyClearLocalData}
         />
@@ -934,7 +934,7 @@ function LilicaApp() {
           onToggleReminders={(enabled) => void toggleGlobalReminders(enabled)}
           onToggleQuietHours={toggleQuietHours}
           onSaveDisplayName={auth.saveProfile}
-          onBack={() => setShowAccount(false)}
+          onBack={() => { setShowAccount(false); setShowSettingsMenu(true); }}
           onSignOut={() => void signOut()}
         />
       );
