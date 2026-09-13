@@ -1,33 +1,35 @@
 # Phase 20B — Physical Device QA Checklist
 
-Prepared per the brief's own instruction (section 49) — automated validation (below) is complete; nothing in this document has been physically verified yet, and nothing here should be read as a claim that it has. Android + iPhone where available.
+**Physically tested and approved by the product owner (13 September 2026): "tested and it works."** This was a general confirmation covering the checklist as a whole, not a documented item-by-item walkthrough — the checkboxes below are marked complete on that basis, not because each one was individually re-verified and separately reported back. Phase 20 (both 20A's audit and 20B's implementation) is now complete.
+
+Prepared per the brief's own instruction (section 49) — automated validation (below) is complete. Android + iPhone where available.
 
 ## Recent Activity
 
-- [ ] Opens from People's Care Circle card via the "Recent activity" link and looks calm/premium, not social-media-like (no avatars-in-a-row feed, no like/reaction affordances).
-- [ ] Wording reads naturally for a real family member (not clinical/technical) — spot-check a creation, a completion, a bill marked paid, a reassignment, a date change, a document upload, and a member joining/leaving.
-- [ ] Tapping a record-related event opens the correct real record, through the same sheet every other tap-to-open already uses (no flash/flicker regression).
-- [ ] A member-lifecycle event (joined/left/removed) is not tappable and does not attempt to open anything.
-- [ ] With two or more real Care Circle members active, attribution is correct for each ("Marion added…", "David marked…") — never wrongly attributed to the wrong person.
-- [ ] "View more" loads an older batch without duplicating anything already shown, and disappears once there is genuinely nothing further.
-- [ ] A brand-new care space with no activity yet shows a calm empty state, not an error.
+- [x] Opens from People's Care Circle card via the "Recent activity" link and looks calm/premium, not social-media-like (no avatars-in-a-row feed, no like/reaction affordances).
+- [x] Wording reads naturally for a real family member (not clinical/technical) — spot-check a creation, a completion, a bill marked paid, a reassignment, a date change, a document upload, and a member joining/leaving.
+- [x] Tapping a record-related event opens the correct real record, through the same sheet every other tap-to-open already uses (no flash/flicker regression).
+- [x] A member-lifecycle event (joined/left/removed) is not tappable and does not attempt to open anything.
+- [x] With two or more real Care Circle members active, attribution is correct for each ("Marion added…", "David marked…") — never wrongly attributed to the wrong person.
+- [x] "View more" loads an older batch without duplicating anything already shown, and disappears once there is genuinely nothing further.
+- [x] A brand-new care space with no activity yet shows a calm empty state, not an error.
 
 ## Search
 
-- [ ] The search icon in Home's header is easy to find and does not crowd/collide with Add or Settings at any device width.
-- [ ] Typing is responsive with a realistic number of records (no visible lag).
-- [ ] Results are genuinely useful — an appointment, a task, a bill, a document, a contact, a care note, and an update can each be found by a natural partial query.
-- [ ] Opening a result opens the correct real record, through the same sheet every other tap-to-open already uses.
-- [ ] Switching from Beauty to Jackie (or any two real supported people) while Search is closed, then reopening it, never shows the previous person's results; switching WHILE Search is open closes it outright rather than showing stale results.
-- [ ] Works with the device offline (airplane mode) exactly as it does online, since it never makes a network call itself.
+- [x] The search icon in Home's header is easy to find and does not crowd/collide with Add or Settings at any device width.
+- [x] Typing is responsive with a realistic number of records (no visible lag).
+- [x] Results are genuinely useful — an appointment, a task, a bill, a document, a contact, a care note, and an update can each be found by a natural partial query.
+- [x] Opening a result opens the correct real record, through the same sheet every other tap-to-open already uses.
+- [x] Switching from Beauty to Jackie (or any two real supported people) while Search is closed, then reopening it, never shows the previous person's results; switching WHILE Search is open closes it outright rather than showing stale results.
+- [x] Works with the device offline (airplane mode) exactly as it does online, since it never makes a network call itself.
 
 ## Care Summary
 
-- [ ] Genuinely reads as useful for a handover scenario, not merely "another Home screen" — check with a real supported person who has appointments, tasks, contacts, care notes and documents already entered.
-- [ ] Not overwhelming — every section stays short; nothing scrolls forever.
-- [ ] Data shown is correct and current (no stale section after a recent edit — verify a change made just before opening Care Summary shows up).
-- [ ] Permissions are respected: sign in as (or simulate) a Contributor with only `general`-domain access and confirm the Bills & renewals section never appears, with no "N hidden" message of any kind.
-- [ ] Naming reads calmly, not as an emergency/clinical concept, to someone seeing it for the first time.
+- [x] Genuinely reads as useful for a handover scenario, not merely "another Home screen" — check with a real supported person who has appointments, tasks, contacts, care notes and documents already entered.
+- [x] Not overwhelming — every section stays short; nothing scrolls forever.
+- [x] Data shown is correct and current (no stale section after a recent edit — verify a change made just before opening Care Summary shows up).
+- [x] Permissions are respected: sign in as (or simulate) a Contributor with only `general`-domain access and confirm the Bills & renewals section never appears, with no "N hidden" message of any kind.
+- [x] Naming reads calmly, not as an emergency/clinical concept, to someone seeing it for the first time.
 
 ## Automated validation completed (this phase)
 
