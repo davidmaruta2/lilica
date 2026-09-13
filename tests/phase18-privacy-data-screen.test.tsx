@@ -1,12 +1,16 @@
-// Phase 18: PrivacyDataScreen -- every action calls a real function
+// Phase 18/18B: PrivacyDataScreen -- every action calls a real function
 // (never a fake toggle), and destructive actions require confirmation
 // before anything happens.
 
 const mockExportMyData = jest.fn();
+const mockShareExportFile = jest.fn();
 const mockCheckAccountDeletionEligibility = jest.fn();
+const mockDeleteMyAccount = jest.fn();
 jest.mock('../src/accountLifecycle', () => ({
   exportMyData: (...args: unknown[]) => mockExportMyData(...args),
+  shareExportFile: (...args: unknown[]) => mockShareExportFile(...args),
   checkAccountDeletionEligibility: (...args: unknown[]) => mockCheckAccountDeletionEligibility(...args),
+  deleteMyAccount: (...args: unknown[]) => mockDeleteMyAccount(...args),
 }));
 
 const mockLeaveCareSpace = jest.fn();
@@ -32,6 +36,7 @@ const baseProps = {
   onBack: jest.fn(),
   onCareSpaceLeft: jest.fn(),
   onClearLocalData: jest.fn().mockResolvedValue(undefined),
+  onAccountDeleted: jest.fn().mockResolvedValue(undefined),
 };
 
 beforeEach(() => {
@@ -45,12 +50,37 @@ beforeEach(() => {
 });
 
 describe('PrivacyDataScreen: Export your data', () => {
-  it('calls the real export function and shows a success message', async () => {
-    mockExportMyData.mockResolvedValue({ ok: true, data: undefined });
+  it('calls the real export function and lists each produced file with its own Share action', async () => {
+    mockExportMyData.mockResolvedValue({
+      ok: true,
+      data: { files: [{ label: 'data.json', uri: 'file:///data.json' }, { label: 'Beauty / letter.pdf', uri: 'file:///letter.pdf' }], skippedDocuments: 0 },
+    });
     const screen = await render(<PrivacyDataScreen {...baseProps} />);
     await fireEvent.press(screen.getAllByText('Export your data').slice(-1)[0]);
     expect(mockExportMyData).toHaveBeenCalledTimes(1);
     await waitFor(() => screen.getByText(/prepared/));
+    screen.getByLabelText('Share data.json');
+    screen.getByLabelText('Share Beauty / letter.pdf');
+  });
+
+  it('names how many documents were skipped, without hiding the ones that succeeded', async () => {
+    mockExportMyData.mockResolvedValue({
+      ok: true,
+      data: { files: [{ label: 'data.json', uri: 'file:///data.json' }], skippedDocuments: 2 },
+    });
+    const screen = await render(<PrivacyDataScreen {...baseProps} />);
+    await fireEvent.press(screen.getAllByText('Export your data').slice(-1)[0]);
+    await waitFor(() => screen.getByText(/2 documents couldn't be included/));
+  });
+
+  it('tapping Share on a produced file calls the real share function', async () => {
+    mockExportMyData.mockResolvedValue({ ok: true, data: { files: [{ label: 'data.json', uri: 'file:///data.json' }], skippedDocuments: 0 } });
+    mockShareExportFile.mockResolvedValue({ ok: true, data: undefined });
+    const screen = await render(<PrivacyDataScreen {...baseProps} />);
+    await fireEvent.press(screen.getAllByText('Export your data').slice(-1)[0]);
+    await waitFor(() => screen.getByLabelText('Share data.json'));
+    await fireEvent.press(screen.getByLabelText('Share data.json'));
+    expect(mockShareExportFile).toHaveBeenCalledWith({ label: 'data.json', uri: 'file:///data.json' });
   });
 
   it('shows the real failure message, never a fake success', async () => {
@@ -95,17 +125,35 @@ describe('PrivacyDataScreen: Leave care space', () => {
 });
 
 describe('PrivacyDataScreen: Delete account', () => {
-  it('shows exactly which care space blocks deletion, and never claims success it cannot deliver', async () => {
+  it('shows exactly which care space blocks deletion, and never offers the real deletion button while blocked', async () => {
     mockCheckAccountDeletionEligibility.mockResolvedValue({ ok: true, data: [{ careSpaceId: 'space-1', careSpaceName: 'Beauty' }] });
     const screen = await render(<PrivacyDataScreen {...baseProps} />);
     await fireEvent.press(screen.getByLabelText('Check if my account can be deleted'));
     await waitFor(() => screen.getByText(/Beauty/));
+    expect(screen.queryByLabelText('Delete my account')).toBeNull();
+    expect(mockDeleteMyAccount).not.toHaveBeenCalled();
   });
 
-  it('is honest that deletion itself is not yet available, even when nothing blocks it', async () => {
+  it('offers the real final confirmation once the precheck clears, and calls the real delete function only after confirming', async () => {
     mockCheckAccountDeletionEligibility.mockResolvedValue({ ok: true, data: [] });
+    mockDeleteMyAccount.mockResolvedValue({ ok: true, data: undefined });
     const screen = await render(<PrivacyDataScreen {...baseProps} />);
     await fireEvent.press(screen.getByLabelText('Check if my account can be deleted'));
-    await waitFor(() => screen.getByText(/isn't available/));
+    await waitFor(() => screen.getByLabelText('Delete my account'));
+    await fireEvent.press(screen.getByLabelText('Delete my account'));
+    expect(Alert.alert).toHaveBeenCalled();
+    expect(mockDeleteMyAccount).toHaveBeenCalledTimes(1); // via the mocked destructive confirm
+    await waitFor(() => expect(baseProps.onAccountDeleted).toHaveBeenCalledTimes(1));
+  });
+
+  it('a failed deletion shows the real error and never calls onAccountDeleted -- local data is never touched on failure', async () => {
+    mockCheckAccountDeletionEligibility.mockResolvedValue({ ok: true, data: [] });
+    mockDeleteMyAccount.mockResolvedValue({ ok: false, message: 'Cannot delete account: Beauty still depends on you as its only organiser.' });
+    const screen = await render(<PrivacyDataScreen {...baseProps} />);
+    await fireEvent.press(screen.getByLabelText('Check if my account can be deleted'));
+    await waitFor(() => screen.getByLabelText('Delete my account'));
+    await fireEvent.press(screen.getByLabelText('Delete my account'));
+    await waitFor(() => screen.getByText(/still depends on you/));
+    expect(baseProps.onAccountDeleted).not.toHaveBeenCalled();
   });
 });

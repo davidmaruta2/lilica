@@ -79,10 +79,19 @@ export function canEditRecord(record: LilicaRecord, careCircleMembers?: CareCirc
 // name via stable membership ID, never a display-name/email match) --
 // duplicated rather than imported to keep this correction's footprint to
 // the files already reported, not a cross-screen extraction.
+// Phase 18B: a membership that has deleted its Lilica account (or was
+// otherwise removed) drops out of careCircleMembers (which only ever
+// lists active members) -- previously this silently returned undefined,
+// rendering nothing at all where an assignee should be. This now says so
+// honestly rather than going blank; the server (resolve_membership_
+// identities(), see supabase/migrations/20260912170000_...) can resolve
+// the real historical snapshot ("David M") when a surface is wired to
+// call it -- not yet done for this one, a named scope reduction.
 function assignmentLabel(record: LilicaRecord, activeMembershipId?: string, careCircleMembers?: CareCircleMember[]): string | undefined {
   if (!record.assignedMembershipId) return 'Unassigned';
   if (activeMembershipId && record.assignedMembershipId === activeMembershipId) return 'You';
-  return careCircleMembers?.find((member) => member.membershipId === record.assignedMembershipId)?.displayName;
+  const match = careCircleMembers?.find((member) => member.membershipId === record.assignedMembershipId);
+  return match ? match.displayName : 'Assignee no longer available';
 }
 
 function dateTimeLine(record: LilicaRecord): string | undefined {

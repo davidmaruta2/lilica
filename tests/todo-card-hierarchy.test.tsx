@@ -98,6 +98,21 @@ describe('To Do card: one quiet metadata line, not competing badges', () => {
     screen.getByText(/Marion$/);
   });
 
+  // Phase 18B: a membership that has since deleted its Lilica account (or
+  // was otherwise removed) drops out of careCircleMembers entirely.
+  it('shows an honest "Assignee no longer available" rather than rendering nothing, once a member is no longer active', async () => {
+    const records: LilicaRecord[] = [
+      { id: 'task-1', type: 'task', title: 'Carpet', status: 'unresolved', dueDate: '2026-09-20', createdAt: '2020-01-01T00:00:00.000Z', assignedMembershipId: 'membership-former-david' },
+    ];
+    const members: CareCircleMember[] = [
+      { membershipId: 'membership-sarah', displayName: 'Sarah', role: 'organiser', relationshipType: 'Other relative', isSelf: false, grantedDomains: ['general'] },
+    ];
+    const screen = await render(
+      <ToDoScreen records={records} activeMembershipId="membership-sarah" careCircleMembers={members} onOpenRecord={jest.fn()} onSaveRecord={jest.fn()} onAddSomething={jest.fn()} />,
+    );
+    screen.getByText(/Assignee no longer available$/);
+  });
+
   it('never renders a filled pill for Unassigned/You -- they are plain text', async () => {
     const records: LilicaRecord[] = [
       { id: 'task-1', type: 'task', title: 'Carpet', status: 'unresolved', dueDate: '2026-09-09', createdAt: '2020-01-01T00:00:00.000Z' },

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
-import { checkAccountDeletionEligibility, exportMyData } from '../accountLifecycle';
+import { checkAccountDeletionEligibility, deleteMyAccount, exportMyData, shareExportFile, ExportFile } from '../accountLifecycle';
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
@@ -34,9 +34,15 @@ type Props = {
   onBack: () => void;
   onCareSpaceLeft: () => void;
   onClearLocalData: () => Promise<void>;
+  // Phase 18B: called only after delete_my_account() has genuinely
+  // succeeded server-side. Mirrors onClearLocalData's own local-cleanup
+  // pattern (App.tsx clears this account's local data, then signs out) --
+  // server deletion always happens first (brief section 24).
+  onAccountDeleted: () => Promise<void>;
 };
 
 type SectionState = { busy: boolean; message?: string; tone?: 'default' | 'danger' | 'success' };
+type ExportState = SectionState & { files?: ExportFile[] };
 
 export function PrivacyDataScreen({
   storageOwnerId,
@@ -47,18 +53,36 @@ export function PrivacyDataScreen({
   onBack,
   onCareSpaceLeft,
   onClearLocalData,
+  onAccountDeleted,
 }: Props) {
-  const [exportState, setExportState] = useState<SectionState>({ busy: false });
+  const [exportState, setExportState] = useState<ExportState>({ busy: false });
   const [clearState, setClearState] = useState<SectionState>({ busy: false });
   const [leaveState, setLeaveState] = useState<SectionState>({ busy: false });
   const [deletionState, setDeletionState] = useState<SectionState>({ busy: false });
+  const [deletionBlockers, setDeletionBlockers] = useState<string[]>([]);
+  const [deletionCleared, setDeletionCleared] = useState(false);
 
   async function handleExport() {
     setExportState({ busy: true });
     const result = await exportMyData();
-    setExportState(result.ok
-      ? { busy: false, message: 'Your data was prepared -- choose where to save or share it.', tone: 'success' }
-      : { busy: false, message: result.message, tone: 'danger' });
+    if (!result.ok) {
+      setExportState({ busy: false, message: result.message, tone: 'danger' });
+      return;
+    }
+    const skippedNote = result.data.skippedDocuments > 0
+      ? ` ${result.data.skippedDocuments} document${result.data.skippedDocuments === 1 ? '' : 's'} couldn't be included (unavailable) -- everything else is ready below.`
+      : '';
+    setExportState({
+      busy: false,
+      files: result.data.files,
+      tone: 'success',
+      message: `Your data was prepared.${skippedNote} Share each file below.`,
+    });
+  }
+
+  async function handleShareExportFile(file: ExportFile) {
+    const result = await shareExportFile(file);
+    if (!result.ok) setExportState((current) => ({ ...current, message: result.message, tone: 'danger' }));
   }
 
   async function handleClear() {
@@ -124,29 +148,51 @@ export function PrivacyDataScreen({
 
   async function handleCheckDeletion() {
     setDeletionState({ busy: true });
+    setDeletionCleared(false);
     const result = await checkAccountDeletionEligibility();
     if (!result.ok) {
       setDeletionState({ busy: false, message: result.message, tone: 'danger' });
       return;
     }
     if (result.data.length > 0) {
-      const names = result.data.map((space) => space.careSpaceName).join(', ');
+      const names = result.data.map((space) => space.careSpaceName);
+      setDeletionBlockers(names);
       setDeletionState({
         busy: false,
         tone: 'danger',
-        message: `You're the only organiser of ${names}. Make someone else an organiser there first, so it's never left without one.`,
+        message: `You're the only organiser of ${names.join(', ')}. Make someone else an organiser there first, so it's never left without one.`,
       });
       return;
     }
-    // Honest per brief sections 26/43: real auth-identity deletion is not
-    // yet available in this build (see docs/PHASE_18_ARCHITECTURE.md for
-    // the exact schema constraint found) -- never claim success it can't
-    // deliver.
-    setDeletionState({
-      busy: false,
-      tone: 'default',
-      message: 'Nothing would block deleting your account today, but account deletion itself isn\'t available in this version of Lilica yet. Contact us if you\'d like your account removed in the meantime.',
-    });
+    // Nothing blocks deletion -- reveal the real, final destructive
+    // confirmation (Phase 18B). Never skips straight to deleting: the
+    // precheck passing is a necessary, not sufficient, condition.
+    setDeletionBlockers([]);
+    setDeletionCleared(true);
+    setDeletionState({ busy: false, tone: 'default', message: undefined });
+  }
+
+  function handleConfirmDeletion() {
+    Alert.alert(
+      'Delete your Lilica account?',
+      'This permanently deletes your account and sign-in -- you will lose all future access. Shared care records, documents and their relationships stay intact for anyone else who still has access to them, and your work stays truthfully attributed to you. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete my account', style: 'destructive', onPress: async () => {
+            setDeletionState({ busy: true });
+            const result = await deleteMyAccount();
+            if (!result.ok) {
+              // Server deletion failed -- never touch local data (section 24/27).
+              setDeletionState({ busy: false, message: result.message, tone: 'danger' });
+              return;
+            }
+            setDeletionState({ busy: false, tone: 'success', message: 'Your account has been deleted. Signing you out...' });
+            await onAccountDeleted();
+          },
+        },
+      ],
+    );
   }
 
   return (
@@ -163,10 +209,22 @@ export function PrivacyDataScreen({
 
         <Section title="Export your data">
           <AppText variant="body" tone="soft">
-            Get a copy of everything you're currently able to see across every care space you belong to, including document details and how records relate to each other.
+            Get a copy of everything you're currently able to see across every care space you belong to -- including the actual document files, not just their details -- plus how records relate to each other.
           </AppText>
           <Button label={exportState.busy ? 'Preparing…' : 'Export your data'} variant="secondary" disabled={exportState.busy} onPress={() => void handleExport()} style={styles.button} />
           {exportState.message ? <AppText variant="secondary" tone={exportState.tone === 'danger' ? 'danger' : 'soft'}>{exportState.message}</AppText> : null}
+          {exportState.files?.map((file) => (
+            <Pressable
+              key={file.uri}
+              accessibilityRole="button"
+              accessibilityLabel={`Share ${file.label}`}
+              onPress={() => void handleShareExportFile(file)}
+              style={styles.exportFileRow}
+            >
+              <AppText variant="secondary" numberOfLines={1} style={styles.exportFileName}>{file.label}</AppText>
+              <AppText variant="secondary" tone="primary">Share</AppText>
+            </Pressable>
+          ))}
         </Section>
 
         <Section title="Device &amp; local data">
@@ -193,12 +251,17 @@ export function PrivacyDataScreen({
 
         <Section title="Delete account">
           <AppText variant="body" tone="soft">
-            Permanently removes your Lilica account. Shared care records, documents and their relationships stay intact for anyone else who still has access to them.
+            Permanently removes your Lilica account and sign-in. Shared care records, documents and their relationships stay intact for anyone else who still has access to them, and your work stays truthfully attributed to you.
           </AppText>
           <Pressable accessibilityRole="button" accessibilityLabel="Check if my account can be deleted" disabled={deletionState.busy} onPress={() => void handleCheckDeletion()} style={styles.destructiveRow}>
             <AppText variant="bodyStrong" tone="danger" centre>{deletionState.busy ? 'Checking…' : 'Delete account'}</AppText>
           </Pressable>
           {deletionState.message ? <AppText variant="secondary" tone={deletionState.tone === 'danger' ? 'danger' : 'soft'}>{deletionState.message}</AppText> : null}
+          {deletionCleared && deletionBlockers.length === 0 ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Delete my account" disabled={deletionState.busy} onPress={handleConfirmDeletion} style={styles.destructiveRow}>
+              <AppText variant="bodyStrong" tone="danger" centre>{deletionState.busy ? 'Deleting…' : 'Delete my account'}</AppText>
+            </Pressable>
+          ) : null}
         </Section>
       </View>
     </Screen>
@@ -225,6 +288,19 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   button: { borderRadius: radius.md },
+  exportFileRow: {
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.white,
+  },
+  exportFileName: { flex: 1 },
   destructiveRow: {
     minHeight: 48,
     alignItems: 'center',

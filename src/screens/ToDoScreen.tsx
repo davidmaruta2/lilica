@@ -70,15 +70,19 @@ type AssignmentFilter = 'all' | 'mine' | 'unassigned';
 // years of future recurring obligations.
 const UPCOMING_HORIZON_DAYS = 30;
 
-// "Unassigned"/"You" are exactly as before (Phase 9); a third case now
+// "Unassigned"/"You" are exactly as before (Phase 9); a third case
 // resolves any OTHER assignee to their real Care Circle display name when
-// that data is available (Phase 15), never a name match or guess -- if
-// the assignee isn't found in careCircleMembers, this stays undefined
-// exactly as it always did, rather than fabricating anything.
+// that data is available (Phase 15). Phase 18B: an assignee whose
+// membership has since deleted its Lilica account (or was otherwise
+// removed) drops out of careCircleMembers -- this used to silently
+// render nothing at all; it now says so honestly rather than going
+// blank, never a name match, never a fabricated identity, and never
+// silently reassigning the work to anyone else.
 function assignmentLabel(record: LilicaRecord, activeMembershipId?: string, careCircleMembers?: CareCircleMember[]): string | undefined {
   if (!record.assignedMembershipId) return 'Unassigned';
   if (activeMembershipId && record.assignedMembershipId === activeMembershipId) return 'You';
-  return careCircleMembers?.find((member) => member.membershipId === record.assignedMembershipId)?.displayName;
+  const match = careCircleMembers?.find((member) => member.membershipId === record.assignedMembershipId);
+  return match ? match.displayName : 'Assignee no longer available';
 }
 
 // Corrective task 8: presentational-only date wording layered on top of
@@ -222,7 +226,35 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-    <ScreenBackdrop deep={tabAccent.todo.deep} tint={tabAccent.todo.tint} gap={spacing.md}>
+    <ScreenBackdrop
+      deep={tabAccent.todo.deep}
+      tint={tabAccent.todo.tint}
+      gap={spacing.md}
+      stretch
+      // Background correction (12 September 2026, revised after physical
+      // QA twice): `stretch` makes the gradient itself span the full
+      // rendered height of the screen (not a fixed 620px block), so the
+      // fade continues smoothly all the way to wherever the screen
+      // actually ends -- never reaching a flat colour partway down and
+      // reading as a seam/cut-off. `stops` holds deep olive solid through
+      // roughly the top third-plus (location 0.38, confidently deep
+      // through the header/subtitle/filter region), then eases through a
+      // softer olive/sage by two-thirds down, reaching the existing pale
+      // tint only in the final stretch and the lightest near-cream tone
+      // right at the very bottom -- a later-starting, more gradual
+      // distribution than the first attempt, over the SAME colours
+      // already approved for To Do (no new colour introduced). Home/
+      // Calendar/People are untouched; they pass neither `stretch` nor
+      // `stops`, so ScreenBackdrop's default fixed-height, two-stop fade
+      // still renders for them exactly as before.
+      stops={[
+        { color: tabAccent.todo.deep, location: 0 },
+        { color: tabAccent.todo.deep, location: 0.38 },
+        { color: colors.olive, location: 0.65 },
+        { color: tabAccent.todo.tint, location: 0.88 },
+        { color: colors.oliveSoft, location: 1 },
+      ]}
+    >
       {/* Visual pass: header sits on the shared deep/tint backdrop (see
           ScreenBackdrop) -- title, wordmark, subtitle and the back
           chevron (only shown arriving via a Home strip tap, always
@@ -325,6 +357,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
+    // Background correction: without flexGrow, this content container --
+    // and therefore ScreenBackdrop's own `stretch`ed height inside it --
+    // sized itself to its (sometimes sparse, e.g. "Nothing needs doing
+    // right now") children only, ending well above the bottom tab bar
+    // and exposing the plain screen background beneath as an accidental
+    // block. flexGrow: 1 makes this container fill at least the full
+    // scroll viewport when content is short; a genuinely long list still
+    // scrolls exactly as before (flexGrow never shrinks content already
+    // taller than the viewport).
+    flexGrow: 1,
     paddingBottom: spacing.xxl,
   },
   header: {

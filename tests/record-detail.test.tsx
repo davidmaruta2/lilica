@@ -111,6 +111,20 @@ describe('RecordDetail: assignment shows a real name via the stable membership I
     screen.getByText('You');
     screen.getByText('David');
   });
+
+  // Phase 18B: a membership that has since deleted its Lilica account (or
+  // was otherwise removed) drops out of careCircleMembers entirely.
+  it('shows an honest "Assignee no longer available" rather than rendering nothing, once a member is no longer active', async () => {
+    const record: LilicaRecord = {
+      id: 'task-1', type: 'task', title: 'Book a taxi', status: 'unresolved',
+      assignedMembershipId: 'membership-former-david', createdAt: '2026-09-01T00:00:00.000Z',
+    };
+    const members: CareCircleMember[] = [
+      { membershipId: 'membership-sarah', displayName: 'Sarah', role: 'organiser', relationshipType: 'Other relative', isSelf: false, grantedDomains: ['general'] },
+    ];
+    const screen = await render(<RecordDetail record={record} careCircleMembers={members} />);
+    screen.getByText('Assignee no longer available');
+  });
 });
 
 describe('RecordDetail: Edit visibility is a courtesy check over real Phase 15 data', () => {

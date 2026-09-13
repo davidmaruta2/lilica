@@ -72,6 +72,13 @@ The migration in `supabase/migrations/` is authoritative schema history. `supaba
 - Linked database lint reported no schema errors, and migration history lists `20260910150000` on both local and remote.
 - Existing profile/care-space tests scope row counts to their transactional synthetic fixture IDs so hosted development rows do not affect assertions. Test transactions roll back their synthetic data.
 
+### Hosted Phase 18B deployment - 12 September 2026
+
+- `npx supabase db push --linked --dry-run` listed only `20260912170000_phase18b_account_deletion.sql`, with no seeds or roles.
+- `npx supabase db push --linked` applied that migration only to `lilica-development`.
+- Local and linked suites each passed all 274 pgTAP assertions across nine files (245 pre-existing plus 29 new Phase 18B assertions); warning-level database lint returned no issues in either environment.
+- Local and linked migration histories match through `20260912170000`. No Auth configuration, Storage resource, seed, role or production project was changed. This migration alters `care_space_memberships` (`user_id` now nullable, new `former_display_name` column, `membership_status` gains `'former'`) and `care_spaces` (`bootstrap_owner_id` now nullable), and adds two functions: `delete_my_account()` (the real, security-definer, self-only account deletion -- the one genuinely destructive capability this migration adds, and it is scoped exclusively to the calling user's own identity via `auth.uid()`) and `resolve_membership_identities()` (read-only). No table is dropped and no existing row is deleted by the migration itself.
+
 ### Hosted Phase 18 deployment - 12 September 2026
 
 - `npx supabase db push --linked --dry-run` listed only `20260912150000_phase18_privacy_export.sql`, with no seeds or roles.
