@@ -10,6 +10,7 @@ import { Directory, Paths } from 'expo-file-system';
 
 import { readRecordCache } from './recordSync';
 import { hasPendingDocumentCleanup } from './documentCleanupQueue';
+import { clearCommercialStatusCacheForOwner } from './entitlement';
 import { LilicaRecord } from './types';
 
 export type PendingLocalWork = {
@@ -60,4 +61,8 @@ export async function clearLocalDataForOwner(ownerId: string): Promise<void> {
   } catch {
     // Nothing to delete, or already gone -- not an error.
   }
+  // Phase 21B: the offline-grace commercial-status cache is per-owner
+  // local state like everything else here -- removed on the same path,
+  // never left behind as an orphaned key after a clear/account deletion.
+  await clearCommercialStatusCacheForOwner(ownerId);
 }

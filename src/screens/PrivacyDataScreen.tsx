@@ -175,7 +175,12 @@ export function PrivacyDataScreen({
   function handleConfirmDeletion() {
     Alert.alert(
       'Delete your Lilica account?',
-      'This permanently deletes your account and sign-in -- you will lose all future access. Shared care records, documents and their relationships stay intact for anyone else who still has access to them, and your work stays truthfully attributed to you. This cannot be undone.',
+      // Phase 21B, brief section 16: deleting a Lilica account can never
+      // cancel an Apple/Google subscription on the user's behalf --
+      // neither store gives a third-party server that ability. Stated
+      // plainly here, before the destructive action, rather than left
+      // for the user to discover as a surprise later charge.
+      'This permanently deletes your account and sign-in -- you will lose all future access. Shared care records, documents and their relationships stay intact for anyone else who still has access to them, and your work stays truthfully attributed to you. This cannot be undone.\n\nDeleting your Lilica account does NOT automatically cancel an active App Store or Google Play subscription -- manage or cancel it directly in your App Store/Google Play account settings to stop future charges.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

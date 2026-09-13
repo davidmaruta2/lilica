@@ -60,6 +60,16 @@ type Props = {
   onRemoveRecord: (recordId: string) => void;
   onFinish: () => void;
   onSkip: () => void;
+  // Phase 21C: this screen is normally only reached via an already-gated
+  // Add action (App.tsx wraps its own "go to firstThing" calls), but it
+  // can stay mounted for a while as the everyday Add-reuse surface, so a
+  // read-only transition mid-session is still handled here directly
+  // rather than trusted to have been caught only at the door. Creating a
+  // new record within a category (openCategory/the list's own "Add"
+  // button) is blocked outright; an existing record's Edit affordance
+  // stays visible but blocked, exactly like RecordQuickEditor.
+  isReadOnly?: boolean;
+  onBlockedMutation?: () => void;
 };
 
 const CLOSED_HEIGHT = 118;
@@ -90,6 +100,8 @@ export function FirstThingScreen({
   onRemoveRecord,
   onFinish,
   onSkip,
+  isReadOnly,
+  onBlockedMutation,
 }: Props) {
   const name = personName?.trim() || 'them';
   const list = useRef<FlatList<(typeof firstItemOptions)[number]>>(null);
@@ -191,6 +203,7 @@ export function FirstThingScreen({
   function openCategory(index: number, type: LilicaRecordType) {
     const existing = records.some((record) => record.type === type);
     if (!existing) {
+      if (isReadOnly) { onBlockedMutation?.(); return; }
       openEditor(index, type);
       return;
     }
@@ -415,7 +428,12 @@ export function FirstThingScreen({
                     </Pressable>
                   );
                 }) : <AppText variant="secondary" tone="soft">No {terms.plural} added yet.</AppText>}
-                <Button label={terms.add} variant="secondary" onPress={() => openEditor(index, openType)} style={styles.addRecord} />
+                <Button
+                  label={terms.add}
+                  variant="secondary"
+                  onPress={() => (isReadOnly ? onBlockedMutation?.() : openEditor(index, openType))}
+                  style={styles.addRecord}
+                />
               </View>
             ) : (
               <View style={styles.editorView}>
@@ -432,7 +450,7 @@ export function FirstThingScreen({
                     record={record}
                     activeMembershipId={activeMembershipId}
                     careCircleMembers={careCircleMembers}
-                    onEdit={canEditRecord(record, careCircleMembers) ? () => openEditor(index, openType, record) : undefined}
+                    onEdit={canEditRecord(record, careCircleMembers) ? () => (isReadOnly ? onBlockedMutation?.() : openEditor(index, openType, record)) : undefined}
                     relatedRecords={relatedRecords}
                     onOpenLinkedRecord={openLinkedRecord}
                     onViewDocument={(attachmentId) => {

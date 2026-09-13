@@ -61,12 +61,6 @@ const pages: IntroPage[] = [
     key: 'ahead',
     heading: 'Share care, with clarity',
     body: "Bring in family or other helpers, share updates and responsibilities, and see clearly who's doing what.",
-    bullets: [
-      { label: 'Bring in family or other helpers', icon: 'people' },
-      { label: 'Share updates and responsibilities', icon: 'chat' },
-      { label: "See clearly who's doing what", icon: 'list' },
-      { label: "Invite others when you're ready", icon: 'paperPlane' },
-    ],
     color: '#62764F',
     visual: 'ahead',
   },

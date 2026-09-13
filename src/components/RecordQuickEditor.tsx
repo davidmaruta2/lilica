@@ -46,6 +46,14 @@ type Props = {
   onSaveRecord: (record: LilicaRecord) => void;
   onRemoveRecord: (recordId: string) => void;
   onDismiss: () => void;
+  // Phase 21C: when the active care space is read-only, the Edit
+  // affordance on an existing record's view stays VISIBLE (never silently
+  // disabled -- brief's explicit requirement) but tapping it calls
+  // onBlockedEdit instead of actually entering edit mode. A brand-new
+  // draft (newType set) is gated upstream at the point the caller decides
+  // to open one at all, so this only ever applies to an EXISTING record.
+  isReadOnly?: boolean;
+  onBlockedEdit?: () => void;
 };
 
 export function RecordQuickEditor({
@@ -60,6 +68,8 @@ export function RecordQuickEditor({
   onSaveRecord,
   onRemoveRecord,
   onDismiss,
+  isReadOnly,
+  onBlockedEdit,
 }: Props) {
   // Phase 17: link navigation ("Document -> Orthopaedic appointment ->
   // Appointment Detail") stays inside this SAME sheet -- retargeting which
@@ -141,7 +151,7 @@ export function RecordQuickEditor({
           record={record}
           activeMembershipId={activeMembershipId}
           careCircleMembers={careCircleMembers}
-          onEdit={canEditRecord(record, careCircleMembers) ? () => setMode('edit') : undefined}
+          onEdit={canEditRecord(record, careCircleMembers) ? () => (isReadOnly ? onBlockedEdit?.() : setMode('edit')) : undefined}
           relatedRecords={relatedRecords}
           onOpenLinkedRecord={(targetId) => {
             setActiveRecordId(targetId);

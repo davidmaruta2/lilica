@@ -28,6 +28,15 @@ type Props = {
   // successful invite/revoke/remove so the screen always reflects real,
   // server-confirmed state rather than an optimistic local guess.
   onRefresh: () => void;
+  // Phase 21C: inviting a new member is the one gated action on this
+  // screen (creating a new Care Circle relationship) -- accepting/
+  // declining/leaving/removing a member are all deliberately never gated
+  // (see docs/PHASE_21_ARCHITECTURE.md section 9). The "Invite someone"
+  // button stays visible either way; tapping it while read-only calls
+  // onInviteBlocked instead of opening the invite form, so the affordance
+  // is never silently disabled with no explanation.
+  isReadOnly?: boolean;
+  onInviteBlocked?: () => void;
 };
 
 const DOMAIN_OPTIONS: { value: CareCircleDomain; label: string }[] = (
@@ -40,7 +49,7 @@ function roleDescription(role: CareCircleRole) {
   return 'Can view what you share with them';
 }
 
-export function CareCircleScreen({ personName, members, invitations, careSpaceId, onBack, onRefresh }: Props) {
+export function CareCircleScreen({ personName, members, invitations, careSpaceId, onBack, onRefresh, isReadOnly, onInviteBlocked }: Props) {
   const [showInvite, setShowInvite] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'contributor' | 'viewer'>('contributor');
@@ -227,7 +236,7 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
             <Button label="Cancel" variant="text" onPress={() => setShowInvite(false)} disabled={busy} />
           </View>
         ) : (
-          <Button label="Invite someone" onPress={() => setShowInvite(true)} />
+          <Button label="Invite someone" onPress={() => (isReadOnly ? onInviteBlocked?.() : setShowInvite(true))} />
         )}
       </ScrollView>
     </Screen>

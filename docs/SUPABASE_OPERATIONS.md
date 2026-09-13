@@ -64,6 +64,15 @@ Review every dry run. Dashboard-only schema changes are prohibited because they 
 
 The migration in `supabase/migrations/` is authoritative schema history. `supabase/seed.sql` deliberately contains no shared users or profile data.
 
+### Hosted Phase 21B deployment - 14 September 2026
+
+- `npx supabase db push --linked --dry-run` listed only `20260914090000_phase21b_billing_entitlement.sql`, with no seeds or roles.
+- `npx supabase db push --linked` applied that migration only to `lilica-development`.
+- Local and linked suites each passed all 341 pgTAP assertions across twelve files (305 pre-existing plus 36 new); warning-level database lint returned no issues in either environment.
+- Local and linked migration histories match through `20260914090000`. No Auth configuration, seed, role or production project was changed.
+- This migration adds `care_spaces.commercial_owner_id` (nullable, backfilled to `bootstrap_owner_id` for every pre-existing row), two new tables (`entitlements`, `entitlement_events`, both RLS-restricted to their own owner, both with no direct write grant to `authenticated`), and redefines (same signatures) `apply_record_mutation()`, `upsert_record_attachment()`, `mark_attachment_upload_status()`, `remove_record_attachment()`, `create_record_link()`, `remove_record_link()`, `invite_member()`, `revoke_invitation()`, `change_member_role()`, `bootstrap_supported_people()`, and `delete_my_account()` to add entitlement enforcement/cleanup. No existing RLS policy, table column (other than the one new addition), or unrelated function behaviour was altered — proven by the complete pre-existing pgTAP suite (including the full Phase 18B account-deletion suite) passing unchanged against the new schema.
+- **A real Edge Function, `entitlement-webhook`, exists in the repository (`supabase/functions/entitlement-webhook/`) but has NOT been deployed to `lilica-development` or any other project.** No RevenueCat project/webhook exists yet to deliver events to it. Deploying it (`npx supabase functions deploy entitlement-webhook`) and setting its `REVENUECAT_WEBHOOK_SECRET` secret remain outstanding, external-configuration steps — see `docs/PHASE_21_ARCHITECTURE.md` section 20.
+
 ### Hosted Phase 7 deployment - 10 September 2026
 
 - `npx supabase db push --linked --dry-run` listed only `20260910150000_phase7_records.sql`.

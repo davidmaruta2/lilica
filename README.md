@@ -81,7 +81,7 @@ Physical-device acceptance has confirmed the corrected keyboard, authentication/
 
 ## Roadmap
 
-The original canonical roadmap ran through Phase 19 (Production Hardening & Release Readiness), currently in progress. On 13 September 2026 the product owner approved a three-phase extension beyond it — Phase 20 (Competitive Gap Review & Carer-Focused Enhancements), Phase 21 (Billing, Subscription & Membership/Entitlement) and Phase 22 (Premium Visual Optimisation & Experience Polish) — none of which has started; see `docs/CORE_SYSTEM_CONTRACT.md` for the canonical detail.
+The original canonical roadmap ran through Phase 19 (Production Hardening & Release Readiness). On 13 September 2026 the product owner approved a three-phase extension beyond it — Phase 20 (Competitive Gap Review & Carer-Focused Enhancements), Phase 21 (Billing, Subscription & Membership/Entitlement) and Phase 22 (Premium Visual Optimisation & Experience Polish); see `docs/CORE_SYSTEM_CONTRACT.md` for the canonical detail. As of 14 September 2026: Phase 20 is complete and physically confirmed; Phase 21 (including its Phase 21C proactive read-only UX closure) is engineering-complete server-side and client-side (60 days free, then £8.99/year), but real purchases remain unverified pending a RevenueCat project, store products, a development build and physical sandbox QA — see `docs/PHASE_21_ARCHITECTURE.md`/`docs/PHASE_21_QA.md`; Phase 22 has not started.
 
 ## Reference Material
 

@@ -113,7 +113,11 @@ export interface RecordSyncTransport {
   pullOccurrences?(careSpaceId: string, cursor: number): Promise<ServerOccurrenceRow[]>;
 }
 
-class RecordTransportError extends Error {
+// Exported so a test fake transport can realistically reproduce the exact
+// wrapping supabaseRecordTransport itself performs below (categorising a
+// raw Supabase error before synchronizeRecords ever sees it) -- see
+// tests/phase21b-held-mutation.test.ts.
+export class RecordTransportError extends Error {
   constructor(message: string, readonly category: 'retryable' | 'authentication' | 'permission' | 'validation') {
     super(message);
   }
@@ -489,6 +493,23 @@ function rejectedStatus(error: unknown): RecordMutationStatus {
   return error instanceof RecordTransportError && error.category !== 'retryable' ? 'rejected' : 'retryable';
 }
 
+// Phase 21B, brief section 28/19: a mutation rejected specifically because
+// the care space's commercial entitlement had expired by the time it
+// reached the server must never be discarded, and -- unlike a genuine
+// permission denial (e.g. an assignee-visibility rejection, which needs a
+// new edit, not a retry) -- must resume automatically once entitlement is
+// restored, through this exact existing outbox/reconciliation model. No
+// new held-mutation store was built; this reuses the mutation's own
+// existing 'rejected' status and lastError message, distinguishing it only
+// by that message's exact, server-authored text (apply_record_mutation()'s
+// own literal wording, kept in sync with the migration by this one shared
+// constant rather than duplicated free text).
+export const ENTITLEMENT_REQUIRED_MESSAGE = 'Subscription required to continue managing this care space';
+
+export function isEntitlementHeldMutation(mutation: Pick<RecordMutation, 'status' | 'lastError'>): boolean {
+  return mutation.status === 'rejected' && mutation.lastError === ENTITLEMENT_REQUIRED_MESSAGE;
+}
+
 export async function synchronizeRecords(
   ownerId: string,
   authorisedCareSpaceIds: string[],
@@ -505,7 +526,7 @@ export async function synchronizeRecords(
       const blockedRecords = new Set<string>();
       for (const mutation of space.outbox) {
         if (blockedRecords.has(mutation.cloudRecordId)) continue;
-        if (mutation.status === 'conflict' || mutation.status === 'rejected') {
+        if (mutation.status === 'conflict' || (mutation.status === 'rejected' && !isEntitlementHeldMutation(mutation))) {
           blockedRecords.add(mutation.cloudRecordId);
           continue;
         }
@@ -574,6 +595,22 @@ export async function synchronizeRecords(
 
 export function readRecordCache(ownerId: string) {
   return loadStore(ownerId);
+}
+
+// Phase 21C: the one read this app needs to show a calm, friendly notice
+// when a mutation genuinely couldn't be saved because the care space's
+// subscription lapsed while it was queued (a rare race -- the proactive
+// UI gate already stops the common case before it happens; this only
+// covers "changed after the form was already open" or "restored from an
+// offline queue after expiry"). Deliberately narrow: it reports only
+// whether ANY such held mutation exists for this care space, using the
+// exact same isEntitlementHeldMutation() predicate synchronizeRecords()
+// itself already relies on -- no new state, no raw error text surfaced.
+export async function hasEntitlementHeldMutations(ownerId: string, careSpaceId: string): Promise<boolean> {
+  const store = await loadStore(ownerId);
+  const space = store.spaces[careSpaceId];
+  if (!space) return false;
+  return space.outbox.some((mutation) => isEntitlementHeldMutation(mutation));
 }
 
 export async function readOccurrenceCache(ownerId: string, careSpaceId: string) {

@@ -1,7 +1,7 @@
 import { Fraunces_800ExtraBold, useFonts } from '@expo-google-fonts/fraunces';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from './src/auth/AuthProvider';
@@ -73,12 +73,25 @@ import {
 } from './src/careCircle';
 import { InvitationsScreen } from './src/screens/InvitationsScreen';
 import { ActivityEvent, listRecentActivity } from './src/activity';
+import {
+  CareSpaceCommercialStatus,
+  cacheCommercialStatus,
+  describeEntitlement,
+  getCareSpaceCommercialStatus,
+  getMyEntitlement,
+  MyEntitlement,
+  readCachedCommercialStatus,
+} from './src/entitlement';
+import { configureBilling, getAnnualPackage, isBillingConfigured, logOutBilling, purchaseAnnualSubscription, restorePurchases } from './src/billing';
+import { SubscriptionScreen } from './src/screens/SubscriptionScreen';
+import { ReadOnlyGate } from './src/components/ReadOnlyGate';
 import { RecentActivityScreen } from './src/screens/RecentActivityScreen';
 import { CareSummaryScreen } from './src/screens/CareSummaryScreen';
 import { SearchScreen } from './src/screens/SearchScreen';
 import {
   enqueueRecordDelete,
   enqueueRecordUpsert,
+  hasEntitlementHeldMutations,
   prepareRecordCache,
   recordRetryDelay,
   synchronizeRecords,
@@ -97,7 +110,7 @@ import {
   requestPermission as requestNotificationPermission,
   saveNotificationSettings,
 } from './src/notifications';
-import { colors } from './src/theme';
+import { colors, radius, spacing } from './src/theme';
 import {
   AppTab,
   FirstItem,
@@ -207,7 +220,15 @@ function LilicaApp() {
   // Care Circle keeps a second, separate direct entry point from People's
   // own "Manage care circle" link -- see showCareCircle below -- which is
   // deliberately unchanged (full-screen, not the drawer).
-  const [settingsSection, setSettingsSection] = useState<'menu' | 'account' | 'careCircle' | 'privacyData'>('menu');
+  const [settingsSection, setSettingsSection] = useState<'menu' | 'account' | 'careCircle' | 'privacyData' | 'subscription'>('menu');
+  // Phase 21B: the signed-in account's own commercial entitlement --
+  // fetched once sign-in is known, refetched after a subscribe/restore
+  // action. Never trusted as the actual mutation gate (the server always
+  // re-checks) -- this is display-only, for the Subscription Settings
+  // surface and its own Settings-row summary line.
+  const [myEntitlement, setMyEntitlement] = useState<MyEntitlement>();
+  const [entitlementLoading, setEntitlementLoading] = useState(false);
+  const [entitlementError, setEntitlementError] = useState<string>();
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   // Phase 15: the active care space's real members, for the record
   // editor's assignment selector and the Care Circle screen. Never
@@ -277,6 +298,140 @@ function LilicaApp() {
   useEffect(() => {
     if (settingsSection === 'account') getPermissionState().then(setReminderPermissionState).catch(() => undefined);
   }, [settingsSection]);
+
+  // Phase 21B: fetch this account's own entitlement once sign-in is
+  // known, and identify RevenueCat's own session to this exact account
+  // (auth.uid()-derived, never an email -- see src/billing.ts). On
+  // sign-out, log RevenueCat back out first, so a different account
+  // signing in on the same device afterward can never inherit this one's
+  // cached entitlement.
+  useEffect(() => {
+    if (!storageOwnerId) {
+      setMyEntitlement(undefined);
+      void logOutBilling();
+      return;
+    }
+    let cancelled = false;
+    setEntitlementLoading(true);
+    void configureBilling(storageOwnerId);
+    getMyEntitlement().then((result) => {
+      if (cancelled) return;
+      setEntitlementLoading(false);
+      if (result.ok) { setMyEntitlement(result.data); setEntitlementError(undefined); }
+      else setEntitlementError(result.message);
+    });
+    return () => { cancelled = true; };
+  }, [storageOwnerId]);
+
+  async function refreshMyEntitlement() {
+    const result = await getMyEntitlement();
+    if (result.ok) { setMyEntitlement(result.data); setEntitlementError(undefined); }
+    return result;
+  }
+
+  // Phase 21C: the ONE central read-only signal for the whole app. Fetched
+  // for the currently active care space via the already-existing,
+  // minimal-disclosure get_care_space_commercial_status() RPC (Phase 21B) --
+  // no new table, no new RPC, no client-authoritative state. A local-only
+  // care space (never synced -- careSpaceId starts with "local-") has no
+  // commercial concept at all and is never read-only. Undefined (not yet
+  // loaded) deliberately means "not read-only" -- brief section 21's own
+  // explicit "never assume expired" default -- rather than flashing a gate
+  // on every care-space switch while the real answer is still in flight.
+  const [careSpaceCommercialStatus, setCareSpaceCommercialStatus] = useState<CareSpaceCommercialStatus>();
+  useEffect(() => {
+    if (!currentSpace || currentSpace.careSpaceId.startsWith('local-')) {
+      setCareSpaceCommercialStatus(undefined);
+      return;
+    }
+    const careSpaceId = currentSpace.careSpaceId;
+    let cancelled = false;
+    getCareSpaceCommercialStatus(careSpaceId).then(async (result) => {
+      if (cancelled) return;
+      if (result.ok && result.data) {
+        setCareSpaceCommercialStatus(result.data);
+        if (storageOwnerId) await cacheCommercialStatus(storageOwnerId, careSpaceId, result.data);
+        return;
+      }
+      // Offline/unreachable: fall back to the last server-verified value
+      // for this exact care space within the 72-hour grace window, rather
+      // than assuming either expired (would wrongly block real work while
+      // offline) or active forever (would defeat the entitlement entirely).
+      if (storageOwnerId) {
+        const cached = await readCachedCommercialStatus(storageOwnerId, careSpaceId);
+        if (!cancelled && cached.state !== 'none') setCareSpaceCommercialStatus(cached.status);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentSpace?.careSpaceId, storageOwnerId]);
+
+  const isReadOnly = careSpaceCommercialStatus ? !careSpaceCommercialStatus.isActive : false;
+  const [showReadOnlyGate, setShowReadOnlyGate] = useState(false);
+
+  // Phase 21C: the friendly-translation half of "server rejection remains
+  // the final safety net" (brief section 22). The proactive gate above
+  // stops the common case before a mutation is even attempted; this
+  // covers the rare remaining race -- entitlement lapsed after a form was
+  // already open, or a queued offline mutation is replayed after expiry
+  // -- so the app never surfaces recordSync's raw rejection silently.
+  // Re-checked whenever this care space's own records change (every
+  // successful/attempted sync pass updates that array) or the space
+  // itself is switched.
+  const [hasHeldMutation, setHasHeldMutation] = useState(false);
+  const [heldMutationNoticeDismissed, setHeldMutationNoticeDismissed] = useState(false);
+  useEffect(() => {
+    if (!storageOwnerId || !currentSpace || currentSpace.careSpaceId.startsWith('local-')) {
+      setHasHeldMutation(false);
+      return;
+    }
+    let cancelled = false;
+    hasEntitlementHeldMutations(storageOwnerId, currentSpace.careSpaceId).then((held) => {
+      if (!cancelled) setHasHeldMutation(held);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [storageOwnerId, currentSpace?.careSpaceId, currentSpace?.records]);
+  useEffect(() => {
+    setHeldMutationNoticeDismissed(false);
+  }, [currentSpace?.careSpaceId]);
+
+  // Central gate: every mutation-entry point calls this instead of its
+  // real action directly. Read-only shows the one shared explanation
+  // (src/components/ReadOnlyGate.tsx) instead of entering the flow; the
+  // server remains the actual, final authority regardless (brief section
+  // 22) -- this is only ever a proactive courtesy, never the security
+  // boundary.
+  function guardMutation(action: () => void) {
+    if (isReadOnly) {
+      setShowReadOnlyGate(true);
+      return;
+    }
+    action();
+  }
+
+  async function handleSubscribe(): Promise<{ ok: boolean; message?: string }> {
+    const offer = await getAnnualPackage();
+    if (!offer.ok) return { ok: false, message: offer.message };
+    if (!offer.data) return { ok: false, message: 'No subscription product is available yet.' };
+    const purchase = await purchaseAnnualSubscription(offer.data);
+    if (!purchase.ok) return { ok: false, message: purchase.message };
+    // The webhook (supabase/functions/entitlement-webhook) is what makes
+    // the server's own entitlements row authoritative -- this refetch is
+    // an optimistic best-effort follow-up, not the real confirmation.
+    // See docs/PHASE_21_ARCHITECTURE.md's purchase-flow section.
+    await refreshMyEntitlement();
+    return { ok: true };
+  }
+
+  async function handleRestore(): Promise<{ ok: boolean; message?: string }> {
+    const result = await restorePurchases();
+    if (!result.ok) return { ok: false, message: result.message };
+    await refreshMyEntitlement();
+    return { ok: true };
+  }
 
   // Care Circle can be opened two ways -- People's own direct link
   // (showCareCircle) or the Settings drawer (settingsSection) -- both
@@ -1042,6 +1197,8 @@ function LilicaApp() {
           careSpaceId={currentSpace.careSpaceId}
           onBack={() => setShowCareCircle(false)}
           onRefresh={refreshCareCircle}
+          isReadOnly={isReadOnly}
+          onInviteBlocked={() => setShowReadOnlyGate(true)}
         />
       ) : null;
     } else if (showAllContacts) {
@@ -1057,7 +1214,7 @@ function LilicaApp() {
           personName={currentSpace?.displayName}
           onBack={() => setShowAllContacts(false)}
           onOpenRecord={openRecordFromProjection}
-          onAddContact={() => openNewFromProjection('contact')}
+          onAddContact={() => guardMutation(() => openNewFromProjection('contact'))}
         />
       );
     } else if (activeTab === 'home') {
@@ -1070,7 +1227,7 @@ function LilicaApp() {
           onSwitchPerson={selectActiveSpace}
           onAddPerson={startAddPerson}
           onContinueSetup={continueActiveSetup}
-          onAddSomething={() => currentSpace?.setupStatus === 'ready' ? go('firstThing') : continueActiveSetup()}
+          onAddSomething={() => guardMutation(() => currentSpace?.setupStatus === 'ready' ? go('firstThing') : continueActiveSetup())}
           onDismissAllSet={() => {
             if (!currentSpace) return;
             setState((current) => projectActiveCareSpace(replaceCareSpace(current, currentSpace.careSpaceId, (space) => ({ ...space, allSetDismissed: true }))));
@@ -1111,7 +1268,7 @@ function LilicaApp() {
           initialFocusGroup={todoInitialFocusGroup}
           onOpenRecord={openRecordFromProjection}
           onSaveRecord={saveRecord}
-          onAddSomething={() => go('firstThing')}
+          onAddSomething={() => guardMutation(() => go('firstThing'))}
           onOpenSettings={() => setShowSettingsMenu(true)}
           onBack={todoInitialFilter || todoInitialFocusGroup ? () => {
             setTodoInitialFilter(undefined);
@@ -1137,7 +1294,7 @@ function LilicaApp() {
           onSwitchPerson={selectActiveSpace}
           onAddPerson={startAddPerson}
           onOpenRecord={openRecordFromProjection}
-          onAddType={openNewFromProjection}
+          onAddType={(type) => guardMutation(() => openNewFromProjection(type))}
           onOpenSettings={() => setShowSettingsMenu(true)}
           onOpenCareCircle={careCircleAvailable ? () => setShowCareCircle(true) : undefined}
           careCircleMembers={careCircleMembers}
@@ -1153,6 +1310,18 @@ function LilicaApp() {
 
     return (
       <SafeAreaView edges={['top', 'bottom']} style={styles.shell}>
+        {hasHeldMutation && !heldMutationNoticeDismissed ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss: a change couldn't be saved yet"
+            onPress={() => setHeldMutationNoticeDismissed(true)}
+            style={styles.heldMutationNotice}
+          >
+            <AppText variant="secondary" tone="primary">
+              A change you made couldn't be saved because this care space's subscription isn't active. Nothing is lost -- it will save automatically once the subscription is active again.
+            </AppText>
+          </Pressable>
+        ) : null}
         <View style={styles.shellContent}>{content}</View>
         {(calendarOpenRecordId || projectionOpenType) ? (
           <RecordQuickEditor
@@ -1171,6 +1340,8 @@ function LilicaApp() {
               setCalendarOpenRecordId(undefined);
               setProjectionOpenType(undefined);
             }}
+            isReadOnly={isReadOnly}
+            onBlockedEdit={() => setShowReadOnlyGate(true)}
           />
         ) : null}
         <SettingsMenu
@@ -1180,6 +1351,8 @@ function LilicaApp() {
           onOpenAccount={() => setSettingsSection('account')}
           onOpenPrivacyData={() => setSettingsSection('privacyData')}
           onOpenCareCircle={careCircleAvailable ? () => setSettingsSection('careCircle') : undefined}
+          onOpenSubscription={() => setSettingsSection('subscription')}
+          subscriptionSummary={myEntitlement ? describeEntitlement(myEntitlement) : undefined}
         >
           {settingsSection === 'account' ? (
             <AccountScreen
@@ -1207,6 +1380,8 @@ function LilicaApp() {
               careSpaceId={currentSpace.careSpaceId}
               onBack={() => setSettingsSection('menu')}
               onRefresh={refreshCareCircle}
+              isReadOnly={isReadOnly}
+              onInviteBlocked={() => setShowReadOnlyGate(true)}
             />
           ) : settingsSection === 'privacyData' ? (
             <PrivacyDataScreen
@@ -1222,6 +1397,16 @@ function LilicaApp() {
               onCareSpaceLeft={() => void handlePrivacyCareSpaceLeft()}
               onClearLocalData={handlePrivacyClearLocalData}
               onAccountDeleted={handleAccountDeleted}
+            />
+          ) : settingsSection === 'subscription' ? (
+            <SubscriptionScreen
+              entitlement={myEntitlement}
+              loading={entitlementLoading}
+              error={entitlementError}
+              billingConfigured={isBillingConfigured()}
+              onBack={() => setSettingsSection('menu')}
+              onSubscribe={handleSubscribe}
+              onRestore={handleRestore}
             />
           ) : null}
         </SettingsMenu>
@@ -1241,6 +1426,17 @@ function LilicaApp() {
             setTodoInitialFilter(undefined);
             setTodoInitialFocusGroup(undefined);
           }}
+        />
+        <ReadOnlyGate
+          visible={showReadOnlyGate}
+          isCommercialOwner={careSpaceCommercialStatus?.isCommercialOwner ?? true}
+          ownerEntitlementStatus={myEntitlement?.status}
+          onSubscribe={() => {
+            setShowReadOnlyGate(false);
+            setSettingsSection('subscription');
+            setShowSettingsMenu(true);
+          }}
+          onClose={() => setShowReadOnlyGate(false)}
         />
       </SafeAreaView>
     );
@@ -1495,6 +1691,8 @@ function LilicaApp() {
             onRemoveRecord={removeRecord}
             onFinish={() => completeOnboarding()}
             onSkip={() => completeOnboarding()}
+            isReadOnly={isReadOnly}
+            onBlockedMutation={() => setShowReadOnlyGate(true)}
           />
         );
       case 'itemForm':
@@ -1521,6 +1719,8 @@ function LilicaApp() {
             onRemoveRecord={removeRecord}
             onFinish={() => completeOnboarding()}
             onSkip={() => completeOnboarding()}
+            isReadOnly={isReadOnly}
+            onBlockedMutation={() => setShowReadOnlyGate(true)}
           />
         );
       case 'home':
@@ -1616,5 +1816,12 @@ const styles = StyleSheet.create({
   },
   shellContent: {
     flex: 1,
+  },
+  heldMutationNotice: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
   },
 });

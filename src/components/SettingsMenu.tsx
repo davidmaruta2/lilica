@@ -38,15 +38,25 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // wide screens/tablets so it doesn't stretch edge-to-edge there.
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.88, 480);
 
-type Section = 'menu' | 'account' | 'careCircle' | 'privacyData';
+type Section = 'menu' | 'account' | 'careCircle' | 'privacyData' | 'subscription';
 
-export function SettingsMenu({ visible, section, onClose, onOpenAccount, onOpenCareCircle, onOpenPrivacyData, children }: {
+export function SettingsMenu({ visible, section, onClose, onOpenAccount, onOpenCareCircle, onOpenPrivacyData, onOpenSubscription, subscriptionSummary, children }: {
   visible: boolean;
   section: Section;
   onClose: () => void;
   onOpenAccount: () => void;
   onOpenCareCircle?: () => void;
   onOpenPrivacyData: () => void;
+  // Phase 21B: always offered, like Privacy & data -- meaningful
+  // regardless of whether the active care space is real/synced, since
+  // entitlement is an account-level fact, not a per-care-space one.
+  onOpenSubscription: () => void;
+  // A short, calm one-line status ("12 days left in your free period" /
+  // "Lilica Annual · £8.99/year · Active") shown as this row's own
+  // description -- never a separate badge/countdown elsewhere in the app
+  // (brief section 21's own placement guidance). Falls back to a neutral
+  // description while entitlement hasn't loaded yet.
+  subscriptionSummary?: string;
   // The active section's own screen (App.tsx builds it, since that's
   // where all the data/callbacks it needs already live) -- rendered in
   // place of the menu list whenever `section` isn't 'menu'.
@@ -93,6 +103,7 @@ export function SettingsMenu({ visible, section, onClose, onOpenAccount, onOpenC
       ? [{ key: 'careCircle', label: 'Care Circle', description: 'Who can help, and what they can see', onPress: onOpenCareCircle }]
       : []),
     { key: 'privacyData', label: 'Privacy & data', description: 'What Lilica stores, export, and device data', onPress: onOpenPrivacyData },
+    { key: 'subscription', label: 'Subscription', description: subscriptionSummary ?? 'Your Lilica subscription', onPress: onOpenSubscription },
   ];
 
   return (

@@ -146,6 +146,17 @@ describe('PrivacyDataScreen: Delete account', () => {
     await waitFor(() => expect(baseProps.onAccountDeleted).toHaveBeenCalledTimes(1));
   });
 
+  it('Phase 21B: discloses that account deletion does not cancel an App Store/Google Play subscription', async () => {
+    mockCheckAccountDeletionEligibility.mockResolvedValue({ ok: true, data: [] });
+    const screen = await render(<PrivacyDataScreen {...baseProps} />);
+    await fireEvent.press(screen.getByLabelText('Check if my account can be deleted'));
+    await waitFor(() => screen.getByLabelText('Delete my account'));
+    await fireEvent.press(screen.getByLabelText('Delete my account'));
+    const [, message] = (Alert.alert as jest.Mock).mock.calls[0];
+    expect(message).toMatch(/does NOT automatically cancel/);
+    expect(message).toMatch(/App Store or Google Play/);
+  });
+
   it('a failed deletion shows the real error and never calls onAccountDeleted -- local data is never touched on failure', async () => {
     mockCheckAccountDeletionEligibility.mockResolvedValue({ ok: true, data: [] });
     mockDeleteMyAccount.mockResolvedValue({ ok: false, message: 'Cannot delete account: Beauty still depends on you as its only organiser.' });
