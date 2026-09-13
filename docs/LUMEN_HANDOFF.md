@@ -12,6 +12,10 @@ Lilica is a calm personal and family care organiser. An organiser keeps appointm
 
 Read `docs/PROJECT_BRIEF.md`, `AGENTS.md`, `docs/SUPABASE_OPERATIONS.md` and `docs/CORE_SYSTEM_CONTRACT.md` before implementation.
 
+**Current:** Phase 19 — Production Hardening & Release Readiness is implemented and validated (13 September 2026) — see `docs/PHASE_19_ARCHITECTURE.md`/`docs/PHASE_19_QA.md`. A real, committed, fully-cleaned-up two-account collaboration and account-deletion rehearsal against `lilica-development` closed out Phase 18B's own outstanding server-side two-account QA item; RLS/permission, dependency/security, accessibility (static) and store/release-config reviews found no release-blocking defect. Physical-hardware-only items (offline/restart, screen-reader, device matrix, reminders on a dev build, performance feel) are honestly marked NOT RUN, not fabricated. Not yet committed. **Production release remains a separate, explicit product-owner go/no-go, not implied by Phase 19's completion.** Phase 19 is NOT the final remaining work.
+
+**Future approved roadmap (added 13 September 2026, documentation only, none started):** Phase 20 — Competitive Gap Review & Carer-Focused Enhancements; Phase 21 — Billing, Subscription & Membership/Entitlement; Phase 22 — Premium Visual Optimisation & Experience Polish. See `docs/CORE_SYSTEM_CONTRACT.md` for the canonical wording of each, including Phase 20's and Phase 22's mandatory audit/approval gates before any implementation. Do not begin any of these without their own separately approved implementation prompt.
+
 ## Implemented Product State
 
 The working app now includes:

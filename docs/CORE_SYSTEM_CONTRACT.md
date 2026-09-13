@@ -1531,6 +1531,88 @@ Phase 2 ends with approval or revision of this contract. Every later phase follo
 
 **Stop point:** explicit product-owner go/no-go; production release is never implied by completion of engineering work.
 
+### Roadmap extension note (13 September 2026)
+
+Phase 19 — Production Hardening And Release Readiness above was the final phase of the ORIGINAL canonical roadmap. That remains historically true and its wording above is unchanged.
+
+On 13 September 2026, while Phase 19 was already being executed, the product owner explicitly approved a three-phase extension to the roadmap: Phase 20 (Competitive Gap Review & Carer-Focused Enhancements), Phase 21 (Billing, Subscription & Membership/Entitlement) and Phase 22 (Premium Visual Optimisation & Experience Polish). The canonical roadmap now extends through Phase 22.
+
+This is a documentation-only roadmap extension. Phases 1-19 remain the original canonical roadmap; Phases 20-22 are a subsequent, separately-approved extension, not a retroactive rewrite of the original Phase 2 contract. Phase 19 remains the current phase and is unchanged by this note. No Phase 20, 21 or 22 implementation has started.
+
+### Phase 20 - Competitive Gap Review And Carer-Focused Enhancements
+
+**Purpose:** now that the original Lilica roadmap is substantially complete, systematically compare the finished product against established carer-focused products — beginning with Jointly from Carers UK — to identify genuine carer needs or workflows Lilica may still be missing. This is not "copy every Jointly feature"; it is "understand why an established product contains particular capabilities, identify genuine gaps in Lilica, and selectively implement only the improvements that materially strengthen Lilica."
+
+**Dependencies:** Phase 19 complete and signed off.
+
+**Deliverables:** Phase 20 must begin with an audit/report, not implementation. The audit inspects current Lilica completely, reviews the Jointly evidence already supplied by the product owner, researches other relevant established carer-product behaviour only where expressly authorised, and builds a capability comparison. Every candidate feature is classified as: (A) Lilica already handles this better; (B) Lilica already handles this differently but adequately; (C) genuine product gap worth adding; (D) useful but not launch-critical; (E) deliberately should not be copied; (F) requires legal/privacy/product research first. Each genuine gap is assessed for user/carer need, evidence of usefulness, current Lilica equivalent, proposed Lilica interpretation, complexity, data-model impact, security/privacy impact, regression risk, UI impact, and whether it belongs at launch. The review should revisit — as candidates only, not approved features — meaningful Recent Activity/history, search/findability, medication-related organisation, contingency/emergency-plan information, calendar integration/export, communication/messaging needs, notification sophistication, contact importing, recurring task/checklist needs, offline expectations, member filtering/management, carer-specific information/profile fields, and any other capability found during the formal review.
+
+**Acceptance:** the gap report is reviewed and the precise enhancement set is explicitly approved by GPT and the product owner before any implementation prompt is issued. No competitor-driven feature enters Lilica automatically merely because Jointly contains it.
+
+**Regression protection:** Lilica's existing information architecture (Home, Calendar, To Do, People, universal Add, shared underlying records) must be protected. Phase 20 must not turn Lilica into a large feature-directory/menu merely to match a competitor; any approved enhancement should fit naturally into Lilica's existing model where possible.
+
+**Explicit exclusions:** implementing any enhancement before the audit/report is reviewed and approved; assuming any specific competitor capability will be copied; billing/subscription work (Phase 21); visual/experience redesign (Phase 22).
+
+**Stop point:** after the gap report, stop. GPT and the product owner must review and explicitly approve the precise enhancement set before any Phase 20 implementation prompt is issued.
+
+### Phase 21 - Billing, Subscription And Membership/Entitlement
+
+**Purpose:** design and implement Lilica's complete commercial entitlement lifecycle, not simply a paywall screen. "Membership" in this phase's title means the COMMERCIAL Lilica subscription/entitlement relationship — it does not mean `care_space_memberships` and must not be confused with Care Circle security membership.
+
+**Dependencies:** Phase 20 complete (its approved enhancement set, if any, informs what Phase 21 is charging for); the commercial product decisions in this section reviewed and confirmed by the product owner before implementation begins.
+
+**Deliverables:** the current approved commercial-model direction is recorded here for implementation once approved: Lilica is fully usable for the first one month free; after the free month, continued paid use costs £9.99 per year; the intention is one Lilica subscription per user account rather than charging separately for every supported person. These decisions are not to be silently changed, and are not implemented by this documentation task. The eventual implementation must address at minimum: free-month start semantics, trial state, trial expiry, the annual £9.99 subscription, iOS App Store purchase, Google Play purchase, entitlement state, purchase restoration, renewal, cancellation, expiry, billing failure, platform grace periods, reinstall/new-device behaviour, offline entitlement behaviour, account deletion while subscribed, subscription restoration after reinstall, multiple supported people, Care Circle collaborator behaviour, the server/client trust boundary, sandbox testing, and store compliance. Access after subscription lapse is an important product decision still to be finalised before implementation: existing care information should not simply become inaccessible; viewing/exporting existing information should likely remain available; creation/editing/active coordination may become entitlement-gated — but this recommendation is not final approval unless the product owner explicitly approves it, and Phase 21 must resolve this before implementation. Phase 21 must also explicitly resolve collaborator/membership commercial questions before implementation: whether only the organiser needs a paid subscription; whether invited family/helper members can participate without their own paid plan; what happens if an organiser's entitlement lapses; whether another organiser with an entitlement can keep the care space active; whether entitlement follows the user or the care space; behaviour where one user participates in several care spaces; how deletion interacts with active subscription state.
+
+**Acceptance:** commercial entitlement remains architecturally separate from data security at all times — a subscription must never itself grant care-space membership, role, domain permission, record visibility, or assignment eligibility, and being invited to a Care Circle does not by itself define whether a user must purchase Lilica. Phase 15's security membership model is not altered to solve billing.
+
+**Regression protection:** Phase 15's Organiser/Contributor/Viewer role and domain-grant model, and every existing access-control decision, remain unchanged by commercial entitlement logic.
+
+**Explicit exclusions:** scaffolding billing during Phase 19 or Phase 20; altering the security membership model to express commercial state; implementing any of the above in this documentation task.
+
+**Stop point:** Phase 21 receives its own full implementation brief after Phase 20 and after the required commercial product decisions above have been reviewed and approved by the product owner. Do not scaffold billing before then.
+
+### Phase 22 - Premium Visual Optimisation And Experience Polish
+
+**Purpose:** the final planned roadmap phase, after the feature/product and commercial model have stabilised. Its purpose is to make the complete product feel premium, deliberate, cohesive, modern, calm, visually distinctive, professionally designed, and consistent across iPhone and Android. This is not permission for an implementation agent to casually redesign the app.
+
+**Dependencies:** Phase 21 complete (or otherwise explicitly sequenced by the product owner).
+
+**Deliverables:** Phase 22 MUST begin with a complete visual/experience audit — audit and report only, no code changes, no theme changes, no component changes, no "quick fixes". The audit examines the complete app (Welcome, authentication, verification/recovery, onboarding, Home, Calendar, To Do, People, Add/category gateway, record editors, record detail, documents, Care Circle, invitations, Settings drawer, Account, Privacy & data, subscription/paywall surfaces added in Phase 21, empty/error/loading states, bottom navigation, modal/sheet/drawer behaviour), reviewing at minimum typography, hierarchy, font sizes/weights, line heights, spacing, alignment, density, card design, shadows, radii, borders, colour use, contrast, gradients, icons, button consistency, empty-state quality, headers, sheet/modal consistency, animation/motion, touch feedback, navigation affordances, responsive behaviour, Android/iPhone consistency, accessibility, perceived polish, visual noise, and places that look generic/template-like or inconsistent with the strongest Lilica screens. Each recommendation must include screen/component, current problem, evidence/reason, proposed optimisation, expected benefit, regression risk, files/components likely affected, whether the change can be isolated, whether shared theme/component changes would affect other screens, before/after design intent, and a priority of CRITICAL/HIGH/MEDIUM/OPTIONAL. The audit must also explicitly identify a "DO NOT TOUCH" list — areas where the existing presentation is already strong and unnecessary changes would create regression risk.
+
+**Acceptance:** the audit/report is reviewed by GPT and the product owner, who decide which recommendations are approved, which are rejected, which require mocks first, which are too risky, and the implementation order. Only after that approval may an implementation prompt be issued.
+
+**Regression protection:** visual polish must not damage working functionality. Particular protected areas include keyboard-safe forms, record sheets, the Settings drawer, person switching, Care Circle permissions, Home projection, Calendar, To Do, offline behaviour, auth, onboarding, documents, and subscription logic from Phase 21. Shared-component/theme changes require impact analysis before implementation.
+
+**Explicit exclusions:** any code, theme, or component change before the audit is reviewed and approved; describing completion of Phase 22 as automatic production release — a final product-owner go/no-go remains required regardless.
+
+**Stop point:** after the visual audit, stop. No implementation until GPT and the product owner approve the exact optimisation plan.
+
+### Relationship between Phases 19-22
+
+```
+PHASE 19 — Production Hardening & Release Readiness (currently being executed)
+     |
+     v
+PHASE 20 — Competitive Gap Review & Carer-Focused Enhancements
+     Audit competitor/carer needs first. Approve exact product additions.
+     Implement only approved enhancements.
+     |
+     v
+PHASE 21 — Billing, Subscription & Membership/Entitlement
+     Implement the approved one-month-free -> £9.99/year model,
+     with complete entitlement lifecycle and store integration.
+     |
+     v
+PHASE 22 — Premium Visual Optimisation & Experience Polish
+     Audit first. Report. GPT + owner approval. Then bounded implementation.
+     |
+     v
+FINAL RELEASE GATE — a final product-owner go/no-go remains required;
+completion of Phase 22 never implies automatic production release.
+```
+
+Phase 19 is not to be rewritten or have Phase 20-22 work retroactively folded into it; it remains Production Hardening & Release Readiness and continues to exclude new product functionality. The extension begins after Phase 19.
+
 ---
 
 ## 18. Regression Protection Strategy

@@ -79,6 +79,10 @@ Phase 3 adds a small Jest/`jest-expo` and React Native Testing Library safety ha
 
 Physical-device acceptance has confirmed the corrected keyboard, authentication/recovery paths, Phase 7 record migration/sync behaviour and Phase 8's Record -> Occurrence engine on Android and iPhone.
 
+## Roadmap
+
+The original canonical roadmap ran through Phase 19 (Production Hardening & Release Readiness), currently in progress. On 13 September 2026 the product owner approved a three-phase extension beyond it — Phase 20 (Competitive Gap Review & Carer-Focused Enhancements), Phase 21 (Billing, Subscription & Membership/Entitlement) and Phase 22 (Premium Visual Optimisation & Experience Polish) — none of which has started; see `docs/CORE_SYSTEM_CONTRACT.md` for the canonical detail.
+
 ## Reference Material
 
 - Product brief: `C:\Users\DavidPC\Downloads\DAVID\Lilica\Lilica.docx`
