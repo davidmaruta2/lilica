@@ -4,6 +4,7 @@ import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { checkAccountDeletionEligibility, deleteMyAccount, exportMyData, shareExportFile, ExportFile } from '../accountLifecycle';
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
+import { RemoveCareSpaceConfirm } from '../components/RemoveCareSpaceConfirm';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
 import { leaveCareSpace } from '../careCircle';
@@ -21,6 +22,21 @@ import { LilicaRecord } from '../types';
 // (src/accountLifecycle.ts, src/localData.ts, src/careCircle.ts) --
 // nothing on this screen is a toggle or button that does nothing (brief
 // section 43).
+//
+// Direct product-owner feedback: with six sections all expanded at once,
+// this screen read as cluttered rather than calm. Each section is now a
+// collapsible accordion (collapsed by default, tap the header to open) --
+// purely presentational, nothing about what each section does changed.
+export type RemovableCareSpace = {
+  careSpaceId: string;
+  displayName: string;
+  // How many OTHER active members currently have access -- shown in the
+  // confirmation so an organiser removing a shared space knows
+  // collaborators lose access too. 0 for a local-only or single-organiser
+  // space.
+  collaboratorCount: number;
+};
+
 type Props = {
   storageOwnerId?: string;
   currentCareSpaceId?: string;
@@ -30,9 +46,23 @@ type Props = {
   // organiser leaves via Care Circle's own role-change/removal flow, not
   // this screen -- Leave here is for a contributor/viewer only).
   canLeaveCurrentCareSpace?: boolean;
+  // Remove-supported-person: EVERY care space this account actively
+  // organises -- not only the currently active one. Direct product-owner
+  // report: "I have two supported people but it only offers to remove
+  // one" -- an organiser of several people needs to see and remove any
+  // of them from this one screen, not just whichever the switcher
+  // happens to have selected. Empty array (never undefined) when none
+  // are removable.
+  removableCareSpaces: RemovableCareSpace[];
   currentRecords: LilicaRecord[];
   onBack: () => void;
   onCareSpaceLeft: () => void;
+  // Remove-supported-person: called with the SPECIFIC care space id being
+  // removed (one screen can now offer several) -- only after the real
+  // deletion (server RPC for a synced space, or a direct local removal
+  // for a local-only one) has genuinely succeeded does the caller update
+  // local state.
+  onRemoveCareSpace?: (careSpaceId: string) => Promise<{ ok: boolean; message?: string }>;
   onClearLocalData: () => Promise<void>;
   // Phase 18B: called only after delete_my_account() has genuinely
   // succeeded server-side. Mirrors onClearLocalData's own local-cleanup
@@ -49,18 +79,34 @@ export function PrivacyDataScreen({
   currentCareSpaceId,
   currentCareSpaceName,
   canLeaveCurrentCareSpace,
+  removableCareSpaces,
   currentRecords,
   onBack,
   onCareSpaceLeft,
+  onRemoveCareSpace,
   onClearLocalData,
   onAccountDeleted,
 }: Props) {
   const [exportState, setExportState] = useState<ExportState>({ busy: false });
   const [clearState, setClearState] = useState<SectionState>({ busy: false });
   const [leaveState, setLeaveState] = useState<SectionState>({ busy: false });
+  const [removeState, setRemoveState] = useState<SectionState>({ busy: false });
+  const [removeTarget, setRemoveTarget] = useState<RemovableCareSpace>();
   const [deletionState, setDeletionState] = useState<SectionState>({ busy: false });
   const [deletionBlockers, setDeletionBlockers] = useState<string[]>([]);
   const [deletionCleared, setDeletionCleared] = useState(false);
+
+  async function handleRemoveCareSpace() {
+    if (!onRemoveCareSpace || !removeTarget) return;
+    setRemoveState({ busy: true });
+    const result = await onRemoveCareSpace(removeTarget.careSpaceId);
+    if (!result.ok) {
+      setRemoveState({ busy: false, message: result.message, tone: 'danger' });
+      return;
+    }
+    setRemoveTarget(undefined);
+    setRemoveState({ busy: false, tone: 'success', message: `${removeTarget.displayName} has been removed.` });
+  }
 
   async function handleExport() {
     setExportState({ busy: true });
@@ -254,6 +300,27 @@ export function PrivacyDataScreen({
           </Section>
         ) : null}
 
+        {removableCareSpaces.length > 0 ? (
+          <Section title="Remove a supported person">
+            <AppText variant="body" tone="soft">
+              If someone you support no longer needs support, you can remove them from Lilica -- this permanently deletes everything saved for them. You organise {removableCareSpaces.length === 1 ? '1 person' : `${removableCareSpaces.length} people`}.
+            </AppText>
+            {removableCareSpaces.map((space) => (
+              <Pressable
+                key={space.careSpaceId}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${space.displayName}`}
+                disabled={removeState.busy}
+                onPress={() => { setRemoveState({ busy: false }); setRemoveTarget(space); }}
+                style={styles.destructiveRow}
+              >
+                <AppText variant="bodyStrong" tone="danger" centre>Remove {space.displayName}</AppText>
+              </Pressable>
+            ))}
+            {removeState.message ? <AppText variant="secondary" tone={removeState.tone === 'danger' ? 'danger' : 'soft'}>{removeState.message}</AppText> : null}
+          </Section>
+        ) : null}
+
         <Section title="Delete account">
           <AppText variant="body" tone="soft">
             Permanently removes your Lilica account and sign-in. Shared care records, documents and their relationships stay intact for anyone else who still has access to them, and your work stays truthfully attributed to you.
@@ -269,15 +336,38 @@ export function PrivacyDataScreen({
           ) : null}
         </Section>
       </View>
+      <RemoveCareSpaceConfirm
+        visible={Boolean(removeTarget)}
+        careSpaceName={removeTarget?.displayName ?? 'this supported person'}
+        collaboratorCount={removeTarget?.collaboratorCount}
+        busy={removeState.busy}
+        error={removeState.tone === 'danger' ? removeState.message : undefined}
+        onConfirm={() => void handleRemoveCareSpace()}
+        onCancel={() => setRemoveTarget(undefined)}
+      />
     </Screen>
   );
 }
 
+// Direct product-owner feedback: six always-expanded sections read as
+// cluttered. Each section is now a collapsible accordion -- collapsed by
+// default, tap the header (title + a drawn chevron) to open. Purely
+// presentational; no section's own behaviour changed.
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const [expanded, setExpanded] = useState(false);
   return (
     <View style={styles.section}>
-      <AppText variant="section">{title}</AppText>
-      {children}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={`${title} section`}
+        onPress={() => setExpanded((current) => !current)}
+        style={styles.sectionHeader}
+      >
+        <AppText variant="section" style={styles.sectionTitle}>{title}</AppText>
+        <View style={[styles.sectionChevron, expanded && styles.sectionChevronExpanded]} />
+      </Pressable>
+      {expanded ? <View style={styles.sectionBody}>{children}</View> : null}
     </View>
   );
 }
@@ -285,12 +375,39 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 const styles = StyleSheet.create({
   content: { gap: spacing.lg, paddingBottom: spacing.xl },
   section: {
-    gap: spacing.sm,
-    padding: spacing.md,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
+    overflow: 'hidden',
+  },
+  sectionHeader: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  sectionTitle: { flex: 1 },
+  // Same drawn-chevron technique used throughout the app (Header's back
+  // chevron, Home's avatar chevron) -- pointing down, rotating to point
+  // up when this section is expanded.
+  sectionChevron: {
+    width: 10,
+    height: 10,
+    borderLeftWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: colors.primary,
+    transform: [{ rotate: '-45deg' }],
+  },
+  sectionChevronExpanded: {
+    transform: [{ rotate: '135deg' }],
+  },
+  sectionBody: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
   },
   button: { borderRadius: radius.md },
   exportFileRow: {

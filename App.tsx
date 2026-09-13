@@ -45,7 +45,7 @@ import {
   saveOnboardingState,
 } from './src/storage';
 import { queuePendingAttachmentUploads } from './src/attachments';
-import { enqueueDocumentCleanup, retryPendingDocumentCleanup } from './src/documentCleanupQueue';
+import { enqueueDocumentCleanup, retryPendingCareSpaceStorageCleanup, retryPendingDocumentCleanup } from './src/documentCleanupQueue';
 import { clearLocalDataForOwner } from './src/localData';
 import { removeRecordById, upsertRecord } from './src/records';
 import {
@@ -56,11 +56,12 @@ import {
   integrateReconnectedCareSpaces,
   linkProvisionedCareSpaces,
   projectActiveCareSpace,
+  removeCareSpace,
   replaceCareSpace,
   resolveBackStage,
   validatePersonDraft,
 } from './src/careSpaceState';
-import { provisionSupportedPeople, reconnectCareSpaces } from './src/careSpaces';
+import { deleteCareSpace, provisionSupportedPeople, reconnectCareSpaces } from './src/careSpaces';
 import {
   acceptInvitation,
   CareCircleInvitation,
@@ -87,6 +88,9 @@ import { SubscriptionScreen } from './src/screens/SubscriptionScreen';
 import { ReadOnlyGate } from './src/components/ReadOnlyGate';
 import { RecentActivityScreen } from './src/screens/RecentActivityScreen';
 import { CareSummaryScreen } from './src/screens/CareSummaryScreen';
+import { ContactScreen } from './src/screens/ContactScreen';
+import { FaqScreen } from './src/screens/FaqScreen';
+import { HowToUseScreen } from './src/screens/HowToUseScreen';
 import { SearchScreen } from './src/screens/SearchScreen';
 import {
   enqueueRecordDelete,
@@ -220,7 +224,7 @@ function LilicaApp() {
   // Care Circle keeps a second, separate direct entry point from People's
   // own "Manage care circle" link -- see showCareCircle below -- which is
   // deliberately unchanged (full-screen, not the drawer).
-  const [settingsSection, setSettingsSection] = useState<'menu' | 'account' | 'careCircle' | 'privacyData' | 'subscription'>('menu');
+  const [settingsSection, setSettingsSection] = useState<'menu' | 'careSummary' | 'recentActivity' | 'account' | 'careCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'contact'>('menu');
   // Phase 21B: the signed-in account's own commercial entitlement --
   // fetched once sign-in is known, refetched after a subscribe/restore
   // action. Never trusted as the actual mutation gate (the server always
@@ -539,6 +543,48 @@ function LilicaApp() {
     setSettingsSection('menu');
   }
 
+  // Remove-supported-person: a real organiser capability that was simply
+  // missing (delete_my_account() only ever detaches memberships; leave/
+  // remove-member only ever end one membership). A local-only care space
+  // (never synced) has nothing server-side to delete, so this only ever
+  // removes it from local state directly; a synced space is genuinely,
+  // irreversibly deleted server-side first (src/careSpaces.ts's
+  // deleteCareSpace()), and local state is only updated once that has
+  // actually succeeded. Takes an explicit target id -- direct
+  // product-owner report: "I have two supported people but it only
+  // offers to remove one" -- Privacy & data now lists every care space
+  // this account organises, not only whichever is currently active.
+  async function handleRemoveCareSpace(targetId: string): Promise<{ ok: boolean; message?: string }> {
+    if (!targetId.startsWith('local-')) {
+      if (!storageOwnerId) return { ok: false, message: 'Please log in again to continue.' };
+      const result = await deleteCareSpace(storageOwnerId, targetId);
+      if (!result.ok) return { ok: false, message: result.message };
+    }
+    setState((current) => removeCareSpace(current, targetId));
+    setShowSettingsMenu(false);
+    setSettingsSection('menu');
+    return { ok: true };
+  }
+
+  // Every care space this account actively organises -- local-only
+  // spaces always qualify (no membership round-trip needed, this account
+  // is their sole implicit organiser); a synced space qualifies once its
+  // own `role` (refreshed by reconnectCareSpaces(), see
+  // integrateReconnectedCareSpaces()) says so. The collaborator count is
+  // only known live for the CURRENTLY active space (careCircleMembers is
+  // only ever fetched for that one) -- an honest simplification, not a
+  // wrong answer: other organised spaces simply show no collaborator line
+  // in their own confirmation, never a fabricated count.
+  const removableCareSpaces = Object.values(state.careSpaces)
+    .filter((space) => space.careSpaceId.startsWith('local-') || space.role === 'organiser')
+    .map((space) => ({
+      careSpaceId: space.careSpaceId,
+      displayName: space.displayName,
+      collaboratorCount: space.careSpaceId === currentSpace?.careSpaceId
+        ? careCircleMembers.filter((member) => !member.isSelf).length
+        : 0,
+    }));
+
   // Phase 18: the safest resolution to "what happens after I clear local
   // data" -- rather than attempting a risky live rebuild of in-memory
   // state from an AsyncStorage cache that was just wiped out from under
@@ -777,6 +823,10 @@ function LilicaApp() {
   useEffect(() => {
     if (!storageOwnerId) return;
     void retryPendingDocumentCleanup(storageOwnerId);
+    // Remove-supported-person: the sibling retry for a whole-care-space
+    // Storage cleanup that couldn't complete immediately (offline, a
+    // transient error) -- see src/careSpaces.ts's deleteCareSpace().
+    void retryPendingCareSpaceStorageCleanup(storageOwnerId);
   }, [storageOwnerId, currentSpace?.records]);
 
   function syncAfterLocalMutation(operation: Promise<LilicaRecord[]>) {
@@ -1348,13 +1398,35 @@ function LilicaApp() {
           visible={showSettingsMenu}
           section={settingsSection}
           onClose={() => { setShowSettingsMenu(false); setSettingsSection('menu'); }}
+          personName={currentSpace?.displayName}
+          onOpenCareSummary={careCircleAvailable ? () => setSettingsSection('careSummary') : undefined}
+          onOpenRecentActivity={careCircleAvailable ? () => setSettingsSection('recentActivity') : undefined}
           onOpenAccount={() => setSettingsSection('account')}
           onOpenPrivacyData={() => setSettingsSection('privacyData')}
           onOpenCareCircle={careCircleAvailable ? () => setSettingsSection('careCircle') : undefined}
           onOpenSubscription={() => setSettingsSection('subscription')}
           subscriptionSummary={myEntitlement ? describeEntitlement(myEntitlement) : undefined}
+          onOpenHowTo={() => setSettingsSection('howTo')}
+          onOpenFaq={() => setSettingsSection('faq')}
+          onOpenContact={() => setSettingsSection('contact')}
         >
-          {settingsSection === 'account' ? (
+          {settingsSection === 'careSummary' ? (
+            <CareSummaryScreen
+              records={state.records}
+              careCircleMembers={careCircleMembers}
+              recentActivity={recentActivity}
+              personName={currentSpace?.displayName}
+              onBack={() => setSettingsSection('menu')}
+              onOpenRecord={openRecordFromProjection}
+            />
+          ) : settingsSection === 'recentActivity' ? (
+            <RecentActivityScreen
+              careSpaceId={currentSpace && !currentSpace.careSpaceId.startsWith('local-') ? currentSpace.careSpaceId : undefined}
+              personName={currentSpace?.displayName}
+              onBack={() => setSettingsSection('menu')}
+              onOpenRecord={openRecordFromProjection}
+            />
+          ) : settingsSection === 'account' ? (
             <AccountScreen
               displayName={auth.profile?.displayName ?? 'Your profile'}
               email={auth.session?.user.email}
@@ -1392,9 +1464,11 @@ function LilicaApp() {
                 const selfMember = careCircleMembers.find((member) => member.isSelf);
                 return Boolean(currentSpace && !currentSpace.careSpaceId.startsWith('local-') && selfMember && selfMember.role !== 'organiser');
               })()}
+              removableCareSpaces={removableCareSpaces}
               currentRecords={currentSpace?.records ?? []}
               onBack={() => setSettingsSection('menu')}
               onCareSpaceLeft={() => void handlePrivacyCareSpaceLeft()}
+              onRemoveCareSpace={handleRemoveCareSpace}
               onClearLocalData={handlePrivacyClearLocalData}
               onAccountDeleted={handleAccountDeleted}
             />
@@ -1408,6 +1482,12 @@ function LilicaApp() {
               onSubscribe={handleSubscribe}
               onRestore={handleRestore}
             />
+          ) : settingsSection === 'howTo' ? (
+            <HowToUseScreen onBack={() => setSettingsSection('menu')} />
+          ) : settingsSection === 'faq' ? (
+            <FaqScreen onBack={() => setSettingsSection('menu')} />
+          ) : settingsSection === 'contact' ? (
+            <ContactScreen onBack={() => setSettingsSection('menu')} />
           ) : null}
         </SettingsMenu>
         <TabBar

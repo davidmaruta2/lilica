@@ -42,6 +42,8 @@ function Harness({ initialTab, initialPerson = 'Beauty' }: { initialTab: Tab; in
         onOpenCareCircle={onOpenCareCircle}
         onOpenPrivacyData={onOpenPrivacyData}
         onOpenSubscription={jest.fn()}
+        onOpenHowTo={jest.fn()}
+        onOpenFaq={jest.fn()} onOpenContact={jest.fn()}
       >
         {settingsSection === 'account' ? (
           <>

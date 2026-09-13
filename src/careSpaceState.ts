@@ -17,6 +17,12 @@ export type ProvisionedPerson = {
   displayName?: string;
   relationshipType?: Relationship;
   relationshipLabel?: string;
+  // Remove-supported-person follow-up: this account's own role for this
+  // specific care space -- undefined only for the (rare) provisioning
+  // path that doesn't carry it yet (createOnboardingDraft/local-only
+  // linking). Lets Privacy & data list every space this account
+  // genuinely ORGANISES, not just the currently active one.
+  role?: 'organiser' | 'contributor' | 'viewer';
 };
 
 export { createUuid } from './identifiers';
@@ -119,6 +125,7 @@ export function integrateReconnectedCareSpaces(
         ...current,
         supportedPersonId: link.supportedPersonId,
         membershipId: link.membershipId,
+        role: link.role,
       };
       continue;
     }
@@ -131,6 +138,7 @@ export function integrateReconnectedCareSpaces(
       relationshipType: link.relationshipType,
       relationshipLabel: link.relationshipLabel,
       displayName: link.displayName,
+      role: link.role,
       privacyDeclarationAccepted: false,
       interests: [],
       records: [],
@@ -159,6 +167,28 @@ export function replaceCareSpace(
 
 export function activeCareSpace(state: OnboardingState): LocalCareSpaceState | undefined {
   return state.activeCareSpaceId ? state.careSpaces[state.activeCareSpaceId] : undefined;
+}
+
+// Remove-supported-person: the local-state half of deleteCareSpace()
+// (src/careSpaces.ts) -- called only after the server-side deletion has
+// genuinely succeeded (or, for a local-only care space that was never
+// synced, directly -- there is nothing server-side to delete). Removes the
+// entry outright rather than leaving a stale copy behind (unlike
+// integrateReconnectedCareSpaces(), which only ever adds/updates entries
+// and never removes one no longer present in a reconnect response -- a
+// deliberate, separate concern from this explicit removal). If the removed
+// space was the active one, falls back to whichever other space remains
+// (if any), matching the same "some space must be active if one exists"
+// invariant projectActiveCareSpace() already relies on.
+export function removeCareSpace(state: OnboardingState, careSpaceId: string): OnboardingState {
+  if (!state.careSpaces[careSpaceId]) return state;
+  const careSpaces = { ...state.careSpaces };
+  delete careSpaces[careSpaceId];
+  const remainingIds = Object.keys(careSpaces);
+  const activeCareSpaceId = state.activeCareSpaceId === careSpaceId
+    ? remainingIds[0]
+    : state.activeCareSpaceId;
+  return projectActiveCareSpace({ ...state, careSpaces, activeCareSpaceId });
 }
 
 // Corrective task 5 (Everyday Add navigation defect): App.tsx's top-level

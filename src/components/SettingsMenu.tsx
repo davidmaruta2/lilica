@@ -19,7 +19,11 @@ import { Wordmark } from './Wordmark';
 //     stores, export, device/local data, leaving a care space and
 //     account-deletion eligibility. Always offered (unlike Care Circle,
 //     it's meaningful even for a local-only space).
-// No Help/About row: not yet a genuinely implemented destination.
+//   - Help (direct product-owner request): "How to use Lilica", "FAQ",
+//     and "Contact" (a real support-email mailto: action), all static
+//     reference content, always offered regardless of sync state, same
+//     as Account. No About row: not yet a genuinely implemented
+//     destination.
 //
 // Revised from an anchored dropdown card (which itself replaced an even
 // earlier full-width bottom sheet) after direct product feedback: opening
@@ -38,12 +42,51 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // wide screens/tablets so it doesn't stretch edge-to-edge there.
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.88, 480);
 
-type Section = 'menu' | 'account' | 'careCircle' | 'privacyData' | 'subscription';
+type Section = 'menu' | 'careSummary' | 'recentActivity' | 'account' | 'careCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'contact';
 
-export function SettingsMenu({ visible, section, onClose, onOpenAccount, onOpenCareCircle, onOpenPrivacyData, onOpenSubscription, subscriptionSummary, children }: {
+// Phase 20C (approved Option 2): the drawer becomes a small hybrid --
+// person-scoped navigation ABOVE the existing account/app settings group,
+// not a wholesale navigation-hub conversion. Care Summary and Recent
+// Activity already exist (Phase 20B); this adds a second, faster route to
+// each, alongside their existing People-screen links, which remain
+// unchanged -- deliberate dual-route discoverability, not a replacement.
+export function SettingsMenu({
+  visible,
+  section,
+  onClose,
+  personName,
+  onOpenCareSummary,
+  onOpenRecentActivity,
+  onOpenAccount,
+  onOpenCareCircle,
+  onOpenPrivacyData,
+  onOpenSubscription,
+  subscriptionSummary,
+  onOpenHowTo,
+  onOpenFaq,
+  onOpenContact,
+  children,
+}: {
   visible: boolean;
   section: Section;
   onClose: () => void;
+  // The current supported person's first name, for the "[Name]'s care"
+  // group label -- the exact same source every other screen already
+  // reads from (App.tsx), never a second person-name state. Omitted
+  // (falls back to a generic label) only in the unlikely case no name is
+  // available at all.
+  personName?: string;
+  // Both omitted together for a local-only (never-synced) care space --
+  // the same guard (`careCircleAvailable` in App.tsx) already used for
+  // onOpenCareCircle below, reused rather than inventing a second rule.
+  // Opens the EXISTING Care Summary/Recent Activity screens IN-DRAWER
+  // (App.tsx's settingsSection state, exactly like Account/Care Circle/
+  // Privacy & data already work) -- not the separate full-screen overlay
+  // People's own links use. Bug fix: this originally reused that
+  // full-screen overlay from the drawer too, which broke the "stays in
+  // the menu" expectation every other drawer row already satisfies.
+  onOpenCareSummary?: () => void;
+  onOpenRecentActivity?: () => void;
   onOpenAccount: () => void;
   onOpenCareCircle?: () => void;
   onOpenPrivacyData: () => void;
@@ -57,6 +100,12 @@ export function SettingsMenu({ visible, section, onClose, onOpenAccount, onOpenC
   // (brief section 21's own placement guidance). Falls back to a neutral
   // description while entitlement hasn't loaded yet.
   subscriptionSummary?: string;
+  // Direct product-owner request: static, always-available help content --
+  // no data, no permission check, always offered regardless of care-space
+  // sync state, same as Account.
+  onOpenHowTo: () => void;
+  onOpenFaq: () => void;
+  onOpenContact: () => void;
   // The active section's own screen (App.tsx builds it, since that's
   // where all the data/callbacks it needs already live) -- rendered in
   // place of the menu list whenever `section` isn't 'menu'.
@@ -97,13 +146,28 @@ export function SettingsMenu({ visible, section, onClose, onOpenAccount, onOpenC
 
   if (!mounted) return null;
 
-  const entries = [
+  const personCareEntries = [
+    ...(onOpenCareSummary
+      ? [{ key: 'careSummary', label: 'Care Summary', description: 'A quick view of what matters right now', onPress: onOpenCareSummary }]
+      : []),
+    ...(onOpenRecentActivity
+      ? [{ key: 'recentActivity', label: 'Recent Activity', description: 'What has changed recently', onPress: onOpenRecentActivity }]
+      : []),
+  ];
+
+  const accountEntries = [
     { key: 'account', label: 'Account', description: 'Your profile, reminders and sign out', onPress: onOpenAccount },
     ...(onOpenCareCircle
       ? [{ key: 'careCircle', label: 'Care Circle', description: 'Who can help, and what they can see', onPress: onOpenCareCircle }]
       : []),
     { key: 'privacyData', label: 'Privacy & data', description: 'What Lilica stores, export, and device data', onPress: onOpenPrivacyData },
     { key: 'subscription', label: 'Subscription', description: subscriptionSummary ?? 'Your Lilica subscription', onPress: onOpenSubscription },
+  ];
+
+  const helpEntries = [
+    { key: 'howTo', label: 'How to use Lilica', description: 'A quick tour of what\'s where', onPress: onOpenHowTo },
+    { key: 'faq', label: 'FAQ', description: 'Common questions, answered', onPress: onOpenFaq },
+    { key: 'contact', label: 'Contact', description: 'Get in touch with us', onPress: onOpenContact },
   ];
 
   return (
@@ -123,22 +187,28 @@ export function SettingsMenu({ visible, section, onClose, onOpenAccount, onOpenC
             {section === 'menu' ? (
               <View style={styles.listWrap}>
                 <View style={styles.list}>
-                  {entries.map((entry) => (
-                    <Pressable
-                      key={entry.key}
-                      accessibilityRole="button"
-                      accessibilityLabel={entry.label}
-                      onPress={entry.onPress}
-                      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-                    >
-                      <View style={styles.rowMark} />
-                      <View style={styles.copy}>
-                        <AppText variant="bodyStrong" style={styles.rowLabel}>{entry.label}</AppText>
-                        <AppText variant="secondary" tone="soft" style={styles.rowDescription}>{entry.description}</AppText>
-                      </View>
-                      <View style={styles.chevron} />
-                    </Pressable>
-                  ))}
+                  {personCareEntries.length > 0 ? (
+                    <View style={styles.group}>
+                      <AppText variant="meta" tone="muted" style={styles.groupLabel}>
+                        {personName ? `${personName}'s care` : 'This care space'}
+                      </AppText>
+                      {personCareEntries.map((entry) => (
+                        <SettingsRow key={entry.key} label={entry.label} description={entry.description} onPress={entry.onPress} />
+                      ))}
+                    </View>
+                  ) : null}
+                  <View style={styles.group}>
+                    <AppText variant="meta" tone="muted" style={styles.groupLabel}>Account</AppText>
+                    {accountEntries.map((entry) => (
+                      <SettingsRow key={entry.key} label={entry.label} description={entry.description} onPress={entry.onPress} />
+                    ))}
+                  </View>
+                  <View style={styles.group}>
+                    <AppText variant="meta" tone="muted" style={styles.groupLabel}>Help</AppText>
+                    {helpEntries.map((entry) => (
+                      <SettingsRow key={entry.key} label={entry.label} description={entry.description} onPress={entry.onPress} />
+                    ))}
+                  </View>
                 </View>
                 <View style={styles.footer}>
                   <Wordmark size="compact" tone="dark" />
@@ -151,6 +221,28 @@ export function SettingsMenu({ visible, section, onClose, onOpenAccount, onOpenC
         </Animated.View>
       </View>
     </Modal>
+  );
+}
+
+// Extracted only to avoid repeating the identical row JSX for both groups
+// -- the row's own visual language (elevated card, accent mark, chevron)
+// is completely unchanged from before this task, just reused for a
+// second group heading above it.
+function SettingsRow({ label, description, onPress }: { label: string; description: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+    >
+      <View style={styles.rowMark} />
+      <View style={styles.copy}>
+        <AppText variant="bodyStrong" style={styles.rowLabel}>{label}</AppText>
+        <AppText variant="secondary" tone="soft" style={styles.rowDescription}>{description}</AppText>
+      </View>
+      <View style={styles.chevron} />
+    </Pressable>
   );
 }
 
@@ -190,7 +282,13 @@ const styles = StyleSheet.create({
   },
   closeLabel: { fontWeight: '700' },
   listWrap: { flex: 1, justifyContent: 'space-between' },
-  list: { padding: spacing.lg, gap: spacing.sm },
+  list: { padding: spacing.lg, gap: spacing.lg },
+  // Phase 20C: the smallest coherent visual addition -- the existing
+  // uppercase, letter-spaced "meta" caption style (already used
+  // throughout the app for category eyebrow labels) as a plain, static
+  // group heading. No new typography token, no new colour.
+  group: { gap: spacing.sm },
+  groupLabel: { paddingHorizontal: spacing.xs },
   // The active screen renders full-bleed inside the drawer -- it supplies
   // its own scroll/safe-area handling (Screen/Header), same as when it
   // was a top-level screen, just hosted here instead.

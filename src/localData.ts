@@ -50,6 +50,7 @@ export async function clearLocalDataForOwner(ownerId: string): Promise<void> {
     `lilica:onboarding:v1:${ownerId}`,
     `lilica:record-cache:v1:${ownerId}`,
     `lilica:document-cleanup-queue:v1:${ownerId}`,
+    `lilica:care-space-storage-cleanup-queue:v1:${ownerId}`,
   ]);
   try {
     new Directory(Paths.document, 'attachments').delete();

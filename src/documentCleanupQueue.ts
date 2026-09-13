@@ -97,3 +97,57 @@ export async function hasPendingDocumentCleanup(ownerId: string): Promise<boolea
   const queue = await readQueue(ownerId);
   return queue.length > 0;
 }
+
+// Remove-supported-person (src/careSpaces.ts's deleteCareSpace()): a
+// smaller sibling queue for the specific case where the DB rows are
+// already gone (the whole care space was just deleted) so there is no
+// longer any record/attachment id to call remove_record_attachment()
+// against -- only a raw Storage object path to remove directly. Kept as
+// its own tiny queue rather than folded into PendingCleanup above, since
+// its retry step is genuinely simpler (no RPC call, no record_links) and
+// conflating the two shapes would make both harder to read.
+const STORAGE_QUEUE_KEY = 'lilica:care-space-storage-cleanup-queue:v1';
+
+function storageQueueKey(ownerId: string): string {
+  return `${STORAGE_QUEUE_KEY}:${ownerId}`;
+}
+
+async function readStorageQueue(ownerId: string): Promise<string[]> {
+  const raw = await AsyncStorage.getItem(storageQueueKey(ownerId));
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeStorageQueue(ownerId: string, paths: string[]): Promise<void> {
+  await AsyncStorage.setItem(storageQueueKey(ownerId), JSON.stringify(paths));
+}
+
+export async function enqueueCareSpaceStorageCleanup(ownerId: string, storagePaths: string[]): Promise<void> {
+  if (storagePaths.length === 0) return;
+  const existing = await readStorageQueue(ownerId);
+  await writeStorageQueue(ownerId, [...new Set([...existing, ...storagePaths])]);
+}
+
+export async function retryPendingCareSpaceStorageCleanup(ownerId: string): Promise<void> {
+  const queue = await readStorageQueue(ownerId);
+  if (queue.length === 0) return;
+  try {
+    const { error } = await supabase.storage.from(BUCKET).remove(queue);
+    if (error) throw error;
+    await writeStorageQueue(ownerId, []);
+  } catch {
+    // Still offline, or a transient error -- left in the queue for the
+    // next retry. Storage's own remove() is a no-op on an already-missing
+    // object, so a partial prior success is never re-attempted unsafely.
+  }
+}
+
+export async function hasPendingCareSpaceStorageCleanup(ownerId: string): Promise<boolean> {
+  const queue = await readStorageQueue(ownerId);
+  return queue.length > 0;
+}

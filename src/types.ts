@@ -163,6 +163,12 @@ export type LocalCareSpaceState = {
   relationshipType: Relationship;
   relationshipLabel?: string;
   displayName: string;
+  // Remove-supported-person follow-up: this account's own role for this
+  // specific care space, refreshed whenever reconnectCareSpaces() runs
+  // (app startup, and after leaving a care space). Undefined until the
+  // first reconnect resolves, or for a local-only (never-synced) space,
+  // where this account is always its sole implicit organiser regardless.
+  role?: 'organiser' | 'contributor' | 'viewer';
   privacyDeclarationAccepted: boolean;
   privacyDeclarationVersion?: string;
   privacyDeclarationAcceptedAt?: string;
