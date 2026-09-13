@@ -1,6 +1,6 @@
 # Phase 18: Privacy, Settings, Export & Account Lifecycle
 
-Date: 12 September 2026. Status: **implemented and validated for everything safely achievable today. Full auth-identity ("Delete account" for real) deletion is explicitly NOT implemented — a genuine, investigated architectural blocker, reported below rather than worked around. Not committed/pushed — awaiting product-owner review and physical QA, per the brief's own instruction.**
+Date: 12 September 2026. Status: **implemented and validated. Committed and pushed (`e3dc819`).** This page originally reported full auth-identity deletion as NOT implemented (a genuine, investigated architectural blocker) — that blocker is now resolved; see the Phase 18B section below for the real `delete_my_account()` implementation. Physical two-account/device QA remains outstanding (`docs/PHASE_18_QA.md`).
 
 ## The One Load-Bearing Finding
 

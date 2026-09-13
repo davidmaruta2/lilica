@@ -72,6 +72,13 @@ The migration in `supabase/migrations/` is authoritative schema history. `supaba
 - Linked database lint reported no schema errors, and migration history lists `20260910150000` on both local and remote.
 - Existing profile/care-space tests scope row counts to their transactional synthetic fixture IDs so hosted development rows do not affect assertions. Test transactions roll back their synthetic data.
 
+### Hosted profile-avatars deployment - 12 September 2026
+
+- `npx supabase db push --linked --dry-run` listed only `20260912180000_profile_avatars.sql`, with no seeds or roles.
+- `npx supabase db push --linked` applied that migration only to `lilica-development`.
+- Local and linked suites each passed all 279 pgTAP assertions across ten files (274 pre-existing plus 5 new); warning-level database lint returned no issues in either environment.
+- Local and linked migration histories match through `20260912180000`. No Auth configuration, seed, role or production project was changed. This migration creates a new private `profile-avatars` Storage bucket (`public: false`, 5 MB limit) with RLS restricted to each user's own path (`{auth.uid()}/avatar.jpg`) -- read, upload, replace and delete are all owner-only. No existing table, column or function was altered.
+
 ### Hosted Phase 18B deployment - 12 September 2026
 
 - `npx supabase db push --linked --dry-run` listed only `20260912170000_phase18b_account_deletion.sql`, with no seeds or roles.
