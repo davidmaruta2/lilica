@@ -1,9 +1,12 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Modal, Pressable, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
+
+const ZERO_INSETS = { top: 0, bottom: 0, left: 0, right: 0 };
 
 import { colors, radius, shadow, spacing } from '../theme';
 import { AppText } from './Text';
+import { Wordmark } from './Wordmark';
 
 // Corrective task 4 / Phase 18 revision: the one shared Settings surface
 // for Home/Calendar/To Do/People -- never a separate implementation per
@@ -49,6 +52,22 @@ export function SettingsMenu({ visible, section, onClose, onOpenAccount, onOpenC
   // place of the menu list whenever `section` isn't 'menu'.
   children?: ReactNode;
 }) {
+  // Visual-quality correction (12 September 2026): read OUTSIDE the
+  // Modal, in SettingsMenu's own place in the React tree (a normal
+  // descendant of App.tsx's top-level SafeAreaProvider). Modal portals
+  // its children to a separate native surface, and a SafeAreaView
+  // measuring INSIDE that portal was not reliably reading this device's
+  // real insets there -- physical QA showed the header colliding with
+  // the status bar/notch. Reading the value out here, where measurement
+  // is already correct everywhere else in the app, and applying it as
+  // plain padding inside the Modal sidesteps that entirely -- no
+  // safe-area measurement ever happens inside the portal itself.
+  // A plain useContext read (not the library's useSafeAreaInsets hook,
+  // which throws when no provider is present -- e.g. a unit test
+  // rendering this component in isolation) -- falls back to zero insets
+  // rather than crashing; the real app always has a SafeAreaProvider at
+  // its root (App.tsx), so this reads the correct value there.
+  const insets = useContext(SafeAreaInsetsContext) ?? ZERO_INSETS;
   const translateX = useRef(new Animated.Value(DRAWER_WIDTH)).current;
   // Keeps the Modal mounted for the duration of the close animation --
   // otherwise it would vanish instantly instead of sliding out.
@@ -81,35 +100,43 @@ export function SettingsMenu({ visible, section, onClose, onOpenAccount, onOpenC
       <View style={styles.root}>
         <Pressable accessibilityLabel="Dismiss settings" style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
-          <SafeAreaView edges={['top', 'bottom']} style={styles.drawerSafe}>
+          <View style={[styles.drawerSafe, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
             <View style={styles.topBar}>
-              <AppText variant="bodyStrong">{section === 'menu' ? 'Settings' : ' '}</AppText>
-              <Pressable accessibilityRole="button" accessibilityLabel="Close settings" onPress={onClose} hitSlop={8}>
-                <AppText variant="secondary" tone="soft">Close</AppText>
+              <AppText variant="section" tone="primary" style={styles.topBarTitle}>
+                {section === 'menu' ? 'Settings' : ' '}
+              </AppText>
+              <Pressable accessibilityRole="button" accessibilityLabel="Close settings" onPress={onClose} hitSlop={8} style={styles.closeButton}>
+                <AppText variant="secondary" tone="primary" style={styles.closeLabel}>Close</AppText>
               </Pressable>
             </View>
             {section === 'menu' ? (
-              <View style={styles.list}>
-                {entries.map((entry) => (
-                  <Pressable
-                    key={entry.key}
-                    accessibilityRole="button"
-                    accessibilityLabel={entry.label}
-                    onPress={entry.onPress}
-                    style={styles.row}
-                  >
-                    <View style={styles.copy}>
-                      <AppText variant="bodyStrong" style={styles.rowLabel}>{entry.label}</AppText>
-                      <AppText variant="secondary" tone="soft" style={styles.rowDescription}>{entry.description}</AppText>
-                    </View>
-                    <View style={styles.chevron} />
-                  </Pressable>
-                ))}
+              <View style={styles.listWrap}>
+                <View style={styles.list}>
+                  {entries.map((entry) => (
+                    <Pressable
+                      key={entry.key}
+                      accessibilityRole="button"
+                      accessibilityLabel={entry.label}
+                      onPress={entry.onPress}
+                      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+                    >
+                      <View style={styles.rowMark} />
+                      <View style={styles.copy}>
+                        <AppText variant="bodyStrong" style={styles.rowLabel}>{entry.label}</AppText>
+                        <AppText variant="secondary" tone="soft" style={styles.rowDescription}>{entry.description}</AppText>
+                      </View>
+                      <View style={styles.chevron} />
+                    </Pressable>
+                  ))}
+                </View>
+                <View style={styles.footer}>
+                  <Wordmark size="compact" tone="dark" />
+                </View>
               </View>
             ) : (
               <View style={styles.sectionBody}>{children}</View>
             )}
-          </SafeAreaView>
+          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -117,53 +144,89 @@ export function SettingsMenu({ visible, section, onClose, onOpenAccount, onOpenC
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(36,29,28,0.35)' },
+  root: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(36,29,28,0.4)' },
   drawer: {
     marginLeft: 'auto',
     width: DRAWER_WIDTH,
     height: '100%',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.canvas,
     ...shadow.soft,
   },
   drawerSafe: { flex: 1 },
+  // Visual-quality correction: a plain thin-bordered bar with small text
+  // read as a generic system sheet, not part of Lilica's own visual
+  // language -- this now matches every other screen's own header
+  // treatment (a bold "section"-weight title in the app's primary
+  // burgundy accent) rather than a muted, undersized label.
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
-  list: { padding: spacing.md, gap: spacing.xs },
+  topBarTitle: { fontSize: 22 },
+  closeButton: {
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+  },
+  closeLabel: { fontWeight: '700' },
+  listWrap: { flex: 1, justifyContent: 'space-between' },
+  list: { padding: spacing.lg, gap: spacing.sm },
   // The active screen renders full-bleed inside the drawer -- it supplies
   // its own scroll/safe-area handling (Screen/Header), same as when it
   // was a top-level screen, just hosted here instead.
   sectionBody: { flex: 1 },
+  // Visual-quality correction: the previous plain grey-bordered card
+  // (identical weight to a disabled/inert control) is replaced with the
+  // same soft-shadow, borderless "elevated card" language every other
+  // screen's own record/summary cards already use (see e.g.
+  // ToDoScreen's row cards) -- plus a small coloured accent mark and a
+  // primary-toned chevron, so a row visibly invites a tap rather than
+  // reading as a static list item.
   row: {
-    minHeight: 50,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
+    minHeight: 64,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    gap: spacing.xs,
+    gap: spacing.sm,
+    ...shadow.soft,
   },
-  copy: { flex: 1, gap: 1 },
-  rowLabel: { fontSize: 14, lineHeight: 18 },
-  rowDescription: { fontSize: 12, lineHeight: 16 },
+  rowPressed: { opacity: 0.85 },
+  rowMark: {
+    width: 6,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  copy: { flex: 1, gap: 2 },
+  rowLabel: { fontSize: 16 },
+  rowDescription: { fontSize: 13, lineHeight: 17 },
   // Same drawn-chevron technique as Header.tsx's back chevron, pointing
   // right here (top+right border) to read as "opens something further".
   chevron: {
-    width: 10,
-    height: 10,
-    borderTopWidth: 2,
-    borderRightWidth: 2,
-    borderColor: colors.muted,
+    width: 11,
+    height: 11,
+    borderTopWidth: 2.5,
+    borderRightWidth: 2.5,
+    borderColor: colors.primary,
     transform: [{ rotate: '45deg' }],
+  },
+  // A small, quiet brand mark rather than leaving the drawer's own
+  // unused space beneath a short menu list looking like an unfinished
+  // blank void.
+  footer: {
+    alignItems: 'center',
+    paddingBottom: spacing.lg,
   },
 });

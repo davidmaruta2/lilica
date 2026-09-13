@@ -1,10 +1,20 @@
-import { fireEvent, render } from '@testing-library/react-native';
+const mockResolveAvatarUrl = jest.fn();
+jest.mock('../src/profileAvatar', () => ({
+  resolveAvatarUrl: (...args: unknown[]) => mockResolveAvatarUrl(...args),
+}));
+
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { CareCircleMember } from '../src/careCircle';
 import { HomeScreen } from '../src/screens/HomeScreen';
 import { PersonScreen } from '../src/screens/PersonScreen';
 import { initialOnboardingState } from '../src/storage';
 import { LilicaRecord } from '../src/types';
+
+beforeEach(() => {
+  mockResolveAvatarUrl.mockReset();
+  mockResolveAvatarUrl.mockResolvedValue(undefined);
+});
 
 // Corrective task 10: People used to repeat Home's own record-category
 // dashboard (bills, home matters, documents, care notes) under a
@@ -274,12 +284,45 @@ describe('People-screen final implementation: Care Circle preview is bounded', (
     expect(screen.queryByText(/More/)).toBeNull();
   });
 
-  it('offers exactly ONE management action ("Manage"), never a separate Invite or member-detail action', async () => {
+  it('offers exactly ONE management action ("Manage"), never a separate Invite action', async () => {
     const onOpenCareCircle = jest.fn();
     const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={eightMembers} onOpenCareCircle={onOpenCareCircle} />);
     screen.getByText('Manage');
     expect(screen.queryByText(/Invite/)).toBeNull();
     await fireEvent.press(screen.getByLabelText('Manage Care Circle'));
     expect(onOpenCareCircle).toHaveBeenCalledTimes(1);
+  });
+
+  it('tapping a member avatar softly pops out their real details, using real data only', async () => {
+    const members: CareCircleMember[] = [
+      { membershipId: 'm-1', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
+      { membershipId: 'm-2', displayName: 'Sarah', role: 'viewer', relationshipType: 'Other relative', relationshipLabel: 'Aunt', isSelf: false, grantedDomains: ['general', 'health'] },
+    ];
+    const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={members} />);
+    expect(screen.queryByText('Aunt')).toBeNull(); // not shown until opened
+    await fireEvent.press(screen.getByLabelText('View details for Sarah'));
+    screen.getByText('Aunt');
+    expect(screen.getAllByText('Viewer').length).toBeGreaterThan(0);
+    await fireEvent.press(screen.getByLabelText('Close member details'));
+  });
+
+  // Reported gap: a user set a real profile picture in Account, but
+  // their own "You" avatar in the Care circle preview kept showing the
+  // initial letter -- CareCircleMember has no avatarPath of its own, so
+  // nothing ever resolved it. Now the caller's own avatarPath is
+  // resolved and shown for their own tile/popup only.
+  it('shows the real profile photo for "You" once selfAvatarPath is set, elsewhere still the initial', async () => {
+    mockResolveAvatarUrl.mockResolvedValue('https://signed.example/avatar.jpg');
+    const members: CareCircleMember[] = [
+      { membershipId: 'm-1', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
+      { membershipId: 'm-2', displayName: 'Sarah', role: 'viewer', relationshipType: 'Other relative', isSelf: false, grantedDomains: ['general'] },
+    ];
+    const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={members} selfAvatarPath="user-1/avatar.jpg" />);
+    expect(mockResolveAvatarUrl).toHaveBeenCalledWith('user-1/avatar.jpg');
+    await waitFor(() => screen.getByLabelText('View details for You'));
+    // "You"'s initial letter is replaced by the real photo -- "S" for
+    // Sarah (who has no avatar available) still shows as before.
+    expect(screen.queryByText('D')).toBeNull();
+    screen.getByText('S');
   });
 });

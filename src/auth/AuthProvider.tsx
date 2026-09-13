@@ -228,7 +228,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         : supabase.from('profiles').insert({ id: session.user.id, display_name: trimmed });
       const { error } = await query;
       if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
-      setProfile({ id: session.user.id, displayName: trimmed });
+      // Preserve avatarPath -- a display-name save must never clear an
+      // already-set profile photo out of local state (it was a real,
+      // if latent, bug: this used to always drop it here regardless).
+      setProfile({ id: session.user.id, displayName: trimmed, avatarPath: profile?.avatarPath });
       return { ok: true };
     },
     async signOut() {

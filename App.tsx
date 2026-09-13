@@ -12,6 +12,7 @@ import { AppText } from './src/components/Text';
 import { AboutYouScreen } from './src/screens/AboutYouScreen';
 import { AccountScreen, ProfileErrorScreen } from './src/screens/AccountScreen';
 import { PrivacyDataScreen } from './src/screens/PrivacyDataScreen';
+import { pickProfilePhoto, uploadProfilePhoto } from './src/profileAvatar';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { CalendarScreen } from './src/screens/CalendarScreen';
 import { CareForkScreen } from './src/screens/CareForkScreen';
@@ -351,6 +352,23 @@ function LilicaApp() {
     if (!storageOwnerId) return;
     await clearLocalDataForOwner(storageOwnerId);
     await signOut();
+  }
+
+  // Profile picture: picks a photo from the device library, uploads it
+  // to the private profile-avatars bucket, then refreshes the in-memory
+  // profile (auth.retryProfile() re-reads profiles including the new
+  // avatar_path) so AccountScreen shows it immediately. A cancelled
+  // picker is not an error; a denied permission or a failed upload
+  // surfaces its own real message.
+  async function handlePickProfilePhoto(): Promise<{ ok: boolean; message?: string; cancelled?: boolean }> {
+    if (!storageOwnerId) return { ok: false, message: 'Please log in again to change your photo.' };
+    const picked = await pickProfilePhoto();
+    if (picked.status === 'cancelled') return { ok: true, cancelled: true };
+    if (picked.status === 'denied') return { ok: false, message: picked.message };
+    const result = await uploadProfilePhoto(storageOwnerId, picked.uri);
+    if (!result.ok) return result;
+    await auth.retryProfile();
+    return { ok: true };
   }
 
   async function handleDeclineInvitation(invitationId: string) {
@@ -1037,6 +1055,7 @@ function LilicaApp() {
           pendingInvitationCount={myInvitations.length}
           onOpenInvitations={() => setShowInvitations(true)}
           onViewAllContacts={() => setShowAllContacts(true)}
+          selfAvatarPath={auth.profile?.avatarPath}
         />
       );
     }
@@ -1075,6 +1094,7 @@ function LilicaApp() {
             <AccountScreen
               displayName={auth.profile?.displayName ?? 'Your profile'}
               email={auth.session?.user.email}
+              avatarPath={auth.profile?.avatarPath}
               signingOut={signingOut}
               error={signOutError}
               remindersEnabled={notificationSettings.remindersEnabled}
@@ -1084,6 +1104,7 @@ function LilicaApp() {
               onToggleReminders={(enabled) => void toggleGlobalReminders(enabled)}
               onToggleQuietHours={toggleQuietHours}
               onSaveDisplayName={auth.saveProfile}
+              onChangePhoto={handlePickProfilePhoto}
               onBack={() => setSettingsSection('menu')}
               onSignOut={() => void signOut()}
             />

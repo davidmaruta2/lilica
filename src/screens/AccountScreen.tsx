@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
 import { TextField } from '../components/TextField';
+import { resolveAvatarUrl } from '../profileAvatar';
 import { colors, radius, spacing } from '../theme';
 import { PermissionState } from '../notifications';
 
@@ -24,6 +25,7 @@ import { PermissionState } from '../notifications';
 export function AccountScreen({
   displayName,
   email,
+  avatarPath,
   signingOut,
   error,
   remindersEnabled,
@@ -33,11 +35,16 @@ export function AccountScreen({
   onToggleReminders,
   onToggleQuietHours,
   onSaveDisplayName,
+  onChangePhoto,
   onBack,
   onSignOut,
 }: {
   displayName: string;
   email?: string;
+  // A profile photo is optional -- most organisers will still just see
+  // their initial letter, exactly as before, until they choose to add
+  // one.
+  avatarPath?: string;
   signingOut: boolean;
   error?: string;
   remindersEnabled: boolean;
@@ -52,6 +59,12 @@ export function AccountScreen({
   // Never touches a supported person's own name/identity, a separate
   // table entirely.
   onSaveDisplayName: (name: string) => Promise<{ ok: boolean; message?: string }>;
+  // Picks a photo, uploads it, and refreshes the profile -- see
+  // src/profileAvatar.ts and App.tsx's handlePickProfilePhoto. Resolves
+  // {ok:true} on a genuine save, {ok:false} with a real message on
+  // denial/failure, and {ok:true, cancelled:true} if the user simply
+  // backed out of the picker (never an error in that case).
+  onChangePhoto: () => Promise<{ ok: boolean; message?: string; cancelled?: boolean }>;
   onBack?: () => void;
   onSignOut: () => void;
 }) {
@@ -60,6 +73,15 @@ export function AccountScreen({
   const [nameDraft, setNameDraft] = useState(displayName);
   const [nameBusy, setNameBusy] = useState(false);
   const [nameError, setNameError] = useState<string>();
+  const [avatarUrl, setAvatarUrl] = useState<string>();
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState<string>();
+
+  useEffect(() => {
+    let active = true;
+    resolveAvatarUrl(avatarPath).then((url) => { if (active) setAvatarUrl(url); });
+    return () => { active = false; };
+  }, [avatarPath]);
 
   async function saveName() {
     setNameBusy(true);
@@ -73,12 +95,34 @@ export function AccountScreen({
     }
   }
 
+  async function changePhoto() {
+    setPhotoBusy(true);
+    setPhotoError(undefined);
+    const result = await onChangePhoto();
+    setPhotoBusy(false);
+    if (!result.ok && !result.cancelled) {
+      setPhotoError(result.message ?? 'Your photo could not be saved. Please try again.');
+    }
+  }
+
   return (
     <Screen>
       {onBack ? <Header onBack={onBack} /> : null}
       <View style={styles.content}>
         <AppText variant="section" centre>Your account</AppText>
-        <View style={styles.avatar}><AppText variant="title" tone="primary">{displayName.slice(0, 1).toUpperCase()}</AppText></View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Change your photo" onPress={() => void changePhoto()} disabled={photoBusy}>
+          <View style={styles.avatar}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <AppText variant="title" tone="primary">{displayName.slice(0, 1).toUpperCase()}</AppText>
+            )}
+          </View>
+          <AppText variant="secondary" tone="primary" centre style={styles.changePhotoLabel}>
+            {photoBusy ? 'Saving…' : avatarUrl ? 'Change photo' : 'Add photo'}
+          </AppText>
+        </Pressable>
+        {photoError ? <AppText variant="secondary" tone="danger" centre>{photoError}</AppText> : null}
         {editingName ? (
           <View style={styles.nameEdit}>
             <TextField compact label="Your name" value={nameDraft} onChangeText={setNameDraft} autoFocus />
@@ -140,7 +184,9 @@ export function AccountScreen({
 
 const styles = StyleSheet.create({
   content: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', gap: spacing.sm, paddingTop: spacing.xxl, paddingBottom: spacing.xl },
-  avatar: { width: 72, height: 72, borderRadius: radius.pill, backgroundColor: colors.oliveSoft, alignItems: 'center', justifyContent: 'center', marginVertical: spacing.sm },
+  avatar: { width: 72, height: 72, borderRadius: radius.pill, backgroundColor: colors.oliveSoft, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, overflow: 'hidden' },
+  avatarImage: { width: '100%', height: '100%' },
+  changePhotoLabel: { marginBottom: spacing.xs },
   nameEdit: { width: '100%', gap: spacing.sm },
   nameEditActions: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'flex-end' },
   nameEditButton: { width: 'auto', minHeight: 44, paddingHorizontal: spacing.md },

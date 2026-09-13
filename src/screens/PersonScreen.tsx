@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { MemberDetailPopup } from '../components/MemberDetailPopup';
 import { PersonSwitcher } from '../components/PersonSwitcher';
 import { ScreenBackdrop } from '../components/ScreenBackdrop';
 import { SettingsCogButton } from '../components/SettingsCogButton';
 import { AppText } from '../components/Text';
 import { Wordmark } from '../components/Wordmark';
 import { CareCircleMember, CareCircleRole } from '../careCircle';
+import { resolveAvatarUrl } from '../profileAvatar';
 import { CategoryIcon, visualFor } from './HomeScreen';
 import { colors, radius, spacing, tabAccent } from '../theme';
 import { LilicaRecord, LilicaRecordType, LocalCareSpaceState } from '../types';
@@ -55,6 +57,13 @@ type Props = {
   // shows at most four Key Contacts; "View all (N)" opens the complete
   // list (src/screens/ContactsListScreen.tsx) via this callback.
   onViewAllContacts?: () => void;
+  // Profile picture: the signed-in organiser's own avatar path
+  // (auth.profile?.avatarPath) -- shown for their own ("You") tile in
+  // the Care circle preview and detail popup only. Care Circle member
+  // data (CareCircleMember) has no avatarPath of its own -- showing
+  // OTHER members' photos to each other is a separate, real product
+  // decision not made here (see src/profileAvatar.ts's own scope note).
+  selfAvatarPath?: string;
 };
 
 const CONTACT_PREVIEW_LIMIT = 4;
@@ -99,9 +108,18 @@ export function PersonScreen({
   onOpenInvitations,
   careCircleMembers = [],
   onViewAllContacts,
+  selfAvatarPath,
 }: Props) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [openMember, setOpenMember] = useState<{ member: CareCircleMember; tone: { chip: string; text: string } }>();
+  const [selfAvatarUrl, setSelfAvatarUrl] = useState<string>();
   const name = displayName?.trim() || 'Them';
+
+  useEffect(() => {
+    let active = true;
+    resolveAvatarUrl(selfAvatarPath).then((url) => { if (active) setSelfAvatarUrl(url); });
+    return () => { active = false; };
+  }, [selfAvatarPath]);
 
   // Key contacts (section 2): external people/services with no Lilica
   // account of their own -- still exactly the established `contact`
@@ -260,15 +278,25 @@ export function PersonScreen({
             const tone = MEMBER_AVATAR_TONES[index % MEMBER_AVATAR_TONES.length];
             const label = member.isSelf ? 'You' : member.displayName;
             return (
-              <View key={member.membershipId} style={styles.memberPreviewItem}>
+              <Pressable
+                key={member.membershipId}
+                accessibilityRole="button"
+                accessibilityLabel={`View details for ${label}`}
+                onPress={() => setOpenMember({ member, tone })}
+                style={styles.memberPreviewItem}
+              >
                 <View style={[styles.memberAvatar, { backgroundColor: tone.chip }]}>
-                  <AppText variant="bodyStrong" style={[styles.memberAvatarInitial, { color: tone.text }]}>
-                    {label.charAt(0).toUpperCase()}
-                  </AppText>
+                  {member.isSelf && selfAvatarUrl ? (
+                    <Image source={{ uri: selfAvatarUrl }} style={styles.memberAvatarImage} />
+                  ) : (
+                    <AppText variant="bodyStrong" style={[styles.memberAvatarInitial, { color: tone.text }]}>
+                      {label.charAt(0).toUpperCase()}
+                    </AppText>
+                  )}
                 </View>
                 <AppText variant="secondary" style={styles.memberName} numberOfLines={1}>{label}</AppText>
                 <AppText variant="secondary" tone="soft" style={styles.memberRole} numberOfLines={1}>{roleLabel(member.role)}</AppText>
-              </View>
+              </Pressable>
             );
           })}
           {extraMemberCount > 0 ? (
@@ -306,6 +334,13 @@ export function PersonScreen({
         onClose={() => setSwitcherOpen(false)}
         onSelect={onSwitchPerson}
         onAdd={onAddPerson}
+      />
+      <MemberDetailPopup
+        visible={Boolean(openMember)}
+        member={openMember?.member}
+        avatarTone={openMember?.tone ?? MEMBER_AVATAR_TONES[0]}
+        selfAvatarUrl={selfAvatarUrl}
+        onClose={() => setOpenMember(undefined)}
       />
     </ScreenBackdrop>
     </ScrollView>
@@ -514,6 +549,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  memberAvatarImage: {
+    width: '100%',
+    height: '100%',
   },
   memberAvatarInitial: {
     fontSize: 18,

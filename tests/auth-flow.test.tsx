@@ -92,6 +92,7 @@ describe('Phase 5 account screens', () => {
         onToggleReminders={jest.fn()}
         onToggleQuietHours={jest.fn()}
         onSaveDisplayName={jest.fn()}
+        onChangePhoto={jest.fn().mockResolvedValue({ ok: true, cancelled: true })}
         onSignOut={onSignOut}
       />,
     );
