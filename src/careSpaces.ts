@@ -22,6 +22,8 @@ type BootstrapRow = {
   // (bootstrap_supported_people's return shape is unchanged) -- see
   // provisionedPerson() below.
   role?: 'organiser' | 'contributor' | 'viewer';
+  // Phase 20D: same as role -- only present on list_my_supported_people().
+  status?: 'active' | 'archived';
 };
 
 function provisionedPerson(row: BootstrapRow): ProvisionedPerson {
@@ -34,6 +36,7 @@ function provisionedPerson(row: BootstrapRow): ProvisionedPerson {
     relationshipType: row.relationship_type,
     relationshipLabel: row.relationship_label ?? undefined,
     role: row.role,
+    status: row.status,
   };
 }
 
@@ -100,5 +103,22 @@ export async function deleteCareSpace(ownerId: string, careSpaceId: string): Pro
     }
   }
 
+  return { ok: true };
+}
+
+// Phase 20D: ARCHIVE/RESTORE -- the reversible, non-destructive
+// alternative to permanent deletion above. Thin wrappers; all authority
+// and enforcement live server-side (archive_care_space()/
+// restore_care_space(), supabase/migrations/20260915090000_phase20d_
+// lifecycle_and_documents.sql).
+export async function archiveCareSpace(careSpaceId: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('archive_care_space', { target_care_space_id: careSpaceId });
+  if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
+  return { ok: true };
+}
+
+export async function restoreCareSpace(careSpaceId: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('restore_care_space', { target_care_space_id: careSpaceId });
+  if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
   return { ok: true };
 }

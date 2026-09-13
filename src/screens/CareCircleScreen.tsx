@@ -6,6 +6,7 @@ import {
   CareCircleInvitation,
   CareCircleMember,
   CareCircleRole,
+  DOMAIN_DESCRIPTIONS,
   DOMAIN_LABELS,
   inviteMember,
   removeMember,
@@ -216,18 +217,38 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
             <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>
               What can they see? Review this before sending.
             </AppText>
-            <View style={styles.pillRow}>
+            <View style={styles.domainList}>
               {DOMAIN_OPTIONS.map((option) => {
                 const selected = selectedDomains.includes(option.value);
                 return (
                   <Pressable
                     key={option.value}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: selected }}
+                    // Direct product-owner request: a screen reader must
+                    // be told the domain name, whether it's selected, AND
+                    // what access it grants -- never relying on colour or
+                    // visual expansion alone. Composed here rather than
+                    // left to be assembled from the two child Text nodes,
+                    // since accessibility tree traversal order across a
+                    // conditionally-rendered child cannot be relied on.
+                    accessibilityLabel={selected ? `${option.label}, selected. Grants access to: ${DOMAIN_DESCRIPTIONS[option.value]}` : `${option.label}, not selected`}
                     onPress={() => toggleDomain(option.value)}
-                    style={[styles.pill, selected && styles.pillSelected]}
+                    style={[styles.domainRow, selected && styles.domainRowSelected]}
                   >
-                    <AppText variant="secondary" tone={selected ? 'primary' : 'soft'}>{option.label}</AppText>
+                    <View style={styles.domainRowHeader}>
+                      <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+                        {selected ? <View style={styles.checkboxTick} /> : null}
+                      </View>
+                      <AppText variant="bodyStrong" tone={selected ? 'primary' : 'default'} style={styles.domainRowLabel}>
+                        {option.label}
+                      </AppText>
+                    </View>
+                    {selected ? (
+                      <AppText variant="secondary" tone="soft" style={styles.domainRowDescription}>
+                        {DOMAIN_DESCRIPTIONS[option.value]}
+                      </AppText>
+                    ) : null}
                   </Pressable>
                 );
               })}
@@ -286,5 +307,54 @@ const styles = StyleSheet.create({
   pillSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primarySoft,
+  },
+  // Direct product-owner request: each permission domain is compact when
+  // unselected and reveals its own real access description immediately
+  // when selected -- deliberately a vertical list rather than the
+  // wrapping pill row above, since a wrapped row can't cleanly show one
+  // option's own description growing beneath just that option. Still the
+  // same visual language (border/radius/soft-fill-when-selected) as every
+  // other pill on this screen -- not a new card system or a modal.
+  domainList: { gap: spacing.sm },
+  domainRow: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    gap: spacing.xs,
+  },
+  domainRowSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
+  domainRowHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  domainRowLabel: { flex: 1 },
+  domainRowDescription: {
+    marginLeft: 34, // aligns under the label, past the checkbox
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: colors.primary,
+  },
+  checkboxTick: {
+    width: 9,
+    height: 6,
+    borderLeftWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: colors.white,
+    transform: [{ rotate: '-45deg' }],
+    marginTop: -2,
   },
 });

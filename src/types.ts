@@ -169,6 +169,12 @@ export type LocalCareSpaceState = {
   // first reconnect resolves, or for a local-only (never-synced) space,
   // where this account is always its sole implicit organiser regardless.
   role?: 'organiser' | 'contributor' | 'viewer';
+  // Phase 20D: ACTIVE (normal) or ARCHIVED (reversible, non-destructive --
+  // hidden from the ordinary active-person switcher/navigation, ordinary
+  // mutations rejected server-side, everything else preserved and
+  // readable). Undefined for a local-only (never-synced) space, which has
+  // no archive concept -- always treated as active.
+  status?: 'active' | 'archived';
   privacyDeclarationAccepted: boolean;
   privacyDeclarationVersion?: string;
   privacyDeclarationAcceptedAt?: string;

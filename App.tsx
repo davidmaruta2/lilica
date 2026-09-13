@@ -50,6 +50,8 @@ import { clearLocalDataForOwner } from './src/localData';
 import { removeRecordById, upsertRecord } from './src/records';
 import {
   activeCareSpace,
+  activeCareSpaces,
+  archivedCareSpaces,
   createOnboardingDraft,
   createPersonDraft,
   integrateProvisionedPeople,
@@ -59,18 +61,27 @@ import {
   removeCareSpace,
   replaceCareSpace,
   resolveBackStage,
+  setCareSpaceStatus,
   validatePersonDraft,
 } from './src/careSpaceState';
-import { deleteCareSpace, provisionSupportedPeople, reconnectCareSpaces } from './src/careSpaces';
+import { archiveCareSpace, deleteCareSpace, provisionSupportedPeople, reconnectCareSpaces, restoreCareSpace } from './src/careSpaces';
 import {
   acceptInvitation,
+  approveCareSpaceDeletion,
+  cancelCareSpaceDeletion,
   CareCircleInvitation,
   CareCircleMember,
+  CareSpaceDeletionStatus,
+  declineCareSpaceDeletion,
   declineInvitation,
+  DeletionReason,
+  getCareSpaceDeletionStatus,
   listCareSpaceInvitations,
   listCareSpaceMembers,
   listMyInvitations,
   MyInvitation,
+  promoteToOrganiser,
+  requestCareSpaceDeletion,
 } from './src/careCircle';
 import { InvitationsScreen } from './src/screens/InvitationsScreen';
 import { ActivityEvent, listRecentActivity } from './src/activity';
@@ -85,12 +96,16 @@ import {
 } from './src/entitlement';
 import { configureBilling, getAnnualPackage, isBillingConfigured, logOutBilling, purchaseAnnualSubscription, restorePurchases } from './src/billing';
 import { SubscriptionScreen } from './src/screens/SubscriptionScreen';
+import { ArchivedGate } from './src/components/ArchivedGate';
 import { ReadOnlyGate } from './src/components/ReadOnlyGate';
 import { RecentActivityScreen } from './src/screens/RecentActivityScreen';
 import { CareSummaryScreen } from './src/screens/CareSummaryScreen';
+import { ArchivedCareScreen } from './src/screens/ArchivedCareScreen';
 import { ContactScreen } from './src/screens/ContactScreen';
+import { DocumentsScreen } from './src/screens/DocumentsScreen';
 import { FaqScreen } from './src/screens/FaqScreen';
 import { HowToUseScreen } from './src/screens/HowToUseScreen';
+import { ManageCareScreen } from './src/screens/ManageCareScreen';
 import { SearchScreen } from './src/screens/SearchScreen';
 import {
   enqueueRecordDelete,
@@ -224,7 +239,7 @@ function LilicaApp() {
   // Care Circle keeps a second, separate direct entry point from People's
   // own "Manage care circle" link -- see showCareCircle below -- which is
   // deliberately unchanged (full-screen, not the drawer).
-  const [settingsSection, setSettingsSection] = useState<'menu' | 'careSummary' | 'recentActivity' | 'account' | 'careCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'contact'>('menu');
+  const [settingsSection, setSettingsSection] = useState<'menu' | 'careSummary' | 'recentActivity' | 'documents' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'contact'>('menu');
   // Phase 21B: the signed-in account's own commercial entitlement --
   // fetched once sign-in is known, refetched after a subscribe/restore
   // action. Never trusted as the actual mutation gate (the server always
@@ -286,7 +301,10 @@ function LilicaApp() {
     Fraunces_800ExtraBold,
   });
   const currentSpace = activeCareSpace(state);
-  const spaces = Object.values(state.careSpaces).sort((left, right) => left.displayName.localeCompare(right.displayName));
+  // Phase 20D: the ordinary active-person switcher must never surface an
+  // archived care space (brief section 6) -- archivedCareSpaces() below
+  // feeds the separate, intentional "Archived care" destination instead.
+  const spaces = activeCareSpaces(state).sort((left, right) => left.displayName.localeCompare(right.displayName));
 
   // Phase 14: configure the notification handler once, and load whatever
   // reminder settings this device already has -- never requests OS
@@ -402,6 +420,16 @@ function LilicaApp() {
     setHeldMutationNoticeDismissed(false);
   }, [currentSpace?.careSpaceId]);
 
+  // Phase 20D: the SAME proactive-gate mechanism Phase 21C established,
+  // extended with a second, distinct reason a care space can be read-only
+  // -- archived. Deliberately its own state/component (ArchivedGate.tsx),
+  // never the billing wording (brief section 7: "Archive is a different
+  // reason for read-only state"). Checked first -- archiving is a
+  // deliberate organiser choice, unrelated to and unaffected by billing
+  // status, so it takes precedence if somehow both were ever true at once.
+  const isArchived = currentSpace?.status === 'archived';
+  const [showArchivedGate, setShowArchivedGate] = useState(false);
+
   // Central gate: every mutation-entry point calls this instead of its
   // real action directly. Read-only shows the one shared explanation
   // (src/components/ReadOnlyGate.tsx) instead of entering the flow; the
@@ -409,11 +437,24 @@ function LilicaApp() {
   // 22) -- this is only ever a proactive courtesy, never the security
   // boundary.
   function guardMutation(action: () => void) {
+    if (isArchived) {
+      setShowArchivedGate(true);
+      return;
+    }
     if (isReadOnly) {
       setShowReadOnlyGate(true);
       return;
     }
     action();
+  }
+
+  // Shared by every OTHER blocked-mutation entry point below (Care
+  // Circle's Invite, the shared Edit trigger) that already receives its
+  // own `isReadOnly` prop directly rather than going through
+  // guardMutation() -- same precedence as guardMutation() itself.
+  function showBlockedGate() {
+    if (isArchived) setShowArchivedGate(true);
+    else setShowReadOnlyGate(true);
   }
 
   async function handleSubscribe(): Promise<{ ok: boolean; message?: string }> {
@@ -563,6 +604,101 @@ function LilicaApp() {
     setState((current) => removeCareSpace(current, targetId));
     setShowSettingsMenu(false);
     setSettingsSection('menu');
+    return { ok: true };
+  }
+
+  // Phase 20D: ARCHIVE/RESTORE -- the reversible, non-destructive
+  // alternative to the permanent removal above. Local state only ever
+  // updates once the server call has genuinely succeeded, same discipline
+  // as every other care-space mutation in this file.
+  async function handleArchiveCareSpace(targetId: string): Promise<{ ok: boolean; message?: string }> {
+    const result = await archiveCareSpace(targetId);
+    if (!result.ok) return result;
+    setState((current) => setCareSpaceStatus(current, targetId, 'archived'));
+    return { ok: true };
+  }
+
+  async function handleRestoreCurrentCareSpace(targetId: string): Promise<{ ok: boolean; message?: string }> {
+    const result = await restoreCareSpace(targetId);
+    if (!result.ok) return result;
+    setState((current) => setCareSpaceStatus(current, targetId, 'active'));
+    return { ok: true };
+  }
+
+  // Every care space this account organises that is currently ARCHIVED --
+  // feeds the "Archived care" destination (Account group). Local-only
+  // spaces have no archive concept (see LocalCareSpaceState.status's own
+  // comment) so never appear here.
+  const archivedSpaces = archivedCareSpaces(state).map((space) => ({ careSpaceId: space.careSpaceId, displayName: space.displayName }));
+
+  // Phase 20D: organiser handoff. Re-runs the exact same Care Circle
+  // refresh already used after every other membership change (invite,
+  // role change, removal) -- promoting someone changes their own role,
+  // which this app already re-fetches from listCareSpaceMembers()
+  // elsewhere; here it's the caller's own explicit action, so refresh
+  // immediately rather than waiting for the next natural refresh point.
+  async function handlePromoteToOrganiser(membershipId: string): Promise<{ ok: boolean; message?: string }> {
+    if (!currentSpace) return { ok: false, message: 'No active care space.' };
+    const result = await promoteToOrganiser(currentSpace.careSpaceId, membershipId);
+    if (!result.ok) return result;
+    await refreshCareCircle();
+    return { ok: true };
+  }
+
+  // Phase 20D: multi-organiser permanent-deletion consent -- Manage
+  // [Name]'s care's own "Permanent removal" section. deletionStatus is
+  // refreshed explicitly (not on every render) since it involves a
+  // network round-trip; ManageCareScreen calls onRefreshDeletionStatus on
+  // mount and after every action.
+  const [deletionStatus, setDeletionStatus] = useState<CareSpaceDeletionStatus>();
+
+  function refreshDeletionStatus() {
+    if (!currentSpace) return;
+    getCareSpaceDeletionStatus(currentSpace.careSpaceId).then((result) => {
+      if (result.ok) setDeletionStatus(result.data);
+    });
+  }
+
+  async function handleRequestDeletion(reason?: DeletionReason): Promise<{ ok: boolean; message?: string; deletedImmediately?: boolean }> {
+    if (!currentSpace) return { ok: false, message: 'No active care space.' };
+    const result = await requestCareSpaceDeletion(currentSpace.careSpaceId, reason);
+    if (!result.ok) return result;
+    if (result.data.deletedImmediately) {
+      // Sole organiser -- the server already performed the actual
+      // deletion. Mirror handleRemoveCareSpace()'s own local-state update.
+      setState((current) => removeCareSpace(current, currentSpace.careSpaceId));
+      setShowSettingsMenu(false);
+      setSettingsSection('menu');
+    }
+    return { ok: true, deletedImmediately: result.data.deletedImmediately };
+  }
+
+  async function handleApproveDeletion(): Promise<{ ok: boolean; message?: string }> {
+    if (!currentSpace || !deletionStatus) return { ok: false, message: 'No pending request.' };
+    const result = await approveCareSpaceDeletion(deletionStatus.requestId);
+    if (!result.ok) return result;
+    if (result.data) {
+      // Consensus reached -- the care space has genuinely been deleted.
+      setState((current) => removeCareSpace(current, currentSpace.careSpaceId));
+      setShowSettingsMenu(false);
+      setSettingsSection('menu');
+    }
+    return { ok: true };
+  }
+
+  async function handleDeclineDeletion(): Promise<{ ok: boolean; message?: string }> {
+    if (!deletionStatus) return { ok: false, message: 'No pending request.' };
+    const result = await declineCareSpaceDeletion(deletionStatus.requestId);
+    if (!result.ok) return result;
+    setDeletionStatus(undefined);
+    return { ok: true };
+  }
+
+  async function handleCancelDeletion(): Promise<{ ok: boolean; message?: string }> {
+    if (!deletionStatus) return { ok: false, message: 'No pending request.' };
+    const result = await cancelCareSpaceDeletion(deletionStatus.requestId);
+    if (!result.ok) return result;
+    setDeletionStatus(undefined);
     return { ok: true };
   }
 
@@ -1247,8 +1383,8 @@ function LilicaApp() {
           careSpaceId={currentSpace.careSpaceId}
           onBack={() => setShowCareCircle(false)}
           onRefresh={refreshCareCircle}
-          isReadOnly={isReadOnly}
-          onInviteBlocked={() => setShowReadOnlyGate(true)}
+          isReadOnly={isReadOnly || isArchived}
+          onInviteBlocked={() => showBlockedGate()}
         />
       ) : null;
     } else if (showAllContacts) {
@@ -1390,8 +1526,8 @@ function LilicaApp() {
               setCalendarOpenRecordId(undefined);
               setProjectionOpenType(undefined);
             }}
-            isReadOnly={isReadOnly}
-            onBlockedEdit={() => setShowReadOnlyGate(true)}
+            isReadOnly={isReadOnly || isArchived}
+            onBlockedEdit={() => showBlockedGate()}
           />
         ) : null}
         <SettingsMenu
@@ -1401,11 +1537,14 @@ function LilicaApp() {
           personName={currentSpace?.displayName}
           onOpenCareSummary={careCircleAvailable ? () => setSettingsSection('careSummary') : undefined}
           onOpenRecentActivity={careCircleAvailable ? () => setSettingsSection('recentActivity') : undefined}
+          onOpenDocuments={careCircleAvailable ? () => setSettingsSection('documents') : undefined}
+          onOpenManageCare={careCircleAvailable && currentSpace?.role === 'organiser' ? () => setSettingsSection('manageCare') : undefined}
           onOpenAccount={() => setSettingsSection('account')}
           onOpenPrivacyData={() => setSettingsSection('privacyData')}
           onOpenCareCircle={careCircleAvailable ? () => setSettingsSection('careCircle') : undefined}
           onOpenSubscription={() => setSettingsSection('subscription')}
           subscriptionSummary={myEntitlement ? describeEntitlement(myEntitlement) : undefined}
+          onOpenArchivedCare={archivedSpaces.length > 0 ? () => setSettingsSection('archivedCare') : undefined}
           onOpenHowTo={() => setSettingsSection('howTo')}
           onOpenFaq={() => setSettingsSection('faq')}
           onOpenContact={() => setSettingsSection('contact')}
@@ -1425,6 +1564,39 @@ function LilicaApp() {
               personName={currentSpace?.displayName}
               onBack={() => setSettingsSection('menu')}
               onOpenRecord={openRecordFromProjection}
+            />
+          ) : settingsSection === 'documents' ? (
+            <DocumentsScreen
+              careSpaceId={currentSpace && !currentSpace.careSpaceId.startsWith('local-') ? currentSpace.careSpaceId : undefined}
+              personName={currentSpace?.displayName}
+              onBack={() => setSettingsSection('menu')}
+              onOpenRecord={openRecordFromProjection}
+            />
+          ) : settingsSection === 'manageCare' && currentSpace ? (
+            <ManageCareScreen
+              careSpaceId={currentSpace.careSpaceId}
+              personName={currentSpace.displayName}
+              status={currentSpace.status ?? 'active'}
+              members={careCircleMembers}
+              deletionStatus={deletionStatus}
+              selfMembershipId={currentSpace.membershipId}
+              onBack={() => setSettingsSection('menu')}
+              onOpenCareCircle={() => setSettingsSection('careCircle')}
+              onArchive={() => handleArchiveCareSpace(currentSpace.careSpaceId)}
+              onRestore={() => handleRestoreCurrentCareSpace(currentSpace.careSpaceId)}
+              onPromote={handlePromoteToOrganiser}
+              onRemove={() => handleRemoveCareSpace(currentSpace.careSpaceId)}
+              onRequestDeletion={handleRequestDeletion}
+              onApproveDeletion={handleApproveDeletion}
+              onDeclineDeletion={handleDeclineDeletion}
+              onCancelDeletion={handleCancelDeletion}
+              onRefreshDeletionStatus={refreshDeletionStatus}
+            />
+          ) : settingsSection === 'archivedCare' ? (
+            <ArchivedCareScreen
+              archivedSpaces={archivedSpaces}
+              onBack={() => setSettingsSection('menu')}
+              onRestore={handleRestoreCurrentCareSpace}
             />
           ) : settingsSection === 'account' ? (
             <AccountScreen
@@ -1452,8 +1624,8 @@ function LilicaApp() {
               careSpaceId={currentSpace.careSpaceId}
               onBack={() => setSettingsSection('menu')}
               onRefresh={refreshCareCircle}
-              isReadOnly={isReadOnly}
-              onInviteBlocked={() => setShowReadOnlyGate(true)}
+              isReadOnly={isReadOnly || isArchived}
+              onInviteBlocked={() => showBlockedGate()}
             />
           ) : settingsSection === 'privacyData' ? (
             <PrivacyDataScreen
@@ -1517,6 +1689,16 @@ function LilicaApp() {
             setShowSettingsMenu(true);
           }}
           onClose={() => setShowReadOnlyGate(false)}
+        />
+        <ArchivedGate
+          visible={showArchivedGate}
+          personName={currentSpace?.displayName}
+          canRestore={currentSpace?.role === 'organiser'}
+          onRestore={() => {
+            setShowArchivedGate(false);
+            if (currentSpace) void handleRestoreCurrentCareSpace(currentSpace.careSpaceId);
+          }}
+          onClose={() => setShowArchivedGate(false)}
         />
       </SafeAreaView>
     );
@@ -1771,8 +1953,8 @@ function LilicaApp() {
             onRemoveRecord={removeRecord}
             onFinish={() => completeOnboarding()}
             onSkip={() => completeOnboarding()}
-            isReadOnly={isReadOnly}
-            onBlockedMutation={() => setShowReadOnlyGate(true)}
+            isReadOnly={isReadOnly || isArchived}
+            onBlockedMutation={() => showBlockedGate()}
           />
         );
       case 'itemForm':
@@ -1799,8 +1981,8 @@ function LilicaApp() {
             onRemoveRecord={removeRecord}
             onFinish={() => completeOnboarding()}
             onSkip={() => completeOnboarding()}
-            isReadOnly={isReadOnly}
-            onBlockedMutation={() => setShowReadOnlyGate(true)}
+            isReadOnly={isReadOnly || isArchived}
+            onBlockedMutation={() => showBlockedGate()}
           />
         );
       case 'home':

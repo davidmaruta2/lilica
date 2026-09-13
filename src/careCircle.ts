@@ -24,6 +24,20 @@ export const DOMAIN_LABELS: Record<CareCircleDomain, string> = {
   documents: 'Documents',
 };
 
+// Direct product-owner request: when choosing what a Care Circle member
+// can see, name exactly what each domain covers rather than leaving the
+// label to speak for itself. Every Lilica record type maps to exactly one
+// of these five (record_domain_for_type() server-side, with an explicit
+// else -> general catch-all) -- these descriptions are written to match
+// that real mapping exactly, not a guess at it.
+export const DOMAIN_DESCRIPTIONS: Record<CareCircleDomain, string> = {
+  general: 'Appointments, tasks, contacts and everyday updates -- plus anything else not covered by the categories below.',
+  health: 'Care notes and health-related information.',
+  financial: 'Bills and financial information.',
+  home: 'Home and car matters, like repairs and maintenance.',
+  documents: 'Standalone documents, and any files attached to them.',
+};
+
 export type CareCircleMember = {
   membershipId: string;
   displayName: string;
@@ -217,6 +231,83 @@ export async function removeMember(membershipId: string): Promise<Result<void>> 
 
 export async function leaveCareSpace(careSpaceId: string): Promise<Result<void>> {
   const { error } = await supabase.rpc('leave_care_space', { target_care_space_id: careSpaceId });
+  if (error) return fail(error);
+  return { ok: true, data: undefined };
+}
+
+// Phase 20D: organiser handoff -- the smallest correct half of "leave
+// safely" (leave_care_space() already blocks a sole organiser from
+// leaving; this is the one thing that was actually missing -- a way to
+// make someone else an organiser first). See docs/PHASE_20D_ARCHITECTURE
+// notes in docs/REVISION_LOG.md for the full reasoning.
+export async function promoteToOrganiser(careSpaceId: string, membershipId: string): Promise<Result<void>> {
+  const { error } = await supabase.rpc('promote_to_organiser', {
+    target_care_space_id: careSpaceId,
+    target_membership_id: membershipId,
+  });
+  if (error) return fail(error);
+  return { ok: true, data: undefined };
+}
+
+// Phase 20D: multi-organiser permanent-deletion consent. A sole active
+// organiser is deleted immediately server-side (requestId resolves to
+// undefined in that case -- there is nothing further to wait for).
+export type DeletionReason = 'care_no_longer_required' | 'supported_person_requested' | 'other';
+
+export async function requestCareSpaceDeletion(careSpaceId: string, reason?: DeletionReason): Promise<Result<{ requestId?: string; deletedImmediately: boolean }>> {
+  const { data, error } = await supabase.rpc('request_care_space_deletion', {
+    target_care_space_id: careSpaceId,
+    deletion_reason: reason ?? null,
+  });
+  if (error) return fail(error);
+  return { ok: true, data: { requestId: data ?? undefined, deletedImmediately: !data } };
+}
+
+export type CareSpaceDeletionStatus = {
+  requestId: string;
+  requestedByMembershipId: string;
+  reason?: DeletionReason;
+  createdAt: string;
+  organiserCount: number;
+  approvedCount: number;
+  approvedMembershipIds: string[];
+};
+
+export async function getCareSpaceDeletionStatus(careSpaceId: string): Promise<Result<CareSpaceDeletionStatus | undefined>> {
+  const { data, error } = await supabase.rpc('get_care_space_deletion_status', { target_care_space_id: careSpaceId });
+  if (error) return fail(error);
+  const row = (data ?? [])[0];
+  if (!row) return { ok: true, data: undefined };
+  return {
+    ok: true,
+    data: {
+      requestId: row.request_id,
+      requestedByMembershipId: row.requested_by_membership_id,
+      reason: row.reason ?? undefined,
+      createdAt: row.created_at,
+      organiserCount: row.organiser_count,
+      approvedCount: row.approved_count,
+      approvedMembershipIds: row.approved_membership_ids ?? [],
+    },
+  };
+}
+
+// Returns true once every active organiser has approved and the care
+// space has genuinely been permanently deleted; false while still waiting.
+export async function approveCareSpaceDeletion(requestId: string): Promise<Result<boolean>> {
+  const { data, error } = await supabase.rpc('approve_care_space_deletion', { target_request_id: requestId });
+  if (error) return fail(error);
+  return { ok: true, data: Boolean(data) };
+}
+
+export async function declineCareSpaceDeletion(requestId: string): Promise<Result<void>> {
+  const { error } = await supabase.rpc('decline_care_space_deletion', { target_request_id: requestId });
+  if (error) return fail(error);
+  return { ok: true, data: undefined };
+}
+
+export async function cancelCareSpaceDeletion(requestId: string): Promise<Result<void>> {
+  const { error } = await supabase.rpc('cancel_care_space_deletion', { target_request_id: requestId });
   if (error) return fail(error);
   return { ok: true, data: undefined };
 }

@@ -2,6 +2,8 @@
 
 **RECONCILIATION / RECOMMENDATION ONLY, per `prephase22.txt`'s own Part D authority level. No feature in this document was implemented. This revisits only the items `docs/PHASE_20_GAP_AUDIT.md` left deferred - it does not redo that audit.**
 
+**STATUS UPDATE, 15 September 2026:** the single "RECOMMEND BEFORE RELEASE" item below (Documents) was approved and implemented via `\downloads\20-22.txt` - see `docs/PHASE_20E_DOCUMENTS_PROPOSAL.md`'s own status update and `docs/REVISION_LOG.md`. Every "KEEP DEFERRED" and "RECONSIDER BEFORE RELEASE" item remains exactly as this document originally left it - `\downloads\20-22.txt` section 40 explicitly confirmed KEEP DEFERRED for medication structure, supported-person profile expansion, contact import, contextual comments, calendar export, and former-member filtering, and explicitly deferred collaboration notifications/handover/emergency framing without implementing any of them (sections 41-43).
+
 ---
 
 ## 41. Collaboration notifications

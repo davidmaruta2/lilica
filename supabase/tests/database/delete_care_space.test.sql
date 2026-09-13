@@ -5,7 +5,7 @@ drop extension if exists pgtap;
 create extension pgtap with schema extensions;
 set search_path = public, extensions, pgtap;
 
-select extensions.plan(17);
+select extensions.plan(22);
 
 insert into auth.users (id, email)
 values
@@ -151,16 +151,58 @@ select extensions.throws_ok(
 );
 
 -- ---------------------------------------------------------------------
--- 3. A second, non-sole organiser (Marion, not just David) can delete
--- the care space -- this is not restricted to the sole organiser.
+-- 3. Phase 20D tightening: a second, non-sole organiser (Marion) can NO
+-- LONGER delete the care space alone -- with multiple active organisers,
+-- permanent deletion requires every one of them to agree. David requests
+-- it (his own approval counts automatically); a viewer cannot approve;
+-- Marion's approval completes consensus and performs the actual deletion
+-- via the same, unmodified, already-tested cascade machinery.
 -- ---------------------------------------------------------------------
 
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000002', true);
-select extensions.lives_ok(
+select extensions.throws_ok(
   format('select public.delete_care_space(%L::uuid)', :'beauty_id'),
-  'a second, non-sole organiser can delete the care space'
+  '42501',
+  'Because this care space has more than one organiser, all organisers must agree before it can be permanently removed -- use request_care_space_deletion() instead',
+  'a second, non-sole organiser cannot delete the care space alone'
+);
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000001', true);
+select public.request_care_space_deletion(:'beauty_id'::uuid, 'care_no_longer_required') as delete_request_id \gset
+
+select extensions.ok(:'delete_request_id' is not null, 'David''s deletion request was created (multiple active organisers exist)');
+select extensions.is(
+  (select organiser_count from public.get_care_space_deletion_status(:'beauty_id'::uuid)),
+  2,
+  'the request correctly counts 2 active organisers'
+);
+select extensions.is(
+  (select approved_count from public.get_care_space_deletion_status(:'beauty_id'::uuid)),
+  1,
+  'the requesting organiser''s own approval already counts (David)'
+);
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000003', true);
+select extensions.throws_ok(
+  format('select public.approve_care_space_deletion(%L::uuid)', :'delete_request_id'),
+  '42501',
+  'Only an active organiser of this care space can approve its removal',
+  'a viewer cannot approve a deletion request'
+);
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000002', true);
+select extensions.is(
+  (select public.approve_care_space_deletion(:'delete_request_id'::uuid)),
+  true,
+  'Marion''s approval completes consensus and performs the actual deletion'
 );
 
 -- ---------------------------------------------------------------------

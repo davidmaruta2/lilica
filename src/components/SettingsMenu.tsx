@@ -1,5 +1,5 @@
 import { ReactNode, useContext, useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Dimensions, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 const ZERO_INSETS = { top: 0, bottom: 0, left: 0, right: 0 };
@@ -42,7 +42,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // wide screens/tablets so it doesn't stretch edge-to-edge there.
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.88, 480);
 
-type Section = 'menu' | 'careSummary' | 'recentActivity' | 'account' | 'careCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'contact';
+type Section = 'menu' | 'careSummary' | 'recentActivity' | 'documents' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'contact';
 
 // Phase 20C (approved Option 2): the drawer becomes a small hybrid --
 // person-scoped navigation ABOVE the existing account/app settings group,
@@ -57,11 +57,14 @@ export function SettingsMenu({
   personName,
   onOpenCareSummary,
   onOpenRecentActivity,
+  onOpenDocuments,
+  onOpenManageCare,
   onOpenAccount,
   onOpenCareCircle,
   onOpenPrivacyData,
   onOpenSubscription,
   subscriptionSummary,
+  onOpenArchivedCare,
   onOpenHowTo,
   onOpenFaq,
   onOpenContact,
@@ -87,6 +90,13 @@ export function SettingsMenu({
   // the menu" expectation every other drawer row already satisfies.
   onOpenCareSummary?: () => void;
   onOpenRecentActivity?: () => void;
+  // Phase 20D: same guard as onOpenCareSummary/onOpenRecentActivity.
+  // onOpenManageCare is FURTHER restricted to organisers only (App.tsx) --
+  // every one of its own actions requires organiser authority, so a
+  // contributor/viewer is never shown a destination full of controls they
+  // cannot use (this app's established "never a fake affordance" rule).
+  onOpenDocuments?: () => void;
+  onOpenManageCare?: () => void;
   onOpenAccount: () => void;
   onOpenCareCircle?: () => void;
   onOpenPrivacyData: () => void;
@@ -94,6 +104,13 @@ export function SettingsMenu({
   // regardless of whether the active care space is real/synced, since
   // entitlement is an account-level fact, not a per-care-space one.
   onOpenSubscription: () => void;
+  // Phase 20D: only offered when this account has at least one genuinely
+  // archived care space -- omitted rather than shown as a permanently
+  // empty destination (again, the same "never a fake affordance" rule).
+  // Account-scoped, not person-scoped: by definition an archived care
+  // space is never the currently active person, so it cannot live inside
+  // "[Name]'s care" -- see docs/REVISION_LOG.md for this judgement call.
+  onOpenArchivedCare?: () => void;
   // A short, calm one-line status ("12 days left in your free period" /
   // "Lilica Annual · £8.99/year · Active") shown as this row's own
   // description -- never a separate badge/countdown elsewhere in the app
@@ -153,12 +170,21 @@ export function SettingsMenu({
     ...(onOpenRecentActivity
       ? [{ key: 'recentActivity', label: 'Recent Activity', description: 'What has changed recently', onPress: onOpenRecentActivity }]
       : []),
+    ...(onOpenDocuments
+      ? [{ key: 'documents', label: 'Documents', description: 'Every document saved for them', onPress: onOpenDocuments }]
+      : []),
+    ...(onOpenManageCare
+      ? [{ key: 'manageCare', label: personName ? `Manage ${personName}'s care` : 'Manage their care', description: 'Archive, handoff and permanent removal', onPress: onOpenManageCare }]
+      : []),
   ];
 
   const accountEntries = [
     { key: 'account', label: 'Account', description: 'Your profile, reminders and sign out', onPress: onOpenAccount },
     ...(onOpenCareCircle
       ? [{ key: 'careCircle', label: 'Care Circle', description: 'Who can help, and what they can see', onPress: onOpenCareCircle }]
+      : []),
+    ...(onOpenArchivedCare
+      ? [{ key: 'archivedCare', label: 'Archived care', description: 'Care spaces you\'ve paused', onPress: onOpenArchivedCare }]
       : []),
     { key: 'privacyData', label: 'Privacy & data', description: 'What Lilica stores, export, and device data', onPress: onOpenPrivacyData },
     { key: 'subscription', label: 'Subscription', description: subscriptionSummary ?? 'Your Lilica subscription', onPress: onOpenSubscription },
@@ -185,7 +211,14 @@ export function SettingsMenu({
               </Pressable>
             </View>
             {section === 'menu' ? (
-              <View style={styles.listWrap}>
+              // Real bug found by direct product-owner report: as more
+              // rows were added (Documents, Manage [Name]'s care, Archived
+              // care, Contact) the menu list overflowed the screen with no
+              // way to reach the rows below the fold -- this was a plain,
+              // non-scrolling View. Now a genuine ScrollView; the footer
+              // wordmark scrolls into view with the rest of the content
+              // rather than fighting for fixed space at the bottom.
+              <ScrollView style={styles.listWrap} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.list}>
                   {personCareEntries.length > 0 ? (
                     <View style={styles.group}>
@@ -213,7 +246,7 @@ export function SettingsMenu({
                 <View style={styles.footer}>
                   <Wordmark size="compact" tone="dark" />
                 </View>
-              </View>
+              </ScrollView>
             ) : (
               <View style={styles.sectionBody}>{children}</View>
             )}
@@ -281,7 +314,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   closeLabel: { fontWeight: '700' },
-  listWrap: { flex: 1, justifyContent: 'space-between' },
+  listWrap: { flex: 1 },
+  listContent: { flexGrow: 1, justifyContent: 'space-between' },
   list: { padding: spacing.lg, gap: spacing.lg },
   // Phase 20C: the smallest coherent visual addition -- the existing
   // uppercase, letter-spaced "meta" caption style (already used

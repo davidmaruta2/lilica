@@ -23,6 +23,8 @@ export type ProvisionedPerson = {
   // linking). Lets Privacy & data list every space this account
   // genuinely ORGANISES, not just the currently active one.
   role?: 'organiser' | 'contributor' | 'viewer';
+  // Phase 20D: mirrors LocalCareSpaceState.status -- see its own comment.
+  status?: 'active' | 'archived';
 };
 
 export { createUuid } from './identifiers';
@@ -113,11 +115,48 @@ export function linkProvisionedCareSpaces(
   return projectActiveCareSpace({ ...state, careSpaces, activeCareSpaceId });
 }
 
+// Real bug found via direct product-owner report, still reproducing after
+// a genuinely fresh app session: "I deleted Beauty and Janet but still
+// see Janet" (and see her again on every fresh reload, not just once).
+// list_my_supported_people() (the source of `provisioned` here) already
+// correctly excludes a genuinely deleted or access-revoked care space --
+// but this function historically only ever ADDED or UPDATED entries,
+// deliberately never REMOVING one the server no longer lists (see the
+// comment on removeCareSpace() below, which explicitly calls that out as
+// "a deliberate, separate concern from this explicit removal"). That
+// design was correct for the ORIGINAL reason this function was written
+// (a transient reconnect must never wipe out a care space just because a
+// single request happened to omit it) but is wrong once a care space can
+// be GENUINELY, PERMANENTLY gone (delete_care_space(), or this account's
+// own membership being revoked) -- the stale local copy then survives
+// forever, since every future reconnect keeps merging into it and never
+// re-examines whether it should still exist at all.
+//
+// Fixed narrowly: prune a local entry only when it was PREVIOUSLY KNOWN
+// to be server-synced (has its own membershipId already) and is NOT
+// local-only (never `local-`-prefixed) and the server's own authoritative
+// response -- a call that only reaches here at all once it has already
+// succeeded -- no longer lists it. A local-only, never-yet-synced space
+// is never touched by this (the server was never going to list it).
+function pruneCareSpacesNoLongerReturnedByServer(
+  careSpaces: Record<string, LocalCareSpaceState>,
+  provisioned: ProvisionedPerson[],
+): Record<string, LocalCareSpaceState> {
+  const stillReturned = new Set(provisioned.map((link) => link.careSpaceId));
+  const pruned: Record<string, LocalCareSpaceState> = {};
+  for (const [id, space] of Object.entries(careSpaces)) {
+    const wasKnownSynced = !id.startsWith('local-') && Boolean(space.membershipId);
+    if (wasKnownSynced && !stillReturned.has(id)) continue;
+    pruned[id] = space;
+  }
+  return pruned;
+}
+
 export function integrateReconnectedCareSpaces(
   state: OnboardingState,
   provisioned: ProvisionedPerson[],
 ): OnboardingState {
-  const careSpaces = { ...state.careSpaces };
+  const careSpaces = pruneCareSpacesNoLongerReturnedByServer({ ...state.careSpaces }, provisioned);
   for (const link of provisioned) {
     const current = careSpaces[link.careSpaceId];
     if (current) {
@@ -126,6 +165,7 @@ export function integrateReconnectedCareSpaces(
         supportedPersonId: link.supportedPersonId,
         membershipId: link.membershipId,
         role: link.role,
+        status: link.status,
       };
       continue;
     }
@@ -139,6 +179,7 @@ export function integrateReconnectedCareSpaces(
       relationshipLabel: link.relationshipLabel,
       displayName: link.displayName,
       role: link.role,
+      status: link.status,
       privacyDeclarationAccepted: false,
       interests: [],
       records: [],
@@ -180,6 +221,42 @@ export function activeCareSpace(state: OnboardingState): LocalCareSpaceState | u
 // space was the active one, falls back to whichever other space remains
 // (if any), matching the same "some space must be active if one exists"
 // invariant projectActiveCareSpace() already relies on.
+// Phase 20D: local-state half of archive/restore. Unlike removeCareSpace()
+// this never deletes the entry -- only its status flips. If the care
+// space being ARCHIVED was the active one, falls back to another
+// currently-ACTIVE space (never an already-archived one -- archived
+// spaces must never silently become the active person), matching the
+// same "some space must be active if one exists" invariant
+// projectActiveCareSpace() already relies on. Restoring never needs to
+// change activeCareSpaceId -- a restored space simply becomes selectable
+// again, it doesn't need to become active.
+export function setCareSpaceStatus(
+  state: OnboardingState,
+  careSpaceId: string,
+  status: 'active' | 'archived',
+): OnboardingState {
+  const current = state.careSpaces[careSpaceId];
+  if (!current) return state;
+  const careSpaces = { ...state.careSpaces, [careSpaceId]: { ...current, status } };
+  let activeCareSpaceId = state.activeCareSpaceId;
+  if (status === 'archived' && activeCareSpaceId === careSpaceId) {
+    activeCareSpaceId = Object.values(careSpaces).find((space) => space.careSpaceId !== careSpaceId && space.status !== 'archived')?.careSpaceId;
+  }
+  return projectActiveCareSpace({ ...state, careSpaces, activeCareSpaceId });
+}
+
+// The ordinary active-person switcher/navigation must never surface an
+// archived care space (brief section 6) -- this is the one shared filter
+// every such surface should use, rather than each screen re-deriving the
+// same "status !== 'archived'" check independently.
+export function activeCareSpaces(state: OnboardingState): LocalCareSpaceState[] {
+  return Object.values(state.careSpaces).filter((space) => space.status !== 'archived');
+}
+
+export function archivedCareSpaces(state: OnboardingState): LocalCareSpaceState[] {
+  return Object.values(state.careSpaces).filter((space) => space.status === 'archived');
+}
+
 export function removeCareSpace(state: OnboardingState, careSpaceId: string): OnboardingState {
   if (!state.careSpaces[careSpaceId]) return state;
   const careSpaces = { ...state.careSpaces };
@@ -222,9 +299,34 @@ export function resolveBackStage(
   return currentIndex > 0 ? stageOrder[currentIndex - 1] : undefined;
 }
 
+// Real bug found via direct product-owner report (remove-supported-person
+// follow-up): removing the LAST remaining care space leaves
+// activeCareSpaceId undefined, so activeCareSpace(state) resolves to
+// undefined -- but this function used to just return `state` UNCHANGED in
+// that case, leaving every previously-projected field (most visibly
+// supportedPersonName, which Home reads directly for its avatar/name)
+// stuck at whatever the just-removed care space's values were. Home then
+// kept showing "Janet" after Janet -- the last remaining supported
+// person -- was removed. Now explicitly clears every projected field to
+// its genuine "nothing active" value instead of silently leaving stale
+// data in place.
 export function projectActiveCareSpace(state: OnboardingState): OnboardingState {
   const active = activeCareSpace(state);
-  if (!active) return state;
+  if (!active) {
+    return {
+      ...state,
+      relationship: undefined,
+      supportedPersonName: undefined,
+      supportedPersonId: undefined,
+      privacyDeclarationAccepted: false,
+      privacyDeclarationVersion: undefined,
+      privacyDeclarationAcceptedAt: undefined,
+      interests: [],
+      records: [],
+      firstItem: undefined,
+      allSetDismissed: false,
+    };
+  }
   return {
     ...state,
     relationship: active.relationshipType,

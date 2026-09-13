@@ -22,13 +22,20 @@ type Props = {
   // case the collaborator-specific warning line is not shown at all
   // (never a fabricated "0 other people" line).
   collaboratorCount?: number;
+  // Phase 20D correction (`\downloads\20-22.txt` final closure): true when
+  // this care space currently has more than one active organiser -- the
+  // confirmed action is then a REQUEST requiring every organiser's
+  // agreement, not an immediate deletion, and the copy below reflects
+  // that distinction. Omitted/false preserves the original, unchanged
+  // sole-organiser wording exactly.
+  requiresAllOrganisers?: boolean;
   busy: boolean;
   error?: string;
   onConfirm: () => void;
   onCancel: () => void;
 };
 
-export function RemoveCareSpaceConfirm({ visible, careSpaceName, collaboratorCount, busy, error, onConfirm, onCancel }: Props) {
+export function RemoveCareSpaceConfirm({ visible, careSpaceName, collaboratorCount, requiresAllOrganisers, busy, error, onConfirm, onCancel }: Props) {
   const [understood, setUnderstood] = useState(false);
 
   function handleCancel() {
@@ -52,8 +59,16 @@ export function RemoveCareSpaceConfirm({ visible, careSpaceName, collaboratorCou
                 : `The ${collaboratorCount} other people who currently help will lose access too.`}
             </AppText>
           ) : null}
+          {requiresAllOrganisers ? (
+            <AppText variant="body" tone="soft" style={styles.body}>
+              Because {careSpaceName}'s care has more than one organiser, all active organisers must agree before it can be permanently removed.
+            </AppText>
+          ) : null}
           <AppText variant="bodyStrong" tone="danger" style={styles.body}>
-            This cannot be undone.
+            {requiresAllOrganisers ? 'Once every organiser agrees, this cannot be undone.' : 'This cannot be undone.'}
+          </AppText>
+          <AppText variant="body" tone="soft" style={styles.body}>
+            {requiresAllOrganisers ? 'Requesting removal' : 'Removing'} does not itself cancel an App Store or Google Play subscription -- manage or cancel it directly in your App Store/Google Play account settings.
           </AppText>
 
           <Pressable

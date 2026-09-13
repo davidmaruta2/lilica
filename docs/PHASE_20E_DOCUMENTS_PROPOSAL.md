@@ -1,6 +1,10 @@
-# Phase 20E - Documents Collection: Architecture Proposal Only
+# Phase 20E - Documents Collection
 
-**PROPOSAL ONLY. No `DocumentsScreen`, drawer row, schema change, search, category, or migration was created in producing this document, per `prephase22.txt`'s own Part C authority level.**
+**STATUS UPDATE, 15 September 2026: APPROVED and implemented via `\downloads\20-22.txt`.** `src/documents.ts` + `src/screens/DocumentsScreen.tsx`, exactly as proposed below: a pure client-side projection over the existing `record_attachments` table, no new schema, modelled on `ContactsListScreen.tsx`. Added to the "[Name]'s care" drawer group. See `docs/REVISION_LOG.md`'s "15 September 2026 - Phase 20D structural closure" entry for full detail. The proposal below is preserved as originally written.
+
+---
+
+**Original status (superseded above): PROPOSAL ONLY. No `DocumentsScreen`, drawer row, schema change, search, category, or migration was created in producing this document, per `prephase22.txt`'s own Part C authority level.**
 
 ---
 

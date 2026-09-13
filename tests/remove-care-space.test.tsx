@@ -91,6 +91,24 @@ describe('RemoveCareSpaceConfirm: checkbox gates the destructive action', () => 
     );
     screen.getByText('Something went wrong.');
   });
+
+  it('a sole organiser (default) sees the original wording and the subscription disclosure', async () => {
+    const screen = await render(
+      <RemoveCareSpaceConfirm visible careSpaceName="Beauty" busy={false} onConfirm={jest.fn()} onCancel={jest.fn()} />,
+    );
+    screen.getByText('This cannot be undone.');
+    screen.getByText(/Removing does not itself cancel an App Store or Google Play subscription/);
+    expect(screen.queryByText(/all active organisers must agree/)).toBeNull();
+  });
+
+  it('requiresAllOrganisers communicates permanence-on-agreement, the agreement requirement, and the subscription disclosure', async () => {
+    const screen = await render(
+      <RemoveCareSpaceConfirm visible careSpaceName="Beauty" requiresAllOrganisers busy={false} onConfirm={jest.fn()} onCancel={jest.fn()} />,
+    );
+    screen.getByText('Once every organiser agrees, this cannot be undone.');
+    screen.getByText(/all active organisers must agree before it can be permanently removed/);
+    screen.getByText(/Requesting removal does not itself cancel an App Store or Google Play subscription/);
+  });
 });
 
 describe('PrivacyDataScreen: Remove a supported person', () => {
@@ -215,16 +233,24 @@ describe('removeCareSpace: local-state removal (careSpaceState.ts)', () => {
     expect(next.supportedPersonName).toBe('Jackie');
   });
 
-  it('leaves activeCareSpaceId undefined when the only care space is removed', () => {
-    const beauty = space({ careSpaceId: 'space-a', displayName: 'Beauty' });
+  it('leaves activeCareSpaceId undefined when the only care space is removed, and clears every projected field -- direct product-owner report: "I deleted Beauty and Janet but the app home page dashboard still shows Janet avatar"', () => {
+    const janet = space({ careSpaceId: 'space-a', displayName: 'Janet' });
     const state = {
       ...initialOnboardingState,
-      careSpaces: { 'space-a': beauty },
+      careSpaces: { 'space-a': janet },
       activeCareSpaceId: 'space-a',
+      supportedPersonName: 'Janet',
     };
     const next = removeCareSpace(state, 'space-a');
     expect(next.activeCareSpaceId).toBeUndefined();
     expect(Object.keys(next.careSpaces)).toHaveLength(0);
+    // The real bug: projectActiveCareSpace() used to return state UNCHANGED
+    // when no care space is active, leaving supportedPersonName (and every
+    // other projected field) stuck at the just-removed person's own value
+    // -- Home reads this directly for its avatar/name.
+    expect(next.supportedPersonName).toBeUndefined();
+    expect(next.records).toEqual([]);
+    expect(next.firstItem).toBeUndefined();
   });
 
   it('is a safe no-op for a care space id that is not present', () => {

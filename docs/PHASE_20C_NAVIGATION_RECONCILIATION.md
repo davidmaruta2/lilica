@@ -322,3 +322,36 @@ Section 24's own regression-risk assessment assumed Care Summary/Recent Activity
 ### 26.4 Deviation from this document's own regression-risk assessment
 
 Section 24 stated the change would touch "exactly one file conceptually" (`SettingsMenu.tsx`) plus `App.tsx` wiring to existing overlay state. The corrected implementation instead added two new `settingsSection` branches in `App.tsx` and removed the overlay-flag detour entirely - still no new screen, no new RPC, no schema change, and still LOW regression risk (verified: 658/658 Jest tests pass, `npm run typecheck` clean), but the exact mechanism differs from what section 24 anticipated. Recorded here rather than silently editing section 24, per this project's standing documentation practice of preserving what was actually decided and why a later correction was needed.
+
+### 26.5 Further drawer evolution, 15 September 2026 (`\downloads\20-22.txt`)
+
+Once `docs/PHASE_20D_CARE_SPACE_LIFECYCLE_PROPOSAL.md` and `docs/PHASE_20E_DOCUMENTS_PROPOSAL.md` were reviewed and approved, the "[Name]'s care" group described above gained two further rows once their own destinations were genuinely working (never added ahead of the destination existing, per that brief's own explicit sequencing instruction): **Documents** and **Manage [Name]'s care**. A separate, account-scoped **Archived care** row was also added to the Account group (not person-scoped, since an archived care space is by definition never the currently active person - see `docs/REVISION_LOG.md`'s matching entry for the full reasoning behind that placement choice). The final structure is now:
+
+```
+Settings
+
+[Name]'s care
+------------------------------
+Care Summary
+Recent Activity
+Documents
+Manage [Name]'s care
+
+------------------------------
+Account
+------------------------------
+Account
+Care Circle
+Archived care (only when at least one exists)
+Privacy & data
+Subscription
+
+------------------------------
+Help
+------------------------------
+How to use Lilica
+FAQ
+Contact
+```
+
+This document's own Option 2 recommendation (section 23) and DO NOT ADD list (section 20) remain otherwise unaffected - no permanent-tab, Add, Key Contacts, or Jointly-style module row was introduced.
