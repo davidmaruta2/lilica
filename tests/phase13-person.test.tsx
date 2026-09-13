@@ -161,7 +161,7 @@ describe('Corrective task 10, section 3: Care circle -- real memberships, never 
     screen.getByText('Organiser');
     // "GP surgery" is a Key contact row, not a care circle row -- it never
     // gains a role suffix or membership treatment.
-    expect(screen.queryByText(/GP surgery — /)).toBeNull();
+    expect(screen.queryByText(/GP surgery - /)).toBeNull();
   });
 
   it('"Manage" opens the existing Care Circle management screen, unchanged', async () => {

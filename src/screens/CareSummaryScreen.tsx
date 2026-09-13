@@ -41,11 +41,11 @@ export function CareSummaryScreen({ records, careCircleMembers, recentActivity, 
     <Screen>
       <Header title="Care summary" onBack={onBack} />
       <AppText variant="secondary" tone="soft" style={styles.intro}>
-        A concise picture of {personName || "this person"}'s care situation — useful if someone else needs to step in.
+        A concise picture of {personName || "this person"}'s care situation - useful if someone else needs to step in.
       </AppText>
       {sections.length === 0 ? (
         <AppText variant="secondary" tone="soft">
-          Nothing to summarise yet — add a few records for {personName || 'this person'} and they'll appear here.
+          Nothing to summarise yet - add a few records for {personName || 'this person'} and they'll appear here.
         </AppText>
       ) : (
         <View style={styles.sections}>

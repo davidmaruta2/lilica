@@ -23,7 +23,7 @@ export function useRevealFocusedInput() {
 
 type Props = ScrollViewProps & {
   children: ReactNode;
-  // Content below the focused field — the screen's footer/CTA — that should
+  // Content below the focused field - the screen's footer/CTA - that should
   // also be brought into view alongside a focused field whenever there is
   // room for both above the keyboard. The focused field always takes
   // priority if a short viewport genuinely can't fit both at once.
@@ -55,7 +55,7 @@ export function KeyboardAwareScrollView({
   // container's own measurement has actually returned. An earlier version
   // cached the container measurement in a ref written by an independent,
   // separately-timed `measureInWindow` call and just hoped one
-  // `requestAnimationFrame` was enough time for it to land — it usually
+  // `requestAnimationFrame` was enough time for it to land - it usually
   // wasn't, so `reveal` kept reading a stale, pre-keyboard (full-height)
   // container size and concluded nothing needed to scroll. That race was
   // platform-independent, which is why it broke identically on Android

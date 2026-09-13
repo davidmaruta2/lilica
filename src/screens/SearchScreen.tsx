@@ -60,7 +60,7 @@ export function SearchScreen({ records, personName, onBack, onOpenRecord }: Prop
 
       {trimmed.length === 0 ? (
         <AppText variant="secondary" tone="soft" style={styles.helper}>
-          Search for anything already saved for {personName || 'this person'} — an appointment, a task, a document, a contact.
+          Search for anything already saved for {personName || 'this person'} - an appointment, a task, a document, a contact.
         </AppText>
       ) : totalMatches === 0 ? (
         <AppText variant="secondary" tone="soft" style={styles.helper}>

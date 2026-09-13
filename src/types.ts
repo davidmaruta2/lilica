@@ -117,7 +117,7 @@ export type FirstItem = {
   responsiblePerson?: string;
   // Phase 9 stable-identity assignment: the active care-space membership ID
   // this record is assigned to, or undefined for explicitly Unassigned.
-  // Never a display name/email — see docs/CORE_SYSTEM_CONTRACT.md section 8.
+  // Never a display name/email - see docs/CORE_SYSTEM_CONTRACT.md section 8.
   // Distinct from the legacy `responsiblePerson` free text above, which is
   // preserved exactly and never inferred to be this assignment.
   assignedMembershipId?: string;

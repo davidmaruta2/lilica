@@ -92,7 +92,7 @@ export function RecentActivityScreen({ careSpaceId, personName, onBack, onOpenRe
         <AppText variant="secondary" tone="danger">{error}</AppText>
       ) : events.length === 0 ? (
         <AppText variant="secondary" tone="soft">
-          Nothing has happened yet for {personName || 'this person'} — activity from everyone in the Care Circle will appear here.
+          Nothing has happened yet for {personName || 'this person'} - activity from everyone in the Care Circle will appear here.
         </AppText>
       ) : (
         <View style={styles.groups}>

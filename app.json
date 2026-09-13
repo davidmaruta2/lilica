@@ -9,7 +9,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "com.luxfordinteractive.lilica",
-      "supportsTablet": true
+      "supportsTablet": false
     },
     "android": {
       "package": "com.luxfordinteractive.lilica",

@@ -147,7 +147,7 @@ describe('RecordEditor: "Does anything need doing?"', () => {
       />,
     );
     await fireEvent.changeText(screen.getAllByDisplayValue('')[0], 'Hospital letter');
-    await fireEvent.press(screen.getByText('Yes — add something to do'));
+    await fireEvent.press(screen.getByText('Yes - add something to do'));
     await fireEvent.changeText(screen.getAllByDisplayValue('')[0], 'Call hospital to confirm');
     expect(onCreateLinkedTask).not.toHaveBeenCalled();
     await fireEvent.press(screen.getByText('Add document'));
@@ -165,7 +165,7 @@ describe('RecordEditor: "Does anything need doing?"', () => {
       />,
     );
     await fireEvent.changeText(screen.getAllByDisplayValue('')[0], 'Hospital letter');
-    await fireEvent.press(screen.getByText('Yes — add something to do'));
+    await fireEvent.press(screen.getByText('Yes - add something to do'));
     await fireEvent.press(screen.getByText('Add document'));
     expect(onCreateLinkedTask).not.toHaveBeenCalled();
   });
@@ -184,7 +184,7 @@ describe('RecordEditor: "Does anything need doing?"', () => {
         onSave={onSave}
       />,
     );
-    await fireEvent.press(screen.getByText('Yes — add something to do'));
+    await fireEvent.press(screen.getByText('Yes - add something to do'));
     const titleField = screen.getAllByDisplayValue('').find((_, index) => index === 0)!;
     await fireEvent.changeText(titleField, 'Call hospital to confirm');
     await fireEvent.press(screen.getByText('Add this task'));

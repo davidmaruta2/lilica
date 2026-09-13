@@ -18,7 +18,7 @@ const baseProps = {
   remindersEnabled: false,
   reminderPermissionState: 'undetermined' as const,
   quietHoursEnabled: false,
-  quietHoursLabel: '9pm–8am',
+  quietHoursLabel: '9pm-8am',
   onToggleReminders: jest.fn(),
   onToggleQuietHours: jest.fn(),
   onSaveDisplayName: jest.fn(),

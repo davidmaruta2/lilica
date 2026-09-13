@@ -10,7 +10,6 @@ import { colors, radius, shadow, spacing } from '../theme';
 import { CareSpaceSetupStatus, FirstItem, LilicaRecordType, LocalCareSpaceState, OnboardingState } from '../types';
 import { PersonSwitcher } from '../components/PersonSwitcher';
 import { PlusIcon } from '../components/PlusIcon';
-import { SearchButton } from '../components/SearchButton';
 import { SettingsCogButton } from '../components/SettingsCogButton';
 import { useRef, useState } from 'react';
 
@@ -104,7 +103,7 @@ function sectionFor(item: FirstItem) {
 // existing theme tokens (no new colors, no new dependency). Only 5 tonal
 // tint/accent pairs exist in theme.ts, so the 4 categories outside the
 // approved snapshot row (document, contact, careNote, update) reuse the
-// closest existing pair by icon shape rather than by color — still
+// closest existing pair by icon shape rather than by color - still
 // distinguishable at a glance, still no new token added anywhere.
 export type CategoryVisual = { tint: string; accent: string };
 
@@ -123,7 +122,7 @@ export function visualFor(type: LilicaRecordType): CategoryVisual {
   return CATEGORY_VISUALS[type];
 }
 
-// Small drawn icons built from plain Views only — the same technique
+// Small drawn icons built from plain Views only - the same technique
 // already used elsewhere in this app (Wordmark's leaf mark, PersonSwitcher's
 // tick), so this needed no new icon-library dependency.
 export function CategoryIcon({ type, color }: { type: LilicaRecordType; color: string }) {
@@ -289,6 +288,36 @@ export function HomeScreen({
     scrollRef.current?.scrollTo({ y: Math.max(sectionsContainerY.current + offset - spacing.md, 0), animated: true });
   }
 
+  // Search4 UI refinement: the horizontal dashboard strip wasn't visibly
+  // scrollable -- left/right chevrons make that obvious and give a second
+  // way to move through it, without replacing ordinary swipe/drag (brief
+  // requirements 13-19). Plain onLayout/onContentSizeChange/onScroll
+  // measurements only (the same technique already used for scrollToSection
+  // above), so this needs no extra native module.
+  const stripScrollRef = useRef<ScrollView>(null);
+  const stripScrollX = useRef(0);
+  const stripContainerWidth = useRef(0);
+  const stripContentWidth = useRef(0);
+  const [canScrollStripLeft, setCanScrollStripLeft] = useState(false);
+  const [canScrollStripRight, setCanScrollStripRight] = useState(false);
+  const STRIP_SCROLL_AMOUNT = 220;
+  const STRIP_SCROLL_EPSILON = 4;
+
+  function updateStripChevronState() {
+    setCanScrollStripLeft(stripScrollX.current > STRIP_SCROLL_EPSILON);
+    setCanScrollStripRight(
+      stripScrollX.current < stripContentWidth.current - stripContainerWidth.current - STRIP_SCROLL_EPSILON,
+    );
+  }
+
+  function scrollStripBy(delta: number) {
+    const next = Math.max(
+      0,
+      Math.min(stripScrollX.current + delta, Math.max(stripContentWidth.current - stripContainerWidth.current, 0)),
+    );
+    stripScrollRef.current?.scrollTo({ x: next, animated: true });
+  }
+
   const currentSpace = activeCareSpace(state);
   const derived = records.map((record) => deriveRecordState(record));
   const overdueCount = derived.filter((item) => item.overdue).length;
@@ -367,31 +396,59 @@ export function HomeScreen({
         </View>
         <View style={styles.headerActions}>
           <Button label="Add" icon={<PlusIcon />} onPress={onAddSomething} style={styles.addButton} />
-          {onOpenSearch ? <SearchButton onPress={onOpenSearch} /> : null}
           {onOpenSettings ? <SettingsCogButton onPress={onOpenSettings} /> : null}
         </View>
       </View>
 
-      {/* Corrective task 3: same wording, same component concept -- opens
-          the existing PersonSwitcher exactly as before. Only the tile's
-          own visual affordance changed: elevation + a stronger border to
-          read as a real tappable surface (matching the card treatment
-          Home's own record cards already use), a drawn chevron (the same
-          border+rotate technique Header.tsx's back chevron already uses,
-          just pointing down) replacing the plain "v" character, and a
-          clearer pressed state -- never a loud primary-color CTA. */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Switch person, currently ${personName}`}
-        onPress={() => setSwitcherOpen(true)}
-        style={({ pressed }) => [styles.switcherCard, pressed && styles.switcherCardPressed]}
-      >
-        <View style={styles.switcherIcon}>
-          <AppText variant="bodyStrong" tone="primary">{personName.charAt(0).toUpperCase()}</AppText>
-        </View>
-        <AppText variant="bodyStrong" style={styles.switcherCopy}>Everything for {personName}, in one place.</AppText>
-        <View style={styles.switcherChevron} />
-      </Pressable>
+      {/* Search4 UI refinement: the person-switcher and the search
+          affordance are now two separate, side-by-side elements, matching
+          the approved mock -- previously one combined row that only ever
+          opened the switcher (search lived as a small icon in the header
+          instead). The switcher itself is unchanged in behaviour (same
+          onPress, same PersonSwitcher, same accessibility label existing
+          tests rely on): only its own visual presentation moved -- a
+          larger initial, a chevron alongside it, and the person's first
+          name shown directly beneath. */}
+      <View style={styles.topRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Switch person, currently ${personName}`}
+          onPress={() => setSwitcherOpen(true)}
+          style={({ pressed }) => [styles.avatarButton, pressed && styles.avatarButtonPressed]}
+        >
+          <View style={styles.avatarRow}>
+            <View style={styles.avatarCircle}>
+              <AppText variant="title" tone="primary" style={styles.avatarInitial}>{personName.charAt(0).toUpperCase()}</AppText>
+            </View>
+            <View style={styles.avatarChevron} />
+          </View>
+          <AppText variant="bodyStrong" numberOfLines={1} style={styles.avatarName}>{personName}</AppText>
+        </Pressable>
+
+        {/* The Home search box is not an inline expanding field -- tapping
+            it navigates straight to the existing dedicated Search screen
+            (Phase 20B), exactly as already implemented and approved; only
+            this control's own visual presentation (a real search-bar look,
+            moved out of the header) changed here. */}
+        {onOpenSearch ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Search"
+            accessibilityHint={`Search ${personName}'s records`}
+            onPress={onOpenSearch}
+            style={({ pressed }) => [styles.searchBar, pressed && styles.searchBarPressed]}
+          >
+            {/* A real magnifying-glass glyph, not a hand-drawn ring+handle
+                -- at this size, against this background, the drawn
+                version read as a stray mark next to the text rather than
+                a recognisable search icon. */}
+            <AppText style={styles.searchGlassGlyph}>🔍</AppText>
+            <AppText variant="body" tone="soft" numberOfLines={1} style={styles.searchCopy}>
+              Everything for {personName}, in one place.
+            </AppText>
+          </Pressable>
+        ) : null}
+      </View>
 
       {setupStatus !== 'ready' ? (
         <View style={styles.setupCard}>
@@ -402,7 +459,27 @@ export function HomeScreen({
       ) : (
         <>
           {records.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.snapshotRow}>
+            <View style={styles.stripWrap}>
+              <ScrollView
+                ref={stripScrollRef}
+                testID="dashboard-strip-scroll"
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.snapshotRow}
+                onLayout={(event) => {
+                  stripContainerWidth.current = event.nativeEvent.layout.width;
+                  updateStripChevronState();
+                }}
+                onContentSizeChange={(width) => {
+                  stripContentWidth.current = width;
+                  updateStripChevronState();
+                }}
+                onScroll={(event) => {
+                  stripScrollX.current = event.nativeEvent.contentOffset.x;
+                  updateStripChevronState();
+                }}
+                scrollEventThrottle={16}
+              >
               {statusChips.map((chip) => {
                 // Corrective task 2: the whole tile is one Pressable
                 // (requirement 1), not just its icon/text -- and it only
@@ -433,7 +510,31 @@ export function HomeScreen({
                   </Pressable>
                 );
               })}
-            </ScrollView>
+              </ScrollView>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Scroll dashboard left"
+                accessibilityState={{ disabled: !canScrollStripLeft }}
+                disabled={!canScrollStripLeft}
+                onPress={() => scrollStripBy(-STRIP_SCROLL_AMOUNT)}
+                hitSlop={8}
+                style={[styles.stripChevron, styles.stripChevronLeft, !canScrollStripLeft && styles.stripChevronDisabled]}
+              >
+                <View style={[styles.stripChevronArrow, styles.stripChevronArrowLeft]} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Scroll dashboard right"
+                accessibilityState={{ disabled: !canScrollStripRight }}
+                disabled={!canScrollStripRight}
+                onPress={() => scrollStripBy(STRIP_SCROLL_AMOUNT)}
+                hitSlop={8}
+                style={[styles.stripChevron, styles.stripChevronRight, !canScrollStripRight && styles.stripChevronDisabled]}
+              >
+                <View style={[styles.stripChevronArrow, styles.stripChevronArrowRight]} />
+              </Pressable>
+            </View>
           ) : null}
 
           {sections.length > 0 ? (
@@ -542,53 +643,132 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     gap: spacing.xxs,
   },
-  switcherCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    minHeight: 56,
+  // Search4 UI refinement: the switcher (avatar + chevron + name) and the
+  // search bar now sit side by side as two independent elements, rather
+  // than one combined row -- see the render block above for why.
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    // Deliberate breathing room before the dashboard strip beneath (brief
+    // requirement 5) -- more than the ScrollView's own default `gap`
+    // between every other pair of sections, but not excessive dead space.
+    marginBottom: spacing.sm,
+  },
+  avatarButton: {
+    alignItems: 'center',
+    gap: spacing.xxs,
+  },
+  avatarButtonPressed: {
+    opacity: 0.85,
+  },
+  avatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    ...shadow.soft,
+    gap: spacing.xxs,
   },
-  // Corrective task 3: the same scale+opacity feedback already used for
-  // the strip tiles and Button.tsx, plus a warm (not loud) border-color
-  // shift toward the brand accent -- clearly "pressed", never a bold CTA.
-  switcherCardPressed: {
-    transform: [{ scale: 0.99 }],
-    opacity: 0.9,
-    borderColor: colors.primary,
-  },
-  // A small drawn down-chevron, the same border+rotate technique
-  // Header.tsx's back chevron already uses (just pointing down instead
-  // of left) -- no new icon dependency, no new visual language.
-  switcherChevron: {
-    width: 10,
-    height: 10,
-    borderLeftWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: colors.primary,
-    transform: [{ rotate: '-45deg' }],
-  },
-  switcherIcon: {
-    width: 34,
-    height: 34,
+  // Larger than the previous 34px/16px pairing (brief requirement 3: "make
+  // the initial larger... do not make the avatar disproportionately
+  // large") -- the same primarySoft/primary tonal pair, just bigger.
+  avatarCircle: {
+    width: 56,
+    height: 56,
     borderRadius: radius.pill,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  switcherCopy: {
+  avatarInitial: {
+    fontSize: 26,
+  },
+  // Same border+rotate technique as Header.tsx's back chevron and the
+  // switcher's own previous down-chevron, just pointing down here too --
+  // no new icon dependency, no new visual language.
+  avatarChevron: {
+    width: 9,
+    height: 9,
+    borderLeftWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: colors.primary,
+    transform: [{ rotate: '-45deg' }],
+  },
+  avatarName: {
+    maxWidth: 84,
+  },
+  // The real search-bar look the brief asks for (brief requirement 6),
+  // filling the remaining row width next to the avatar column.
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 56,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: spacing.md,
+    ...shadow.soft,
+  },
+  searchBarPressed: {
+    transform: [{ scale: 0.99 }],
+    opacity: 0.9,
+    borderColor: colors.primary,
+  },
+  searchGlassGlyph: {
+    fontSize: 18,
+  },
+  searchCopy: {
     flex: 1,
   },
   setupCard: { marginTop: spacing.xl, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.oliveSoft, gap: spacing.sm },
+  stripWrap: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
   snapshotRow: {
     gap: spacing.sm,
     paddingRight: spacing.lg,
+  },
+  // Restrained, premium discoverability aid for the horizontally
+  // scrollable strip (brief requirements 13/17) -- small, sitting just
+  // outside the strip's own edge, never a giant or loud floating control,
+  // and never a substitute for ordinary swipe/drag (unchanged above).
+  stripChevron: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -16,
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+    ...shadow.soft,
+  },
+  stripChevronLeft: {
+    left: -6,
+  },
+  stripChevronRight: {
+    right: -6,
+  },
+  stripChevronDisabled: {
+    opacity: 0.35,
+  },
+  stripChevronArrow: {
+    width: 8,
+    height: 8,
+    borderLeftWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: colors.primary,
+  },
+  stripChevronArrowLeft: {
+    transform: [{ rotate: '45deg' }],
+    marginLeft: 2,
+  },
+  stripChevronArrowRight: {
+    transform: [{ rotate: '225deg' }],
+    marginRight: 2,
   },
   statusChip: {
     width: 150,

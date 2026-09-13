@@ -1,6 +1,6 @@
 // `app.json` declares `android.softwareKeyboardLayoutMode: "resize"`, but
 // that native config only takes effect in a custom dev client or a
-// standalone/production build — Expo Go's own host app ships a fixed native
+// standalone/production build - Expo Go's own host app ships a fixed native
 // AndroidManifest and never applies a loaded project's native Android
 // config. Inside Expo Go the window never actually resizes for the
 // keyboard, so `KeyboardAwareScrollView`'s reveal logic has nothing to react

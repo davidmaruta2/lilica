@@ -49,7 +49,7 @@ export function SubscriptionScreen({ entitlement, loading, error, onBack, onSubs
     setActionMessage(undefined);
     const result = await onRestore();
     setActionPending(undefined);
-    setActionMessage(result.ok ? 'Restored — thank you.' : (result.message ?? 'Nothing to restore on this account.'));
+    setActionMessage(result.ok ? 'Restored - thank you.' : (result.message ?? 'Nothing to restore on this account.'));
   }
 
   const isActive = entitlement ? isEntitlementActiveNow(entitlement) : false;
@@ -76,7 +76,7 @@ export function SubscriptionScreen({ entitlement, loading, error, onBack, onSubs
             <AppText variant="bodyStrong">{entitlement ? describeEntitlement(entitlement) : 'Loading your subscription…'}</AppText>
             {!isActive && entitlement ? (
               <AppText variant="secondary" tone="soft" style={styles.statusDetail}>
-                Everything you've already added is still here — you can view, search and export it at any time. Subscribing lets you continue adding and managing care.
+                Everything you've already added is still here - you can view, search and export it at any time. Subscribing lets you continue adding and managing care.
               </AppText>
             ) : null}
           </View>

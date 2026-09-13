@@ -49,3 +49,15 @@ describe('SearchScreen', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('search4.txt: Home -> Search interaction requirements', () => {
+  it('the screen title uses the current supported person\'s first name -- "Search [FirstName]"', async () => {
+    const screen = await render(<SearchScreen records={records} personName="Maggie" onBack={jest.fn()} onOpenRecord={jest.fn()} />);
+    screen.getByText('Search Maggie');
+  });
+
+  it('the search field is set to receive focus automatically on open, so the keyboard opens without a second tap', async () => {
+    const screen = await render(<SearchScreen records={records} personName="Maggie" onBack={jest.fn()} onOpenRecord={jest.fn()} />);
+    expect(screen.getByLabelText('Search').props.autoFocus).toBe(true);
+  });
+});

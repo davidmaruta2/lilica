@@ -65,7 +65,7 @@ export function ContactsListScreen({ contacts, personName, onBack, onOpenRecord,
         </ScrollView>
       ) : (
         <AppText variant="secondary" tone="soft">
-          No key contacts saved for {personName || 'them'} yet — GP, pharmacy, a neighbour or anyone else useful to have on hand.
+          No key contacts saved for {personName || 'them'} yet - GP, pharmacy, a neighbour or anyone else useful to have on hand.
         </AppText>
       )}
     </Screen>

@@ -73,7 +73,7 @@ describe('RecordDetail: empty optional fields are omitted, not shown as clutter'
     const screen = await render(<RecordDetail record={record} />);
     expect(screen.queryByText('Location')).toBeNull();
     expect(screen.queryByText('Notes')).toBeNull();
-    expect(screen.queryByText(/^—$/)).toBeNull();
+    expect(screen.queryByText(/^-$/)).toBeNull();
   });
 
   it('"Assigned to" is still shown as Unassigned -- absence there is meaningful, unlike a blank optional text field', async () => {

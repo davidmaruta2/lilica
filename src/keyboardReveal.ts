@@ -22,7 +22,7 @@ export function computeRevealScrollTo(params: {
   target: RevealRect;
   currentOffset: number;
   padding?: number;
-  // Optional trailing content — typically the screen's footer/CTA — to also
+  // Optional trailing content - typically the screen's footer/CTA - to also
   // bring into view alongside `target` when there is room for both. The
   // focused field (`target`) always wins: it is never scrolled above the
   // visible top just to make more room for `trailing`.

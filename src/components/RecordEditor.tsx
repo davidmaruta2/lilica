@@ -52,7 +52,7 @@ type Props = {
   // The organiser's own stable membership ID for the active care space.
   // "Assigned to: You" stores this ID, never a display name. Only Unassigned
   // and You are offered today because no other active membership exists
-  // yet (Phase 15 owns invitations/collaboration) — see fork.txt Part 5.
+  // yet (Phase 15 owns invitations/collaboration) - see fork.txt Part 5.
   activeMembershipId?: string;
   // Phase 15: the real active care-circle members (never pending/declined/
   // expired/revoked/removed/left -- see list_care_space_members()). When
@@ -590,7 +590,7 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
               onPress={() => setWantsTask(false)}
               style={[styles.segment, !wantsTask && styles.segmentSelected]}
             >
-              <AppText variant="secondary" tone={!wantsTask ? 'primary' : 'soft'} centre>No — just keep this</AppText>
+              <AppText variant="secondary" tone={!wantsTask ? 'primary' : 'soft'} centre>No - just keep this</AppText>
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -598,7 +598,7 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
               onPress={() => setWantsTask(true)}
               style={[styles.segment, wantsTask && styles.segmentSelected]}
             >
-              <AppText variant="secondary" tone={wantsTask ? 'primary' : 'soft'} centre>Yes — add something to do</AppText>
+              <AppText variant="secondary" tone={wantsTask ? 'primary' : 'soft'} centre>Yes - add something to do</AppText>
             </Pressable>
           </View>
           {wantsTask ? (

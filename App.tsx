@@ -1364,7 +1364,7 @@ function LilicaApp() {
               remindersEnabled={notificationSettings.remindersEnabled}
               reminderPermissionState={reminderPermissionState}
               quietHoursEnabled={notificationSettings.quietHoursEnabled}
-              quietHoursLabel={`${formatQuietHour(notificationSettings.quietHours.startHour)}–${formatQuietHour(notificationSettings.quietHours.endHour)}`}
+              quietHoursLabel={`${formatQuietHour(notificationSettings.quietHours.startHour)}-${formatQuietHour(notificationSettings.quietHours.endHour)}`}
               onToggleReminders={(enabled) => void toggleGlobalReminders(enabled)}
               onToggleQuietHours={toggleQuietHours}
               onSaveDisplayName={auth.saveProfile}

@@ -101,7 +101,7 @@ describe('computeRevealScrollTo', () => {
 
     it('never scrolls the focused field itself off the top edge to chase a CTA that cannot fully fit', () => {
       // An extreme short viewport where field + CTA together exceed the
-      // available height. The field must win — it is what the user is
+      // available height. The field must win - it is what the user is
       // actively typing into. Uncapped, revealing the CTA fully would need
       // to scroll by (120+56+24-150)=50, which would push the field's own
       // top from 40 to -10 (off the top edge). The field's own top is the
