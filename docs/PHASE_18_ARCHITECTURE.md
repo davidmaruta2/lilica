@@ -109,7 +109,7 @@ Inspected, not implemented. No existing lifecycle policy for deleting a `care_sp
 
 ## 10. Billing
 
-Not implemented, not referenced in any code path. Recorded here, as instructed, as **future approved commercial direction only**: new users receive full Lilica access for one month; continued use thereafter is intended to cost £8.99 per year. No subscription, paywall, purchase, entitlement, or billing screen exists anywhere in this change.
+Not implemented, not referenced in any code path. Recorded here, as instructed, as **future approved commercial direction only**: new users receive full Lilica access for two months; continued use thereafter is intended to cost £8.99 per year. No subscription, paywall, purchase, entitlement, or billing screen exists anywhere in this change.
 
 ## Testing
 
