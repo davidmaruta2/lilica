@@ -72,6 +72,10 @@ import {
   MyInvitation,
 } from './src/careCircle';
 import { InvitationsScreen } from './src/screens/InvitationsScreen';
+import { ActivityEvent, listRecentActivity } from './src/activity';
+import { RecentActivityScreen } from './src/screens/RecentActivityScreen';
+import { CareSummaryScreen } from './src/screens/CareSummaryScreen';
+import { SearchScreen } from './src/screens/SearchScreen';
 import {
   enqueueRecordDelete,
   enqueueRecordUpsert,
@@ -228,6 +232,21 @@ function LilicaApp() {
   const [myInvitations, setMyInvitations] = useState<MyInvitation[]>([]);
   const [showInvitations, setShowInvitations] = useState(false);
   const invitationsAutoOpened = useRef(false);
+  // Phase 20B: Recent Activity's own bounded first page, refetched
+  // whenever the active care space changes -- mirrors the careCircleMembers
+  // effect below exactly, including the local-only-care-space guard (there
+  // is no server activity feed for a space that was never synced). Care
+  // Summary and Recent Activity share this same array rather than each
+  // fetching their own copy -- one source of truth, multiple projections.
+  const [recentActivity, setRecentActivity] = useState<ActivityEvent[]>([]);
+  const [showRecentActivity, setShowRecentActivity] = useState(false);
+  const [showCareSummary, setShowCareSummary] = useState(false);
+  // Phase 20B: Search is keyed by the active care space id in renderShell
+  // below, so switching supported person while it's open always remounts
+  // it fresh rather than risk showing a stale query/result set (brief
+  // section 19/35) -- closing it outright on a switch is simpler still and
+  // is what this flag does.
+  const [showSearch, setShowSearch] = useState(false);
   const storageOwnerId = auth.session?.user.id ?? null;
   const legacyBootstrapInFlight = useRef(false);
   const reconnectedOwnerId = useRef<string | undefined>(undefined);
@@ -288,6 +307,41 @@ function LilicaApp() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSpace?.careSpaceId, careCircleScreenActive]);
+
+  // Phase 20B: a person switch closes Search/Recent Activity/Care Summary
+  // outright -- never show one supported person's results/activity/summary
+  // a moment after switching to another (brief section 19/35). A ref
+  // tracks the previous care space id so this only fires on a genuine
+  // switch, never on the reload below (which intentionally leaves the
+  // screen open).
+  const previousCareSpaceId = useRef(currentSpace?.careSpaceId);
+  useEffect(() => {
+    if (previousCareSpaceId.current !== currentSpace?.careSpaceId) {
+      previousCareSpaceId.current = currentSpace?.careSpaceId;
+      setShowSearch(false);
+      setShowRecentActivity(false);
+      setShowCareSummary(false);
+    }
+  }, [currentSpace?.careSpaceId]);
+
+  // Phase 20B: reload the active care space's first page of recent
+  // activity whenever the active space changes, and again whenever Recent
+  // Activity or Care Summary is opened (something may have just happened
+  // since it was last fetched).
+  useEffect(() => {
+    if (!currentSpace || currentSpace.careSpaceId.startsWith('local-')) {
+      setRecentActivity([]);
+      return;
+    }
+    let cancelled = false;
+    listRecentActivity(currentSpace.careSpaceId).then((result) => {
+      if (!cancelled && result.ok) setRecentActivity(result.data.events);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSpace?.careSpaceId, showRecentActivity, showCareSummary]);
 
   // Phase 15: surface the invitations screen automatically the first time
   // this session finds any pending invitation -- but only once, so a user
@@ -934,7 +988,41 @@ function LilicaApp() {
   function renderShell() {
     let content;
 
-    if (showWellbeingUpdates) {
+    if (showSearch) {
+      // Phase 20B, Feature B: keyed by the active care space id so a
+      // person switch (which also closes this screen -- see the effect
+      // above) can never leave a stale query/result set mounted underneath
+      // a fresh remount for a different person.
+      content = (
+        <SearchScreen
+          key={currentSpace?.careSpaceId}
+          records={state.records}
+          personName={currentSpace?.displayName}
+          onBack={() => setShowSearch(false)}
+          onOpenRecord={openRecordFromProjection}
+        />
+      );
+    } else if (showRecentActivity) {
+      content = (
+        <RecentActivityScreen
+          careSpaceId={currentSpace && !currentSpace.careSpaceId.startsWith('local-') ? currentSpace.careSpaceId : undefined}
+          personName={currentSpace?.displayName}
+          onBack={() => setShowRecentActivity(false)}
+          onOpenRecord={openRecordFromProjection}
+        />
+      );
+    } else if (showCareSummary) {
+      content = (
+        <CareSummaryScreen
+          records={state.records}
+          careCircleMembers={careCircleMembers}
+          recentActivity={recentActivity}
+          personName={currentSpace?.displayName}
+          onBack={() => setShowCareSummary(false)}
+          onOpenRecord={openRecordFromProjection}
+        />
+      );
+    } else if (showWellbeingUpdates) {
       content = (
         <WellbeingUpdatesScreen
           records={state.records}
@@ -993,6 +1081,7 @@ function LilicaApp() {
           onOpenAssignedToYou={openToDoAssignedToMe}
           onOpenWellbeingUpdates={() => setShowWellbeingUpdates(true)}
           onOpenSettings={() => setShowSettingsMenu(true)}
+          onOpenSearch={() => setShowSearch(true)}
         />
       );
     } else if (activeTab === 'calendar') {
@@ -1056,6 +1145,8 @@ function LilicaApp() {
           onOpenInvitations={() => setShowInvitations(true)}
           onViewAllContacts={() => setShowAllContacts(true)}
           selfAvatarPath={auth.profile?.avatarPath}
+          onOpenCareSummary={careCircleAvailable ? () => setShowCareSummary(true) : undefined}
+          onOpenRecentActivity={careCircleAvailable ? () => setShowRecentActivity(true) : undefined}
         />
       );
     }

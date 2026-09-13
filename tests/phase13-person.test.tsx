@@ -172,6 +172,28 @@ describe('Corrective task 10, section 3: Care circle -- real memberships, never 
   });
 });
 
+describe('Phase 20B: Care summary and Recent activity entry points', () => {
+  it('"Care summary" is not shown for a local-only care space, exactly like "Manage"', async () => {
+    const screen = await render(<PersonScreen {...baseProps} records={[]} />);
+    expect(screen.queryByLabelText('View care summary')).toBeNull();
+    expect(screen.queryByLabelText('View recent activity')).toBeNull();
+  });
+
+  it('"Care summary" opens the new Care Summary screen', async () => {
+    const onOpenCareSummary = jest.fn();
+    const screen = await render(<PersonScreen {...baseProps} records={[]} onOpenCareSummary={onOpenCareSummary} />);
+    await fireEvent.press(screen.getByLabelText('View care summary'));
+    expect(onOpenCareSummary).toHaveBeenCalledTimes(1);
+  });
+
+  it('"Recent activity" opens the new Recent Activity screen', async () => {
+    const onOpenRecentActivity = jest.fn();
+    const screen = await render(<PersonScreen {...baseProps} records={[]} onOpenRecentActivity={onOpenRecentActivity} />);
+    await fireEvent.press(screen.getByLabelText('View recent activity'));
+    expect(onOpenRecentActivity).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('Corrective task 10, section 4: Ask Lilica moved from Home to People', () => {
   it('People shows the Ask Lilica placeholder', async () => {
     const screen = await render(<PersonScreen {...baseProps} records={[]} />);

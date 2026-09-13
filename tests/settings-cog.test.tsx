@@ -123,6 +123,27 @@ describe('Settings cog on the four primary tabs', () => {
     expect(screen.queryByLabelText('Settings')).toBeNull();
   });
 
+  it('Phase 20B: Home renders the search button and calls onOpenSearch', async () => {
+    const onOpenSearch = jest.fn();
+    const screen = await render(
+      <HomeScreen
+        state={{ ...initialOnboardingState, stage: 'home' }}
+        onAddSomething={jest.fn()}
+        onDismissAllSet={jest.fn()}
+        onOpenSearch={onOpenSearch}
+      />,
+    );
+    await fireEvent.press(screen.getByLabelText('Search'));
+    expect(onOpenSearch).toHaveBeenCalledTimes(1);
+  });
+
+  it('Phase 20B: Home omits the search button entirely when onOpenSearch is not supplied', async () => {
+    const screen = await render(
+      <HomeScreen state={{ ...initialOnboardingState, stage: 'home' }} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
+    );
+    expect(screen.queryByLabelText('Search')).toBeNull();
+  });
+
   it('Calendar renders the cog and calls onOpenSettings', async () => {
     const onOpenSettings = jest.fn();
     const screen = await render(

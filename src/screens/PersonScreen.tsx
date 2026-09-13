@@ -64,6 +64,11 @@ type Props = {
   // OTHER members' photos to each other is a separate, real product
   // decision not made here (see src/profileAvatar.ts's own scope note).
   selfAvatarPath?: string;
+  // Phase 20B: omitted for a local-only care space, exactly like
+  // onOpenCareCircle above -- there is nothing to summarise/have activity
+  // on until the space is genuinely synced. See docs/PHASE_20_ARCHITECTURE.md.
+  onOpenCareSummary?: () => void;
+  onOpenRecentActivity?: () => void;
 };
 
 const CONTACT_PREVIEW_LIMIT = 4;
@@ -109,6 +114,8 @@ export function PersonScreen({
   careCircleMembers = [],
   onViewAllContacts,
   selfAvatarPath,
+  onOpenCareSummary,
+  onOpenRecentActivity,
 }: Props) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [openMember, setOpenMember] = useState<{ member: CareCircleMember; tone: { chip: string; text: string } }>();
@@ -192,6 +199,17 @@ export function PersonScreen({
           </View>
           {people.length > 1 ? <View style={styles.personChevron} /> : null}
         </Pressable>
+        {onOpenCareSummary ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View care summary"
+            onPress={onOpenCareSummary}
+            style={styles.careSummaryLink}
+          >
+            <AppText variant="secondary" style={styles.onDarkLink}>Care summary</AppText>
+            <View style={styles.viewAllChevron} />
+          </Pressable>
+        ) : null}
       </View>
 
       {/* Section 2: KEY CONTACTS -- useful external people/services (GP,
@@ -309,6 +327,17 @@ export function PersonScreen({
             </View>
           ) : null}
         </View>
+        {onOpenRecentActivity ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View recent activity"
+            onPress={onOpenRecentActivity}
+            style={styles.recentActivityLink}
+          >
+            <AppText variant="secondary" tone="primary" style={styles.recentActivityLabel}>Recent activity</AppText>
+            <View style={styles.manageChevron} />
+          </Pressable>
+        ) : null}
       </View>
 
       {/* Section 4: ASK LILICA -- re-homed from Home exactly as it already
@@ -433,6 +462,25 @@ const styles = StyleSheet.create({
   personCopy: {
     flex: 1,
     gap: 2,
+  },
+  // Phase 20B: a small, restrained entry point under the person card --
+  // deliberately not a card of its own, so it reads as a footnote link
+  // rather than a fourth "section" competing with Key contacts/Care circle.
+  careSummaryLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: spacing.xxs,
+    marginTop: spacing.xxs,
+  },
+  recentActivityLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: spacing.xxs,
+  },
+  recentActivityLabel: {
+    fontWeight: '700',
   },
   // Same drawn-chevron-down technique as Home's own switcher card.
   personChevron: {

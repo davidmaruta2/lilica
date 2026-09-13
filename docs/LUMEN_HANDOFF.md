@@ -16,6 +16,8 @@ Read `docs/PROJECT_BRIEF.md`, `AGENTS.md`, `docs/SUPABASE_OPERATIONS.md` and `do
 
 **Future approved roadmap (added 13 September 2026, documentation only, none started):** Phase 20 — Competitive Gap Review & Carer-Focused Enhancements; Phase 21 — Billing, Subscription & Membership/Entitlement; Phase 22 — Premium Visual Optimisation & Experience Polish. See `docs/CORE_SYSTEM_CONTRACT.md` for the canonical wording of each, including Phase 20's and Phase 22's mandatory audit/approval gates before any implementation. Do not begin any of these without their own separately approved implementation prompt.
 
+**Phase 20 update (13 September 2026):** Phase 20A's audit (`docs/PHASE_20_GAP_AUDIT.md`) is complete. Phase 20B then implemented exactly three approved candidates from it — Recent Activity/Care History, Unified Current-Person Search, and Care/Handover Summary — see `docs/PHASE_20_ARCHITECTURE.md`/`docs/PHASE_20_QA.md`. Every other Phase 20A candidate remains explicitly not implemented; Phase 21/22 have not started. Not yet committed.
+
 ## Implemented Product State
 
 The working app now includes:

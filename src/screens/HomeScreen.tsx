@@ -10,6 +10,7 @@ import { colors, radius, shadow, spacing } from '../theme';
 import { CareSpaceSetupStatus, FirstItem, LilicaRecordType, LocalCareSpaceState, OnboardingState } from '../types';
 import { PersonSwitcher } from '../components/PersonSwitcher';
 import { PlusIcon } from '../components/PlusIcon';
+import { SearchButton } from '../components/SearchButton';
 import { SettingsCogButton } from '../components/SettingsCogButton';
 import { useRef, useState } from 'react';
 
@@ -47,6 +48,12 @@ type Props = {
   // dead button -- matches this app's existing "never a fake affordance"
   // discipline (see Assigned-to-you's own omit-not-fake-zero precedent).
   onOpenSettings?: () => void;
+  // Phase 20B: the one, simple, unified search entry point for the
+  // current supported person. Works identically for a synced or a
+  // local-only care space -- it only ever reads `state.records`, exactly
+  // like every other projection on this screen, so it is always shown
+  // once there is anything to search.
+  onOpenSearch?: () => void;
 };
 
 function itemTiming(item: FirstItem) {
@@ -257,6 +264,7 @@ export function HomeScreen({
   onOpenAssignedToYou,
   onOpenWellbeingUpdates,
   onOpenSettings,
+  onOpenSearch,
 }: Props) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const records = state.records.length > 0 ? state.records : state.firstItem ? [state.firstItem] : [];
@@ -359,6 +367,7 @@ export function HomeScreen({
         </View>
         <View style={styles.headerActions}>
           <Button label="Add" icon={<PlusIcon />} onPress={onAddSomething} style={styles.addButton} />
+          {onOpenSearch ? <SearchButton onPress={onOpenSearch} /> : null}
           {onOpenSettings ? <SettingsCogButton onPress={onOpenSettings} /> : null}
         </View>
       </View>
