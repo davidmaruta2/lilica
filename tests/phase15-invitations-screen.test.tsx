@@ -27,8 +27,16 @@ describe('Phase 15: InvitationsScreen', () => {
       <InvitationsScreen invitations={[invitation]} onAccept={jest.fn()} onDecline={jest.fn()} onClose={jest.fn()} />,
     );
     screen.getByText('Jackie');
-    screen.getByText(/Invited by Olu as a Contributor \(Cousin\)/);
-    screen.getByText(/Everyday things, Home & car/);
+    screen.getByText(/Invited by Olu as a Contributor/);
+    expect(screen.queryByText(/Cousin/)).toBeNull();
+    // Care Circle permission-domain audit follow-up: the invitee now
+    // sees the SAME real description an organiser sees when choosing
+    // what to grant (DOMAIN_DESCRIPTIONS, never a second set) for every
+    // granted domain, not just its bare label.
+    screen.getByText('Everyday things', { exact: false });
+    screen.getByText(/Appointments, tasks, contacts and everyday updates/);
+    screen.getByText('Home & car', { exact: false });
+    screen.getByText(/Home and car matters, like repairs and maintenance/);
   });
 
   it('accepting calls onAccept with the invitation id', async () => {

@@ -5,7 +5,7 @@ import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
-import { DOMAIN_LABELS, MyInvitation } from '../careCircle';
+import { DOMAIN_DESCRIPTIONS, DOMAIN_LABELS, MyInvitation } from '../careCircle';
 import { colors, radius, spacing } from '../theme';
 
 type Result = { ok: boolean; message?: string };
@@ -55,13 +55,19 @@ export function InvitationsScreen({ invitations, onAccept, onDecline, onClose }:
             <AppText variant="body" tone="primary">{invitation.careSpaceName}</AppText>
             <AppText variant="secondary" tone="soft">
               Invited by {invitation.invitedByDisplayName} as {invitation.role === 'contributor' ? 'a Contributor' : 'a Viewer'}
-              {invitation.relationshipLabel ? ` (${invitation.relationshipLabel})` : ''}
             </AppText>
-            <AppText variant="secondary" tone="muted">
-              {invitation.grantedDomains.length > 0
-                ? `You'll be able to see: ${invitation.grantedDomains.map((domain) => DOMAIN_LABELS[domain]).join(', ')}`
-                : "Nothing has been shared with you yet."}
-            </AppText>
+            {invitation.grantedDomains.length > 0 ? (
+              <View style={styles.domainList}>
+                <AppText variant="secondary" tone="muted">What you'll be able to see:</AppText>
+                {invitation.grantedDomains.map((domain) => (
+                  <AppText key={domain} variant="secondary" tone="soft">
+                    {DOMAIN_LABELS[domain]}: {DOMAIN_DESCRIPTIONS[domain]}
+                  </AppText>
+                ))}
+              </View>
+            ) : (
+              <AppText variant="secondary" tone="muted">Nothing has been shared with you yet.</AppText>
+            )}
             {errors[invitation.id] ? (
               <AppText variant="secondary" tone="danger">{errors[invitation.id]}</AppText>
             ) : null}
@@ -102,6 +108,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
     gap: spacing.xs,
+  },
+  domainList: {
+    gap: 2,
   },
   actions: {
     flexDirection: 'row',
