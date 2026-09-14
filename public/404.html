@@ -73,8 +73,21 @@
       font-size: 16px;
       font-weight: 600;
     }
-    .store-note {
+    .code-note {
       margin-top: 24px;
+      font-size: 14px;
+      color: #6B615C;
+    }
+    .code-value {
+      display: block;
+      margin-top: 6px;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #241D1C;
+    }
+    .store-note {
+      margin-top: 20px;
       font-size: 13px;
       color: #9A9086;
     }
@@ -83,10 +96,25 @@
 <body>
   <div class="card">
     <h1>You've been invited to a Lilica Care Circle</h1>
-    <p id="body-text">If you already have Lilica installed, tap below to open your invitation.</p>
+    <!--
+      Copy correction (14 September 2026, invitation deep-link physical
+      test failure): the previous single sentence here implied that a
+      failed "Open in Lilica" tap MEANS Lilica isn't installed -- this
+      page cannot actually know that (a custom-scheme hand-off can fail
+      even with the real app installed, for reasons that have nothing to
+      do with whether it's on the device -- e.g. no store listing/build
+      exists to have installed it FROM yet during this pre-launch
+      period). Deliberately split into two separate, calmer statements
+      instead of one that draws a false conclusion.
+    -->
+    <p id="body-text">Already have Lilica? Open this invitation in the app.</p>
     <a id="open-button" class="open-button" href="#">Open in Lilica</a>
+    <p class="code-note" id="code-note" hidden>
+      You can also enter this invitation code in Lilica:
+      <span class="code-value" id="code-value"></span>
+    </p>
     <p class="store-note" id="store-note">
-      Don't have Lilica yet? It isn't available in the App Store or Google Play yet -- ask whoever invited you for another way to help in the meantime.
+      Lilica isn't publicly available in the App Store or Google Play yet -- ask whoever invited you for another way to help in the meantime.
     </p>
   </div>
   <script>
@@ -108,6 +136,18 @@
         openButton.textContent = 'Open Lilica';
         openButton.href = 'lilica://';
         document.getElementById('body-text').textContent = "This link didn't include a valid invitation. Ask whoever invited you to send it again.";
+      }
+
+      // The invitation CODE (a human-friendly locator for this SAME
+      // invitation, see src/invitationLinks.ts) is a particularly useful
+      // fallback during this pre-launch period, when there is no store
+      // listing to install Lilica FROM in the first place -- shown only
+      // when the link actually carried one, never invented.
+      var codeMatch = window.location.search.match(/[?&]code=([A-Za-z0-9]{8})\b/);
+      if (codeMatch) {
+        document.getElementById('code-value').textContent =
+          codeMatch[1].toUpperCase().slice(0, 4) + '-' + codeMatch[1].toUpperCase().slice(4);
+        document.getElementById('code-note').hidden = false;
       }
     })();
   </script>
