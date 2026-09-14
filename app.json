@@ -9,7 +9,8 @@
     "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "com.luxfordinteractive.lilica",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "associatedDomains": ["applinks:lilica.co.uk"]
     },
     "android": {
       "package": "com.luxfordinteractive.lilica",
@@ -20,7 +21,15 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "https", "host": "lilica.co.uk", "pathPrefix": "/invite" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

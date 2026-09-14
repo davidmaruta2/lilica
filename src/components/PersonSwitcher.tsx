@@ -31,7 +31,6 @@ export function PersonSwitcher({ visible, people, activeId, onClose, onSelect, o
                 >
                   <View style={styles.copy}>
                     <AppText variant="bodyStrong">{person.displayName}</AppText>
-                    <AppText variant="secondary" tone="soft">{person.relationshipLabel || person.relationshipType}</AppText>
                   </View>
                   {selected ? <View style={styles.check}><View style={styles.tick} /></View> : null}
                 </Pressable>

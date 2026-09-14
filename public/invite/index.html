@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Join a Lilica Care Circle</title>
+  <!--
+    Care Circle invitation landing page -- the "not installed" / browser
+    fallback for the canonical https://lilica.co.uk/invite/?id=<id> link.
+
+    ROUTING DECISION (14 September 2026, see docs/REVISION_LOG.md): this
+    page is served from the single real static path /invite/ (this exact
+    file), returning a genuine HTTP 200 on every host. The invitation id
+    travels as a QUERY PARAMETER, not a path segment -- deliberately
+    replacing an earlier design that relied on GitHub Pages' 404.html
+    SPA-fallback trick to serve this same body for /invite/<id> paths.
+    That trick worked visually but left the real HTTP status at 404,
+    which is a genuine risk for an email link: corporate link-scanners,
+    Safe Links-style rewriters, and some webmail preview crawlers judge
+    a link by its status code, not its rendered body, and a 404 invites
+    exactly the "this link looks broken" treatment an invitation email
+    can least afford. The query-param form is a small, contained change
+    with none of that risk, and needs no path-based server routing at
+    all, on GitHub Pages or any other static host.
+
+    HONESTY NOTE, read before deploying: this page deliberately does NOT
+    show "Download on the App Store" / "Get it on Google Play" buttons.
+    Lilica has never been built via EAS or submitted to either store, so
+    those links would have nowhere real to point -- a fake or placeholder
+    store button would be actively misleading. Add real store badges
+    here once real listings exist, not before.
+  -->
+  <style>
+    :root { color-scheme: light; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #F7F3EF;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #241D1C;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    .card {
+      max-width: 420px;
+      width: 100%;
+      background: #FFFFFF;
+      border-radius: 16px;
+      padding: 32px 28px;
+      box-shadow: 0 12px 32px rgba(36, 29, 28, 0.08);
+      text-align: center;
+    }
+    h1 {
+      font-size: 22px;
+      margin: 0 0 12px;
+    }
+    p {
+      font-size: 15px;
+      line-height: 22px;
+      color: #6B615C;
+      margin: 0 0 20px;
+    }
+    a.open-button {
+      display: inline-block;
+      background: #63364D;
+      color: #FFFFFF;
+      text-decoration: none;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .code-note {
+      margin-top: 24px;
+      font-size: 14px;
+      color: #6B615C;
+    }
+    .code-value {
+      display: block;
+      margin-top: 6px;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #241D1C;
+    }
+    .store-note {
+      margin-top: 20px;
+      font-size: 13px;
+      color: #9A9086;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>You've been invited to a Lilica Care Circle</h1>
+    <!--
+      Copy correction (14 September 2026, invitation deep-link physical
+      test failure): the previous single sentence here implied that a
+      failed "Open in Lilica" tap MEANS Lilica isn't installed -- this
+      page cannot actually know that (a custom-scheme hand-off can fail
+      even with the real app installed, for reasons that have nothing to
+      do with whether it's on the device -- e.g. no store listing/build
+      exists to have installed it FROM yet during this pre-launch
+      period). Deliberately split into two separate, calmer statements
+      instead of one that draws a false conclusion.
+    -->
+    <p id="body-text">Already have Lilica? Open this invitation in the app.</p>
+    <a id="open-button" class="open-button" href="#">Open in Lilica</a>
+    <p class="code-note" id="code-note" hidden>
+      You can also enter this invitation code in Lilica:
+      <span class="code-value" id="code-value"></span>
+    </p>
+    <p class="store-note" id="store-note">
+      Lilica isn't publicly available in the App Store or Google Play yet -- ask whoever invited you for another way to help in the meantime.
+    </p>
+  </div>
+  <script>
+    (function () {
+      // Read the invitation id from this page's own URL query string
+      // (?id=<id>) -- the one canonical web format, matching
+      // src/invitationLinks.ts's invitationWebUrl(). Never guessed,
+      // never hard-coded. A legacy path-segment id (/invite/<id>) is
+      // still accepted here as a harmless fallback in case an old link
+      // is ever followed, but nothing in the app generates that form
+      // anymore.
+      var queryMatch = window.location.search.match(/[?&]id=([0-9a-fA-F-]{36})/);
+      var pathMatch = window.location.pathname.match(/\/invite\/([0-9a-fA-F-]{36})/);
+      var invitationId = (queryMatch && queryMatch[1]) || (pathMatch && pathMatch[1]);
+      var openButton = document.getElementById('open-button');
+      if (invitationId) {
+        openButton.href = 'lilica://invite/' + invitationId;
+      } else {
+        openButton.textContent = 'Open Lilica';
+        openButton.href = 'lilica://';
+        document.getElementById('body-text').textContent = "This link didn't include a valid invitation. Ask whoever invited you to send it again.";
+      }
+
+      // The invitation CODE (a human-friendly locator for this SAME
+      // invitation, see src/invitationLinks.ts) is a particularly useful
+      // fallback during this pre-launch period, when there is no store
+      // listing to install Lilica FROM in the first place -- shown only
+      // when the link actually carried one, never invented.
+      var codeMatch = window.location.search.match(/[?&]code=([A-Za-z0-9]{8})\b/);
+      if (codeMatch) {
+        document.getElementById('code-value').textContent =
+          codeMatch[1].toUpperCase().slice(0, 4) + '-' + codeMatch[1].toUpperCase().slice(4);
+        document.getElementById('code-note').hidden = false;
+      }
+    })();
+  </script>
+</body>
+</html>

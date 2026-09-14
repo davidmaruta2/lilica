@@ -16,9 +16,12 @@ type Props = {
   member?: CareCircleMember;
   avatarTone: { chip: string; text: string };
   // The signed-in organiser's own resolved photo -- shown only when the
-  // popup is opened for their own ("You") entry. Other members have no
-  // avatar of their own available yet (see PersonScreen.tsx's own note).
+  // popup is opened for their own ("You") entry.
   selfAvatarUrl?: string;
+  // Direct product-owner report (14 September 2026): a fellow member's
+  // own resolved photo, when opened for THEM -- see PersonScreen.tsx's
+  // own resolution effect and shared_avatar_visibility.sql's RLS.
+  memberAvatarUrl?: string;
   onClose: () => void;
 };
 
@@ -38,7 +41,7 @@ function domainLabel(domain: CareCircleDomain) {
   return DOMAIN_LABELS[domain] ?? domain;
 }
 
-export function MemberDetailPopup({ visible, member, avatarTone, selfAvatarUrl, onClose }: Props) {
+export function MemberDetailPopup({ visible, member, avatarTone, selfAvatarUrl, memberAvatarUrl, onClose }: Props) {
   const progress = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
 
@@ -75,15 +78,14 @@ export function MemberDetailPopup({ visible, member, avatarTone, selfAvatarUrl, 
             <View style={[styles.avatar, { backgroundColor: avatarTone.chip }]}>
               {member.isSelf && selfAvatarUrl ? (
                 <Image source={{ uri: selfAvatarUrl }} style={styles.avatarImage} />
+              ) : !member.isSelf && memberAvatarUrl ? (
+                <Image source={{ uri: memberAvatarUrl }} style={styles.avatarImage} />
               ) : (
                 <AppText variant="title" style={{ color: avatarTone.text }}>{label.charAt(0).toUpperCase()}</AppText>
               )}
             </View>
             <AppText variant="title" centre style={styles.name}>{label}</AppText>
             <AppText variant="secondary" tone="primary" centre style={styles.role}>{roleLabel(member.role)}</AppText>
-            {!member.isSelf ? (
-              <AppText variant="secondary" tone="soft" centre>{member.relationshipLabel || member.relationshipType}</AppText>
-            ) : null}
             <AppText variant="secondary" tone="soft" centre style={styles.description}>{roleDescription(member.role)}</AppText>
             {member.role !== 'organiser' ? (
               <View style={styles.domains}>

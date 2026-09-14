@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 
 import {
   CareCircleDomain,
@@ -9,9 +9,12 @@ import {
   DOMAIN_DESCRIPTIONS,
   DOMAIN_LABELS,
   inviteMember,
+  recordInvitationShareOpened,
   removeMember,
   revokeInvitation,
+  sendInvitationEmail,
 } from '../careCircle';
+import { invitationWebUrl } from '../invitationLinks';
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
@@ -38,7 +41,178 @@ type Props = {
   // is never silently disabled with no explanation.
   isReadOnly?: boolean;
   onInviteBlocked?: () => void;
+  // Care Circle invitation delivery: this account's own display name, for
+  // the native Share text only ("[You] has invited them..." reads
+  // naturally from whoever taps Share) -- the email itself always
+  // states the inviter's name authoritatively from the server, never
+  // from this prop.
+  inviterDisplayName?: string;
+  // Care Circle invitation & joining flow completion (`\downloads\carecircle.txt`,
+  // 14 September 2026): an existing user may already have Lilica and
+  // want to join a DIFFERENT Care Circle by code, without waiting for
+  // automatic discovery. Optional -- omitted entirely where this screen
+  // is reached from a context that already offers it elsewhere.
+  onJoinAnotherCareCircle?: () => void;
 };
+
+// Displayed grouped (ABCD-1234-style); stored server-side as one plain
+// 8-character string (see supabase/migrations/20260916140000_invitation_code.sql).
+function formatInviteCode(code: string): string {
+  return `${code.slice(0, 4)}-${code.slice(4)}`;
+}
+
+function emailButtonLabel(emailed: boolean, sending: boolean) {
+  if (sending) return 'Sending…';
+  return emailed ? 'Resend email' : 'Send by email';
+}
+
+function shareButtonLabel(emailed: boolean, shared: boolean) {
+  if (shared) return 'Share again';
+  if (emailed) return 'Share instead';
+  return 'Share invitation';
+}
+
+// Truthful status line for a Pending Invitations row. Final
+// architectural closure (14 September 2026): both flags come straight
+// from the invitation row's own server-persisted fields
+// (lastEmailSentAt/lastShareOpenedAt, set only by
+// record_invitation_email_sent()/record_invitation_share_opened()) --
+// NEVER from local device state, so this survives app restart, a
+// reinstall, or a different device/session reading the same
+// invitation. A transient in-flight failure (this component's own
+// local state, deliberately not persisted) takes priority over this
+// while it's showing.
+function deliveryStatusLine(emailed: boolean, shared: boolean) {
+  if (emailed && shared) return 'Invitation emailed. Sharing also opened.';
+  if (emailed) return 'Invitation emailed.';
+  if (shared) return 'Sharing opened.';
+  return 'Not sent yet.';
+}
+
+// Care Circle invitation delivery: one shared row per pending invitation
+// showing its own delivery state -- never sent yet, busy while sending,
+// a real persisted past success (read directly from the invitation
+// object -- see deliveryStatusLine() above), or a transient in-flight
+// failure/cancellation (this component's own local state, deliberately
+// NOT persisted -- a failure is not a truth worth remembering forever,
+// and the next real attempt supersedes it). Deliberately distinguishes
+// "invitation created" (already true, always) from "email delivery
+// request accepted" (only once Resend's own API has genuinely accepted
+// the send, AND the server has recorded that -- see
+// record_invitation_email_sent()) -- never claims mailbox delivery
+// itself, which no provider can guarantee (brief section 29). A failed
+// send never blocks Share, and retrying never creates a second
+// invitation -- both actions always target the SAME existing row.
+//
+// SHARE RELIABILITY, stated honestly rather than assumed: React Native's
+// Share.share() resolves with { action } on iOS (sharedAction vs
+// dismissedAction -- a real cancellation signal), but on Android it
+// resolves as soon as the OS share sheet is successfully INVOKED,
+// regardless of what the user does inside it -- Android genuinely
+// cannot tell Lilica whether the user actually completed a share.
+// Rather than brand-conditional wording per platform (itself a subtle
+// overclaim on iOS, where "sharedAction" only means a target app was
+// picked, not that a message was definitely sent), this deliberately
+// uses the single strongest claim true on BOTH platforms: "Sharing
+// opened." -- never "Invitation shared," which would overclaim on
+// Android every time.
+function DeliveryActions({
+  invitation,
+  personName,
+  inviterDisplayName,
+  onSuccess,
+  busy,
+  setBusy,
+}: {
+  invitation: Pick<CareCircleInvitation, 'id' | 'inviteCode' | 'lastEmailSentAt' | 'lastShareOpenedAt'>;
+  personName?: string;
+  inviterDisplayName?: string;
+  // Called only after a REAL, server-confirmed success -- the parent
+  // decides what that means (close the creation panel, and/or just
+  // re-fetch from the server so this same invitation's row reflects
+  // the new persisted state everywhere it's shown).
+  onSuccess: () => void;
+  busy: boolean;
+  setBusy: (busy: boolean) => void;
+}) {
+  const [transient, setTransient] = useState<{ status: 'idle' | 'sending' | 'failed'; message?: string }>({ status: 'idle' });
+  const emailed = !!invitation.lastEmailSentAt;
+  const shared = !!invitation.lastShareOpenedAt;
+
+  async function handleSendEmail() {
+    setBusy(true);
+    setTransient({ status: 'sending' });
+    const result = await sendInvitationEmail(invitation.id);
+    setBusy(false);
+    if (result.ok) {
+      setTransient({ status: 'idle' });
+      onSuccess();
+    } else {
+      setTransient({ status: 'failed', message: result.message });
+    }
+  }
+
+  async function handleShare() {
+    const person = personName?.trim() || 'their care';
+    const inviter = inviterDisplayName?.trim();
+    const intro = inviter ? `${inviter} has invited you to help with ${person}'s care in Lilica.` : `You've been invited to help with ${person}'s care in Lilica.`;
+    // Brief section 23: the shared content must work independently of
+    // the link -- wording, link, AND the invitation code together.
+    const message = [
+      intro,
+      '',
+      `Open your invitation:\n${invitationWebUrl(invitation.id, invitation.inviteCode)}`,
+      '',
+      `Invitation code: ${formatInviteCode(invitation.inviteCode)}`,
+      '',
+      "If you already have Lilica, you can also open Care Circle → Join a Care Circle and enter the code.",
+    ].join('\n');
+    try {
+      const result = await Share.share({ message });
+      // iOS reports a genuine cancellation as dismissedAction -- never
+      // record delivery on that. Android has no equivalent signal (the
+      // promise resolves once the sheet opens either way), so a
+      // resolved, non-dismissed result is the strongest truthful signal
+      // available on that platform.
+      if (result.action !== Share.dismissedAction) {
+        setBusy(true);
+        const recordResult = await recordInvitationShareOpened(invitation.id);
+        setBusy(false);
+        if (recordResult.ok) onSuccess();
+        // If recording fails, the share genuinely happened but Lilica
+        // couldn't persist that -- silently NOT calling onSuccess()
+        // undersells what happened rather than overclaiming it, which
+        // is the safer direction to be wrong in.
+      }
+    } catch {
+      // The share sheet's own failure needs no further handling --
+      // nothing was created or changed either way, so no delivery
+      // status is recorded.
+    }
+  }
+
+  return (
+    <View style={styles.deliveryActions}>
+      <View style={styles.inviteCodeRow}>
+        <AppText variant="secondary" tone="soft">Invitation code</AppText>
+        <AppText variant="bodyStrong" tone="primary" style={styles.inviteCodeValue}>{formatInviteCode(invitation.inviteCode)}</AppText>
+      </View>
+      {transient.status === 'failed' ? (
+        <AppText variant="secondary" tone="danger">{transient.message ?? "The invitation was created, but the email couldn't be sent."}</AppText>
+      ) : null}
+      <View style={styles.deliveryButtonRow}>
+        <Button
+          label={emailButtonLabel(emailed, transient.status === 'sending')}
+          variant="secondary"
+          disabled={busy}
+          onPress={() => void handleSendEmail()}
+          style={styles.deliveryButton}
+        />
+        <Button label={shareButtonLabel(emailed, shared)} variant="secondary" disabled={busy} onPress={() => void handleShare()} style={styles.deliveryButton} />
+      </View>
+    </View>
+  );
+}
 
 const DOMAIN_OPTIONS: { value: CareCircleDomain; label: string }[] = (
   Object.entries(DOMAIN_LABELS) as [CareCircleDomain, string][]
@@ -50,7 +224,7 @@ function roleDescription(role: CareCircleRole) {
   return 'Can view what you share with them';
 }
 
-export function CareCircleScreen({ personName, members, invitations, careSpaceId, onBack, onRefresh, isReadOnly, onInviteBlocked }: Props) {
+export function CareCircleScreen({ personName, members, invitations, careSpaceId, onBack, onRefresh, isReadOnly, onInviteBlocked, inviterDisplayName, onJoinAnotherCareCircle }: Props) {
   const [showInvite, setShowInvite] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'contributor' | 'viewer'>('contributor');
@@ -58,9 +232,26 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
   const [selectedDomains, setSelectedDomains] = useState<CareCircleDomain[]>(['general']);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  // The invitation just created this session, for the "Invitation
+  // created -- Send by email / Share" panel immediately below the form.
+  // Only the id is tracked locally -- its own code/delivery fields are
+  // read straight from the `invitations` prop once submitInvite()'s own
+  // onRefresh() call has re-fetched it from the server (final
+  // architectural closure, 14 September 2026: delivery state is now
+  // server-authoritative, never local-only).
+  const [justCreatedInvitationId, setJustCreatedInvitationId] = useState<string>();
+  const justCreatedInvitation = invitations.find((invitation) => invitation.id === justCreatedInvitationId);
 
   const organiserCount = members.filter((member) => member.role === 'organiser').length;
-  const pendingInvitations = invitations.filter((invitation) => invitation.status === 'pending');
+  // Invitation delivery UX correction: while the "Invitation created"
+  // panel is showing for a just-created invitation, it is deliberately
+  // excluded here -- the two are two views of the SAME invitation, and
+  // must never both render at once (the exact duplicate-UI bug this
+  // fixed). It rejoins this list the moment the panel closes, whatever
+  // the reason (a successful send, or Dismiss).
+  const pendingInvitations = invitations.filter(
+    (invitation) => invitation.status === 'pending' && invitation.id !== justCreatedInvitationId,
+  );
 
   function toggleDomain(domain: CareCircleDomain) {
     setSelectedDomains((current) =>
@@ -92,6 +283,7 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
     setEmail('');
     setRelationshipLabel('');
     setSelectedDomains(['general']);
+    setJustCreatedInvitationId(result.data.invitationId);
     onRefresh();
   }
 
@@ -106,15 +298,32 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
     onRefresh();
   }
 
-  async function handleRemove(membershipId: string) {
-    setBusy(true);
-    const result = await removeMember(membershipId);
-    setBusy(false);
-    if (!result.ok) {
-      setError(result.message);
-      return;
-    }
-    onRefresh();
+  // Product-owner report (14 September 2026): removing a member took
+  // effect immediately with no confirmation at all -- a real gap, since
+  // this is immediate-effect (they lose access right away, per
+  // docs/PHASE_15_ARCHITECTURE.md) and not reversible from the removed
+  // member's own side. Confirms first, matching the exact Alert pattern
+  // PrivacyDataScreen.tsx's own "Leave"/"Clear data" actions already use.
+  function handleRemove(membershipId: string, memberName: string) {
+    Alert.alert(
+      `Remove ${memberName}?`,
+      `${memberName} will lose access to this care circle immediately. This can't be undone from their side -- they would need to be invited again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove', style: 'destructive', onPress: async () => {
+            setBusy(true);
+            const result = await removeMember(membershipId);
+            setBusy(false);
+            if (!result.ok) {
+              setError(result.message);
+              return;
+            }
+            onRefresh();
+          },
+        },
+      ],
+    );
   }
 
   return (
@@ -138,7 +347,7 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
                 </AppText>
               </View>
               <AppText variant="secondary" tone="soft">
-                {member.relationshipLabel || member.relationshipType} · {roleDescription(member.role)}
+                {roleDescription(member.role)}
               </AppText>
               {member.role !== 'organiser' ? (
                 <AppText variant="secondary" tone="muted">
@@ -152,32 +361,93 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
                   label="Remove"
                   variant="text"
                   disabled={busy}
-                  onPress={() => handleRemove(member.membershipId)}
+                  onPress={() => handleRemove(member.membershipId, member.displayName)}
                   style={styles.removeButton}
                 />
               ) : null}
             </View>
           ))}
+          {onJoinAnotherCareCircle ? (
+            // Brief section 13: an existing Lilica user may receive an
+            // invitation to a DIFFERENT Care Circle -- automatic
+            // discovery already surfaces that on its own, but this is
+            // the deliberate, discoverable manual alternative
+            // ("Care Circle → Join a Care Circle" the email/Share text
+            // itself now mentions). Reuses the exact same code-entry/
+            // review/accept flow as the onboarding fork -- one join
+            // route, not two.
+            <Button label="Join another Care Circle" variant="text" onPress={onJoinAnotherCareCircle} />
+          ) : null}
         </View>
+
+        {justCreatedInvitation ? (
+          <View style={styles.section}>
+            <AppText variant="section" tone="primary">Invitation created</AppText>
+            <AppText variant="secondary" tone="soft">Send it by email, or share the link yourself.</AppText>
+            <DeliveryActions
+              invitation={justCreatedInvitation}
+              personName={personName}
+              inviterDisplayName={inviterDisplayName}
+              onSuccess={() => {
+                // A real, server-confirmed success closes this panel
+                // automatically -- the invitation immediately reappears
+                // exactly once, in Pending invitations, showing that
+                // same real outcome (re-fetched from the server, since
+                // delivery state now lives there, not locally).
+                onRefresh();
+                setJustCreatedInvitationId(undefined);
+              }}
+              busy={busy}
+              setBusy={setBusy}
+            />
+            <Button
+              label="Dismiss"
+              variant="text"
+              onPress={() => {
+                // Dismiss never destroys the invitation and never
+                // records a delivery status that didn't happen -- it
+                // only closes this panel, so the invitation reappears
+                // in Pending invitations as "Not sent yet.", with the
+                // same Send/Share actions still available there.
+                setJustCreatedInvitationId(undefined);
+              }}
+            />
+          </View>
+        ) : null}
 
         {pendingInvitations.length > 0 ? (
           <View style={styles.section}>
             <AppText variant="section" tone="primary">Pending invitations</AppText>
-            {pendingInvitations.map((invitation) => (
-              <View key={invitation.id} style={styles.card}>
-                <AppText variant="body" tone="primary">{invitation.inviteeEmail}</AppText>
-                <AppText variant="secondary" tone="soft">
-                  Invited as {invitation.role === 'contributor' ? 'Contributor' : 'Viewer'} · not a member yet
-                </AppText>
-                <Button
-                  label="Cancel invitation"
-                  variant="text"
-                  disabled={busy}
-                  onPress={() => handleRevoke(invitation.id)}
-                  style={styles.removeButton}
-                />
-              </View>
-            ))}
+            {pendingInvitations.map((invitation) => {
+              const emailed = !!invitation.lastEmailSentAt;
+              const shared = !!invitation.lastShareOpenedAt;
+              return (
+                <View key={invitation.id} style={styles.card}>
+                  <AppText variant="body" tone="primary">{invitation.inviteeEmail}</AppText>
+                  <AppText variant="secondary" tone="soft">
+                    Invited as {invitation.role === 'contributor' ? 'Contributor' : 'Viewer'} · not a member yet
+                  </AppText>
+                  <AppText variant="secondary" tone={emailed || shared ? 'success' : 'muted'}>
+                    {deliveryStatusLine(emailed, shared)}
+                  </AppText>
+                  <DeliveryActions
+                    invitation={invitation}
+                    personName={personName}
+                    inviterDisplayName={inviterDisplayName}
+                    onSuccess={onRefresh}
+                    busy={busy}
+                    setBusy={setBusy}
+                  />
+                  <Button
+                    label="Cancel invitation"
+                    variant="text"
+                    disabled={busy}
+                    onPress={() => handleRevoke(invitation.id)}
+                    style={styles.removeButton}
+                  />
+                </View>
+              );
+            })}
           </View>
         ) : null}
 
@@ -266,6 +536,28 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  deliveryActions: {
+    gap: spacing.xs,
+  },
+  inviteCodeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.md,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  inviteCodeValue: {
+    letterSpacing: 1,
+  },
+  deliveryButtonRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  deliveryButton: {
     flex: 1,
   },
   content: {

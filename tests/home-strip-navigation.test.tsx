@@ -179,10 +179,28 @@ describe('Home strip: Updates this week tile', () => {
 });
 
 describe('To Do: focused entry from the Home strip', () => {
+  // Real bug found via `\downloads\perm.txt`'s own closure check: this
+  // test used the REAL system clock (`new Date().toISOString()`) to
+  // build a "due today" record, while ToDoScreen's own grouping compares
+  // against LOCAL date components -- `toISOString()` is always UTC, so
+  // whenever the test runs in a timezone behind UTC and it's already
+  // "tomorrow" in UTC but still "today" locally (or vice versa), the
+  // record silently lands in the wrong group and the assertion fails,
+  // independent of any real product code. Fixed the TEST, not
+  // ToDoScreen/HomeScreen, by fixing the clock (the same
+  // jest.useFakeTimers()/setSystemTime() pattern this same file's own
+  // sibling describe blocks above already establish) so "today" is a
+  // known, deterministic value instead of whatever the real clock reads.
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-09T12:00:00.000Z'));
+  });
+  afterEach(() => jest.useRealTimers());
+
   it('initialFocusGroup promotes that group to the top without removing any other group or record', async () => {
     const records: LilicaRecord[] = [
       { id: 'overdue-1', type: 'task', title: 'Overdue task', status: 'unresolved', dueDate: '2020-01-01', createdAt: '2020-01-01T00:00:00.000Z' },
-      { id: 'today-1', type: 'bill', title: 'Today bill', status: 'unresolved', dueDate: new Date().toISOString().slice(0, 10), createdAt: '2020-01-01T00:00:00.000Z' },
+      { id: 'today-1', type: 'bill', title: 'Today bill', status: 'unresolved', dueDate: '2026-09-09', createdAt: '2020-01-01T00:00:00.000Z' },
     ];
     const screen = await render(
       <ToDoScreen

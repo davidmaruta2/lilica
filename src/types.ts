@@ -10,6 +10,15 @@ export type OnboardingStage =
   | 'recoveryCode'
   | 'recoveryPassword'
   | 'careFork'
+  // Care Circle invitation & joining flow completion (`\downloads\carecircle.txt`,
+  // 14 September 2026): the ONLY authorised onboarding change -- a small
+  // routing fork shown BEFORE supported-person/care-space creation,
+  // only for a genuine new user with no accessible care space and no
+  // auto-surfaced invitation already handling their situation (see
+  // App.tsx's initialPersonStage()). Every subsequent onboarding screen
+  // for an ordinary organiser is completely unchanged.
+  | 'joinOrSetup'
+  | 'joinCareCircle'
   | 'relationship'
   | 'relationshipSummary'
   | 'name'

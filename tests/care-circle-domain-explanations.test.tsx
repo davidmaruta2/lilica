@@ -109,7 +109,7 @@ describe('Care Circle invite: permission-domain explanations', () => {
   });
 
   it('(J) the invitation payload/domain grants remain EXACTLY the same as before -- this is a UX clarification only', async () => {
-    mockInviteMember.mockResolvedValue({ ok: true, data: undefined });
+    mockInviteMember.mockResolvedValue({ ok: true, data: { invitationId: 'inv-1', inviteCode: 'ABCD1234' } });
     const screen = await openInviteForm();
     await fireEvent.press(screen.getByText('Care & health'));
     const emailInput = screen.getByPlaceholderText('name@example.com');

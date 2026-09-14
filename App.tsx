@@ -16,6 +16,8 @@ import { pickProfilePhoto, uploadProfilePhoto } from './src/profileAvatar';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { CalendarScreen } from './src/screens/CalendarScreen';
 import { CareForkScreen } from './src/screens/CareForkScreen';
+import { JoinOrSetupScreen } from './src/screens/JoinOrSetupScreen';
+import { JoinCareCircleScreen } from './src/screens/JoinCareCircleScreen';
 import { EmailAuthScreen } from './src/screens/EmailAuthScreen';
 import { FirstThingScreen } from './src/screens/FirstThingScreen';
 import { FoundationScreen } from './src/screens/FoundationScreen';
@@ -61,6 +63,7 @@ import {
   removeCareSpace,
   replaceCareSpace,
   resolveBackStage,
+  resolveOnboardingStateAfterAcceptingInvitation,
   setCareSpaceStatus,
   validatePersonDraft,
 } from './src/careSpaceState';
@@ -81,9 +84,11 @@ import {
   listMyInvitations,
   MyInvitation,
   promoteToOrganiser,
+  resolveInvitationByCode,
   requestCareSpaceDeletion,
 } from './src/careCircle';
 import { InvitationsScreen } from './src/screens/InvitationsScreen';
+import { useInvitationDeepLink } from './src/invitationDeepLink';
 import { ActivityEvent, listRecentActivity } from './src/activity';
 import {
   CareSpaceCommercialStatus,
@@ -147,6 +152,8 @@ const stageOrder: OnboardingStage[] = [
   'emailAuth',
   'verifyEmail',
   'aboutYou',
+  'joinOrSetup',
+  'joinCareCircle',
   'careFork',
   'relationship',
   'relationshipSummary',
@@ -165,7 +172,15 @@ const stageOrder: OnboardingStage[] = [
 // relationship wheel (startAddPerson() already does this unconditionally).
 function initialPersonStage(state: OnboardingState): OnboardingStage {
   const hasStarted = Object.keys(state.careSpaces).length > 0 || (state.onboardingDraft?.people.length ?? 0) > 0;
-  return hasStarted ? 'relationship' : 'careFork';
+  // Care Circle invitation & joining flow completion (`\downloads\carecircle.txt`,
+  // 14 September 2026): a genuinely new user (never started onboarding
+  // at all) sees the join/setup fork instead of jumping straight to
+  // careFork -- the SAME `!hasStarted` condition, no new check added.
+  // Both of this function's own callers in App.tsx already only reach
+  // it once showInvitations has been checked and is false, so "no
+  // auto-surfaced invitation already handles this" is already
+  // guaranteed by the time this runs.
+  return hasStarted ? 'relationship' : 'joinOrSetup';
 }
 
 // Phase 14: a friendly "9pm"/"8am" label for the quiet-hours row.
@@ -256,6 +271,14 @@ function LilicaApp() {
   const [careCircleMembers, setCareCircleMembers] = useState<CareCircleMember[]>([]);
   const [careCircleInvitations, setCareCircleInvitations] = useState<CareCircleInvitation[]>([]);
   const [showCareCircle, setShowCareCircle] = useState(false);
+  // Care Circle invitation & joining flow completion (`\downloads\carecircle.txt`,
+  // 14 September 2026): an already-onboarded existing user's own manual
+  // entry point into the code-joining flow (CareCircleScreen's own "Join
+  // another Care Circle") -- same app-level-overlay pattern as
+  // showCareCircle above. The onboarding-time fork (stage 'joinCareCircle')
+  // is a completely separate render path that reaches the SAME
+  // JoinCareCircleScreen component, never a second implementation.
+  const [showJoinCareCircle, setShowJoinCareCircle] = useState(false);
   // Final People-screen mock: Key Contacts is a bounded preview (at most
   // four) with "View all" opening the complete list -- same app-level-
   // overlay pattern as showCareCircle above.
@@ -554,6 +577,29 @@ function LilicaApp() {
     }
   }, [myInvitations.length]);
 
+  // Care Circle invitation delivery: a signed-in user tapping an
+  // invitation link (lilica://invite/<id> or https://lilica.co.uk/
+  // invite/<id> once foregrounded/opened by one) jumps straight to the
+  // review screen -- a deliberate link tap is a stronger, more explicit
+  // signal than the passive auto-open heuristic above, so this fires
+  // even if that one-time auto-open already happened earlier this
+  // session. This never bypasses accept_invitation()'s own server-side
+  // identity check (src/invitationLinks.ts's own header comment) -- it
+  // only ever decides whether to SHOW the existing, already-correct
+  // review screen sooner; a signed-out tap does nothing special here and
+  // relies entirely on the same pending-invitation discovery once the
+  // user authenticates, exactly as it already does without any link at
+  // all.
+  const invitationDeepLink = useInvitationDeepLink();
+  useEffect(() => {
+    if (!invitationDeepLink.invitationId || !auth.session) return;
+    invitationsAutoOpened.current = true;
+    void refreshMyInvitations();
+    setShowInvitations(true);
+    invitationDeepLink.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invitationDeepLink.invitationId, auth.session]);
+
   async function refreshMyInvitations() {
     const result = await listMyInvitations();
     if (result.ok) {
@@ -567,7 +613,17 @@ function LilicaApp() {
     const result = await acceptInvitation(invitationId);
     if (!result.ok) return result;
     const reconnected = await reconnectCareSpaces();
-    if (reconnected.ok) setState((current) => integrateReconnectedCareSpaces(current, reconnected.people));
+    if (reconnected.ok) {
+      setState((current) => {
+        const next = integrateReconnectedCareSpaces(current, reconnected.people);
+        // Real bug found by direct tracing (`\downloads\perm.txt`'s own
+        // brand-new-invitee closure check) -- see
+        // resolveOnboardingStateAfterAcceptingInvitation()'s own header
+        // comment in src/careSpaceState.ts for the full explanation and
+        // its now-real, isolated unit-test coverage.
+        return resolveOnboardingStateAfterAcceptingInvitation(next);
+      });
+    }
     await refreshMyInvitations();
     return { ok: true as const };
   }
@@ -778,6 +834,19 @@ function LilicaApp() {
       if (result.ok) setCareCircleInvitations(result.data);
     });
   }
+
+  // Invitation delivery UX correction (14 September 2026) originally
+  // persisted delivery state locally (LocalCareSpaceState/AsyncStorage),
+  // since care_space_invitations had no delivery-state column at the
+  // time. Superseded the same day by the final architectural closure:
+  // last_email_sent_at/email_send_count/last_share_opened_at now live
+  // on the invitation row itself (supabase/migrations/20260916160000_
+  // invitation_delivery_and_rate_limit.sql), set only by
+  // record_invitation_email_sent()/record_invitation_share_opened() --
+  // genuinely server-authoritative, surviving app restart, reinstall,
+  // and device change. CareCircleScreen now reads these fields directly
+  // from its own `invitations` prop; no client-side recording function
+  // is needed here any more.
 
   // Phase 14: a tapped notification must resolve its OWN referenced care
   // space, never trust the currently active one (brief section 17) -- a
@@ -1385,8 +1454,23 @@ function LilicaApp() {
           onRefresh={refreshCareCircle}
           isReadOnly={isReadOnly || isArchived}
           onInviteBlocked={() => showBlockedGate()}
+          inviterDisplayName={auth.profile?.displayName}
+          onJoinAnotherCareCircle={() => setShowJoinCareCircle(true)}
         />
       ) : null;
+    } else if (showJoinCareCircle) {
+      // Care Circle invitation & joining flow completion: an existing
+      // user's own manual entry point (CareCircleScreen's "Join another
+      // Care Circle") -- the SAME screen and the SAME acceptance path
+      // (handleAcceptInvitation) the onboarding-time fork uses.
+      content = (
+        <JoinCareCircleScreen
+          onResolveCode={resolveInvitationByCode}
+          onAccept={handleAcceptInvitation}
+          onClose={() => setShowJoinCareCircle(false)}
+          onJoined={() => setShowJoinCareCircle(false)}
+        />
+      );
     } else if (showAllContacts) {
       // Final People-screen mock: "View all (N)" from the bounded Key
       // Contacts preview -- same filter/sort PersonScreen's own preview
@@ -1626,6 +1710,7 @@ function LilicaApp() {
               onRefresh={refreshCareCircle}
               isReadOnly={isReadOnly || isArchived}
               onInviteBlocked={() => showBlockedGate()}
+              inviterDisplayName={auth.profile?.displayName}
             />
           ) : settingsSection === 'privacyData' ? (
             <PrivacyDataScreen
@@ -1798,10 +1883,33 @@ function LilicaApp() {
       : state.stage;
 
     switch (stage) {
+      case 'joinOrSetup':
+        return (
+          <JoinOrSetupScreen
+            onBack={() => state.onboardingComplete ? go('home') : goBack()}
+            onSetUpCare={() => go('careFork')}
+            onJoinCareCircle={() => go('joinCareCircle')}
+          />
+        );
+      case 'joinCareCircle':
+        return (
+          <JoinCareCircleScreen
+            onResolveCode={resolveInvitationByCode}
+            onAccept={handleAcceptInvitation}
+            onClose={() => go('joinOrSetup')}
+            onJoined={() => {
+              // handleAcceptInvitation() already runs
+              // resolveOnboardingStateAfterAcceptingInvitation() --
+              // onboardingComplete/stage are already correctly set to
+              // true/'home' by the time this fires, so no extra
+              // navigation call is needed or made here.
+            }}
+          />
+        );
       case 'careFork':
         return (
           <CareForkScreen
-            onBack={() => state.onboardingComplete ? go('home') : goBack()}
+            onBack={() => state.onboardingComplete ? go('home') : go('joinOrSetup')}
             onSelectMyself={selectMyself}
             onSelectSomeoneElse={selectSomeoneElse}
           />

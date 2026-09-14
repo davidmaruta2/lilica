@@ -46,6 +46,12 @@ describe('Home person switcher card', () => {
     // rather than a single unique match.
     expect(screen.getAllByText('Maggie').length).toBeGreaterThan(0);
     screen.getByText('Jackie');
+    // Real product-owner report (14 September 2026): the relationship
+    // beneath each name here read like it described THAT person ("Maggie
+    // - Mum" looks like Maggie's own relationship, not the viewer's).
+    // Removed entirely -- see the matching fix in tests/phase13-person
+    // .test.tsx.
+    expect(screen.queryByText('Mum')).toBeNull();
   });
 
   it('selecting a different person calls onSwitchPerson with THAT care space id -- switching logic itself is untouched', async () => {

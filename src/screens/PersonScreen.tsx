@@ -120,6 +120,17 @@ export function PersonScreen({
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [openMember, setOpenMember] = useState<{ member: CareCircleMember; tone: { chip: string; text: string } }>();
   const [selfAvatarUrl, setSelfAvatarUrl] = useState<string>();
+  // Direct product-owner report (14 September 2026): a fellow Care
+  // Circle member's real photo (e.g. Gillian's) never showed here --
+  // only self's own did. Resolved the same way self's already is
+  // (resolveAvatarUrl(), a short-lived signed URL for a private
+  // bucket), now readable for a fellow member too because
+  // shared_avatar_visibility.sql's own RLS policy allows it. Keyed by
+  // membershipId, since two members could theoretically share an
+  // avatarPath format collision otherwise -- they can't in practice
+  // (paths are per-user-id), but membershipId is the row identity this
+  // list already keys everything else by.
+  const [memberAvatarUrls, setMemberAvatarUrls] = useState<Record<string, string>>({});
   const name = displayName?.trim() || 'Them';
 
   useEffect(() => {
@@ -127,6 +138,22 @@ export function PersonScreen({
     resolveAvatarUrl(selfAvatarPath).then((url) => { if (active) setSelfAvatarUrl(url); });
     return () => { active = false; };
   }, [selfAvatarPath]);
+
+  useEffect(() => {
+    let active = true;
+    const membersWithPhotos = careCircleMembers.filter((member) => !member.isSelf && member.avatarPath);
+    Promise.all(
+      membersWithPhotos.map((member) => resolveAvatarUrl(member.avatarPath).then((url) => [member.membershipId, url] as const)),
+    ).then((resolved) => {
+      if (!active) return;
+      const next: Record<string, string> = {};
+      for (const [membershipId, url] of resolved) {
+        if (url) next[membershipId] = url;
+      }
+      setMemberAvatarUrls(next);
+    });
+    return () => { active = false; };
+  }, [careCircleMembers]);
 
   // Key contacts (section 2): external people/services with no Lilica
   // account of their own -- still exactly the established `contact`
@@ -195,7 +222,6 @@ export function PersonScreen({
           </View>
           <View style={styles.personCopy}>
             <AppText variant="title">{isSelf ? 'You' : name}</AppText>
-            {!isSelf && relationshipLabel ? <AppText variant="secondary" tone="soft">{relationshipLabel}</AppText> : null}
           </View>
           {people.length > 1 ? <View style={styles.personChevron} /> : null}
         </Pressable>
@@ -306,6 +332,8 @@ export function PersonScreen({
                 <View style={[styles.memberAvatar, { backgroundColor: tone.chip }]}>
                   {member.isSelf && selfAvatarUrl ? (
                     <Image source={{ uri: selfAvatarUrl }} style={styles.memberAvatarImage} />
+                  ) : !member.isSelf && memberAvatarUrls[member.membershipId] ? (
+                    <Image source={{ uri: memberAvatarUrls[member.membershipId] }} style={styles.memberAvatarImage} />
                   ) : (
                     <AppText variant="bodyStrong" style={[styles.memberAvatarInitial, { color: tone.text }]}>
                       {label.charAt(0).toUpperCase()}
@@ -369,6 +397,7 @@ export function PersonScreen({
         member={openMember?.member}
         avatarTone={openMember?.tone ?? MEMBER_AVATAR_TONES[0]}
         selfAvatarUrl={selfAvatarUrl}
+        memberAvatarUrl={openMember ? memberAvatarUrls[openMember.member.membershipId] : undefined}
         onClose={() => setOpenMember(undefined)}
       />
     </ScreenBackdrop>

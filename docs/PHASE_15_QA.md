@@ -55,9 +55,19 @@ Status: implementation complete, automated tests passing (see `docs/PHASE_15_ARC
 
 19. **No leakage between spaces** - if Account A has more than one supported person/care space, confirm Account B's Phase 15 access is scoped only to the specific care space they were invited into, never any other space Account A organises.
 
+## Care Circle invitation & joining flow completion, 14 September 2026 - physical QA still required
+
+Everything below is genuinely NOT RUN as of writing (server-side/client-side logic proven by pgTAP/Jest and one real end-to-end run against `lilica-development`, but never on a physical device) - see `docs/PHASE_15_ARCHITECTURE.md`'s matching addendum and the full completion report for exactly what each level of testing did and did not prove:
+
+20. **Manual code entry, new user** - a genuinely new Lilica account, with no supported person and no auto-surfaced invitation, sees "What would you like to do?" and can choose "Join a Care Circle", enter a real code, review it, and join without ever being forced through supported-person creation.
+21. **Manual code entry, existing user** - an existing organiser/member opens People -> Care Circle -> "Join another Care Circle", enters a code for a DIFFERENT care space, and ends up with both care spaces intact and switchable.
+22. **Invalid/expired/cancelled code** - each shows its own calm message on a real device, and the user can correct and retry without being stranded.
+23. **Email/Share now show the code** - open a real invitation email and a real Share sheet message, confirm both display the code in the `ABCD-1234` format alongside the existing link.
+24. **Invitation-created vs pending-invitation UX** - create an invitation, confirm only ONE representation of it ever shows on screen at any point (creation panel, then exactly one Pending row after any outcome - send, share, or Dismiss).
+
 ## Known limitations (by design, not defects - see `docs/PHASE_15_ARCHITECTURE.md`'s "What Is Deliberately Not Built Yet")
 
-- No email/push delivery of the invitation itself - the invitee currently discovers it only by opening Lilica (the Invitations screen auto-surfaces once per app session, plus a manual re-entry link on Person's header).
+- No OS-level push delivery of the invitation itself (email, native Share, and a manual invitation code all now cover delivery - only push notification delivery remains undone).
 - No dedicated "assignee no longer has access" visual treatment.
 - No in-app "change role" control yet (server function exists and is tested; UI does not expose it).
 - No guided "hand over organiser, then leave" flow in the UI (both underlying functions exist and are tested independently).

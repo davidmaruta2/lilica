@@ -103,6 +103,20 @@ describe('Corrective task 10, section 1: supported people', () => {
     // covered structurally rather than by a brittle style assertion.
     single.getByLabelText('Switch person, currently Maggie');
   });
+
+  // Real product-owner report (14 September 2026, physical QA): a
+  // contributor viewing this exact card saw "Maggie" with "Brother"
+  // directly underneath -- their OWN relationship to Maggie, entered by
+  // the organiser when inviting them, but reading as if it described
+  // Maggie herself. The product owner's own words: "id suggest not
+  // displaying relationship as it would be weird to see Maggie -
+  // neighbour". Removed from this card entirely, and from the
+  // PersonSwitcher list for the same reason.
+  it('never shows the relationship label on the supported-person card, however it was entered', async () => {
+    const screen = await render(<PersonScreen {...baseProps} records={[]} />);
+    screen.getByText('Maggie');
+    expect(screen.queryByText('Mum')).toBeNull();
+  });
 });
 
 describe('Corrective task 10, section 2: Key contacts', () => {
@@ -315,15 +329,14 @@ describe('People-screen final implementation: Care Circle preview is bounded', (
     expect(onOpenCareCircle).toHaveBeenCalledTimes(1);
   });
 
-  it('tapping a member avatar softly pops out their real details, using real data only', async () => {
+  it('tapping a member avatar softly pops out their real details, using real data only -- never their relationship to the supported person (14 September 2026 product-owner report: reads like it describes the supported person, not the viewer)', async () => {
     const members: CareCircleMember[] = [
       { membershipId: 'm-1', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
       { membershipId: 'm-2', displayName: 'Sarah', role: 'viewer', relationshipType: 'Other relative', relationshipLabel: 'Aunt', isSelf: false, grantedDomains: ['general', 'health'] },
     ];
     const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={members} />);
-    expect(screen.queryByText('Aunt')).toBeNull(); // not shown until opened
     await fireEvent.press(screen.getByLabelText('View details for Sarah'));
-    screen.getByText('Aunt');
+    expect(screen.queryByText('Aunt')).toBeNull();
     expect(screen.getAllByText('Viewer').length).toBeGreaterThan(0);
     await fireEvent.press(screen.getByLabelText('Close member details'));
   });

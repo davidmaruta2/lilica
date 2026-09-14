@@ -193,6 +193,34 @@ export function integrateReconnectedCareSpaces(
   return projectActiveCareSpace({ ...state, careSpaces, activeCareSpaceId });
 }
 
+// Extracted from App.tsx's handleAcceptInvitation() (14 September 2026,
+// `\downloads\perm.txt`'s brand-new-invitee closure follow-up) so the
+// exact fix has real, isolated unit-test coverage -- App.tsx itself has
+// no render harness by established convention, so the fix's own
+// state-transition logic is pulled out into this already-tested, pure
+// module instead of a giant App.tsx test-harness refactor.
+//
+// A genuinely new user who accepts an invitation WITHOUT ever going
+// through the normal "who are you caring for" setup had
+// onboardingComplete stuck at its default `false` forever --
+// renderAuthenticatedOnboarding()'s own stage-resolution ternary
+// (`state.onboardingComplete ? 'home' : initialPersonStage(state)`)
+// then routed them straight into that normal onboarding flow on the
+// very next render, despite already having real, accepted access to a
+// shared care space. This mirrors completeOnboarding()'s own exact
+// state shape (the only other place this flag is ever set) -- accepting
+// a genuine invitation is just as valid a way to finish initial setup
+// as creating your own first supported person is. A no-op for an
+// existing organiser who already completed onboarding once (accepting
+// a SECOND care space's invitation never needs to touch
+// stage/onboardingComplete again).
+export function resolveOnboardingStateAfterAcceptingInvitation(state: OnboardingState): OnboardingState {
+  if (!state.onboardingComplete) {
+    return { ...state, onboardingComplete: true, stage: 'home', onboardingDraft: undefined };
+  }
+  return state;
+}
+
 export function replaceCareSpace(
   state: OnboardingState,
   careSpaceId: string,
