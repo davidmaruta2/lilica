@@ -6,7 +6,22 @@
   <title>Join a Lilica Care Circle</title>
   <!--
     Care Circle invitation landing page -- the "not installed" / browser
-    fallback for an https://lilica.co.uk/invite/<id> universal link.
+    fallback for the canonical https://lilica.co.uk/invite/?id=<id> link.
+
+    ROUTING DECISION (14 September 2026, see docs/REVISION_LOG.md): this
+    page is served from the single real static path /invite/ (this exact
+    file), returning a genuine HTTP 200 on every host. The invitation id
+    travels as a QUERY PARAMETER, not a path segment -- deliberately
+    replacing an earlier design that relied on GitHub Pages' 404.html
+    SPA-fallback trick to serve this same body for /invite/<id> paths.
+    That trick worked visually but left the real HTTP status at 404,
+    which is a genuine risk for an email link: corporate link-scanners,
+    Safe Links-style rewriters, and some webmail preview crawlers judge
+    a link by its status code, not its rendered body, and a 404 invites
+    exactly the "this link looks broken" treatment an invitation email
+    can least afford. The query-param form is a small, contained change
+    with none of that risk, and needs no path-based server routing at
+    all, on GitHub Pages or any other static host.
 
     HONESTY NOTE, read before deploying: this page deliberately does NOT
     show "Download on the App Store" / "Get it on Google Play" buttons.
@@ -14,16 +29,6 @@
     those links would have nowhere real to point -- a fake or placeholder
     store button would be actively misleading. Add real store badges
     here once real listings exist, not before.
-
-    HOSTING NOTE: this single static page must be served for EVERY path
-    under /invite/* (e.g. /invite/9b1deb4d-...), not only this exact
-    file's own path -- the invitation id is read from the URL by the
-    script below, client-side. Configure your host's rewrite/redirect
-    rules accordingly:
-      - Netlify: a _redirects file with "/invite/* /invite/index.html 200"
-      - Vercel: a rewrite from "/invite/:id" to "/invite"
-      - GitHub Pages: the classic 404.html-based SPA-fallback trick
-    Whichever static host is chosen, this file's content does not change.
   -->
   <style>
     :root { color-scheme: light; }
@@ -86,10 +91,16 @@
   </div>
   <script>
     (function () {
-      // Read the invitation id from this page's own URL path
-      // (/invite/<id>) -- never guessed, never hard-coded.
-      var match = window.location.pathname.match(/\/invite\/([0-9a-fA-F-]{36})/);
-      var invitationId = match && match[1];
+      // Read the invitation id from this page's own URL query string
+      // (?id=<id>) -- the one canonical web format, matching
+      // src/invitationLinks.ts's invitationWebUrl(). Never guessed,
+      // never hard-coded. A legacy path-segment id (/invite/<id>) is
+      // still accepted here as a harmless fallback in case an old link
+      // is ever followed, but nothing in the app generates that form
+      // anymore.
+      var queryMatch = window.location.search.match(/[?&]id=([0-9a-fA-F-]{36})/);
+      var pathMatch = window.location.pathname.match(/\/invite\/([0-9a-fA-F-]{36})/);
+      var invitationId = (queryMatch && queryMatch[1]) || (pathMatch && pathMatch[1]);
       var openButton = document.getElementById('open-button');
       if (invitationId) {
         openButton.href = 'lilica://invite/' + invitationId;
