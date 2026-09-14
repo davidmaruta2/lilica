@@ -1,0 +1,37 @@
+# Care Circle invitation landing page -- GitHub Pages deployment.
+#
+# Deliberately isolated to this ONE dedicated branch (github-pages-
+# hosting), never master, and deploys ONLY the public/ directory (the
+# invitation landing page + .well-known files) -- nothing else in this
+# repository is published. Free (GitHub Pages on a public repo costs
+# nothing), no server, no paid hosting.
+name: Deploy invitation landing page to GitHub Pages
+
+on:
+  push:
+    branches: [github-pages-hosting]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - id: deployment
+        uses: actions/deploy-pages@v4

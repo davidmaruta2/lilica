@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Join a Lilica Care Circle</title>
+  <!--
+    Care Circle invitation landing page -- the "not installed" / browser
+    fallback for an https://lilica.co.uk/invite/<id> universal link.
+
+    HONESTY NOTE, read before deploying: this page deliberately does NOT
+    show "Download on the App Store" / "Get it on Google Play" buttons.
+    Lilica has never been built via EAS or submitted to either store, so
+    those links would have nowhere real to point -- a fake or placeholder
+    store button would be actively misleading. Add real store badges
+    here once real listings exist, not before.
+
+    HOSTING NOTE: this single static page must be served for EVERY path
+    under /invite/* (e.g. /invite/9b1deb4d-...), not only this exact
+    file's own path -- the invitation id is read from the URL by the
+    script below, client-side. Configure your host's rewrite/redirect
+    rules accordingly:
+      - Netlify: a _redirects file with "/invite/* /invite/index.html 200"
+      - Vercel: a rewrite from "/invite/:id" to "/invite"
+      - GitHub Pages: the classic 404.html-based SPA-fallback trick
+    Whichever static host is chosen, this file's content does not change.
+  -->
+  <style>
+    :root { color-scheme: light; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #F7F3EF;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #241D1C;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    .card {
+      max-width: 420px;
+      width: 100%;
+      background: #FFFFFF;
+      border-radius: 16px;
+      padding: 32px 28px;
+      box-shadow: 0 12px 32px rgba(36, 29, 28, 0.08);
+      text-align: center;
+    }
+    h1 {
+      font-size: 22px;
+      margin: 0 0 12px;
+    }
+    p {
+      font-size: 15px;
+      line-height: 22px;
+      color: #6B615C;
+      margin: 0 0 20px;
+    }
+    a.open-button {
+      display: inline-block;
+      background: #63364D;
+      color: #FFFFFF;
+      text-decoration: none;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .store-note {
+      margin-top: 24px;
+      font-size: 13px;
+      color: #9A9086;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>You've been invited to a Lilica Care Circle</h1>
+    <p id="body-text">If you already have Lilica installed, tap below to open your invitation.</p>
+    <a id="open-button" class="open-button" href="#">Open in Lilica</a>
+    <p class="store-note" id="store-note">
+      Don't have Lilica yet? It isn't available in the App Store or Google Play yet -- ask whoever invited you for another way to help in the meantime.
+    </p>
+  </div>
+  <script>
+    (function () {
+      // Read the invitation id from this page's own URL path
+      // (/invite/<id>) -- never guessed, never hard-coded.
+      var match = window.location.pathname.match(/\/invite\/([0-9a-fA-F-]{36})/);
+      var invitationId = match && match[1];
+      var openButton = document.getElementById('open-button');
+      if (invitationId) {
+        openButton.href = 'lilica://invite/' + invitationId;
+      } else {
+        openButton.textContent = 'Open Lilica';
+        openButton.href = 'lilica://';
+        document.getElementById('body-text').textContent = "This link didn't include a valid invitation. Ask whoever invited you to send it again.";
+      }
+    })();
+  </script>
+</body>
+</html>

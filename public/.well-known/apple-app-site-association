@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["REPLACE_WITH_REAL_APPLE_TEAM_ID.com.luxfordinteractive.lilica"],
+        "components": [
+          { "/": "/invite/*", "comment": "Care Circle invitation links" }
+        ]
+      }
+    ]
+  }
+}
