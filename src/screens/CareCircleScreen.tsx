@@ -727,7 +727,12 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
                 );
               })}
             </View>
-            <Button label="Send invitation" onPress={submitInvite} disabled={busy || selectedCareSpaceIds.length === 0} />
+            {/* Direct product-owner correction (15 September 2026): this
+                button only ever CREATES the invitation -- the actual
+                send (email/Share/code) happens on the next screen
+                (DeliveryActions, below), so "Send invitation" overclaimed
+                what this specific tap does. */}
+            <Button label="Continue" onPress={submitInvite} disabled={busy || selectedCareSpaceIds.length === 0} />
             <Button label="Cancel" variant="text" onPress={() => setShowInvite(false)} disabled={busy} />
           </View>
         ) : (

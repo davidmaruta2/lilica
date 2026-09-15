@@ -1,5 +1,18 @@
 # Revision Log
 
+## 15 September 2026 - Care Circle invitation and multi-person access flows: physical QA PASSED, work complete
+
+Physical QA has now passed on the complete Care Circle invitation system, including the multi-supported-person invitation behaviour added this week. The product owner confirmed, on a real device with two genuine accounts (davidmaruta2@gmail.com organising Maggie and Ben; dtm35@cam.ac.uk as invitee):
+
+- the organiser sees both Maggie and Ben under "Who can they help with?" when inviting someone, and can explicitly select either or both;
+- a Maggie+Ben invitation correctly represents both supported people throughout (creation, confirmation, email/Share wording, invitation code);
+- "Join a Care Circle" is discoverable and the code-entry/preview/accept flow works;
+- invitation acceptance succeeds, and the invitee's normal supported-person switcher subsequently shows exactly the authorised supported people.
+
+This closes out the full sequence of Care Circle invitation work landed over 14-15 September 2026: real email/Share delivery, the invitation-code locator and its landing page, server-persisted delivery state, invitation-code rate limiting (and its later security correction, closing a real client-bypassable throttle), multi-person invitation groups (`care_space_invitation_groups`, `invite_member_group()`/`accept_invitation_group()`/`decline_invitation_group()`/`revoke_invitation_group()`), the organiser's supported-person selection UI, existing-member/additional-person handling, "Join a Care Circle" discoverability and a real navigation-state bug fix, and the real root-cause fix for the organiser-eligible-people list (previously populated only by a one-shot, un-retried reconnect call, now refreshed every time Care Circle opens). Full detail across every addendum in `docs/PHASE_15_ARCHITECTURE.md`.
+
+Final validation on the exact committed tree: `npm run typecheck` clean; `npm run secrets:check` clean; `npx expo config --type public` clean; `git diff --check` clean; targeted Care Circle/invitation Jest suites green; local pgTAP for the invitation-code and multi-person-group migrations green (487/487, unchanged from the prior addendum). Committed and pushed to `prephase22-remove-supported-person-faq-help`. Phase 22 not started.
+
 ## 14 September 2026 - Care Circle final architectural closure: server-authoritative delivery state, invitation-code rate limiting, shared avatar visibility
 
 Three corrections following GPT/product-owner review of the invitation & joining flow completion (same day, entry below). Full detail in `docs/PHASE_15_ARCHITECTURE.md`'s matching addendum - summarised here.

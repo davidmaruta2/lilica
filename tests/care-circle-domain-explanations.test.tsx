@@ -116,7 +116,7 @@ describe('Care Circle invite: permission-domain explanations', () => {
     await fireEvent.changeText(emailInput, 'marion@example.test');
     const relationshipInput = screen.getByPlaceholderText('e.g. Cousin, neighbour');
     await fireEvent.changeText(relationshipInput, 'Cousin');
-    await fireEvent.press(screen.getByText('Send invitation'));
+    await fireEvent.press(screen.getByText('Continue'));
     expect(mockInviteMember).toHaveBeenCalledWith(
       expect.objectContaining({ grantedDomains: ['general', 'health'] }),
     );

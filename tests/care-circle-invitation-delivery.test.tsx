@@ -87,7 +87,7 @@ async function fillAndSubmitInvite(screen: Awaited<ReturnType<typeof render>>) {
   await fireEvent.press(screen.getByText('Invite someone'));
   await fireEvent.changeText(screen.getByPlaceholderText('name@example.com'), 'marion@example.test');
   await fireEvent.changeText(screen.getByPlaceholderText('e.g. Cousin, neighbour'), 'Cousin');
-  await fireEvent.press(screen.getByText('Send invitation'));
+  await fireEvent.press(screen.getByText('Continue'));
 }
 
 describe('CareCircleScreen: CREATED and DELIVERED are two distinct, non-overlapping states', () => {

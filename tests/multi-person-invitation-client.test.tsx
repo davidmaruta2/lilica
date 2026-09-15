@@ -71,11 +71,11 @@ describe('CareCircleScreen: supported-person selection (brief section 3)', () =>
     screen.getByText("They'll only be able to see information for the people you select.");
   });
 
-  it('unchecking every person disables Send invitation -- at least one selection is required', async () => {
+  it('unchecking every person disables Continue -- at least one selection is required', async () => {
     const screen = await render(<CareCircleScreen {...baseProps} organiserEligiblePeople={eligiblePeople} />);
     await openInvite(screen);
     await fireEvent.press(screen.getByLabelText('Maggie, selected'));
-    expect(screen.getByLabelText('Send invitation').props.accessibilityState.disabled).toBe(true);
+    expect(screen.getByLabelText('Continue').props.accessibilityState.disabled).toBe(true);
   });
 
   it('selecting Ben in addition to the preselected Maggie calls inviteMemberGroup with BOTH care space ids -- never inviteMember (the single-person path)', async () => {
@@ -94,7 +94,7 @@ describe('CareCircleScreen: supported-person selection (brief section 3)', () =>
     const screen = await render(<CareCircleScreen {...baseProps} organiserEligiblePeople={eligiblePeople} />);
     await openInvite(screen);
     await fireEvent.press(screen.getByLabelText('Ben, not selected'));
-    await fireEvent.press(screen.getByText('Send invitation'));
+    await fireEvent.press(screen.getByText('Continue'));
     expect(mockInviteMemberGroup).toHaveBeenCalledWith(expect.objectContaining({ careSpaceIds: ['maggie-space', 'ben-space'] }));
     expect(mockInviteMember).not.toHaveBeenCalled();
   });
@@ -103,7 +103,7 @@ describe('CareCircleScreen: supported-person selection (brief section 3)', () =>
     mockInviteMember.mockResolvedValue({ ok: true, data: { invitationId: 'inv-1', inviteCode: 'ABCD1234' } });
     const screen = await render(<CareCircleScreen {...baseProps} organiserEligiblePeople={eligiblePeople} />);
     await openInvite(screen);
-    await fireEvent.press(screen.getByText('Send invitation'));
+    await fireEvent.press(screen.getByText('Continue'));
     expect(mockInviteMember).toHaveBeenCalledWith(expect.objectContaining({ careSpaceId: 'maggie-space' }));
     expect(mockInviteMemberGroup).not.toHaveBeenCalled();
   });
@@ -124,7 +124,7 @@ describe('CareCircleScreen: supported-person selection (brief section 3)', () =>
     const screen = await render(<CareCircleScreen {...baseProps} organiserEligiblePeople={eligiblePeople} />);
     await openInvite(screen);
     await fireEvent.press(screen.getByLabelText('Ben, not selected'));
-    await fireEvent.press(screen.getByText('Send invitation'));
+    await fireEvent.press(screen.getByText('Continue'));
     screen.getByText('Invitation created');
     screen.getByText(/covers helping with: Maggie and Ben/);
     screen.getByText('ABCD-1234');
@@ -146,7 +146,7 @@ describe('CareCircleScreen: supported-person selection (brief section 3)', () =>
     const screen = await render(<CareCircleScreen {...baseProps} organiserEligiblePeople={eligiblePeople} />);
     await openInvite(screen);
     await fireEvent.press(screen.getByLabelText('Ben, not selected'));
-    await fireEvent.press(screen.getByText('Send invitation'));
+    await fireEvent.press(screen.getByText('Continue'));
     screen.getByText(/Already has access to: Maggie -- not included in this invitation/);
   });
 
@@ -166,7 +166,7 @@ describe('CareCircleScreen: supported-person selection (brief section 3)', () =>
     const screen = await render(<CareCircleScreen {...baseProps} organiserEligiblePeople={eligiblePeople} />);
     await openInvite(screen);
     await fireEvent.press(screen.getByLabelText('Ben, not selected'));
-    await fireEvent.press(screen.getByText('Send invitation'));
+    await fireEvent.press(screen.getByText('Continue'));
     screen.getByText('sarah@example.test already has access to everyone you selected.');
     expect(screen.queryByText('Invitation created')).toBeNull();
   });

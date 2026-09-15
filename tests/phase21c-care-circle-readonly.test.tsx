@@ -32,7 +32,7 @@ describe('CareCircleScreen: Phase 21C invite gating', () => {
     screen.getByText('Invite someone');
     fireEvent.press(screen.getByText('Invite someone'));
     expect(onInviteBlocked).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText('Send invitation')).toBeNull();
+    expect(screen.queryByText('Continue')).toBeNull();
   });
 
   it('when not read-only, "Invite someone" opens the invite form exactly as before', async () => {
@@ -41,7 +41,7 @@ describe('CareCircleScreen: Phase 21C invite gating', () => {
       <CareCircleScreen {...baseProps} isReadOnly={false} onInviteBlocked={onInviteBlocked} />,
     );
     await fireEvent.press(screen.getByText('Invite someone'));
-    screen.getByText('Send invitation');
+    screen.getByText('Continue');
     expect(onInviteBlocked).not.toHaveBeenCalled();
   });
 
