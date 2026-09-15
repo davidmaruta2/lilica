@@ -1,5 +1,11 @@
 # Revision Log
 
+## 15 September 2026 - Phase 22 visual direction approved, implementation not started
+
+Following the source/screenshot audit in `docs/PHASE_22_VISUAL_AUDIT.md`, the product owner and Codex worked through the visual direction iteratively rather than accepting a one-shot redesign. The review covered the BBC-inspired premium hierarchy, To Do's matte mineral-blue gradient and surfaced status groups, the pale smoked-rose Overdue treatment, Home and To Do list/grid controls, the relationship between all four tabs, a warm-neutral secondary-page system, a compact single-header Settings drawer, compact humanist-sans typography with Fraunces reserved for the Lilica wordmark, and a coherent icon-led bottom navigation. Rejected iterations and the exact accepted constraints are recorded in `docs/PHASE_22_APPROVED_VISUAL_DIRECTION.md` alongside the visual references.
+
+This checkpoint is documentation and mock imagery only. No application source, theme, component, dependency, database, Supabase configuration, runtime configuration or product behaviour was changed. The product owner has approved the visual direction, but Phase 22 implementation has not started. GPT review and a separate explicit implementation prompt remain required. The approved report defines protected behaviour, small implementation batches, per-batch stop points, automated validation, complete diff review and Android/iPhone physical QA as release conditions.
+
 ## 15 September 2026 - Care Circle invitation and multi-person access flows: physical QA PASSED, work complete
 
 Physical QA has now passed on the complete Care Circle invitation system, including the multi-supported-person invitation behaviour added this week. The product owner confirmed, on a real device with two genuine accounts (davidmaruta2@gmail.com organising Maggie and Ben; dtm35@cam.ac.uk as invitee):
