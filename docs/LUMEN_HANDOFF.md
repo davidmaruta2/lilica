@@ -1,10 +1,29 @@
 # Lilica Current Handoff
 
-Date: 13 September 2026
-Branch: `master`
+Date: 15 September 2026
+Branch: `prephase22-remove-supported-person-faq-help` (**NOT** `master` - see "Branch state" below)
 Remote: `origin` (`https://github.com/davidmaruta2/lilica`)
 
 Despite its legacy filename, this is the canonical current handoff for every incoming agent.
+
+## READ THIS FIRST - state as of 15 September 2026
+
+**A new agent should: read this file, `AGENTS.md`, `docs/REVISION_LOG.md`'s top entry, and `docs/CORE_SYSTEM_CONTRACT.md`'s Phase 22 wording - then it can begin Phase 22 immediately without asking the product owner anything, EXCEPT the one explicit gate named below.**
+
+**1. Branch state.** All work through 15 September 2026 lives on `prephase22-remove-supported-person-faq-help`, pushed to `origin`. This branch is 6 commits ahead of `origin/master` (merge-base `a67c40f`) and `master` has nothing this branch lacks - `master` is simply stale/behind. Do not assume `master` reflects current work; do not merge to `master` without explicit product-owner instruction (no one has asked for that yet). Continue committing to this same branch unless told otherwise. Latest commits: `f6285fc` (scratch-file cleanup, "Send invitation" -> "Continue" copy fix, doc updates), `938241a` (the full multi-person Care Circle invitation pass), `2c4af08` (the invitation code/delivery/join-flow pass before that).
+
+**2. Working tree.** Clean. The only files present beyond tracked content are known, intentional, untracked local scratch files (loose completion-report `.txt` files, `expo-dev-server.log`, `expo-qr.png`, loose brief `.txt` files copied from Downloads) - these are deliberately NOT tracked (removed from git in `f6285fc` per explicit product-owner instruction) and can be ignored or deleted freely; nothing of record depends on them.
+
+**3. Care Circle invitation system: COMPLETE. Physical QA PASSED on 15 September 2026** by the product owner, on a real device, with two genuine Supabase accounts (davidmaruta2@gmail.com organising Maggie and Ben; dtm35@cam.ac.uk as invitee). Confirmed working end to end: organiser sees and can select multiple supported people ("Who can they help with?"); a multi-person invitation correctly represents every selected person through creation, confirmation, email/Share/code, and acceptance; "Join a Care Circle" is discoverable and works; the invitee's person switcher correctly shows exactly the authorised people. This closes out the entire invitation/collaboration workstream that ran across 14-15 September 2026 (see `docs/REVISION_LOG.md`'s 15 September entry and every `docs/PHASE_15_ARCHITECTURE.md` addendum for full technical detail). **Nothing further is expected or outstanding on this system** - do not re-open it without a new, explicit product-owner report of a real defect.
+
+**4. Build/OTA status - read this carefully, it is easy to misread as "something is waiting."** No EAS project and no `eas.json` exist for Lilica, at all, ever. There has been NO native build of any kind - every phase of this app, including everything through the Care Circle closure above, has only ever run in Expo Go / a live Metro dev server. Consequences, stated plainly:
+   - Nothing is "queued for the next build" in the sense of code sitting unshipped - there is no build pipeline yet for anything to queue into. All committed JS/TS/asset changes are already "live" the moment the dev server reloads.
+   - Nothing is "awaiting OTA" - OTA (`expo-updates`) is not configured (no `updates`/`runtimeVersion` key in `app.json`) and cannot be, meaningfully, before a first native build exists to update. There is no OTA backlog.
+   - The one real standing requirement, unchanged since 14 September 2026 (`docs/PHASE_19_ARCHITECTURE.md`'s matching addendum, restated in `AGENTS.md`/this file): when the product owner is ready for the FIRST real EAS build, (a) it must not be run without their explicit, express consent for that specific build; (b) `app.json`'s `ios.supportsTablet` must stay `false` (phone-only, already set); (c) OTA must be enabled as part of THAT first build, not bolted on afterward. No one has asked for a first build yet. Do not run `eas build` or create `eas.json` speculatively.
+
+**5. Immediate next step: Phase 22 - Premium Visual Optimisation & Experience Polish.** This is the agreed next item on the roadmap (`docs/CORE_SYSTEM_CONTRACT.md`), and it has an explicit, mandatory gate that has NOT yet been satisfied: **Phase 22 requires a visual/experience AUDIT REPORT ONLY (no code, no theme, no component changes) first, reviewed and approved by both GPT and the product owner, before any implementation begins.** An incoming agent's correct next action is to produce that audit/proposal, not to start changing visuals. Do not skip this gate. See the Roadmap Pointer section below and `AGENTS.md`'s matching section for the exact wording.
+
+**6. Stale "not yet committed" corrections.** Everything through 2c4af08 (the point immediately before this session's own Care Circle work) is real git history, already pushed - the body text below this point was written progressively across many earlier sessions and several paragraphs still say "not yet committed" about work that has SINCE been committed. Corrected here rather than rewritten paragraph-by-paragraph: Phase 19 (docs: `33b4b3e`; app.json/EAS-requirements: `a67c40f`), Phase 20D structural closure (`87a427e`), Phase 21B/21C billing+read-only-UX (`57c8b30`), and the Care Circle invitation & joining flow completion referenced throughout (`2c4af08`) are ALL committed and pushed. Take any "not yet committed" sentence below as historical narrative of that pass's own moment in time, not current fact - the true current state is sections 1-5 above and `git log --oneline` on this branch.
 
 ## What Lilica Is
 
