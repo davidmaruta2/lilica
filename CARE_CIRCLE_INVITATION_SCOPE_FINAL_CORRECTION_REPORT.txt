@@ -1,0 +1,115 @@
+LILICA - FINAL CARE CIRCLE INVITATION SCOPE CORRECTION
+Completion report, 15 September 2026
+
+1. WHY THE REAL Invite someone UI ONLY OFFERED MAGGIE
+Traced the complete client path as instructed. The checkbox section
+itself (App.tsx's organiserEligiblePeople -> CareCircleScreen's "Who can
+they help with?") is implemented correctly and was already proven, in
+isolation, to render both people once given a correct list. The real
+defect is in HOW that list gets populated: organiserEligiblePeople is
+filtered from each care space's local `role` field, and that field was
+populated ONLY by a single reconnectCareSpaces() call fired once per
+signed-in session, with no retry. A freshly-bootstrapped care space
+(exactly David's own Maggie and Ben, created at his own onboarding) has
+NO role set at all until that one background call both fires and
+succeeds. If it hadn't completed yet (or had ever failed) by the time
+"Invite someone" was opened, the multi-person selection silently never
+appeared for the rest of that session -- with no way to recover short of
+restarting the app. This is proven directly, not asserted: tests/care-
+circle-invite-scope-final-correction.test.tsx's first test reproduces
+the exact starting condition (role undefined on both spaces immediately
+after bootstrap).
+
+2. EXACT CLIENT FIX
+App.tsx now re-runs the existing, unmodified reconnectCareSpaces()/
+integrateReconnectedCareSpaces() pair every time Care Circle is opened
+(the same already-established refresh-on-open pattern this codebase
+already uses for members/invitations), not only once at session start.
+No new RPC, no new client function, no change to CareCircleScreen's own
+rendering logic (already correct) -- only when its underlying data
+gets refreshed.
+
+3. PROOF DAVID NOW SEES MAGGIE + BEN AS SELECTABLE
+tests/care-circle-invite-scope-final-correction.test.tsx's second test
+proves the exact repair: starting from the same "role undefined" state,
+feeding it the real server response (both spaces, role 'organiser') and
+confirming organiserEligiblePeople now correctly lists both, by name.
+tests/multi-person-invitation-client.test.tsx (unchanged, still
+passing) proves CareCircleScreen genuinely renders both as checkboxes,
+with Maggie preselected and Ben visible but not preselected, once given
+that list.
+
+4. WHAT IS SENT WHEN BOTH ARE SELECTED
+Unchanged, re-confirmed: selecting both calls inviteMemberGroup() with
+both care-space ids in one call; the server-side grouped-invitation
+architecture (untouched by this pass) creates one group covering both.
+
+5. WHAT THE INVITATION CONFIRMATION SHOWS
+Unchanged, re-confirmed: "Invitation created" lists every invited
+person's name and the single shared code; already-has-access people are
+shown truthfully and separately, never silently dropped or duplicated.
+
+6. WHAT A MAGGIE+BEN CODE RESOLVES TO
+Unchanged, re-confirmed (both by the existing pgTAP suite and
+JoinCareCircleScreen's own client tests): the preview lists both names
+as one invitation; a Maggie-only code resolves to Maggie only.
+
+7. WHAT MEMBERSHIPS ACCEPTANCE CREATES
+Unchanged: accept_invitation_group() creates/reuses independent, per-
+care-space memberships for every child of the group, atomically. Not
+retested this pass (no server code changed) -- already proven by 25
+pgTAP assertions in the immediately preceding task, all still in place.
+
+8. PROOF MAGGIE-ONLY DOES NOT GRANT BEN
+Unchanged, re-confirmed by the same pgTAP negative-selection assertion
+and by tests/multi-person-invitation-client.test.tsx's "selecting only
+the preselected person calls plain inviteMember" test.
+
+9. EXISTING-MAGGIE / ADD-BEN BEHAVIOUR
+Unchanged, re-confirmed: the invite flow reports Maggie as
+"already_has_access" and creates only a new Ben invitation -- no
+duplicate Maggie row, no removal of Maggie -- proven server-side
+(pgTAP item 17) and client-side (already-has-access message test).
+
+10. TESTS AND VALIDATION
+New: tests/care-circle-invite-scope-final-correction.test.tsx (3/3
+pass) -- reproduces the exact root-cause precondition, proves the fix's
+underlying reconciliation repairs it, and proves (the brief's own TEST 7)
+that a care space where David is only a contributor is correctly
+excluded from selection.
+Re-run and confirmed still green: tests/multi-person-invitation-client.test.tsx,
+tests/multi-person.test.tsx, tests/resolve-onboarding-after-accept-
+invitation.test.ts, tests/care-circle-invitation-delivery.test.tsx,
+tests/care-circle-join-route-final-closure.test.tsx, tests/join-care-
+circle-screen.test.tsx, tests/settings-join-care-circle.test.tsx,
+tests/reconnect-prunes-deleted-care-space.test.ts -- 9 files, 66/66
+tests.
+npm run typecheck: clean. npm run secrets:check: clean (370 files).
+npx expo config --type public: clean. git diff --check: clean (only
+LF/CRLF advisories). No server/database code changed this pass, so no
+pgTAP re-run was required or performed.
+
+11. FILES CHANGED
+Modified: App.tsx (the one substantive fix -- reconnect-on-open).
+New: tests/care-circle-invite-scope-final-correction.test.tsx,
+CARE_CIRCLE_INVITATION_SCOPE_FINAL_CORRECTION_REPORT.txt (this report).
+Nothing else was touched this pass. (The working tree also still
+carries every file from the two immediately preceding, already-
+reported passes -- the multi-person invitation architecture itself and
+the "Join a Care Circle" discoverability/navigation fix -- none of
+which were modified again here.)
+
+12. PHYSICAL QA STILL REQUIRED
+The full checklist in your own brief (login as David, open Invite
+someone, confirm Maggie AND Ben are physically visible and selectable,
+create a Maggie+Ben invitation, confirm the confirmation screen names
+both, copy the code, login as dtm35, Settings -> Join a Care Circle,
+enter the code, confirm the preview names both, Accept, confirm the
+person switcher shows both) has not been performed -- this pass is
+code-complete and validated by the automated tests above, but no
+physical test is claimed. Given the root cause found (a session-timing
+gap, not a rendering defect), this should now succeed reliably on the
+first real attempt after a genuine app reload, without needing to
+retry.
+
+Not committed. Not pushed. Phase 22 not started.

@@ -1,0 +1,163 @@
+LILICA - CARE CIRCLE INVITATION FINAL CLOSURE
+Completion report, 15 September 2026
+
+1. EXACT ROOT CAUSE (dtm35 saw Maggie but not Ben)
+Confirmed by direct inspection of the real lilica-development database
+(not inferred): every invitation on record for dtm35@cam.ac.uk (4 total)
+is dated 13-14 September 2026, with invitation_group_id = null on all of
+them -- i.e. every one is a plain, single-person invitation, the only
+kind that existed before the multi-person work began. The new
+care_space_invitation_groups table has ZERO rows for dtm35's email, at
+any time. dtm35's only active membership is Maggie. No invitation of any
+kind -- grouped or single -- has been created for this account since
+14 September. This is root cause #5 from the brief's own list: the
+accepted invitation genuinely predates multi-person support.
+
+2. WAS THE TESTED INVITATION GENUINELY MAGGIE-ONLY OR MAGGIE+BEN?
+Genuinely Maggie-only. No Maggie+Ben invitation has ever reached the
+database for this account. The organiser's own attempt (if made today)
+did not persist as either a grouped or single invitation -- most likely
+because the device used was running a stale app bundle that had not
+picked up the checkbox UI at all (a live dev build only reflects new
+code after a genuine reload/reconnect to the dev server).
+
+3. EXACT FIX
+Two real, separate defects were found and fixed, neither in the
+multi-person invitation/acceptance architecture itself (which is
+unchanged and already proven correct by 25 passing pgTAP assertions
+from the immediately preceding task):
+  a) DISCOVERABILITY: "Join a Care Circle" was a small text link buried
+     at the bottom of the member list, easy to miss. Moved to its own
+     clearly visible section at the TOP of the Care Circle screen, with
+     the exact copy "Have an invitation code? Enter it to join a Care
+     Circle.", offered to every authenticated user regardless of role
+     (organiser or contributor) -- never gated, never called "Request
+     to join".
+  b) A REAL, PRE-EXISTING NAVIGATION BUG, found while fixing (a): tapping
+     this button from the People-tab Care Circle screen set React state
+     (showJoinCareCircle) that had NO visible effect at all, because
+     showCareCircle was checked earlier in the same else-if chain and
+     always intercepted the render first. Fixed by toggling both flags
+     together. Back/Cancel from the code-entry screen now correctly
+     returns to Care Circle (both from the People-tab route and the
+     Settings-drawer route, tracked per entry point) -- never to Home or
+     onboarding.
+No change was made to invite_member_group(), accept_invitation_group(),
+resolve_invitation_by_code(), or any other server-side function.
+
+4. NEW MAGGIE+BEN INVITATION -> ACCESS TO BOTH: CONFIRMED
+Already proven by the 25 pgTAP assertions in supabase/tests/database/
+multi_person_invitation_groups.test.sql (unchanged, still passing) --
+items 1-9 prove the exact reported scenario end to end: a group
+containing Maggie+Ben, preview showing both, acceptance creating both
+memberships with independently-correct role/domain grants. Nothing in
+this pass touched that logic, and it was re-run to confirm it is still
+green.
+
+5. MAGGIE-ONLY INVITATION -> ACCESS TO MAGGIE ONLY: CONFIRMED
+Proven by the same suite's item 10 (negative selection -- Jackie, never
+selected, gets zero access of any kind) and the legacy-compatibility
+item 18. Unchanged, still green.
+
+6. EXISTING-MAGGIE + ADD-BEN BEHAVIOUR: CONFIRMED, NO CHANGE NEEDED
+Proven by the same suite's item 17: a real, already-active Maggie
+membership, re-invited alongside a new Ben selection, results in
+exactly one new membership (Ben) and zero change to the existing Maggie
+one -- no duplicate. This is exactly the path David should now use for
+dtm35 (open Care Circle for either person, invite dtm35 again selecting
+both Maggie and Ben; Maggie will be truthfully reported as "already has
+access" and only Ben will be newly invited).
+
+7. WHERE "JOIN A CARE CIRCLE" NOW APPEARS
+On the Care Circle screen itself (both the People-tab route and the
+Settings-drawer route), as a clearly visible action at the top of the
+screen, immediately below the header description and above Members --
+available to every authenticated user with an open Care Circle screen,
+regardless of role. Also still offered directly from the Settings
+drawer's main menu (added in the immediately preceding pass) for a user
+who has no care space of their own to open a Care Circle screen from at
+all.
+
+8. BACK/NAVIGATION BEHAVIOUR
+From the People-tab route: Back/Cancel returns to the Care Circle screen
+it was opened from (fixed defect 3b above); a successful join returns to
+the normal Home/person view. From the Settings-drawer route: Back/
+Cancel returns to whichever section it was actually opened from --
+Care Circle if opened from inside it, the main Settings menu if opened
+directly from there -- tracked by a small new joinCareCircleReturnSection
+state value; a successful join closes the drawer entirely. Neither route
+ever returns to onboarding.
+
+9. TESTS/RESULTS
+- New: tests/care-circle-join-route-final-closure.test.tsx (5/5 pass) --
+  proves the button is visible to organiser and contributor alike,
+  never labelled "Request to join", absent only when genuinely omitted,
+  and (via a small App.tsx-pattern navigation harness, matching this
+  codebase's existing tests/settings-navigation.test.tsx approach) that
+  Back genuinely returns to Care Circle, not Home.
+- Updated: tests/care-circle-invitation-delivery.test.tsx (button label
+  rename only, 2 assertions), tests/join-care-circle-screen.test.tsx
+  (entry-copy assertion updated to match the exact wording you
+  specified).
+- Re-run and confirmed still green, unmodified: supabase/tests/database/
+  multi_person_invitation_groups.test.sql (25/25), invitation_code.test.sql
+  (15/15), invitation_code_rate_limit.test.sql (15/15), tests/settings-
+  join-care-circle.test.tsx (3/3), tests/multi-person-invitation-client.test.tsx
+  (13/13), tests/care-circle-domain-explanations.test.tsx, tests/care-
+  circle-remove-member-confirm.test.tsx.
+- npm run typecheck: clean. npm run secrets:check: clean (368 files).
+  npx expo config --type public: clean. git diff --check: clean (only
+  LF/CRLF advisories). No server/database code was touched this pass,
+  so no new pgTAP/lint/migration-push run was required or performed.
+- Per instruction, the known unrelated memory-heavy suites (phase13-
+  person.test.tsx, settings-cog.test.tsx, tab-header-titles.test.tsx --
+  already-diagnosed machine memory-timeout failures, untouched by this
+  task) were deliberately NOT re-run.
+
+10. FILES CHANGED
+Modified: App.tsx, src/components/SettingsMenu.tsx (unrelated to this
+pass's own two failures -- carried from the immediately preceding
+Settings-discoverability work, listed for completeness), src/screens/
+CareCircleScreen.tsx, src/screens/JoinCareCircleScreen.tsx,
+tests/care-circle-invitation-delivery.test.tsx, tests/join-care-circle-
+screen.test.tsx.
+New: tests/care-circle-join-route-final-closure.test.tsx,
+CARE_CIRCLE_INVITATION_FINAL_CLOSURE_REPORT.txt (this report).
+Untouched by this specific pass (already present from the immediately
+preceding session's own work, listed for completeness only): src/care
+Circle.ts, src/screens/InvitationsScreen.tsx, supabase/functions/send-
+invitation-email/*, supabase/migrations/20260917090000_multi_person_
+invitation_groups.sql, supabase/tests/database/multi_person_invitation_
+groups.test.sql, docs/PHASE_15_ARCHITECTURE.md, tests/invitation-email-
+content.test.ts, tests/phase15-care-circle.test.ts, tests/phase15-
+invitations-screen.test.tsx, tests/settings-join-care-circle.test.tsx,
+tests/multi-person-invitation-client.test.tsx.
+
+11. PHYSICAL QA STILL REQUIRED
+David needs to genuinely reload his app (full close/reopen, confirming
+the dev server has restarted since these changes) and re-invite dtm35
+selecting both Maggie and Ben, to confirm on a real device that: the
+"Who can they help with?" checkboxes now actually appear; the resulting
+group invitation previews both names; dtm35's acceptance surfaces Ben
+alongside Maggie in the person switcher without any logout/reinstall.
+No physical test has been claimed as performed -- this is explicitly
+outstanding.
+
+12. CONFIRMATION NO UNRELATED ARCHITECTURE CHANGED
+No change to invite_member(), invite_member_group(), accept_invitation(),
+accept_invitation_group(), invitation codes/rate limiting, invited-email
+identity enforcement, delivery-state tracking, reconnectCareSpaces()/
+integrateReconnectedCareSpaces(), the supported-person switcher, per-
+care-space memberships, role/domain grants, onboarding, billing,
+archive/restore, account deletion, Documents, Home, Calendar, To Do, or
+People. Only the Care Circle screen's own "Join a Care Circle"
+placement/copy and the App.tsx navigation-state wiring around it changed.
+
+13. GIT STATUS
+Nothing committed or pushed. Working tree carries the modified/new files
+listed in item 10, plus the same pre-existing untracked leftovers this
+repository has carried across recent sessions (loose report .txt files,
+expo-dev-server.log, expo-qr.png, and the prior two passes' own
+migrations/tests, none of which this pass touched).
+
+Phase 22 not started. Not committed. Not pushed.

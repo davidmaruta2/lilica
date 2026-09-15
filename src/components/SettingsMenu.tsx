@@ -42,7 +42,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // wide screens/tablets so it doesn't stretch edge-to-edge there.
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.88, 480);
 
-type Section = 'menu' | 'careSummary' | 'recentActivity' | 'documents' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'contact';
+type Section = 'menu' | 'careSummary' | 'recentActivity' | 'documents' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'joinCareCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'contact';
 
 // Phase 20C (approved Option 2): the drawer becomes a small hybrid --
 // person-scoped navigation ABOVE the existing account/app settings group,
@@ -61,6 +61,7 @@ export function SettingsMenu({
   onOpenManageCare,
   onOpenAccount,
   onOpenCareCircle,
+  onOpenJoinCareCircle,
   onOpenPrivacyData,
   onOpenSubscription,
   subscriptionSummary,
@@ -99,6 +100,12 @@ export function SettingsMenu({
   onOpenManageCare?: () => void;
   onOpenAccount: () => void;
   onOpenCareCircle?: () => void;
+  // Optional only so existing tests that render this component in
+  // isolation need not supply every prop -- the real app (App.tsx)
+  // always supplies it; see the "Join a Care Circle" row's own header
+  // comment below for why it must be offered regardless of
+  // onOpenCareCircle/careCircleAvailable.
+  onOpenJoinCareCircle?: () => void;
   onOpenPrivacyData: () => void;
   // Phase 21B: always offered, like Privacy & data -- meaningful
   // regardless of whether the active care space is real/synced, since
@@ -182,6 +189,18 @@ export function SettingsMenu({
     { key: 'account', label: 'Account', description: 'Your profile, reminders and sign out', onPress: onOpenAccount },
     ...(onOpenCareCircle
       ? [{ key: 'careCircle', label: 'Care Circle', description: 'Who can help, and what they can see', onPress: onOpenCareCircle }]
+      : []),
+    // Real gap reported directly (15 September 2026): the manual
+    // invitation-code entry point (JoinCareCircleScreen) was only ever
+    // reachable from INSIDE an already-open Care Circle screen, itself
+    // gated behind having a real, synced care space of one's own
+    // (`careCircleAvailable` in App.tsx). Someone with nothing of their
+    // own set up yet -- exactly who a fresh invitation code is most
+    // likely to reach -- had no way to find it at all. Always offered
+    // here (App.tsx always supplies onOpenJoinCareCircle), regardless of
+    // onOpenCareCircle/careCircleAvailable, for that reason.
+    ...(onOpenJoinCareCircle
+      ? [{ key: 'joinCareCircle', label: 'Join a Care Circle', description: 'Enter an invitation code you\'ve been sent', onPress: onOpenJoinCareCircle }]
       : []),
     ...(onOpenArchivedCare
       ? [{ key: 'archivedCare', label: 'Archived care', description: 'Care spaces you\'ve paused', onPress: onOpenArchivedCare }]

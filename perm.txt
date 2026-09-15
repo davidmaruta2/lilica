@@ -1,0 +1,575 @@
+============================================================
+ADDITIONAL CLOSURE REQUIREMENT — COMPLETE CARE CIRCLE
+INVITATION DELIVERY + ACCEPTANCE JOURNEY
+============================================================
+
+The product owner has physically tested Invite someone.
+
+While logged in as davidmaruta2@gmail.com, an invitation was sent to:
+
+dtm35@cam.ac.uk
+
+Nothing was received by the invitee.
+
+This exposes a larger product gap.
+
+Creating a pending invitation in the database is NOT sufficient.
+
+"Invite someone" is only complete if the invited person can actually:
+
+1. RECEIVE the invitation;
+2. understand who invited them and what they are being invited to;
+3. install/open Lilica;
+4. authenticate/create an account where required;
+5. have Lilica recognise the pending invitation;
+6. review it;
+7. accept or decline it;
+8. join the correct Care Circle;
+9. receive exactly the permission domains selected by the organiser.
+
+Treat this as an end-to-end product flow.
+
+Do NOT merely make the current button create another database row.
+
+
+============================================================
+1. AUDIT THE CURRENT INVITATION FLOW FIRST
+============================================================
+
+Before changing anything, map the ACTUAL current implementation:
+
+Invite someone
+→ invitation creation
+→ database row/RPC
+→ email delivery, if any
+→ invitation token, if any
+→ link/deep link, if any
+→ authentication
+→ invitation discovery
+→ accept/decline
+→ membership creation
+→ permission grants.
+
+Explain specifically why the physical invitation sent to:
+
+dtm35@cam.ac.uk
+
+did not result in an email.
+
+Do not guess.
+
+Determine whether:
+
+- no email provider is configured;
+- email sending is scaffolded but not deployed;
+- email delivery is never called;
+- Supabase Auth email is being incorrectly assumed to provide this;
+- an Edge Function exists but is not configured;
+- another failure exists.
+
+Do not expose secrets in the report.
+
+
+============================================================
+2. INVITATION DELIVERY — REQUIRED
+============================================================
+
+Lilica must support two clear delivery choices after the organiser has
+configured the invitation:
+
+SEND BY EMAIL
+
+and
+
+SHARE INVITATION
+
+or equivalent concise wording.
+
+
+============================================================
+3. SEND BY EMAIL
+============================================================
+
+"Send by email" must send a real transactional invitation email.
+
+Do not simulate success.
+
+Do not display "Invitation sent" unless the delivery request was actually
+accepted successfully by the configured delivery service.
+
+The email should clearly identify:
+
+- Lilica;
+- inviter's appropriate display name;
+- supported person's first name;
+- that this is an invitation to the supported person's Care Circle;
+- a clear Join action;
+- enough explanation that the recipient understands why they received it.
+
+Example meaning:
+
+"David has invited you to join Maggie's Care Circle on Lilica."
+
+Do not expose information the recipient has not yet been authorised to see.
+
+
+============================================================
+4. EMAIL INFRASTRUCTURE
+============================================================
+
+Inspect the project's existing infrastructure before choosing a provider.
+
+If no transactional email service currently exists, report what is required
+and implement the smallest production-appropriate architecture consistent
+with the existing Supabase/Expo stack.
+
+Any API secret MUST remain server-side.
+
+Never place a transactional-email API key in:
+
+- Expo public config;
+- client source;
+- app bundle;
+- AsyncStorage;
+- repository.
+
+Email delivery must be initiated through trusted server-side infrastructure,
+for example an appropriate Supabase Edge Function/server path.
+
+If external provider/account configuration requires product-owner action,
+implement everything that can safely be implemented in code and return an
+EXACT setup checklist.
+
+Do not fabricate provider credentials.
+
+Do not claim physical email delivery works until it has genuinely been
+tested.
+
+
+============================================================
+5. SHARE INVITATION
+============================================================
+
+Also provide:
+
+Share invitation
+
+using the phone's native share capability.
+
+Do NOT separately build:
+
+WhatsApp integration
+SMS integration
+Mail-client integration
+
+unless the platform genuinely requires it.
+
+Use the native share sheet so the organiser can choose installed services
+such as:
+
+- WhatsApp;
+- Messages/SMS;
+- Mail;
+- other sharing applications.
+
+The shared content must contain a secure invitation link and concise
+human-readable context.
+
+Example meaning:
+
+"David has invited you to join Maggie's Care Circle on Lilica."
+
+Do not include sensitive care information in the shared message.
+
+
+============================================================
+6. INVITATION LINK
+============================================================
+
+The invitation needs a secure invitation-specific link.
+
+A generic App Store URL is insufficient.
+
+The link must allow Lilica to determine WHICH invitation the recipient is
+trying to accept without exposing an easily forgeable invitation ID.
+
+Audit whether the existing invitation model already contains a secure
+single-use token.
+
+If not, design the smallest secure server-authoritative token mechanism.
+
+Requirements:
+
+- cryptographically unguessable;
+- tied to one invitation;
+- expires appropriately;
+- revocable;
+- cannot be reused after acceptance;
+- cannot grant different permissions from those stored on the invitation;
+- server validates it;
+- raw privileged data is not encoded into a client-trusted URL.
+
+Do not rely on obscurity.
+
+
+============================================================
+7. INSTALLED APP JOURNEY
+============================================================
+
+If Lilica is already installed:
+
+recipient taps invitation link
+→ Lilica opens
+→ invitation is resolved
+→ if authenticated, show invitation
+→ if not authenticated, authenticate first and then resume invitation.
+
+Do not lose the invitation because authentication occurred.
+
+
+============================================================
+8. NOT-YET-INSTALLED JOURNEY
+============================================================
+
+Assess the correct Expo/platform architecture for:
+
+recipient taps invitation
+→ Lilica not installed
+→ install journey
+→ first launch
+→ invitation recovery.
+
+Do NOT invent unsupported deferred-deep-link behaviour.
+
+If a production web landing/interstitial is required to make this robust,
+document and implement the smallest appropriate architecture within the
+project's existing deployment model.
+
+If App Store/Play configuration is required later, document it precisely.
+
+
+============================================================
+9. MANUAL-INSTALL FALLBACK
+============================================================
+
+The system MUST NOT depend entirely on deferred deep linking.
+
+If the recipient ignores the link and instead:
+
+- installs Lilica manually;
+- opens it;
+- creates/signs into an account associated with the invited identity;
+
+Lilica should query for legitimate pending invitations and surface them.
+
+This provides a resilient fallback.
+
+
+============================================================
+10. DO NOT CONVOLUTE NORMAL ONBOARDING
+============================================================
+
+Do NOT add permanent invitation questions to every user's normal onboarding.
+
+Normal user:
+
+Welcome
+→ authentication
+→ normal onboarding.
+
+Invited new user:
+
+Invitation
+→ authentication/create account if needed
+→ invitation recognised
+→ invitation review
+→ Accept / Decline
+→ join Care Circle.
+
+Existing Lilica user:
+
+Invitation
+→ invitation review
+→ Accept / Decline.
+
+The invitation journey is CONDITIONAL.
+
+It is not another compulsory normal-onboarding page.
+
+
+============================================================
+11. PENDING INVITATIONS AFTER LOGIN
+============================================================
+
+After successful authentication, check for legitimate pending Care Circle
+invitations associated with the user.
+
+If one exists, surface it clearly.
+
+If several exist, provide a simple pending-invitations view.
+
+Do not force the user to hunt through Settings to discover that they were
+invited.
+
+
+============================================================
+12. INVITATION REVIEW SCREEN
+============================================================
+
+Before acceptance show enough context to make an informed decision.
+
+At minimum:
+
+"You've been invited"
+
+[Inviter] has invited you to join [Name]'s Care Circle.
+
+Show the role being offered where appropriate.
+
+Show what they will be able to see in clear human language.
+
+Use the SAME verified permission-domain explanations from the permission
+reconciliation work.
+
+Provide:
+
+Accept invitation
+Decline
+
+Do not expose care records before acceptance/authorisation.
+
+
+============================================================
+13. PERMISSIONS MUST BE PRESERVED
+============================================================
+
+The organiser chooses the access domains BEFORE sending the invitation.
+
+Those grants must be stored server-side with the invitation.
+
+Acceptance must create membership with EXACTLY those authorised grants.
+
+The invitee must NOT be able to:
+
+- add permissions;
+- change domains;
+- manipulate the invitation payload;
+- claim a different role;
+- claim another care space.
+
+Server authority is mandatory.
+
+
+============================================================
+14. INVITATION IDENTITY / SECURITY
+============================================================
+
+Audit the existing invited-email model carefully.
+
+Determine what proves that the accepting person is legitimately entitled to
+claim the invitation.
+
+Do not assume:
+
+"there is a pending invitation for dtm35@cam.ac.uk"
+
+is itself sufficient proof.
+
+Consider:
+
+- authenticated verified email;
+- secure invitation token;
+- interaction between the two;
+- existing Supabase Auth behaviour.
+
+Return the exact security rule implemented.
+
+Do not weaken existing invitation security merely to make the UX easier.
+
+
+============================================================
+15. INVITATION EXPIRY / RESEND / REVOKE
+============================================================
+
+An organiser needs sensible lifecycle controls.
+
+Audit existing behaviour and ensure there is a coherent route for:
+
+- pending;
+- accepted;
+- declined;
+- expired;
+- revoked/cancelled.
+
+Where supported, organiser should be able to:
+
+Resend invitation
+Cancel invitation
+
+Do not create duplicate active memberships or uncontrolled duplicate
+invitations.
+
+
+============================================================
+16. EMAIL PRIVACY
+============================================================
+
+Invitation email/share content must be deliberately minimal.
+
+It may identify:
+
+- Lilica;
+- inviter;
+- supported person's first name;
+- Care Circle invitation.
+
+Do NOT put:
+
+- health information;
+- financial information;
+- documents;
+- care notes;
+- tasks;
+- appointments;
+- permission-protected details
+
+into an unauthenticated email/message.
+
+
+============================================================
+17. FAILURE UX
+============================================================
+
+Handle delivery failures honestly.
+
+If email cannot be sent:
+
+do not say "Invitation sent."
+
+Provide a calm error and allow:
+
+Retry
+or
+Share invitation
+
+as appropriate.
+
+If the database invitation exists but email delivery fails, do not create
+duplicate invitation records every time Retry is pressed.
+
+Design idempotently.
+
+
+============================================================
+18. TESTS
+============================================================
+
+At minimum prove:
+
+A. organiser can create invitation;
+B. selected permission domains are stored exactly;
+C. email-delivery path is invoked server-side;
+D. client contains no provider secret;
+E. email content identifies inviter/care circle without leaking care data;
+F. share flow produces secure invitation link;
+G. valid invitation link resolves correct invitation;
+H. invalid token fails;
+I. expired token fails;
+J. revoked invitation fails;
+K. already-used invitation cannot be reused;
+L. unauthenticated link survives authentication journey;
+M. existing authenticated user can accept;
+N. invited new user can authenticate then accept;
+O. pending invitation is discovered after manual login where identity
+   legitimately matches;
+P. invitee cannot increase permission domains;
+Q. invitee cannot alter offered role;
+R. accepted membership receives exact grants;
+S. decline does not create membership;
+T. resend does not create duplicate membership/invitation incorrectly;
+U. email failure is not represented as success;
+V. native Share route works without requiring separate WhatsApp/SMS APIs.
+
+
+============================================================
+19. PHYSICAL QA REQUIRED
+============================================================
+
+Prepare a physical end-to-end checklist using TWO genuine test accounts.
+
+The product owner must ultimately verify:
+
+ACCOUNT A
+→ invite ACCOUNT B by email.
+
+ACCOUNT B
+→ genuinely receives the email.
+
+ACCOUNT B
+→ taps Join.
+
+Test installed-app route.
+
+Test authentication route where practical.
+
+ACCOUNT B
+→ sees:
+   inviter
+   supported person's first name
+   offered access
+   Accept / Decline.
+
+ACCOUNT B
+→ accepts.
+
+ACCOUNT A
+→ sees B in Care Circle.
+
+ACCOUNT B
+→ sees ONLY permitted information.
+
+Also physically test:
+
+ACCOUNT A
+→ new invitation
+→ Share invitation
+→ native share sheet appears
+→ WhatsApp/Messages/Mail are available according to installed apps.
+
+Do NOT claim any of these passed until physically confirmed.
+
+
+============================================================
+20. COMPLETION REPORT ADDITION
+============================================================
+
+Add to the Phase 20D closure report:
+
+1. Why dtm35@cam.ac.uk received no email.
+2. Previous invitation architecture.
+3. New delivery architecture.
+4. Email provider/infrastructure used.
+5. External configuration still required, if any.
+6. Exact invitation email content.
+7. Share-invitation behaviour.
+8. Invitation-link architecture.
+9. Installed-app link behaviour.
+10. Not-installed behaviour.
+11. Manual-install fallback.
+12. Conditional onboarding/authentication behaviour.
+13. Pending-invitation discovery.
+14. Invitation review screen.
+15. Permission preservation.
+16. Identity/security rule.
+17. Expiry.
+18. Resend.
+19. Revoke/cancel.
+20. Failure behaviour.
+21. Tests.
+22. Physical QA explicitly RUN or NOT RUN.
+23. Exact external setup actions required from product owner.
+
+DO NOT COMMIT.
+DO NOT PUSH.
+DO NOT CLAIM EMAIL DELIVERY WORKS UNTIL A REAL INVITATION EMAIL HAS
+ACTUALLY ARRIVED.

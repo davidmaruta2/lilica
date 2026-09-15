@@ -11,7 +11,7 @@ import { MyInvitation } from '../src/careCircle';
 const invitation: MyInvitation = {
   id: 'inv-1',
   careSpaceId: 'space-1',
-  careSpaceName: 'Jackie',
+  careSpaceNames: ['Jackie'],
   invitedByDisplayName: 'Olu',
   role: 'contributor',
   relationshipType: 'Other relative',
@@ -45,7 +45,7 @@ describe('Phase 15: InvitationsScreen', () => {
       <InvitationsScreen invitations={[invitation]} onAccept={onAccept} onDecline={jest.fn()} onClose={jest.fn()} />,
     );
     await fireEvent.press(screen.getByText('Accept'));
-    expect(onAccept).toHaveBeenCalledWith('inv-1');
+    expect(onAccept).toHaveBeenCalledWith(invitation);
   });
 
   it('declining calls onDecline with the invitation id', async () => {
@@ -54,7 +54,7 @@ describe('Phase 15: InvitationsScreen', () => {
       <InvitationsScreen invitations={[invitation]} onAccept={jest.fn()} onDecline={onDecline} onClose={jest.fn()} />,
     );
     await fireEvent.press(screen.getByText('Decline'));
-    expect(onDecline).toHaveBeenCalledWith('inv-1');
+    expect(onDecline).toHaveBeenCalledWith(invitation);
   });
 
   it('shows the server error inline and never implies success on failure', async () => {

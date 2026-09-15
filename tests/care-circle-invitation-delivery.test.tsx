@@ -210,7 +210,7 @@ describe('CareCircleScreen: CREATED and DELIVERED are two distinct, non-overlapp
     await fireEvent.press(screen.getByText('Send by email'));
     expect(mockInviteMember).toHaveBeenCalledTimes(1); // never a second invite
     expect(mockSendInvitationEmail).toHaveBeenCalledTimes(2);
-    expect(mockSendInvitationEmail).toHaveBeenNthCalledWith(2, 'inv-1');
+    expect(mockSendInvitationEmail).toHaveBeenNthCalledWith(2, { invitationId: 'inv-1' });
     await screen.findByText('Invitation emailed.');
   });
 
@@ -278,14 +278,14 @@ describe('CareCircleScreen: cross-device/restart behaviour -- delivery state com
     screen.getByText('marion@example.test');
     screen.getByText('Invitation emailed.');
     await fireEvent.press(screen.getByText('Resend email'));
-    expect(mockSendInvitationEmail).toHaveBeenCalledWith('inv-existing');
+    expect(mockSendInvitationEmail).toHaveBeenCalledWith({ invitationId: 'inv-existing' });
     expect(mockInviteMember).not.toHaveBeenCalled();
   });
 });
 
 // Care Circle invitation & joining flow completion (`\downloads\carecircle.txt`,
 // 14 September 2026): the human-friendly invitation code, and the
-// existing-user manual "Join another Care Circle" entry point.
+// existing-user manual "Join a Care Circle" entry point.
 describe('CareCircleScreen: invitation code and the manual join entry point', () => {
   it('shows the real invitation code (grouped ABCD-1234-style) on both the creation panel and a Pending row', async () => {
     mockInviteMember.mockResolvedValue({ ok: true, data: { invitationId: 'inv-1', inviteCode: 'WXYZ9876' } });
@@ -296,15 +296,15 @@ describe('CareCircleScreen: invitation code and the manual join entry point', ()
     screen.getByText('WXYZ-9876');
   });
 
-  it('"Join another Care Circle" only renders when the caller provides the callback, and calls it when pressed', async () => {
+  it('"Join a Care Circle" only renders when the caller provides the callback, and calls it when pressed', async () => {
     const onJoinAnotherCareCircle = jest.fn();
     const screen = await render(<Harness {...baseProps} onJoinAnotherCareCircle={onJoinAnotherCareCircle} />);
-    await fireEvent.press(screen.getByText('Join another Care Circle'));
+    await fireEvent.press(screen.getByText('Join a Care Circle'));
     expect(onJoinAnotherCareCircle).toHaveBeenCalledTimes(1);
   });
 
-  it('"Join another Care Circle" is absent when the caller omits the callback -- never a dead-end button', async () => {
+  it('"Join a Care Circle" is absent when the caller omits the callback -- never a dead-end button', async () => {
     const screen = await render(<Harness {...baseProps} />);
-    expect(screen.queryByText('Join another Care Circle')).toBeNull();
+    expect(screen.queryByText('Join a Care Circle')).toBeNull();
   });
 });

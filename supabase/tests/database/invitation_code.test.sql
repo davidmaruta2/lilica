@@ -63,8 +63,8 @@ select extensions.isnt(:'invite_code'::text, null::text, 'a code was genuinely g
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '61000000-0000-0000-0000-000000000003', true); -- unrelated account
 select extensions.results_eq(
-  $$select id, role, granted_domains from public.resolve_invitation_by_code('$$ || :'invite_code' || $$')$$,
-  $$values ($$ || quote_literal(:'invitation_id') || $$::uuid, 'contributor', array['general','health'])$$,
+  $$select result_status, id, role, granted_domains from public.resolve_invitation_by_code('$$ || :'invite_code' || $$')$$,
+  $$values ('ok'::text, $$ || quote_literal(:'invitation_id') || $$::uuid, 'contributor', array['general','health'])$$,
   'resolve_invitation_by_code returns the correct invitation id, role and granted domains for a valid code, to ANY authenticated caller'
 );
 
@@ -79,25 +79,32 @@ select extensions.lives_ok(
 -- ---------------------------------------------------------------------
 -- 4. Preview NEVER exposes invitee_email or care_space_id.
 -- ---------------------------------------------------------------------
+-- Multi-person invitation scope (`\downloads\perm.txt`, 15 September
+-- 2026): resolve_invitation_by_code() gained exactly two additive OUT
+-- columns -- group_id (null for a legacy single-person code) and
+-- care_space_names (a plural array; a single-element array for a
+-- legacy code) -- so a grouped invitation's preview can list every
+-- selected supported person. Still never invitee_email or
+-- care_space_id.
 select extensions.set_eq(
   $$select parameter_name from information_schema.parameters
     where specific_schema = 'public' and specific_name like 'resolve_invitation_by_code%' and parameter_mode = 'OUT'$$,
-  array['id', 'care_space_name', 'invited_by_display_name', 'role', 'granted_domains'],
-  'resolve_invitation_by_code returns ONLY id/care_space_name/invited_by_display_name/role/granted_domains -- never invitee_email or care_space_id'
+  array['result_status', 'id', 'group_id', 'care_space_name', 'care_space_names', 'invited_by_display_name', 'role', 'granted_domains'],
+  'resolve_invitation_by_code returns ONLY result_status/id/group_id/care_space_name/care_space_names/invited_by_display_name/role/granted_domains -- never invitee_email or care_space_id'
 );
 
 -- ---------------------------------------------------------------------
 -- 5. Malformed / nonexistent codes fail safely, with calm distinct
 --    messages, never a database-internal error.
 -- ---------------------------------------------------------------------
-select extensions.throws_like(
-  $$select * from public.resolve_invitation_by_code('')$$,
-  'Enter an invitation code',
-  'an empty code fails with a calm, specific message'
+select extensions.results_eq(
+  $$select result_status from public.resolve_invitation_by_code('')$$,
+  $$values ('invalid_input'::text)$$,
+  'an empty code fails with a calm, specific result -- no exception'
 );
-select extensions.throws_like(
-  $$select * from public.resolve_invitation_by_code('NOTREAL1')$$,
-  'We could not find an active invitation with that code',
+select extensions.results_eq(
+  $$select result_status from public.resolve_invitation_by_code('NOTREAL1')$$,
+  $$values ('not_found'::text)$$,
   'a well-formed but nonexistent code fails safely, without leaking anything'
 );
 
@@ -109,10 +116,10 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '61000000-0000-0000-0000-000000000001', true);
 select public.revoke_invitation(:'invitation_id'::uuid);
 
-select extensions.throws_like(
-  $$select * from public.resolve_invitation_by_code('$$ || :'invite_code' || $$')$$,
-  'This invitation is no longer active',
-  'a revoked invitation''s code resolves to a calm "no longer active" message, not a generic not-found -- and not silently as if still valid'
+select extensions.results_eq(
+  $$select result_status from public.resolve_invitation_by_code('$$ || :'invite_code' || $$')$$,
+  $$values ('inactive'::text)$$,
+  'a revoked invitation''s code resolves to a calm "inactive" result, not a generic not-found -- and not silently as if still valid'
 );
 
 -- The underlying accept_invitation() -- completely unmodified -- still
@@ -167,9 +174,9 @@ select extensions.lives_ok(
 );
 
 -- Accepted invitation''s code can no longer be resolved as pending.
-select extensions.throws_like(
-  $$select * from public.resolve_invitation_by_code('$$ || :'invite_code2' || $$')$$,
-  'This invitation is no longer active',
+select extensions.results_eq(
+  $$select result_status from public.resolve_invitation_by_code('$$ || :'invite_code2' || $$')$$,
+  $$values ('inactive'::text)$$,
   'once accepted, the same code no longer resolves as an active, joinable invitation'
 );
 

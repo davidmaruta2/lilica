@@ -70,6 +70,7 @@ import {
 import { archiveCareSpace, deleteCareSpace, provisionSupportedPeople, reconnectCareSpaces, restoreCareSpace } from './src/careSpaces';
 import {
   acceptInvitation,
+  acceptInvitationGroup,
   approveCareSpaceDeletion,
   cancelCareSpaceDeletion,
   CareCircleInvitation,
@@ -77,6 +78,7 @@ import {
   CareSpaceDeletionStatus,
   declineCareSpaceDeletion,
   declineInvitation,
+  declineInvitationGroup,
   DeletionReason,
   getCareSpaceDeletionStatus,
   listCareSpaceInvitations,
@@ -254,7 +256,15 @@ function LilicaApp() {
   // Care Circle keeps a second, separate direct entry point from People's
   // own "Manage care circle" link -- see showCareCircle below -- which is
   // deliberately unchanged (full-screen, not the drawer).
-  const [settingsSection, setSettingsSection] = useState<'menu' | 'careSummary' | 'recentActivity' | 'documents' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'contact'>('menu');
+  const [settingsSection, setSettingsSection] = useState<'menu' | 'careSummary' | 'recentActivity' | 'documents' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'joinCareCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'contact'>('menu');
+  // Care Circle invitation final closure (`\downloads\carecircle-final-
+  // closure.txt`, 15 September 2026): "Join a Care Circle" inside the
+  // Settings drawer is reachable from two different places -- the main
+  // Settings menu directly, or "Join a Care Circle" INSIDE an already-
+  // open Care Circle section -- and Back/Cancel must return to whichever
+  // one it was actually opened from (the menu in the first case, Care
+  // Circle in the second), never always the same fixed target.
+  const [joinCareCircleReturnSection, setJoinCareCircleReturnSection] = useState<'menu' | 'careCircle'>('menu');
   // Phase 21B: the signed-in account's own commercial entitlement --
   // fetched once sign-in is known, refetched after a subscribe/restore
   // action. Never trusted as the actual mutation gate (the server always
@@ -328,6 +338,19 @@ function LilicaApp() {
   // archived care space (brief section 6) -- archivedCareSpaces() below
   // feeds the separate, intentional "Archived care" destination instead.
   const spaces = activeCareSpaces(state).sort((left, right) => left.displayName.localeCompare(right.displayName));
+  // Multi-person Care Circle invitation scope (`\downloads\perm.txt`, 15
+  // September 2026): brief section 5 -- ONLY the supported people this
+  // account is an active ORGANISER of are ever offered for selection in
+  // "Invite someone". This is a UX convenience for what to show; it is
+  // never the security boundary -- invite_member_group() independently
+  // re-checks organiser authority per selected care space server-side
+  // regardless of what this list contains (brief section 29). A
+  // never-synced local-only space has no server-side organiser role at
+  // all yet, so it is excluded here exactly as it already is from the
+  // Care Circle screen's own member/invitation fetch.
+  const organiserEligiblePeople = spaces
+    .filter((space) => space.role === 'organiser' && !space.careSpaceId.startsWith('local-') && space.displayName)
+    .map((space) => ({ careSpaceId: space.careSpaceId, displayName: space.displayName as string }));
 
   // Phase 14: configure the notification handler once, and load whatever
   // reminder settings this device already has -- never requests OS
@@ -525,6 +548,26 @@ function LilicaApp() {
     listCareSpaceInvitations(currentSpace.careSpaceId).then((result) => {
       if (!cancelled && result.ok) setCareCircleInvitations(result.data);
     });
+    // Real defect found while tracing the "Who can they help with?"
+    // checkbox path (`\downloads\carecircle-final-invitation-scope-
+    // correction.txt`, 15 September 2026): organiserEligiblePeople relies
+    // entirely on each care space's local `role` field, but that field
+    // was previously only ever populated by a ONE-SHOT reconnectCareSpaces()
+    // call fired once per signed-in session, with no retry -- if that
+    // single attempt hadn't yet completed (or ever failed) by the time
+    // the organiser opened Care Circle, the multi-person selection
+    // silently never appeared, for the rest of that session, with no way
+    // to recover except restarting the app. Reusing the EXISTING
+    // reconnectCareSpaces()/integrateReconnectedCareSpaces() pair here
+    // (never a new RPC) guarantees this list is genuinely current every
+    // single time Care Circle is opened, matching the same
+    // already-established refresh-on-open pattern this effect already
+    // uses for members/invitations.
+    if (careCircleScreenActive) {
+      reconnectCareSpaces().then((result) => {
+        if (!cancelled && result.ok) setState((current) => integrateReconnectedCareSpaces(current, result.people));
+      });
+    }
     return () => {
       cancelled = true;
     };
@@ -609,9 +652,11 @@ function LilicaApp() {
     return result;
   }
 
-  async function handleAcceptInvitation(invitationId: string) {
-    const result = await acceptInvitation(invitationId);
-    if (!result.ok) return result;
+  // Shared tail for every acceptance route (legacy single invitation OR
+  // multi-person group) -- reconnects/integrates care spaces and
+  // resolves onboarding state exactly once, so the two entry points
+  // below never duplicate this logic.
+  async function finishAcceptance() {
     const reconnected = await reconnectCareSpaces();
     if (reconnected.ok) {
       setState((current) => {
@@ -625,6 +670,20 @@ function LilicaApp() {
       });
     }
     await refreshMyInvitations();
+  }
+
+  // Multi-person Care Circle invitation scope (`\downloads\perm.txt`, 15
+  // September 2026): dispatches to accept_invitation() (legacy, one
+  // care space) or accept_invitation_group() (a multi-person bundle) --
+  // never both, and the caller decides which by which id it has. Every
+  // existing single-invitation acceptance path continues calling this
+  // with only invitationId set, completely unchanged in effect.
+  async function handleAcceptInvitation(target: { invitationId?: string; groupId?: string }) {
+    const result = target.groupId
+      ? await acceptInvitationGroup(target.groupId)
+      : await acceptInvitation(target.invitationId as string);
+    if (!result.ok) return result;
+    await finishAcceptance();
     return { ok: true as const };
   }
 
@@ -818,8 +877,10 @@ function LilicaApp() {
     return { ok: true };
   }
 
-  async function handleDeclineInvitation(invitationId: string) {
-    const result = await declineInvitation(invitationId);
+  async function handleDeclineInvitation(target: { invitationId?: string; groupId?: string }) {
+    const result = target.groupId
+      ? await declineInvitationGroup(target.groupId)
+      : await declineInvitation(target.invitationId as string);
     if (!result.ok) return result;
     await refreshMyInvitations();
     return { ok: true as const };
@@ -1455,19 +1516,32 @@ function LilicaApp() {
           isReadOnly={isReadOnly || isArchived}
           onInviteBlocked={() => showBlockedGate()}
           inviterDisplayName={auth.profile?.displayName}
-          onJoinAnotherCareCircle={() => setShowJoinCareCircle(true)}
+          // Real, pre-existing bug found while fixing discoverability
+          // (`\downloads\carecircle-final-closure.txt`, 15 September
+          // 2026): setting only showJoinCareCircle had no visible effect
+          // at all -- showCareCircle is checked FIRST in this same
+          // else-if chain below, so it always intercepted the render
+          // before showJoinCareCircle was ever reached. Both must toggle
+          // together.
+          onJoinAnotherCareCircle={() => { setShowCareCircle(false); setShowJoinCareCircle(true); }}
+          organiserEligiblePeople={organiserEligiblePeople}
         />
       ) : null;
     } else if (showJoinCareCircle) {
       // Care Circle invitation & joining flow completion: an existing
-      // user's own manual entry point (CareCircleScreen's "Join another
-      // Care Circle") -- the SAME screen and the SAME acceptance path
-      // (handleAcceptInvitation) the onboarding-time fork uses.
+      // user's own manual entry point (CareCircleScreen's "Join a Care
+      // Circle") -- the SAME screen and the SAME acceptance path
+      // (handleAcceptInvitation) the onboarding-time fork uses. Back/
+      // Cancel returns to Care Circle, not Home (brief's own explicit
+      // requirement) -- a successful join falls through to the normal
+      // Home/person view instead, since by then there is new, real
+      // content worth landing on rather than the (now possibly
+      // stale-context) Care Circle screen it was opened from.
       content = (
         <JoinCareCircleScreen
           onResolveCode={resolveInvitationByCode}
           onAccept={handleAcceptInvitation}
-          onClose={() => setShowJoinCareCircle(false)}
+          onClose={() => { setShowJoinCareCircle(false); setShowCareCircle(true); }}
           onJoined={() => setShowJoinCareCircle(false)}
         />
       );
@@ -1626,6 +1700,7 @@ function LilicaApp() {
           onOpenAccount={() => setSettingsSection('account')}
           onOpenPrivacyData={() => setSettingsSection('privacyData')}
           onOpenCareCircle={careCircleAvailable ? () => setSettingsSection('careCircle') : undefined}
+          onOpenJoinCareCircle={() => { setJoinCareCircleReturnSection('menu'); setSettingsSection('joinCareCircle'); }}
           onOpenSubscription={() => setSettingsSection('subscription')}
           subscriptionSummary={myEntitlement ? describeEntitlement(myEntitlement) : undefined}
           onOpenArchivedCare={archivedSpaces.length > 0 ? () => setSettingsSection('archivedCare') : undefined}
@@ -1711,6 +1786,28 @@ function LilicaApp() {
               isReadOnly={isReadOnly || isArchived}
               onInviteBlocked={() => showBlockedGate()}
               inviterDisplayName={auth.profile?.displayName}
+              organiserEligiblePeople={organiserEligiblePeople}
+              onJoinAnotherCareCircle={() => { setJoinCareCircleReturnSection('careCircle'); setSettingsSection('joinCareCircle'); }}
+            />
+          ) : settingsSection === 'joinCareCircle' ? (
+            // Real gap reported directly (15 September 2026): this was
+            // previously only reachable from inside an already-open Care
+            // Circle screen, itself gated behind having a care space of
+            // one's own -- someone with nothing set up yet had no way to
+            // find it. Stays inside the drawer; Back/Cancel returns to
+            // whichever section it was actually opened FROM (the menu,
+            // or Care Circle -- joinCareCircleReturnSection, set by each
+            // caller above), never always the same fixed target. Joining
+            // closes the drawer entirely since it changes what the rest
+            // of the app shows, mirroring handlePrivacyCareSpaceLeft().
+            <JoinCareCircleScreen
+              onResolveCode={resolveInvitationByCode}
+              onAccept={handleAcceptInvitation}
+              onClose={() => setSettingsSection(joinCareCircleReturnSection)}
+              onJoined={() => {
+                setShowSettingsMenu(false);
+                setSettingsSection('menu');
+              }}
             />
           ) : settingsSection === 'privacyData' ? (
             <PrivacyDataScreen
@@ -2137,8 +2234,8 @@ function LilicaApp() {
     content = (
       <InvitationsScreen
         invitations={myInvitations}
-        onAccept={handleAcceptInvitation}
-        onDecline={handleDeclineInvitation}
+        onAccept={(invitation) => handleAcceptInvitation({ invitationId: invitation.groupId ? undefined : invitation.id, groupId: invitation.groupId })}
+        onDecline={(invitation) => handleDeclineInvitation({ invitationId: invitation.groupId ? undefined : invitation.id, groupId: invitation.groupId })}
         onClose={() => setShowInvitations(false)}
       />
     );

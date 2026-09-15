@@ -1,0 +1,365 @@
+LILICA - PHASE 21A: BILLING/SUBSCRIPTION ARCHITECTURE PROPOSAL
+COMPLETION REPORT (ANALYSIS ONLY - ZERO IMPLEMENTATION)
+Source brief: Downloads\phase21a.txt
+Date: 13 September 2026
+
+Full proposal: docs/PHASE_21_ARCHITECTURE_PROPOSAL.md (this is a PROPOSAL;
+docs/PHASE_21_ARCHITECTURE.md, the final approved version, was deliberately
+NOT created).
+
+1. STARTING HEAD / ORIGIN/MASTER
+HEAD 1bcbf2a, confirmed equal to origin/master (Phase 20 commit/push).
+
+2. PHASE 20 CLOSURE STATUS
+Phase 20 (20A audit + 20B implementation) was already committed and pushed
+as 1bcbf2a before this task began - nothing needed preparing for
+commit/push. Updated docs/PHASE_20_QA.md (marked the checklist complete
+on the basis of the product owner's general "tested and it works"
+confirmation, not a re-documented item-by-item walkthrough),
+docs/REVISION_LOG.md, docs/LUMEN_HANDOFF.md, AGENTS.md, CLAUDE.md to state
+Phase 20 is complete and physically approved. No implementation was
+altered. These closure-note edits are themselves still uncommitted (see
+item 45) and were kept logically distinct from the Phase 21A proposal
+work in this same report.
+
+3. CURRENT ACCOUNT/CARE-SPACE ARCHITECTURE DISCOVERED
+auth.users is the one stable identity; care_spaces.bootstrap_owner_id is
+explicitly commented in its own migration as "idempotency metadata only;
+access is granted exclusively through membership" (nullable since Phase
+18B) - NOT an authority field and must not be repurposed for billing;
+care_space_memberships.role (organiser/contributor/viewer) is the sole
+security/collaboration concept, and a care space can already have more
+than one organiser. No commercial/billing concept exists anywhere today.
+Full detail: proposal document section 2.
+
+4. RECOMMENDED COMMERCIAL OWNERSHIP MODEL
+A new, dedicated care_spaces.commercial_owner_id (references auth.users),
+set once at creation, structurally independent of bootstrap_owner_id and
+of role=organiser. Two rejected alternatives (reusing bootstrap_owner_id;
+deriving ownership implicitly from "the first organiser") are documented
+with reasons. Full detail: section 3.
+
+5. MULTIPLE-SUPPORTED-PERSON BEHAVIOUR
+One entitled account's commercial_owner_id can cover any number of care
+spaces (Beauty + Jackie) with zero extra schema or purchase - the
+proposition is per-account, not per-care-space. Full detail: section 4.
+
+6. CARE CIRCLE COLLABORATOR BEHAVIOUR
+A collaborator's mutation ability depends on two independent conditions
+(their own Care Circle domain grant AND the care space's own entitlement
+via its commercial_owner_id) - a collaborator never needs a personal
+subscription to help in someone else's entitled space. Full detail:
+section 5.
+
+7. MULTI-ORGANISER BEHAVIOUR
+role=organiser is never automatically "must pay". Recommended Policy 1:
+entitlement is tied to the SPECIFIC commercial_owner_id, not "any active
+organiser's entitlement covers everyone" (Policy 2, explicitly rejected
+for reintroducing exactly the ambiguity the brief warns against). Flagged
+as open decision 1 for product-owner confirmation. Full detail: section
+6.
+
+8. BILLING-OWNER CONTINUITY MODEL
+A new, narrowly-scoped transfer_care_space_commercial_ownership() RPC -
+callable by the current owner (self-transfer) or, once their membership
+is no longer active, by any remaining active organiser. Explicitly NOT a
+general arbitrary-user-to-user transfer feature. Full detail: section 7.
+
+9. TRIAL-START RECOMMENDATION
+The first successful bootstrap_supported_people() call for an account -
+not account creation/verification/login, since those precede any
+Lilica-specific action. Server-authoritative, written exactly once. Full
+detail: section 8.
+
+10. EXACT ONE-MONTH SEMANTICS
+Recommended: a fixed 30x24 hours from trial_started_at, not "one calendar
+month" (which is genuinely ambiguous at month-end, per the brief's own
+31-January example). Full detail: section 9.
+
+11. APP-MANAGED VS STORE-MANAGED TRIAL RECOMMENDATION
+Recommended: Option A, an app-managed free month with no store
+subscription started until an explicit purchase decision - compared
+directly against Option B (store-managed intro trial) across friction,
+automatic-charging risk, fidelity to the product owner's own stated
+proposition, platform-rule compatibility, conversion quality, and
+entitlement-architecture simplicity. Full comparison table: section 10.
+
+12. DIRECT STORES VS SUBSCRIPTION-MANAGEMENT SERVICE COMPARISON
+Recommended: RevenueCat, specifically because Lilica's one-product/
+two-platform shape is the case such a service earns its cost back
+immediately (free until $2,500/month tracked revenue, verified via
+current 2026 pricing research, not memory) - not "because it's popular".
+Full comparison table: section 11.
+
+13. RECOMMENDED BILLING INTEGRATION
+RevenueCat wrapping native StoreKit 2 / Google Play Billing purchase
+flows, with RevenueCat performing store-side verification and relaying a
+single unified webhook to one Lilica Supabase Edge Function. Full detail:
+sections 11, 24-25.
+
+14. PROPOSED ENTITLEMENT STATE MACHINE
+TRIAL_ACTIVE, TRIAL_EXPIRED, SUBSCRIPTION_ACTIVE, GRACE_PERIOD,
+BILLING_RETRY/ACCOUNT_HOLD, SUBSCRIPTION_EXPIRED, REVOKED/REFUNDED,
+UNKNOWN/VERIFICATION_REQUIRED - no ambiguous boolean flag anywhere. Full
+table (mutations/read/export/Care-Circle-participation/purchase-restore/
+offline per state): section 12.
+
+15. READ-ONLY RULES
+Confirmed verbatim from the brief: expiry never removes access to
+previously entered information; only active care-management mutation is
+gated. Full detail: section 13.
+
+16. COMPLETE MUTATION INVENTORY
+Every current server mutation path classified ENTITLEMENT REQUIRED / NOT
+REQUIRED - apply_record_mutation() and its dependents, attachment/link
+RPCs, invite_member()/revoke_invitation()/change_member_role()/
+remove_member() all REQUIRED; accept_invitation()/decline_invitation()/
+leave_care_space()/delete_my_account()/export_my_data()/
+account_deletion_precheck()/every list_* read all NOT REQUIRED. First
+bootstrap for a brand-new account is never gated (it is the event that
+starts the trial); a second-or-later bootstrap is. Full table: section
+14.
+
+17. SERVER ENFORCEMENT DESIGN
+One shared care_space_has_active_entitlement() function, called
+consistently from every REQUIRED RPC, mirroring the existing
+can_access_care_space_records() pattern - never duplicated bespoke logic
+per RPC. Full detail: section 15.
+
+18. OFFLINE ENTITLEMENT DESIGN
+Client caches last server-verified state + last_verified_at, usable for a
+proposed 72-hour offline grace window before falling back to a
+"reconnect to confirm" state - never trusted as authoritative for a
+server mutation regardless of the window. Full detail: section 16.
+
+19. OFFLINE MUTATION-EXPIRY BEHAVIOUR
+An offline-created mutation that reaches the server after entitlement has
+genuinely expired is rejected by the server (authoritative), but the
+user's work is moved to a visible "couldn't be saved - subscription
+needed" holding area (reusing the existing document-cleanup-queue's own
+established failed-state pattern) rather than silently discarded. Full
+detail: section 16.
+
+20. iOS -> ANDROID ENTITLEMENT BEHAVIOUR
+Recommended: entitlement follows the Lilica account, not the platform/
+device, once RevenueCat has verified the purchase - matching the actual
+"Lilica account subscription" proposition. Full detail: section 17.
+
+21. ANDROID -> iOS ENTITLEMENT BEHAVIOUR
+Symmetric to the above. Full detail: section 17.
+
+22. RESTORE BEHAVIOUR
+Restore is essentially "log in, re-fetch the server's own entitlement
+row" for reinstall/new-device/logout-login/cleared-storage cases, since
+the server row is keyed to the account, never local storage. Full detail:
+section 18.
+
+23. REFUND/REVOCATION BEHAVIOUR
+Reflected via the same webhook path as any other state change into
+REVOKED/REFUNDED; existing data remains fully readable under the safety
+principle. Full detail: section 19.
+
+24. ACCOUNT DELETION BEHAVIOUR
+delete_my_account() (Phase 18B) is never gated by entitlement. Lilica
+cannot cancel an Apple/Google subscription on the user's behalf (neither
+store provides that API) - deletion must clearly disclose this before
+confirmation. commercial_owner_id becomes nullable and is set to null on
+deletion, mirroring bootstrap_owner_id's own established pattern exactly.
+Full detail: section 20.
+
+25. SUBSCRIPTION/CARE-SPACE OWNERSHIP SEPARATION
+Fully separated: commercial_owner_id (commercial, per care space),
+care_space_memberships.role (security, per membership), and entitlements
+(commercial, per user account) are three structurally independent
+concepts, none mixed into records. Full detail: section 21.
+
+26. PROPOSED SCHEMA
+care_spaces.commercial_owner_id (new nullable column); public.entitlements
+(one row per account: status, trial_started_at, trial_expires_at,
+provider, provider_app_user_id, entitlement_expires_at, last_verified_at);
+public.entitlement_events (append-only audit log, mirroring
+care_space_activity's own immutable-log pattern); plus
+care_space_has_active_entitlement() and
+transfer_care_space_commercial_ownership(). For every item: purpose,
+source of truth, read/write access, RLS, and retention/deletion stated
+explicitly. Full detail: section 22.
+
+27. PROPOSED RPC/SERVER CHANGES
+New: care_space_has_active_entitlement(),
+transfer_care_space_commercial_ownership(), an entitlement webhook Edge
+Function, apply_entitlement_update(). Redefined (same signature, one
+added check each): apply_record_mutation() and the other REQUIRED RPCs
+from item 16. Explicitly NOT redefined: every NOT REQUIRED RPC. Full
+detail: section 23.
+
+28. STORE-VERIFICATION ARCHITECTURE
+RevenueCat's SDK on-device drives the native purchase sheet; RevenueCat
+performs authoritative server-to-server verification against Apple/
+Google; Lilica's own server never talks to Apple/Google directly, only
+verifies RevenueCat's own unified webhook signature. A client purchase
+callback alone is never trusted. Full detail: section 24.
+
+29. SERVER-NOTIFICATION/WEBHOOK ARCHITECTURE
+One Edge Function receiving RevenueCat's unified webhook (itself
+aggregating Apple App Store Server Notifications V2 and Google Real-time
+Developer Notifications); idempotency via a provider_event_id ledger,
+mirroring record_mutation_receipts' own established operation_id pattern.
+Full detail: section 25.
+
+30. SECURITY THREAT MODEL
+A mitigation stated for every threat named in the brief (modified-client
+premium claims, replayed receipts, expired cached entitlement, another
+user's token, revoked subscription, cross-space leakage, collaborator
+mutating an expired space, client clock manipulation, offline replay,
+webhook spoofing). Full table: section 26.
+
+31. PRIVACY/DATA IMPLICATIONS
+No raw payment card/bank data is ever processed or stored by Lilica or
+RevenueCat - only a stable non-financial App User ID and
+provider-transaction identifiers. Retention/deletion follows the Phase
+18B philosophy already established for every other personal data
+category. Full detail: section 27.
+
+32. APPLE COMPLIANCE FINDINGS
+Sourced from Apple's own current App Store Review Guidelines and
+Auto-Renewable Subscriptions documentation (not memory): a 7-day minimum
+subscription period and cross-device availability; an April 2026
+guideline update requiring clear pre-purchase disclosure of what/cost/
+duration/cancellation; an expected Restore Purchases affordance. Full
+detail and source URLs: section 29.
+
+33. GOOGLE PLAY COMPLIANCE FINDINGS
+Sourced from Google's own current Play Billing developer documentation
+and Play Console policy announcements: a Billing Library v8+ deadline
+(31 August 2026, extendable to 1 November 2026); a two-tap-maximum
+in-app cancellation requirement with a ban on obscuring cancellation; a
+newly-identified (2026) requirement for a WEB-BASED account-deletion
+resource alongside the existing in-app deletion, flagged as a genuine new
+launch dependency this research surfaced. Full detail and source URLs:
+section 29.
+
+34. TERMS/PRIVACY LAUNCH DEPENDENCIES
+No Terms/Privacy URL exists and none was invented, per
+docs/PROJECT_BRIEF.md's own standing instruction. Now explicitly a hard
+launch dependency given Apple's own 2026 disclosure requirement. A SECOND,
+previously-unflagged launch dependency was surfaced by this research: a
+web-based account-deletion resource, per Google's own 2026 policy. Both
+recorded as open items, not resolved here. Full detail: sections 29-30.
+
+35. GBP9.99/YEAR COST SANITY CHECK
+Apple/Google commission (~30% year one, ~15% thereafter under both
+platforms' established subscription-commission structure) dominates;
+RevenueCat's cost is negligible (free until $2,500/month tracked
+revenue, then 1%); backend cost is immaterial next to Lilica's existing
+Supabase footprint; VAT/sales tax is already handled by the stores acting
+as merchant of record. Conclusion: the proposed architecture does not
+consume an unreasonable share of the £9.99 price. Full detail: section
+31.
+
+36. FULL ENTITLEMENT DECISION TABLE
+Built with all 13 required columns (can read/search/export/add/edit/
+complete/assign/upload/invite/change-permissions/leave-care-space/
+delete-account/purchase-restore) for every proposed state - "leave care
+space" and "delete account" are Yes in every row, per the brief's own
+explicit safety-action carve-out. Full table: section 32.
+
+37. FULL SCENARIO MATRIX
+All 25 brief-required scenarios given explicit expected behaviour, each
+tied back to the specific architecture section that resolves it. Full
+matrix: section 33.
+
+38. UX FLOW MAP
+All 10 required flows (first month through subscription management)
+documented as information architecture only - no Phase 22 visual work.
+Full detail: section 34.
+
+39. PHASE 21B PROPOSED IMPLEMENTATION SEQUENCE
+11 steps, derived from the discovered architecture rather than copied
+from the brief's own illustrative example verbatim - data model and
+server enforcement proven with pgTAP before any client UI, migration/
+grandfathering execution deliberately sequenced after the open decisions
+are expected to be resolved. Full sequence: section 35.
+
+40. TEST PLAN
+Full design (no implementation) covering every category the brief named
+- state machine, trial, expiry, server write denial, collaborator
+inheritance, multi-person coverage, cross-space isolation, restore,
+refund/revocation, offline, account switching, account deletion, export
+while expired, read-only access, store verification, webhook/server
+notifications, idempotency, and race conditions (including the
+concurrent-request-during-expiry-transition case, resolved via the same
+row-locking pattern apply_record_mutation() already uses). Full detail:
+section 36.
+
+41. OPEN DECISIONS REQUIRING GPT/PRODUCT-OWNER APPROVAL
+Eight explicit open items recorded (not decided unilaterally): the
+Scenario D policy choice; whether profile-identity changes should remain
+ungated while expired; the 72-hour offline grace window's exact length;
+entitlement-data retention-on-deletion policy; RevenueCat as a named
+vendor dependency; the existing/pre-launch-account grandfathering policy;
+the exact development/test-account mechanism; and where the newly-
+surfaced web-based account-deletion resource gets built. Full list:
+section 37 of the proposal document.
+
+42. DOCUMENTATION CHANGED
+New: docs/PHASE_21_ARCHITECTURE_PROPOSAL.md (the proposal itself; the
+final docs/PHASE_21_ARCHITECTURE.md was deliberately NOT created, per the
+brief's own instruction). Modified (Phase 20 closure only, no
+implementation touched): docs/PHASE_20_QA.md, docs/REVISION_LOG.md,
+docs/LUMEN_HANDOFF.md, AGENTS.md, CLAUDE.md.
+
+43. CONFIRMATION: ZERO BILLING CODE WAS IMPLEMENTED
+No StoreKit library, Google Billing library, RevenueCat SDK, entitlement
+table, billing migration, webhook, Edge Function, paywall, trial code,
+read-only-enforcement code, App Store product, or Play product was
+created. Confirmed via git status --short: only Markdown files appear as
+changed/new.
+
+44. CONFIRMATION: ZERO BILLING MIGRATION/DEPENDENCY WAS ADDED
+No file under supabase/migrations/ was created this task. package.json/
+package-lock.json untouched - confirmed via grep, zero mentions of
+revenuecat/storekit/billing anywhere in package.json.
+
+45. GIT STATUS
+Modified (Phase 20 closure note only): AGENTS.md, CLAUDE.md,
+docs/LUMEN_HANDOFF.md, docs/PHASE_20_QA.md, docs/REVISION_LOG.md.
+New: docs/PHASE_21_ARCHITECTURE_PROPOSAL.md.
+NOT committed. NOT pushed, per this brief's own explicit instruction:
+"Do NOT commit Phase 21A. Do NOT push Phase 21A." Phase 20's own
+implementation (1bcbf2a) was already committed/pushed before this task
+began and required no further commit - only these small, logically
+separate closure-note edits remain uncommitted, and are clearly
+identified here as such, not mixed into any Phase 21 commit.
+
+46. CONFIRMATION: PHASE 22 NOT STARTED
+No comprehensive visual/typography/spacing/hierarchy/card/gradient/
+animation audit or implementation was performed. This task's own UX flow
+map (item 38) was explicitly scoped as information architecture only,
+per the brief's own instruction that Phase 22 owns premium visual
+optimisation.
+
+ACCEPTANCE STANDARD CHECK
+This document gives GPT and the product owner enough to answer, before
+any Phase 21B implementation: who pays (the care space's own
+commercial_owner_id); what GBP9.99/year covers (that account's own
+care spaces, however many); when the free month starts (first
+bootstrap_supported_people() call, server-authoritative); what happens
+when it ends (read-only per the explicit decision table); who can
+continue collaborating (any Care Circle member with a permission grant,
+regardless of their own personal entitlement); what happens with
+multiple organisers (the specific commercial_owner_id's own state
+governs, not "any organiser"); what happens offline (a bounded cached
+grace window, server always re-verified); what the server enforces (one
+shared entitlement-check function across every mutation RPC); how Apple
+and Google become authoritative (RevenueCat's own verified webhook, never
+a client callback alone); how purchases are restored (re-fetching the
+server's own account-keyed entitlement row); what happens on another
+platform (entitlement follows the account, not the device); what happens
+after cancellation/failure/refund/account deletion (each given an
+explicit, distinct behaviour); and how existing care information is never
+held hostage by expiry (the read-only principle enforced at exactly the
+mutation boundary, never at the read boundary).
+
+STOP - awaiting GPT and product-owner review and approval of this
+proposal, including the 8 explicit open decisions, before any Phase 21B
+implementation prompt is issued.

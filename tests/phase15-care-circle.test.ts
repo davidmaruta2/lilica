@@ -148,7 +148,7 @@ describe('Phase 15: care circle RPC wrappers', () => {
       error: null,
     });
     const mine = await listMyInvitations();
-    expect(mine.ok && mine.data[0].careSpaceName).toBe('Jackie');
+    expect(mine.ok && mine.data[0].careSpaceNames).toEqual(['Jackie']);
 
     mockRpc.mockResolvedValue({
       data: [{

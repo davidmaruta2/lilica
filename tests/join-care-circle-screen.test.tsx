@@ -11,7 +11,7 @@ import { CodeResolvedInvitation } from '../src/careCircle';
 
 const validPreview: CodeResolvedInvitation = {
   invitationId: 'inv-99',
-  careSpaceName: 'Maggie',
+  careSpaceNames: ['Maggie'],
   invitedByDisplayName: 'David',
   role: 'contributor',
   grantedDomains: ['general', 'health'],
@@ -22,7 +22,7 @@ describe('JoinCareCircleScreen', () => {
     const screen = await render(
       <JoinCareCircleScreen onResolveCode={jest.fn()} onAccept={jest.fn()} onClose={jest.fn()} onJoined={jest.fn()} />,
     );
-    screen.getByText('Enter your invitation code');
+    screen.getByText("Enter the care circle code if you've been given one by the organiser");
     expect(screen.getByLabelText('Continue').props.accessibilityState.disabled).toBe(true);
   });
 
@@ -73,7 +73,7 @@ describe('JoinCareCircleScreen', () => {
     await screen.findByText("You've been invited to help with Maggie's care");
     expect(onAccept).not.toHaveBeenCalled(); // resolving/reviewing never joins by itself
     await fireEvent.press(screen.getByText('Join Care Circle'));
-    expect(onAccept).toHaveBeenCalledWith('inv-99');
+    expect(onAccept).toHaveBeenCalledWith({ invitationId: 'inv-99', groupId: undefined });
     expect(onJoined).toHaveBeenCalledTimes(1);
   });
 

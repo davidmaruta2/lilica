@@ -1,0 +1,601 @@
+LILICA - MULTI-PERSON CARE CIRCLE INVITATION SCOPE
+Completion report, 15 September 2026 (`\downloads\perm.txt`)
+
+===========================================================================
+CURRENT ROOT CAUSE
+===========================================================================
+
+1. WHY dtm35 CURRENTLY SEES MAGGIE BUT NOT BEN
+David invited dtm35@cam.ac.uk by calling invite_member() for Maggie's
+care_space ONLY. That created exactly one care_space_invitations row,
+scoped to Maggie's care_space_id alone. Nothing in the invite flow ever
+let David select Ben too, so no invitation, and therefore no membership,
+to Ben's care_space was ever created. dtm35 accepted the one invitation
+that existed and got exactly what it granted: Maggie only.
+
+2. CURRENT CARE_SPACE/SUPPORTED-PERSON RELATIONSHIP
+supported_people.care_space_id is UNIQUE (enforced by a database
+constraint, confirmed by reading the schema directly, not inferred from
+the UI). One care_space is, and remains, exactly one supported person.
+
+3. CURRENT MEMBERSHIP SCOPE
+care_space_memberships is unique per (user_id, care_space_id). One
+membership row is exactly one (person, care space) relationship. There
+is no concept anywhere in the schema of a membership spanning multiple
+care spaces.
+
+4. CURRENT INVITATION SCOPE
+care_space_invitations.care_space_id is a single, not-null column, and
+the "one pending invitation per (care_space, email)" unique index is
+itself scoped per care_space. An invitation has always been, and
+remains, exactly one care space.
+
+("Is that why dtm35 sees Maggie but not Ben" / "does Care Circle span
+multiple care spaces": yes to the first, no to the second -- Care Circle
+itself is genuinely care-space-specific; CareCircleScreen, list_care_
+space_members() and list_care_space_invitations() are all scoped to one
+target_care_space_id, confirmed by reading those functions directly.)
+
+===========================================================================
+ARCHITECTURE
+===========================================================================
+
+5. CHOSEN MULTI-PERSON INVITATION ARCHITECTURE
+Brief section 8, option A: a lightweight orchestration "bundle" over the
+existing, completely unmodified per-care-space primitives. One new
+table, care_space_invitation_groups (one row per organiser-facing
+invitation ACTION covering 1+ selected supported people, carrying the
+ONE human-friendly invite_code and the ONE set of delivery-state
+columns). care_space_invitations gains one additive, nullable
+invitation_group_id column -- NULL for an ordinary legacy invitation
+(completely unchanged), non-null for one child of a group (still an
+independently-authoritative row: its own care_space_id, role, domain
+grants, status).
+
+6. WHY THIS PRESERVES PER-PERSON SECURITY
+invite_member_group() does not reimplement anything -- it calls the
+EXISTING invite_member() once per selected care space. Every authority
+check (only an active organiser of THAT specific care space may include
+it), idempotency rule, and validation invite_member() already enforces
+applies identically, per person, with zero duplicated logic. Any
+failure other than "already has access" aborts the WHOLE call
+(Postgres's own transactional rollback), so nothing partial is ever left
+behind. accept_invitation_group()/decline_invitation_group()/revoke_
+invitation_group() likewise loop the EXISTING accept_invitation()/
+decline_invitation()/revoke_invitation() -- none of the three catches an
+exception, so a failure partway through rolls back every child processed
+earlier in the same call. Selecting Maggie never implies Ben, proven
+directly by pgTAP (item 10 below).
+
+7. LEGACY SINGLE-PERSON COMPATIBILITY
+Selecting exactly one person never touches the group machinery at all --
+CareCircleScreen calls the plain, unmodified invite_member() directly.
+Every pre-existing single-invitation code path (invite_member,
+accept_invitation, decline_invitation, revoke_invitation, resolve_
+invitation_by_code's legacy branch) is byte-for-byte unchanged in
+behaviour. No migration invents additional people for an
+already-existing invitation; invitation_group_id is simply NULL for
+every row that existed before this migration.
+
+8. GROUP/CODE MODEL
+generate_invitation_group_code() reuses the exact same alphabet/length/
+shape as the legacy generate_invitation_code(), checked for uniqueness
+against BOTH tables so a group code and a legacy invitation's own
+(never user-facing) internal code can never collide. resolve_
+invitation_by_code() is redefined additively: the already-approved
+rate-limit/authentication logic is preserved verbatim; it now checks
+the group table FIRST, returning every selected person's name plus a
+group_id; if no group matches, it falls through to the completely
+unchanged legacy single-invitation lookup.
+
+9. TRANSACTIONAL ACCEPTANCE MODEL
+accept_invitation_group() loops the group's still-pending children,
+calling the unmodified accept_invitation() for each. No exception
+handler wraps the loop, so Postgres's ordinary transactional semantics
+make the whole operation atomic for free: if any child fails, every
+membership/grant created earlier in the SAME call is rolled back,
+including the group's own state -- "Maggie accepted, Ben failed" is
+structurally impossible, not merely unlikely. Idempotent: accepting an
+already-accepted group raises "This invitation is no longer open" and
+creates nothing extra (proven, item 16).
+
+10. REVOKE/DECLINE/EXPIRY MODEL
+revoke_invitation_group()/decline_invitation_group() loop the unmodified
+revoke_invitation()/decline_invitation() over every pending child, then
+mark the group's own status to match -- one coherent user-facing action,
+never "Maggie revoked, Ben still pending" left for the organiser to
+puzzle over. Expiry is lazy and coherent: resolve_invitation_by_code()
+first sweeps every pending child of a matched group for its own expired
+expires_at, then marks the GROUP expired only once none of its children
+are still pending -- proven directly (item 15) rather than assumed.
+
+===========================================================================
+ORGANISER UX
+===========================================================================
+
+11. SUPPORTED-PERSON SELECTION UI
+CareCircleScreen's "Invite someone" form gains a "Who can they help
+with?" checkbox section, shown ONLY when the organiser has more than one
+eligible person (brief section 17 -- never adding complexity where
+there is nothing to select). "They'll only be able to see information
+for the people you select" appears beneath it, matching the brief's own
+wording.
+
+12. DEFAULT SELECTION
+The care space whose own Care Circle screen this is stays preselected
+by default; every other eligible person is shown, visible, but NOT
+preselected -- proven directly (item under "Client tests" below):
+opening the form from Maggie's screen shows Maggie checked and Ben
+unchecked.
+
+13. AUTHORITY FILTERING
+Only supported people where App.tsx's own locally-known role ===
+'organiser' are ever listed (a UX convenience, never the security
+boundary). The server independently re-derives and enforces this per
+selected care space inside invite_member_group() regardless of what the
+client shows or omits -- proven directly (item 11 below): David, who
+organises Maggie but only contributes to a third space ("Kate"), cannot
+include Kate through this action, and the server rejects the WHOLE
+call, not merely that one inclusion.
+
+14. EXISTING-MEMBER/ALREADY-HAS-ACCESS BEHAVIOUR
+invite_member_group() reports each selected care space's own outcome
+('invited' or 'already_has_access') rather than erroring the whole
+call. The client shows this truthfully ("Already has access to: Maggie
+-- not included in this invitation") and never submits a duplicate
+invitation for an already-active person. If every selected person
+already has access, a calm info message appears and no invitation is
+created at all.
+
+15. ROLE BEHAVIOUR
+One role offered, applied identically to every selected person -- no
+per-person role matrix in this version, matching brief section 13
+exactly.
+
+16. DOMAIN BEHAVIOUR
+One set of selected domains, applied identically to every selected
+person via invite_member()'s own existing per-care-space grant
+mechanism -- proven independently correct for BOTH Maggie's and Ben's
+resulting memberships, not merely for one and inferred for the other
+(pgTAP items 8/9 below).
+
+17. INVITATION-CREATED DISPLAY
+The panel is now populated directly from the create call's own result
+(never a lookup into the currently-active care space's own invitation
+list, which could miss the row entirely if the active space wasn't
+among those selected). Shows every invited person's name and, when
+applicable, who was already excluded because they already had access.
+
+18. EMAIL WORDING
+personFirstName became the plural personFirstNames; a one-element array
+produces byte-for-byte the same wording proven by the existing test
+suite. More than one uses the brief's own preferred phrasing: "David has
+invited you to join Lilica to help support Maggie and Ben."
+
+19. SHARE WORDING
+The native Share message uses the identical grammatical joining logic
+("Maggie" / "Maggie and Ben" / "Maggie, Ben and Jackie") and switches to
+"help support X" only when more than one person is involved, otherwise
+the unchanged "help with Maggie's care" wording.
+
+===========================================================================
+INVITEE UX
+===========================================================================
+
+20. ONE-PERSON REVIEW
+Completely unchanged: "You've been invited to help with Maggie's care."
+
+21. MULTI-PERSON REVIEW
+"You've been invited to help support Ben and Maggie" (names sorted
+alphabetically for deterministic display -- see Database section);
+role/domain descriptions unchanged, applying identically to every named
+person.
+
+22. MANUAL-CODE ROUTE
+JoinCareCircleScreen renders resolved.careSpaceNames (plural), and
+dispatches acceptance via { invitationId, groupId } -- exactly one of
+the two is ever set, decided entirely by what resolve_invitation_by_
+code() returned, never guessed by the client.
+
+23. AUTOMATIC-PENDING ROUTE
+list_my_invitations() collapses every still-pending child of the SAME
+group into ONE row (never one card per selected person for what is
+genuinely one invitation), aggregating every participant's name. This
+lets InvitationsScreen show exactly one Accept/Decline pair per
+invitation, whether legacy or grouped.
+
+24. ACCEPTANCE
+App.tsx's handleAcceptInvitation()/handleDeclineInvitation() now accept
+{ invitationId?, groupId? } and dispatch to accept_invitation()/
+accept_invitation_group() (or the decline equivalents) accordingly. The
+shared post-acceptance tail (reconnectCareSpaces() -> integrate
+ReconnectedCareSpaces() -> resolveOnboardingStateAfterAcceptingInvitation())
+is completely unchanged, extracted into one small helper so neither
+entry point duplicates it.
+
+25. RESULTING PERSON SWITCHING
+No client change was needed here at all: list_my_supported_people()
+(called by reconnectCareSpaces()) already returns every membership row
+an account has, so once accept_invitation_group() creates real
+memberships to both Maggie and Ben, they both appear through the
+EXISTING person switcher automatically -- proven directly by the
+existing, unmodified multi-person.test.tsx suite and confirmed
+structurally by reading reconnectCareSpaces()/integrateReconnected
+CareSpaces() before making any change.
+
+===========================================================================
+SECURITY
+===========================================================================
+
+26. SERVER AUTHORITY
+Every access decision (who may invite for which care space, who may
+accept, what role/domains result) is made exclusively by the existing,
+unmodified invite_member()/accept_invitation()/membership_has_domain_
+access(). The new group functions are pure orchestration -- they call
+these, they never reimplement or bypass them.
+
+27. NO GLOBAL-ACCESS BROADENING
+Proven directly: adding Jackie as a third supported person and NOT
+selecting her for Sarah's invitation leaves Sarah with zero memberships,
+zero invitations, and zero visibility of Jackie whatsoever (pgTAP item
+10). An existing member's access to one person is never broadened by an
+invitation to a different person -- proven by the "existing Maggie
+membership + new Ben-only invite" scenario (item 17 below), which
+creates exactly one new membership (Ben), never touching Maggie's.
+
+28. IDENTITY ENFORCEMENT
+accept_invitation_group() defers its identity check entirely to the
+per-child call into the unmodified accept_invitation(), which still
+requires the authenticated caller's own email to match invitee_email.
+An unrelated authenticated account that resolves a group's code (a
+deliberately permissive preview) still cannot accept it -- proven
+directly (pgTAP item 12).
+
+29. INVITATION-CODE ENFORCEMENT
+The already-approved single-RPC, rate-limited resolve_invitation_by_
+code() contract is preserved verbatim (same authentication/threshold/
+window logic, same structured result_status discriminator, same
+impossibility of a client bypassing the throttle). The client never
+sends a list of care-space ids during acceptance -- accept_invitation_
+group() takes only a group_id, and the server alone knows which care
+spaces that group actually contains.
+
+30. UNSELECTED-PERSON PROOF
+pgTAP item 10 (negative selection): after inviting Sarah to Maggie+Ben
+only, direct queries confirm zero membership rows, zero invitation rows
+of any kind, for Jackie.
+
+31. UNAUTHORISED-ORGANISER PROOF
+pgTAP item 11 (authority test): David, a genuine member but only
+contributor of a third care space ("Kate"), attempts to include it in a
+group invitation alongside Maggie (which he does organise). The ENTIRE
+call is rejected server-side ("Only an active organiser can invite
+members") and leaves NOTHING behind -- not even an invitation for
+Maggie, the space he does organise, proving the client cannot achieve a
+partial unauthorised result by mixing an authorised and unauthorised
+selection.
+
+===========================================================================
+DATABASE
+===========================================================================
+
+32. MIGRATIONS
+supabase/migrations/20260917090000_multi_person_invitation_groups.sql --
+one new file, purely additive (new table, new nullable column, new
+functions, two functions redefined in shape only: resolve_invitation_
+by_code(), list_my_invitations(), list_care_space_invitations()). No
+existing migration was edited. Applied to lilica-development.
+
+33. NEW/CHANGED RPCs
+NEW: invite_member_group(), generate_invitation_group_code(),
+accept_invitation_group(), decline_invitation_group(), revoke_
+invitation_group(), record_invitation_group_email_sent(), record_
+invitation_group_share_opened(), get_invitation_group_invite_code().
+REDEFINED (additive, shape-only): resolve_invitation_by_code() (two new
+OUT columns: group_id, care_space_names -- the security-correction
+rate-limit logic itself is untouched), list_my_invitations() (two new
+OUT columns: group_id, care_space_names), list_care_space_invitations()
+(three new OUT columns: group_id, group_participant_names, and the
+existing invite_code column now coalesces to the GROUP's own code for a
+grouped row -- a real bug found and fixed during this task, see Diff
+section). UNTOUCHED: invite_member(), accept_invitation(), decline_
+invitation(), revoke_invitation(), change_member_role(), remove_
+member(), leave_care_space(), membership_has_domain_access(),
+can_access_care_space_records(), every Phase 7-21 record/domain/
+entitlement function.
+
+34. pgTAP RESULT (local)
+supabase/tests/database/multi_person_invitation_groups.test.sql -- new
+file, plan(25), 25/25 pass, covering: the real reported Maggie+Ben
+scenario end to end (items 1-9), negative selection (10), the authority
+test (11), wrong-invitee rejection (12), decline (13), revoke (14),
+expiry (15), idempotent duplicate acceptance (16), the existing-member-
+plus-additional-person case (17), and legacy single-person compatibility
+(18) -- plus a dedicated assertion proving the organiser's own view
+exposes the group's own code, never a child's internal one. Full local
+suite: 22 files, 487/487 assertions, zero failures (up from 462 before
+this task's own 25 new ones).
+
+35. LINKED RESULT
+The migration applied to lilica-development with no error (dry-run
+confirmed clean beforehand). Direct execution of the pgTAP file itself
+against the linked project was NOT possible this pass and I am saying
+so honestly: `supabase db query --linked` runs via the Management API,
+which rejects the psql meta-commands (`\gset`) these test files use --
+confirmed by an actual attempt, not assumed -- and no psql/pg_prove
+binary or stored linked connection string exists in this environment.
+This is the same, already-disclosed tooling limitation from the
+immediately preceding rate-limit security-correction pass. In its
+place: the migration itself applied without error against the real
+hosted schema, and linked `db lint` (item 36) inspected the actual
+deployed function bodies and found nothing new.
+
+36. LINT
+Local and linked db lint both clean except the same two pre-existing/
+accepted warning-level findings: `delete_care_space`'s long-standing
+unused-variable warning, and `accept_invitation_group`'s unused
+`operation_id` parameter (kept for interface consistency with every
+other accept-style function's idempotency-key signature, exactly
+analogous to the already-accepted `delete_care_space` finding).
+
+37. MIGRATION PARITY
+`supabase migration list --linked` confirms all 21 local migration
+timestamps, including this pass's new 20260917090000_multi_person_
+invitation_groups.sql, are present and match on both local and remote.
+No drift.
+
+===========================================================================
+REGRESSION
+===========================================================================
+
+38. EXISTING SINGLE-PERSON INVITATIONS
+Unchanged in every respect -- selecting one person routes through the
+exact same invite_member() call as before this task, and the legacy
+branch of resolve_invitation_by_code() is untouched logic, only
+additively reachable alongside the new group branch. Proven by
+invitation_code.test.sql (all 15 assertions, updated only for the two
+additive OUT columns, still green) and invitation_code_rate_limit.test.sql
+(all 15 assertions, unmodified, still green).
+
+39. EXISTING MAGGIE-ONLY MEMBERSHIPS
+Never silently broadened. Proven directly (pgTAP item 17): a real,
+already-active Maggie membership, re-invited alongside a new Ben
+selection, results in exactly one new membership (Ben) and zero change
+to the existing Maggie one.
+
+40. DUPLICATE MEMBERSHIP PREVENTION
+invite_member_group() catches invite_member()'s own "already has
+access" rejection per care space rather than creating a second row;
+accept_invitation_group() is idempotent (item 16) -- a second acceptance
+attempt creates nothing extra.
+
+41. PERMISSION MODEL
+membership_has_domain_access()/can_access_care_space_records() are
+completely untouched. Domain grants for a grouped acceptance are created
+through the exact same accept_invitation() code path as a legacy one,
+proven independently correct on both Maggie's and Ben's resulting
+memberships (pgTAP items 8/9).
+
+42. ACCOUNT DELETION
+delete_my_account()/resolve_membership_identities() are untouched by
+this migration; a former/detached membership (from either path) is
+unaffected by anything added here.
+
+43. ARCHIVE/RESTORE
+archive_care_space()/restore_care_space()/delete_care_space() are
+untouched; a grouped invitation's children are ordinary care_space_
+invitations rows subject to exactly the same archive/invitation rules
+as any other.
+
+44. BILLING/ENTITLEMENT
+care_space_has_active_entitlement() and every gated RPC it protects are
+untouched. invite_member_group() itself is NOT separately entitlement-
+gated (it orchestrates invite_member(), which already is) -- no new
+gating logic was added or needed.
+
+45. INVITATION DELIVERY/CODE WORK
+The already-approved single-RPC rate-limited resolve_invitation_by_
+code() contract, and the server-authoritative delivery-state columns/
+functions from the immediately preceding closure, are both preserved
+verbatim -- proven by invitation_code_rate_limit.test.sql and
+invitation_delivery_state.test.sql both remaining fully green,
+unmodified.
+
+46. NORMAL ONBOARDING
+JoinOrSetupScreen/the onboarding-time JoinCareCircleScreen fork are
+untouched in structure; the only change reaching them is JoinCareCircle
+Screen's own internal onAccept dispatch, which resolves to the exact
+same handleAcceptInvitation() the onboarding fork already called,
+now simply able to also handle a grouped result. No new onboarding
+branch was added.
+
+===========================================================================
+VALIDATION
+===========================================================================
+
+47. JEST RESULT (all 89 suites, six batches of 14-15 files, same final
+    working tree, no suite inferred green from an earlier point in the
+    session)
+  Batch 1 (15 files): 15/15 suites, 116/116 tests.
+  Batch 2 (15 files): 15/15 suites, 118/118 tests.
+  Batch 3 (15 files): 14/15 suites; phase13-person.test.tsx failed
+    (31/31 of its own tests) -- see honest note below.
+  Batch 4 (15 files): 15/15 suites, 147/147 tests.
+  Batch 5 (15 files): 15/15 suites, 129/129 tests.
+  Batch 6 (14 files): 12/14 suites; settings-cog.test.tsx (3 tests) and
+    tab-header-titles.test.tsx (1 test) failed -- see honest note below.
+
+  TOTALS: 89 suites run, 86 passed, 3 failed. 806 tests run, 771 passed,
+  35 failed.
+
+  HONEST NOTE: every one of the 35 failures is the identical error --
+  "Exceeded timeout of 5000 ms for a test" -- on a PersonScreen render,
+  never an assertion mismatch, and this is the SAME three files that
+  failed the SAME way in the immediately preceding rate-limit-fix
+  validation pass, before any of this task's own changes existed. None
+  of the three files import or exercise invite_member_group,
+  care_space_invitation_groups, or any code this migration touches --
+  it is this machine's ongoing, previously-diagnosed memory constraint
+  (confirmed then via an isolated run producing a genuine V8 "heap out
+  of memory" crash), not a regression from this task. Every file this
+  task actually added or modified is fully green, including when run
+  together with its neighbours in the same batch.
+
+48. TYPESCRIPT
+npm run typecheck (tsc --noEmit) -- clean, zero errors, across the
+entire repository including every file touched by this task.
+
+49. SECRETS
+npm run secrets:check -- "Secret scan passed (364 repository files
+inspected)."
+
+50. EXPO CONFIG
+npx expo config --type public -- resolves cleanly, exit 0.
+
+51. GIT DIFF --CHECK
+Clean, exit 0. Only line-ending (LF/CRLF) advisory warnings, no conflict
+markers, no trailing-whitespace errors.
+
+===========================================================================
+QA
+===========================================================================
+
+52. PHYSICAL QA CHECKLIST (prepared, matching brief section 45 exactly)
+  1. Sign in as davidmaruta2@gmail.com (organiser of Maggie and Ben).
+  2. Open Maggie's Care Circle -> Invite someone.
+  3. Confirm "Who can they help with?" shows Maggie (preselected) and
+     Ben (not preselected).
+  4. Select Ben too; enter a genuine second test account's email; choose
+     Contributor; choose a domain set; Send invitation.
+  5. Confirm the created panel shows both Maggie and Ben, one code.
+  6. Sign in as the second test account; accept via code or the
+     automatic Invitations screen; confirm the review names both Maggie
+     and Ben as ONE invitation.
+  7. Accept. Confirm the person switcher now shows both Maggie and Ben.
+  8. Open Maggie: confirm only Maggie's authorised data is visible.
+     Open Ben: confirm only Ben's authorised data is visible.
+  9. Return to David's organiser view; confirm the member/access state
+     for the new contributor accurately shows access to both.
+  10. Repeat with a DIFFERENT invite selecting Maggie only (Ben
+      unchecked); confirm the new invitee sees only Maggie.
+
+53. PHYSICAL ITEMS NOT RUN (explicitly, as required)
+All 10 items above are NOT YET RUN on a real device with two genuine
+Supabase accounts -- this pass is server/client-code-complete and fully
+validated by automated tests (pgTAP + Jest), matching the exact
+precedent set by every prior Care Circle phase in this repository
+(physical QA is always a separate, explicit product-owner step). No
+RevenueCat/EAS-build-dependent behaviour is involved in this task at
+all, so no build-related blocker applies here.
+
+===========================================================================
+DIFF
+===========================================================================
+
+54. FILES CHANGED THIS PASS
+Modified (tracked):
+  - App.tsx
+  - docs/PHASE_15_ARCHITECTURE.md
+  - src/careCircle.ts
+  - src/screens/CareCircleScreen.tsx
+  - src/screens/InvitationsScreen.tsx
+  - src/screens/JoinCareCircleScreen.tsx
+  - supabase/functions/send-invitation-email/email-content.ts
+  - supabase/functions/send-invitation-email/index.ts
+  - supabase/tests/database/invitation_code.test.sql (one assertion's
+    expected OUT-parameter set extended for the two new additive
+    columns; no other change)
+  - tests/care-circle-invitation-delivery.test.tsx (two call-shape
+    assertions updated for sendInvitationEmail's new { invitationId }
+    argument shape; no other change)
+  - tests/invitation-email-content.test.ts (personFirstName ->
+    personFirstNames; new multi-person wording tests added)
+  - tests/join-care-circle-screen.test.tsx (CodeResolvedInvitation shape
+    update; one assertion's expected onAccept argument updated)
+  - tests/phase15-care-circle.test.ts (one assertion updated for
+    careSpaceNames)
+  - tests/phase15-invitations-screen.test.tsx (MyInvitation shape
+    update; two assertions updated for the object-based onAccept/
+    onDecline signature)
+New (tracked):
+  - supabase/migrations/20260917090000_multi_person_invitation_groups.sql
+  - supabase/tests/database/multi_person_invitation_groups.test.sql
+  - tests/multi-person-invitation-client.test.tsx
+  - MULTI_PERSON_INVITATION_SCOPE_COMPLETION_REPORT.txt (this report)
+Pre-existing, untouched by this pass (carried in the working tree from
+the immediately preceding, already-approved security-correction task):
+supabase/migrations/20260916170000_invitation_code_rate_limit_bypass_fix.sql,
+supabase/tests/database/invitation_code_rate_limit.test.sql, and the
+long list of loose report .txt files/expo-dev-server.log/expo-qr.png.
+
+55. COMPLETE CLASSIFICATION (brief section 42)
+A (supported-person selection UX): CareCircleScreen.tsx's new checkbox
+   section, default-selection logic, the info/already-has-access
+   messaging.
+B (server orchestration for explicitly selected care spaces): the
+   entire new migration -- care_space_invitation_groups,
+   invite_member_group(), accept/decline/revoke_invitation_group(),
+   the two delivery-state group recorders, get_invitation_group_
+   invite_code().
+C (invitation review changes required to display multiple people):
+   JoinCareCircleScreen.tsx/InvitationsScreen.tsx rendering changes;
+   resolve_invitation_by_code()/list_my_invitations()/list_care_space_
+   invitations() additive redefinitions.
+D (code/email/share adaptations required for the same invitation):
+   email-content.ts/index.ts's personFirstNames plural and group-aware
+   Edge Function logic; CareCircleScreen.tsx's DeliveryActions group
+   dispatch.
+E (tests/documentation): the new pgTAP file, the new client test file,
+   every updated pre-existing test assertion, the PHASE_15_ARCHITECTURE.md
+   addendum, this report.
+F (unrelated refactoring): EMPTY. Every line changed in every existing
+   file traces directly to one of A-D above or to a genuine, necessarily-
+   coupled test-shape update (E). No unrelated file was touched.
+
+56. UNEXPECTED CHANGES (found and fixed DURING this task, disclosed
+    rather than silently patched)
+  - Two real, self-inflicted PL/pgSQL column-reference ambiguity bugs
+    (invite_member_group()'s operation_id/care_space_id, resolve_
+    invitation_by_code()'s id) -- found by local db lint before ever
+    reaching pgTAP, fixed by qualifying table aliases.
+  - A real non-determinism bug: sibling child invitations created in
+    the same invite_member_group() call can share the exact same
+    statement_timestamp(), making a created_at-ordered participant-name
+    list unstable (passed standalone, failed inside the full pgTAP
+    suite) -- fixed by ordering every such aggregation alphabetically
+    instead, which is also a better, deterministic display order.
+  - A real bug in my own first pgTAP test draft, unrelated to the
+    migration: asserting directly on care_space_invitation_groups
+    under the invitee's own impersonated role, which that table's
+    (deliberate, by-design) zero RLS policies always deny -- fixed by
+    reading it as postgres for the test's own verification, exactly
+    matching the established pattern from the rate-limit test suite's
+    own assertion (H).
+  - A real, genuinely important client-facing bug: list_care_space_
+    invitations() initially still surfaced a grouped child's own
+    internal invite_code instead of the group's -- sharing that code
+    would have silently resolved to a single-person preview missing
+    everyone else in the group, defeating the whole feature. Found
+    while wiring the Edge Function (which needs the SAME code the
+    organiser's own screen shows) and fixed by coalescing to the
+    group's own code, with a dedicated new pgTAP assertion proving it.
+
+57. GIT STATUS
+Working tree carries exactly the fifteen modified and three new tracked
+files listed in item 54, plus this report, plus the same pre-existing
+untracked leftovers named there. Nothing has been staged or committed.
+
+58. CONFIRMATION NOTHING COMMITTED/PUSHED
+Main branch: NOT committed, NOT pushed this pass. The only "push" this
+pass performed was `supabase db push --linked` (pushing the one new
+database migration to the linked lilica-development project) -- a
+distinct, already-established action type in this project, never
+committing or pushing the git branch itself.
+
+59. CONFIRMATION PHASE 22 NOT STARTED
+Phase 22 has not been started, referenced, or touched in any way by
+this task.
+
+===========================================================================
+STOP.
+===========================================================================

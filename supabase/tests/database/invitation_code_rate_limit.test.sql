@@ -1,20 +1,10 @@
--- Care Circle invitation system final architectural closure (14 September
--- 2026): proves resolve_invitation_by_code()'s rate limiting --
--- server-authoritative (a small database-backed sliding-window counter,
--- invitation_code_attempts, with NO client-readable/writable policies
--- at all -- only the SECURITY DEFINER functions themselves can touch
--- it, so clearing local storage/reinstalling cannot reset it), scoped
--- per account, and does not disturb the identity/acceptance boundary.
--- Threshold: 10 attempts per rolling 5-minute window per account.
---
--- record_invitation_code_attempt() is called SEPARATELY, before
--- resolve_invitation_by_code() (see the migration's own header comment
--- for why this must be a genuinely separate call -- a real Postgres
--- transactional-semantics constraint, not a style choice: a single
--- function's own earlier counter increment is rolled back by that
--- SAME function later raising "not found", so the two are split into
--- independently-committed calls). This test drives the counter the
--- same way the real client does.
+-- Invitation code rate-limit security correction (14 September 2026,
+-- GPT/product-owner review). Proves the corrected architecture: ONE
+-- client-callable resolver (resolve_invitation_by_code()) that does
+-- authentication, rate-limit accounting, the threshold check, AND the
+-- lookup atomically -- the previous record_invitation_code_attempt()
+-- bypass path no longer exists at all. Threshold/window UNCHANGED: 10
+-- attempts per rolling 5-minute window per authenticated account.
 begin;
 
 set local role postgres;
@@ -22,7 +12,7 @@ drop extension if exists pgtap;
 create extension pgtap with schema extensions;
 set search_path = public, extensions, pgtap;
 
-select extensions.plan(11);
+select extensions.plan(15);
 
 insert into auth.users (id, email)
 values
@@ -49,67 +39,104 @@ select public.invite_member(:'maggie_id'::uuid, 'rl-marion@example.test', 'contr
 
 reset role;
 set local role postgres;
-select invite_code from public.care_space_invitations
+select id as invitation_id, invite_code from public.care_space_invitations
 where care_space_id = :'maggie_id'::uuid and invitee_email = 'rl-marion@example.test' \gset
 
--- The caller for the rest of this file is the unrelated account -- its
--- own attempts, its own allowance, never touching the invitee/organiser.
+-- (A) exactly one usable public code-resolution path.
+select extensions.is(
+  has_function_privilege('authenticated', 'public.resolve_invitation_by_code(text)', 'EXECUTE'),
+  true,
+  '(A) authenticated CAN call the one intended public resolver'
+);
+
+-- (B) the old bypass-prone helper genuinely no longer exists at all --
+-- not merely un-granted, GONE, so there is no residual attack surface.
+select extensions.is(
+  (select count(*)::int from pg_proc where proname = 'record_invitation_code_attempt'),
+  0,
+  '(B) the previous client-invoked attempt-counter RPC no longer exists -- no bypass path to audit around'
+);
+
+-- The caller for the rest of this file is the unrelated account.
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '64000000-0000-0000-0000-000000000003', true);
 
--- (normal valid lookup, and typo/retry remains practical): a few
--- deliberate wrong guesses, then the correct code -- all well under the
--- threshold, still succeeds. Each "attempt" is the real client's own
--- two-call sequence: record the attempt, then resolve.
-select extensions.lives_ok($$select public.record_invitation_code_attempt()$$, 'attempt 1: recorded');
-select extensions.throws_like($$select * from public.resolve_invitation_by_code('WRONGONE')$$, 'We could not find an active invitation with that code', 'attempt 1: a wrong guess fails safely');
-select extensions.lives_ok($$select public.record_invitation_code_attempt()$$, 'attempt 2: recorded');
-select extensions.throws_like($$select * from public.resolve_invitation_by_code('WRONGTWO')$$, 'We could not find an active invitation with that code', 'attempt 2: another wrong guess');
-
-select extensions.lives_ok($$select public.record_invitation_code_attempt()$$, 'attempt 3: recorded');
-select extensions.lives_ok(
-  $$select * from public.resolve_invitation_by_code('$$ || :'invite_code' || $$')$$,
-  'attempt 3: the real code still resolves normally -- ordinary typo/retry is never blocked'
+-- (C) 1-10 attempts permitted -- a few wrong guesses, then the real
+-- code, all succeed normally (never throttled, never an exception).
+select extensions.results_eq(
+  $$select result_status from public.resolve_invitation_by_code('WRONGONE')$$,
+  $$values ('not_found'::text)$$,
+  '(C) attempt 1: a wrong guess resolves to a calm "not_found" result -- no exception, no lost accounting'
+);
+select extensions.results_eq(
+  $$select result_status from public.resolve_invitation_by_code('WRONGTWO')$$,
+  $$values ('not_found'::text)$$,
+  '(C) attempt 2: another wrong guess'
+);
+select extensions.results_eq(
+  $$select result_status, id from public.resolve_invitation_by_code('$$ || :'invite_code' || $$')$$,
+  $$values ('ok'::text, '$$ || :'invitation_id' || $$'::uuid)$$,
+  '(C) attempt 3: the real code still resolves normally -- ordinary typo/retry remains practical'
 );
 
--- Drive this SAME account to the threshold with more attempts (3 so
--- far; 7 more reaches 10) -- only the counter half needs to run here,
--- since we're only proving the throttle boundary, not re-proving the
--- lookup logic again.
+-- Drive to the threshold with 7 more (3 so far; 10 total never throttles).
 select extensions.lives_ok(
-  $$do $inner$
+  $outer$do $inner$
     begin
       for i in 1..7 loop
-        perform public.record_invitation_code_attempt();
+        perform public.resolve_invitation_by_code('BADCODE' || i::text);
       end loop;
     end;
   $inner$;
-  $$,
-  'attempts 4-10: seven more recorded attempts reach the 10-attempt window exactly, still not throttled'
+  $outer$,
+  'attempts 4-10: seven more resolve normally (each a real, non-raising "not_found" result), reaching the threshold exactly'
 );
 
--- The 11th attempt in the same window is throttled -- at the recording
--- step itself, before any lookup even happens.
-select extensions.throws_like(
-  $$select public.record_invitation_code_attempt()$$,
-  'Too many attempts. Please wait a few minutes and try again.',
-  'attempt 11: throttled at the recording step -- learns nothing about any code, valid or not'
+-- (D) the 11th attempt is throttled.
+select extensions.results_eq(
+  $$select result_status from public.resolve_invitation_by_code('anything')$$,
+  $$values ('throttled'::text)$$,
+  '(D) attempt 11: throttled'
 );
 
--- Scoped per account: a DIFFERENT, unrelated account has its own,
--- completely unaffected allowance.
+-- (E) even the genuinely correct code is throttled once over the limit
+-- -- proving no bypass by supplying a valid code.
+select extensions.results_eq(
+  $$select result_status from public.resolve_invitation_by_code('$$ || :'invite_code' || $$')$$,
+  $$values ('throttled'::text)$$,
+  '(E) the correct code, on the 11th+ attempt, is STILL throttled -- a valid code cannot bypass the limit'
+);
+
+-- (H) invalid guesses genuinely persisted in the count -- proven
+-- directly by reading the server-side counter itself, not inferred.
+-- Read as postgres (RLS is FORCED with zero policies -- the
+-- authenticated role itself genuinely cannot see this table at all,
+-- confirmed separately by assertion (I) below; this is a real
+-- superuser inspection for the test's own verification, not something
+-- any client could do).
+reset role;
+set local role postgres;
+select extensions.results_eq(
+  $$select attempt_count >= 10 from public.invitation_code_attempts where user_id = '64000000-0000-0000-0000-000000000003'$$,
+  $$values (true)$$,
+  '(H) the server-side attempt count genuinely reflects every guess, valid or not'
+);
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '64000000-0000-0000-0000-000000000003', true);
+
+-- (F) a DIFFERENT, unrelated account has its own, completely separate
+-- allowance.
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '64000000-0000-0000-0000-000000000002', true);
-select extensions.lives_ok(
-  $$select public.record_invitation_code_attempt()$$,
-  'a DIFFERENT account (the genuine invitee) is completely unaffected by the first account''s throttling -- its own separate allowance'
+select extensions.results_eq(
+  $$select result_status, id from public.resolve_invitation_by_code('$$ || :'invite_code' || $$')$$,
+  $$values ('ok'::text, '$$ || :'invitation_id' || $$'::uuid)$$,
+  '(F) a DIFFERENT account (the genuine invitee) is completely unaffected by the first account''s throttling'
 );
 
--- Cooldown/window recovery: simulate the window having elapsed (real
--- 5-minute wall-clock wait is not practical in a test -- move the
--- recorded window_start back directly, as postgres, exactly as time
--- passing would).
+-- (G) window expiry resets the allowance (simulated -- a real 5-minute
+-- wait is impractical in a test).
 reset role;
 set local role postgres;
 update public.invitation_code_attempts
@@ -118,18 +145,52 @@ where user_id = '64000000-0000-0000-0000-000000000003';
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '64000000-0000-0000-0000-000000000003', true);
-select extensions.lives_ok(
-  $$select public.record_invitation_code_attempt()$$,
-  'once the 5-minute window has genuinely elapsed, the throttled account can record an attempt again -- cooldown recovery works'
+select extensions.results_eq(
+  $$select result_status, id from public.resolve_invitation_by_code('$$ || :'invite_code' || $$')$$,
+  $$values ('ok'::text, '$$ || :'invitation_id' || $$'::uuid)$$,
+  '(G) once the window has genuinely elapsed, the same account can resolve again -- cooldown recovery works'
 );
 
--- Successful resolution never grants membership by itself, and
--- accept_invitation()'s own identity enforcement is completely
--- unaffected by any of the rate-limit changes.
+-- (I) is an architectural property, not something a single pgTAP
+-- assertion can directly execute (it would require actually clearing
+-- device storage) -- but it follows directly from (B) and the fact
+-- that invitation_code_attempts itself has zero client-reachable
+-- policies (asserted next): all state genuinely lives server-side,
+-- so there is nothing on a client to clear that would matter.
+select extensions.is(
+  (select count(*)::int from pg_policies where schemaname = 'public' and tablename = 'invitation_code_attempts'),
+  0,
+  '(I) invitation_code_attempts has ZERO RLS policies -- no client, however it clears its own local state, can read or write this table directly'
+);
+
+-- (J) an unrelated account that obtained the minimal preview STILL
+-- cannot accept -- accept_invitation()'s own identity boundary,
+-- completely unmodified.
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '64000000-0000-0000-0000-000000000003', true);
 select extensions.throws_like(
-  $$select public.accept_invitation((select id from public.resolve_invitation_by_code('$$ || :'invite_code' || $$')), gen_random_uuid())$$,
+  $$select public.accept_invitation('$$ || :'invitation_id' || $$'::uuid, gen_random_uuid())$$,
   'Invitation not found',
-  'the unrelated account resolving the code STILL cannot accept it -- accept_invitation()''s identity check is completely unaffected by rate limiting'
+  '(J) the unrelated account still cannot accept -- accept_invitation()''s identity check is completely unaffected'
+);
+
+-- (K) role/domain grants remain server-owned -- the genuinely invited
+-- account accepts and receives exactly what invite_member() specified.
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '64000000-0000-0000-0000-000000000002', true);
+select public.accept_invitation(:'invitation_id'::uuid, gen_random_uuid());
+
+select extensions.results_eq(
+  $$select role from public.care_space_memberships where care_space_id = '$$ || :'maggie_id' || $$'::uuid and user_id = '64000000-0000-0000-0000-000000000002'$$,
+  $$values ('contributor')$$,
+  '(K) resulting role is exactly what the invitation specified'
+);
+select extensions.results_eq(
+  $$select domain from public.care_space_domain_grants g join public.care_space_memberships m on m.id = g.membership_id where m.care_space_id = '$$ || :'maggie_id' || $$'::uuid and m.user_id = '64000000-0000-0000-0000-000000000002'$$,
+  $$values ('general')$$,
+  '(K) resulting domain grants are exactly what the invitation specified'
 );
 
 select extensions.finish();

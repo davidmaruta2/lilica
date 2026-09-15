@@ -9,9 +9,12 @@ import {
   DOMAIN_DESCRIPTIONS,
   DOMAIN_LABELS,
   inviteMember,
+  inviteMemberGroup,
+  recordInvitationGroupShareOpened,
   recordInvitationShareOpened,
   removeMember,
   revokeInvitation,
+  revokeInvitationGroup,
   sendInvitationEmail,
 } from '../careCircle';
 import { invitationWebUrl } from '../invitationLinks';
@@ -53,6 +56,15 @@ type Props = {
   // automatic discovery. Optional -- omitted entirely where this screen
   // is reached from a context that already offers it elsewhere.
   onJoinAnotherCareCircle?: () => void;
+  // Multi-person Care Circle invitation scope (`\downloads\perm.txt`, 15
+  // September 2026): every supported person the CURRENT authenticated
+  // user has the actual server-authorised ability to invite members
+  // for (brief section 5) -- an active organiser of that specific care
+  // space. This is a UX convenience for what checkboxes to SHOW; it is
+  // never the security boundary -- invite_member_group() independently
+  // re-checks organiser authority per selected care space server-side
+  // regardless of what this list contains (brief section 29).
+  organiserEligiblePeople?: { careSpaceId: string; displayName: string }[];
 };
 
 // Displayed grouped (ABCD-1234-style); stored server-side as one plain
@@ -116,16 +128,28 @@ function deliveryStatusLine(emailed: boolean, shared: boolean) {
 // uses the single strongest claim true on BOTH platforms: "Sharing
 // opened." -- never "Invitation shared," which would overclaim on
 // Android every time.
+// Names joined the same grammatical way as the email/Edge-Function side
+// (supabase/functions/send-invitation-email/email-content.ts's own
+// joinNames()) -- kept as a small local copy since this is React Native
+// client code, not the Edge Function's Deno module.
+function joinPersonNames(names: string[]): string {
+  const trimmed = names.map((name) => name.trim()).filter(Boolean);
+  if (trimmed.length === 0) return 'their care';
+  if (trimmed.length === 1) return trimmed[0];
+  if (trimmed.length === 2) return `${trimmed[0]} and ${trimmed[1]}`;
+  return `${trimmed.slice(0, -1).join(', ')} and ${trimmed[trimmed.length - 1]}`;
+}
+
 function DeliveryActions({
   invitation,
-  personName,
+  personNames,
   inviterDisplayName,
   onSuccess,
   busy,
   setBusy,
 }: {
-  invitation: Pick<CareCircleInvitation, 'id' | 'inviteCode' | 'lastEmailSentAt' | 'lastShareOpenedAt'>;
-  personName?: string;
+  invitation: Pick<CareCircleInvitation, 'id' | 'inviteCode' | 'lastEmailSentAt' | 'lastShareOpenedAt' | 'groupId'>;
+  personNames?: string[];
   inviterDisplayName?: string;
   // Called only after a REAL, server-confirmed success -- the parent
   // decides what that means (close the creation panel, and/or just
@@ -138,11 +162,14 @@ function DeliveryActions({
   const [transient, setTransient] = useState<{ status: 'idle' | 'sending' | 'failed'; message?: string }>({ status: 'idle' });
   const emailed = !!invitation.lastEmailSentAt;
   const shared = !!invitation.lastShareOpenedAt;
+  const isGroup = !!invitation.groupId;
 
   async function handleSendEmail() {
     setBusy(true);
     setTransient({ status: 'sending' });
-    const result = await sendInvitationEmail(invitation.id);
+    const result = isGroup
+      ? await sendInvitationEmail({ invitationGroupId: invitation.groupId as string })
+      : await sendInvitationEmail({ invitationId: invitation.id });
     setBusy(false);
     if (result.ok) {
       setTransient({ status: 'idle' });
@@ -153,9 +180,13 @@ function DeliveryActions({
   }
 
   async function handleShare() {
-    const person = personName?.trim() || 'their care';
+    const person = joinPersonNames(personNames ?? []) || 'their care';
     const inviter = inviterDisplayName?.trim();
-    const intro = inviter ? `${inviter} has invited you to help with ${person}'s care in Lilica.` : `You've been invited to help with ${person}'s care in Lilica.`;
+    // Brief section 10: keep the exact single-person wording when only
+    // one person is involved; the multi-person wording only ever
+    // appears when there genuinely is more than one.
+    const helpPhrase = (personNames?.length ?? 0) > 1 ? `help support ${person}` : `help with ${person}'s care`;
+    const intro = inviter ? `${inviter} has invited you to ${helpPhrase} in Lilica.` : `You've been invited to ${helpPhrase} in Lilica.`;
     // Brief section 23: the shared content must work independently of
     // the link -- wording, link, AND the invitation code together.
     const message = [
@@ -176,7 +207,9 @@ function DeliveryActions({
       // available on that platform.
       if (result.action !== Share.dismissedAction) {
         setBusy(true);
-        const recordResult = await recordInvitationShareOpened(invitation.id);
+        const recordResult = isGroup
+          ? await recordInvitationGroupShareOpened(invitation.groupId as string)
+          : await recordInvitationShareOpened(invitation.id);
         setBusy(false);
         if (recordResult.ok) onSuccess();
         // If recording fails, the share genuinely happened but Lilica
@@ -224,23 +257,37 @@ function roleDescription(role: CareCircleRole) {
   return 'Can view what you share with them';
 }
 
-export function CareCircleScreen({ personName, members, invitations, careSpaceId, onBack, onRefresh, isReadOnly, onInviteBlocked, inviterDisplayName, onJoinAnotherCareCircle }: Props) {
+// The state populated directly from the create call's own result
+// (inviteMember()/inviteMemberGroup()), never looked up from the
+// `invitations` prop -- that prop is scoped to ONE care space, and a
+// grouped invitation may not even include the currently active one
+// (brief section 35: inviting an existing member to an ADDITIONAL
+// person, viewed from that additional person's own screen). Delivery
+// state (never sent yet) is trivially correct at creation regardless.
+type JustCreated = {
+  id: string;
+  groupId?: string;
+  inviteCode: string;
+  personNames: string[];
+  alreadyHasAccessNames: string[];
+};
+
+export function CareCircleScreen({ personName, members, invitations, careSpaceId, onBack, onRefresh, isReadOnly, onInviteBlocked, inviterDisplayName, onJoinAnotherCareCircle, organiserEligiblePeople = [] }: Props) {
   const [showInvite, setShowInvite] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'contributor' | 'viewer'>('contributor');
   const [relationshipLabel, setRelationshipLabel] = useState('');
   const [selectedDomains, setSelectedDomains] = useState<CareCircleDomain[]>(['general']);
+  // Multi-person Care Circle invitation scope (`\downloads\perm.txt`, 15
+  // September 2026): brief section 4 -- the person whose Care Circle
+  // screen this is stays preselected by default (the current context),
+  // but nothing else is silently preselected. Reset to just [careSpaceId]
+  // every time the form is (re)opened.
+  const [selectedCareSpaceIds, setSelectedCareSpaceIds] = useState<string[]>([careSpaceId]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  // The invitation just created this session, for the "Invitation
-  // created -- Send by email / Share" panel immediately below the form.
-  // Only the id is tracked locally -- its own code/delivery fields are
-  // read straight from the `invitations` prop once submitInvite()'s own
-  // onRefresh() call has re-fetched it from the server (final
-  // architectural closure, 14 September 2026: delivery state is now
-  // server-authoritative, never local-only).
-  const [justCreatedInvitationId, setJustCreatedInvitationId] = useState<string>();
-  const justCreatedInvitation = invitations.find((invitation) => invitation.id === justCreatedInvitationId);
+  const [infoMessage, setInfoMessage] = useState<string>();
+  const [justCreated, setJustCreated] = useState<JustCreated>();
 
   const organiserCount = members.filter((member) => member.role === 'organiser').length;
   // Invitation delivery UX correction: while the "Invitation created"
@@ -248,9 +295,14 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
   // excluded here -- the two are two views of the SAME invitation, and
   // must never both render at once (the exact duplicate-UI bug this
   // fixed). It rejoins this list the moment the panel closes, whatever
-  // the reason (a successful send, or Dismiss).
+  // the reason (a successful send, or Dismiss). Matched by groupId when
+  // grouped (the row shown here for this one care space IS that same
+  // group), otherwise by id.
   const pendingInvitations = invitations.filter(
-    (invitation) => invitation.status === 'pending' && invitation.id !== justCreatedInvitationId,
+    (invitation) =>
+      invitation.status === 'pending' &&
+      invitation.id !== justCreated?.id &&
+      !(justCreated?.groupId && invitation.groupId === justCreated.groupId),
   );
 
   function toggleDomain(domain: CareCircleDomain) {
@@ -259,15 +311,67 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
     );
   }
 
+  function toggleSelectedPerson(id: string) {
+    setSelectedCareSpaceIds((current) =>
+      current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
+    );
+  }
+
+  function openInviteForm() {
+    setSelectedCareSpaceIds([careSpaceId]);
+    setInfoMessage(undefined);
+    setShowInvite(true);
+  }
+
   async function submitInvite() {
     if (!email.trim() || !relationshipLabel.trim()) {
       setError('Enter their email and how they know you.');
       return;
     }
+    if (selectedCareSpaceIds.length === 0) {
+      setError('Choose at least one person they can help with.');
+      return;
+    }
     setBusy(true);
     setError(undefined);
-    const result = await inviteMember({
-      careSpaceId,
+
+    function resetForm() {
+      setShowInvite(false);
+      setEmail('');
+      setRelationshipLabel('');
+      setSelectedDomains(['general']);
+    }
+
+    // Brief section 17: exactly one person selected behaves EXACTLY as
+    // the ordinary, pre-existing single-care-space invitation always
+    // has -- never routed through the group machinery at all.
+    if (selectedCareSpaceIds.length === 1) {
+      const result = await inviteMember({
+        careSpaceId: selectedCareSpaceIds[0],
+        email: email.trim(),
+        role,
+        grantedDomains: selectedDomains,
+        relationshipType: 'Someone else',
+        relationshipLabel: relationshipLabel.trim(),
+      });
+      setBusy(false);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      resetForm();
+      setJustCreated({
+        id: result.data.invitationId,
+        inviteCode: result.data.inviteCode,
+        personNames: [personName?.trim() || 'this person'],
+        alreadyHasAccessNames: [],
+      });
+      onRefresh();
+      return;
+    }
+
+    const result = await inviteMemberGroup({
+      careSpaceIds: selectedCareSpaceIds,
       email: email.trim(),
       role,
       grantedDomains: selectedDomains,
@@ -279,17 +383,34 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
       setError(result.message);
       return;
     }
-    setShowInvite(false);
-    setEmail('');
-    setRelationshipLabel('');
-    setSelectedDomains(['general']);
-    setJustCreatedInvitationId(result.data.invitationId);
+    resetForm();
+    const invitedNames = result.data.results.filter((row) => row.outcome === 'invited').map((row) => row.supportedPersonName);
+    const alreadyNames = result.data.results.filter((row) => row.outcome === 'already_has_access').map((row) => row.supportedPersonName);
+    if (!result.data.groupId || !result.data.representativeInvitationId) {
+      // Brief sections 35/36: every selected person already had active
+      // access -- truthfully nothing to invite, never a duplicate.
+      setJustCreated(undefined);
+      setInfoMessage(`${email.trim()} already has access to everyone you selected.`);
+      onRefresh();
+      return;
+    }
+    setJustCreated({
+      id: result.data.representativeInvitationId,
+      groupId: result.data.groupId,
+      inviteCode: result.data.inviteCode as string,
+      personNames: invitedNames,
+      alreadyHasAccessNames: alreadyNames,
+    });
     onRefresh();
   }
 
-  async function handleRevoke(invitationId: string) {
+  async function handleRevoke(invitation: Pick<CareCircleInvitation, 'id' | 'groupId'>) {
     setBusy(true);
-    const result = await revokeInvitation(invitationId);
+    // Multi-person Care Circle invitation scope: Cancel acts on the
+    // WHOLE group when this row is one -- brief section 19, never
+    // leaving "Maggie revoked, Ben still pending" without the organiser
+    // clearly understanding that.
+    const result = invitation.groupId ? await revokeInvitationGroup(invitation.groupId) : await revokeInvitation(invitation.id);
     setBusy(false);
     if (!result.ok) {
       setError(result.message);
@@ -336,6 +457,29 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
 
         {error ? <AppText variant="secondary" tone="danger">{error}</AppText> : null}
 
+        {onJoinAnotherCareCircle ? (
+          // Care Circle invitation final closure (`\downloads\carecircle-
+          // final-closure.txt`, 15 September 2026): a direct product-owner
+          // report -- there was no obvious, persistent place for an
+          // already-logged-in user (organiser or contributor) to enter an
+          // invitation code. Previously a small text link buried at the
+          // bottom of the member list; now a clearly visible action right
+          // at the top of this screen, offered to every authenticated
+          // user regardless of role -- "Invite someone" (below) is what
+          // an organiser does FOR someone else; "Join a Care Circle" is
+          // what ANY user does with a code someone else gave them. Reuses
+          // the exact same JoinCareCircleScreen/acceptance path as the
+          // onboarding fork and automatic pending-invitation discovery --
+          // never a second join implementation, never "Request to join"
+          // (this app has no unsolicited-access-request concept).
+          <View style={styles.section}>
+            <Button label="Join a Care Circle" variant="secondary" onPress={onJoinAnotherCareCircle} />
+            <AppText variant="secondary" tone="soft">
+              Have an invitation code? Enter it to join a Care Circle.
+            </AppText>
+          </View>
+        ) : null}
+
         <View style={styles.section}>
           <AppText variant="section" tone="primary">Members</AppText>
           {members.map((member) => (
@@ -367,26 +511,35 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
               ) : null}
             </View>
           ))}
-          {onJoinAnotherCareCircle ? (
-            // Brief section 13: an existing Lilica user may receive an
-            // invitation to a DIFFERENT Care Circle -- automatic
-            // discovery already surfaces that on its own, but this is
-            // the deliberate, discoverable manual alternative
-            // ("Care Circle → Join a Care Circle" the email/Share text
-            // itself now mentions). Reuses the exact same code-entry/
-            // review/accept flow as the onboarding fork -- one join
-            // route, not two.
-            <Button label="Join another Care Circle" variant="text" onPress={onJoinAnotherCareCircle} />
-          ) : null}
         </View>
 
-        {justCreatedInvitation ? (
+        {infoMessage ? (
+          <View style={styles.section}>
+            <AppText variant="secondary" tone="soft">{infoMessage}</AppText>
+            <Button label="OK" variant="text" onPress={() => setInfoMessage(undefined)} />
+          </View>
+        ) : null}
+
+        {justCreated ? (
           <View style={styles.section}>
             <AppText variant="section" tone="primary">Invitation created</AppText>
-            <AppText variant="secondary" tone="soft">Send it by email, or share the link yourself.</AppText>
+            {/* Multi-person Care Circle invitation scope (`\downloads\perm.txt`,
+                15 September 2026): shows every person this ONE invitation
+                covers, plus a truthful note for anyone already excluded
+                because they already have access (brief sections 35/36). */}
+            <AppText variant="secondary" tone="soft">
+              {justCreated.personNames.length > 1
+                ? `Send it by email, or share the link yourself. It covers helping with: ${joinPersonNames(justCreated.personNames)}.`
+                : 'Send it by email, or share the link yourself.'}
+            </AppText>
+            {justCreated.alreadyHasAccessNames.length > 0 ? (
+              <AppText variant="secondary" tone="muted">
+                Already has access to: {joinPersonNames(justCreated.alreadyHasAccessNames)} -- not included in this invitation.
+              </AppText>
+            ) : null}
             <DeliveryActions
-              invitation={justCreatedInvitation}
-              personName={personName}
+              invitation={{ id: justCreated.id, groupId: justCreated.groupId, inviteCode: justCreated.inviteCode, lastEmailSentAt: undefined, lastShareOpenedAt: undefined }}
+              personNames={justCreated.personNames}
               inviterDisplayName={inviterDisplayName}
               onSuccess={() => {
                 // A real, server-confirmed success closes this panel
@@ -395,7 +548,7 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
                 // same real outcome (re-fetched from the server, since
                 // delivery state now lives there, not locally).
                 onRefresh();
-                setJustCreatedInvitationId(undefined);
+                setJustCreated(undefined);
               }}
               busy={busy}
               setBusy={setBusy}
@@ -409,7 +562,7 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
                 // only closes this panel, so the invitation reappears
                 // in Pending invitations as "Not sent yet.", with the
                 // same Send/Share actions still available there.
-                setJustCreatedInvitationId(undefined);
+                setJustCreated(undefined);
               }}
             />
           </View>
@@ -427,12 +580,23 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
                   <AppText variant="secondary" tone="soft">
                     Invited as {invitation.role === 'contributor' ? 'Contributor' : 'Viewer'} · not a member yet
                   </AppText>
+                  {/* Multi-person Care Circle invitation scope: a grouped
+                      row states plainly which OTHER people this same
+                      invitation also covers, even though this list is
+                      scoped to just this one care space (brief section
+                      23 -- "the organiser sent ONE invitation to one
+                      human"). */}
+                  {invitation.groupParticipantNames && invitation.groupParticipantNames.length > 1 ? (
+                    <AppText variant="secondary" tone="muted">
+                      This invitation also covers: {joinPersonNames(invitation.groupParticipantNames)}
+                    </AppText>
+                  ) : null}
                   <AppText variant="secondary" tone={emailed || shared ? 'success' : 'muted'}>
                     {deliveryStatusLine(emailed, shared)}
                   </AppText>
                   <DeliveryActions
                     invitation={invitation}
-                    personName={personName}
+                    personNames={invitation.groupParticipantNames ?? [personName ?? '']}
                     inviterDisplayName={inviterDisplayName}
                     onSuccess={onRefresh}
                     busy={busy}
@@ -442,7 +606,7 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
                     label="Cancel invitation"
                     variant="text"
                     disabled={busy}
-                    onPress={() => handleRevoke(invitation.id)}
+                    onPress={() => handleRevoke(invitation)}
                     style={styles.removeButton}
                   />
                 </View>
@@ -468,6 +632,46 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
               value={relationshipLabel}
               onChangeText={setRelationshipLabel}
             />
+            {/* Multi-person Care Circle invitation scope (`\downloads\perm.txt`,
+                15 September 2026): brief section 3 -- only shown when the
+                organiser has more than one eligible person, matching
+                section 17's "don't make every invitation needlessly
+                complex" instruction. Only people this account genuinely
+                organises are listed (brief section 5) -- server-side,
+                invite_member_group() independently re-checks this
+                regardless of what is shown here. */}
+            {organiserEligiblePeople.length > 1 ? (
+              <>
+                <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>Who can they help with?</AppText>
+                <View style={styles.domainList}>
+                  {organiserEligiblePeople.map((person) => {
+                    const selected = selectedCareSpaceIds.includes(person.careSpaceId);
+                    return (
+                      <Pressable
+                        key={person.careSpaceId}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: selected }}
+                        accessibilityLabel={selected ? `${person.displayName}, selected` : `${person.displayName}, not selected`}
+                        onPress={() => toggleSelectedPerson(person.careSpaceId)}
+                        style={[styles.domainRow, selected && styles.domainRowSelected]}
+                      >
+                        <View style={styles.domainRowHeader}>
+                          <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+                            {selected ? <View style={styles.checkboxTick} /> : null}
+                          </View>
+                          <AppText variant="bodyStrong" tone={selected ? 'primary' : 'default'} style={styles.domainRowLabel}>
+                            {person.displayName}
+                          </AppText>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <AppText variant="secondary" tone="muted">
+                  They'll only be able to see information for the people you select.
+                </AppText>
+              </>
+            ) : null}
             <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>Role</AppText>
             <View style={styles.pillRow}>
               {(['contributor', 'viewer'] as const).map((option) => (
@@ -523,11 +727,11 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
                 );
               })}
             </View>
-            <Button label="Send invitation" onPress={submitInvite} disabled={busy} />
+            <Button label="Send invitation" onPress={submitInvite} disabled={busy || selectedCareSpaceIds.length === 0} />
             <Button label="Cancel" variant="text" onPress={() => setShowInvite(false)} disabled={busy} />
           </View>
         ) : (
-          <Button label="Invite someone" onPress={() => (isReadOnly ? onInviteBlocked?.() : setShowInvite(true))} />
+          <Button label="Invite someone" onPress={() => (isReadOnly ? onInviteBlocked?.() : openInviteForm())} />
         )}
       </ScrollView>
     </Screen>

@@ -64,22 +64,39 @@ Deno.serve(async (req: Request) => {
     global: { headers: { Authorization: authHeader } },
   });
 
-  let body: { invitationId?: string };
+  let body: { invitationId?: string; invitationGroupId?: string };
   try {
     body = await req.json();
   } catch {
     return jsonResponse({ ok: false, message: 'Invalid request body' }, 400);
   }
   const invitationId = body.invitationId;
-  if (!invitationId) return jsonResponse({ ok: false, message: 'invitationId is required' }, 400);
+  const invitationGroupId = body.invitationGroupId;
+  if (!invitationId && !invitationGroupId) {
+    return jsonResponse({ ok: false, message: 'invitationId or invitationGroupId is required' }, 400);
+  }
 
-  const { data: invitation, error: invitationError } = await userClient
-    .from('care_space_invitations')
-    .select('id, care_space_id, invitee_email, status, invited_by_membership_id, invite_code')
-    .eq('id', invitationId)
-    .maybeSingle();
+  // Multi-person Care Circle invitation scope (`\downloads\perm.txt`, 15
+  // September 2026): a grouped invitation resolves to EVERY still-
+  // pending child of the group (each an independently-authoritative
+  // care_space_invitations row) instead of just one -- the RLS read
+  // below is the SAME organiser-of-this-care-space policy either way,
+  // so a client cannot see/send an email for a group it does not
+  // genuinely organise any part of.
+  const invitationQuery = invitationGroupId
+    ? userClient
+        .from('care_space_invitations')
+        .select('id, care_space_id, invitee_email, status, invited_by_membership_id, invite_code')
+        .eq('invitation_group_id', invitationGroupId)
+        .eq('status', 'pending')
+    : userClient
+        .from('care_space_invitations')
+        .select('id, care_space_id, invitee_email, status, invited_by_membership_id, invite_code')
+        .eq('id', invitationId as string);
 
-  if (invitationError || !invitation) {
+  const { data: invitationRows, error: invitationError } = await invitationQuery;
+
+  if (invitationError || !invitationRows || invitationRows.length === 0) {
     // RLS denies the read outright for anyone but an active organiser of
     // this care space -- this is genuinely "not found" from the caller's
     // own point of view, not merely "not authorised", by design (never
@@ -87,20 +104,26 @@ Deno.serve(async (req: Request) => {
     // authorised to act on it).
     return jsonResponse({ ok: false, message: 'Invitation not found' }, 404);
   }
-  if (invitation.status !== 'pending') {
+  const representative = invitationRows[0];
+  if (!invitationGroupId && representative.status !== 'pending') {
+    return jsonResponse({ ok: false, message: 'This invitation is no longer pending' }, 409);
+  }
+  if (invitationGroupId && invitationRows.some((row) => row.status !== 'pending')) {
+    // Should be unreachable (the query above already filters to
+    // status='pending'), kept as a defensive, honest check rather than
+    // silently sending for a partially-stale group.
     return jsonResponse({ ok: false, message: 'This invitation is no longer pending' }, 409);
   }
 
-  const { data: supportedPerson } = await userClient
+  const { data: supportedPeople } = await userClient
     .from('supported_people')
-    .select('display_name')
-    .eq('care_space_id', invitation.care_space_id)
-    .maybeSingle();
+    .select('display_name, care_space_id')
+    .in('care_space_id', invitationRows.map((row) => row.care_space_id));
 
   const { data: inviterMembership } = await userClient
     .from('care_space_memberships')
     .select('user_id')
-    .eq('id', invitation.invited_by_membership_id)
+    .eq('id', representative.invited_by_membership_id)
     .maybeSingle();
 
   let inviterName = 'Someone';
@@ -113,11 +136,34 @@ Deno.serve(async (req: Request) => {
     if (inviterProfile?.display_name) inviterName = inviterProfile.display_name;
   }
 
-  const personFirstName = (supportedPerson?.display_name ?? 'someone').trim().split(/\s+/)[0] || 'someone';
+  const personFirstNames = invitationRows.map((row) => {
+    const person = (supportedPeople ?? []).find((candidate) => candidate.care_space_id === row.care_space_id);
+    return (person?.display_name ?? 'someone').trim().split(/\s+/)[0] || 'someone';
+  });
+
+  // The user-facing code is the GROUP's own invite_code for a grouped
+  // invitation -- each child's own invite_code (representative.invite_
+  // code) is never shown to a user, purely an internal leftover of
+  // invite_member_group() reusing invite_member() unmodified. See
+  // get_invitation_group_invite_code()'s own header comment for why
+  // this must be a separate RPC call: care_space_invitation_groups has
+  // zero RLS policies, so this user-scoped client cannot read it any
+  // other way.
+  let inviteCode = representative.invite_code;
+  if (invitationGroupId) {
+    const { data: groupCode, error: groupCodeError } = await userClient.rpc('get_invitation_group_invite_code', {
+      target_group_id: invitationGroupId,
+    });
+    if (groupCodeError || !groupCode) {
+      return jsonResponse({ ok: false, message: 'Invitation not found' }, 404);
+    }
+    inviteCode = groupCode as string;
+  }
+
   // Query-param form, not a path segment -- see docs/REVISION_LOG.md's
   // 14 September 2026 routing-decision entry and src/invitationLinks.ts.
-  const joinUrl = `https://lilica.co.uk/invite/?id=${invitation.id}&code=${invitation.invite_code}`;
-  const { subject, html, text } = buildInvitationEmail({ inviterName, personFirstName, joinUrl, inviteCode: invitation.invite_code });
+  const joinUrl = `https://lilica.co.uk/invite/?id=${representative.id}&code=${inviteCode}`;
+  const { subject, html, text } = buildInvitationEmail({ inviterName, personFirstNames, joinUrl, inviteCode });
 
   const resendResponse = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -127,7 +173,7 @@ Deno.serve(async (req: Request) => {
     },
     body: JSON.stringify({
       from: FROM_ADDRESS,
-      to: [invitation.invitee_email],
+      to: [representative.invitee_email],
       subject,
       html,
       text,
@@ -155,7 +201,12 @@ Deno.serve(async (req: Request) => {
   // RLS-equivalent check reading the invitation above) is logged but
   // does not turn a genuinely successful send into a reported failure --
   // the email really was sent either way.
-  const { error: recordError } = await userClient.rpc('record_invitation_email_sent', { target_invitation_id: invitation.id });
+  // Multi-person Care Circle invitation scope: record delivery ONCE, at
+  // the group level, for a grouped invitation -- never per child (brief
+  // section 23: "the organiser sent ONE invitation to one human").
+  const { error: recordError } = invitationGroupId
+    ? await userClient.rpc('record_invitation_group_email_sent', { target_group_id: invitationGroupId })
+    : await userClient.rpc('record_invitation_email_sent', { target_invitation_id: representative.id });
   if (recordError) {
     console.error('send-invitation-email: email sent, but recording delivery state failed', recordError);
   }

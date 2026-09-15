@@ -1,0 +1,1127 @@
+LILICA - PHASE 20A
+COMPETITIVE GAP REVIEW & CARER-FOCUSED ENHANCEMENTS
+AUDIT / RESEARCH / RECOMMENDATION ONLY
+
+IMPLEMENTATION AGENT: CLAUDE
+
+================================================================
+PURPOSE
+================================================================
+
+Phase 19 has been approved.
+
+We are now beginning:
+
+PHASE 20 - Competitive Gap Review & Carer-Focused Enhancements
+
+This first task is PHASE 20A:
+
+AUDIT AND REPORT ONLY.
+
+DO NOT IMPLEMENT ANY FEATURE.
+
+The purpose is to determine whether the Lilica product we have now built is
+missing important capabilities that established products serving carers have
+learned are genuinely useful.
+
+Our primary comparison is Jointly by Carers UK.
+
+This is important because Carers UK has direct knowledge of carers and has
+operated Jointly for many years. We should not assume every feature they
+include is good, but equally we should not dismiss a capability simply
+because Jointly's implementation or visual design is poor.
+
+The question is:
+
+"What user needs has Jointly learned to serve that Lilica currently does not?"
+
+NOT:
+
+"How do we copy Jointly?"
+
+The output of this task will be reviewed by GPT and the product owner.
+
+NO implementation may begin until that review is complete.
+
+
+================================================================
+1. ABSOLUTE NO-CODE GATE
+================================================================
+
+This task is analysis only.
+
+DO NOT:
+
+- edit application code;
+- edit database code;
+- create migrations;
+- install packages;
+- change dependencies;
+- modify Supabase;
+- add screens;
+- add fields;
+- alter navigation;
+- change UI;
+- implement competitor features;
+- implement billing;
+- implement visual polish;
+- create speculative infrastructure.
+
+You MAY update/create the Phase 20 audit documentation necessary to record
+your findings.
+
+Do not implement the findings.
+
+
+================================================================
+2. START FROM THE ACTUAL CURRENT PRODUCT
+================================================================
+
+Before analysing competitors, understand Lilica as it ACTUALLY EXISTS.
+
+Do not analyse an old roadmap description of Lilica.
+
+Read the complete current project documentation, including:
+
+- AGENTS.md
+- CLAUDE.md
+- README.md
+- docs/PROJECT_BRIEF.md
+- docs/LUMEN_HANDOFF.md
+- docs/CORE_SYSTEM_CONTRACT.md
+- docs/REVISION_LOG.md
+- Phase 19 architecture/QA
+- relevant earlier phase architecture/QA docs
+- Supabase operations documentation
+
+Then inspect the actual implementation.
+
+Trace the current user experience for:
+
+- Welcome
+- authentication
+- onboarding
+- supported-person creation
+- Home
+- universal Add
+- record creation/editing
+- Calendar
+- To Do
+- People
+- Key Contacts
+- Care Circle
+- invitations
+- roles
+- permissions
+- assignments
+- reminders
+- documents
+- document follow-up
+- Settings
+- Account
+- Privacy & data
+- export
+- account deletion
+- profile avatars
+- multi-person switching
+- offline/sync behaviour
+
+Do not rely on memory or old descriptions.
+
+Build an accurate CURRENT-LILICA capability inventory first.
+
+
+================================================================
+3. UNDERSTAND LILICA'S PRODUCT PHILOSOPHY
+================================================================
+
+Protect the product philosophy already established.
+
+Lilica is NOT intended to become a large menu of disconnected modules.
+
+Its primary model is:
+
+HOME
+"What should I know about the person I support right now?"
+
+CALENDAR
+"What is happening and when?"
+
+TO DO
+"What needs somebody to do something?"
+
+PEOPLE
+"Who is involved?"
+
+ADD
+"I have something new to capture."
+
+Underlying records remain the shared source of truth.
+
+Calendar and To Do are projections, not independent databases.
+
+Documents should become useful through relationships/follow-up rather than
+simply becoming a dead file store.
+
+Care Circle collaboration should make coordinating care easier without
+turning Lilica into an enterprise workflow product.
+
+Any recommendation must respect this architecture unless there is an
+exceptionally strong reason not to.
+
+
+================================================================
+4. PRIMARY COMPETITOR - JOINTLY / CARERS UK
+================================================================
+
+The product owner has personally used Jointly and supplied screenshots during
+the product review.
+
+Known observed Jointly capabilities include:
+
+- Care Circles;
+- invitations/members;
+- profiles for the person being supported;
+- tasks;
+- events;
+- reminders;
+- medication;
+- notes;
+- messages;
+- contacts;
+- calendar;
+- activity/history;
+- notifications;
+- export;
+- search;
+- multiple circles;
+- Quick Add;
+- member/circle management.
+
+The screenshots also showed substantial structured information about the
+supported person, including areas such as:
+
+- condition/illness/disability;
+- dietary requirements;
+- particular difficulties;
+- assistance required;
+- likes/dislikes/preferences;
+- general care information.
+
+Do not assume this list is complete.
+
+Where internet/research capability is available, investigate CURRENT Jointly
+functionality using authoritative sources such as Carers UK documentation,
+official app listings and official product/help documentation.
+
+Do not rely primarily on SEO comparison articles.
+
+Record sources and distinguish:
+
+VERIFIED CURRENT CAPABILITY
+OBSERVED IN PRODUCT-OWNER SCREENSHOT
+DOCUMENTED HISTORICAL CAPABILITY
+UNCERTAIN
+
+
+================================================================
+5. WHY JOINTLY HAS EACH FEATURE
+================================================================
+
+Do not produce a shallow feature checklist.
+
+For every significant Jointly capability ask:
+
+WHY DOES A CARER NEED THIS?
+
+For example, do not merely write:
+
+"Jointly has medication."
+
+Investigate the underlying need:
+
+- knowing what someone takes;
+- dosage/instructions;
+- repeat prescription management;
+- knowing whether medication has been administered;
+- sharing medication information between carers;
+- remembering collection/reordering;
+- emergency information;
+- avoiding duplicate action.
+
+Then determine which of those needs Lilica:
+
+- already solves;
+- partially solves;
+- solves differently;
+- genuinely does not solve.
+
+The USER NEED is more important than Jointly's implementation.
+
+
+================================================================
+6. CARER-LIFE GAP ANALYSIS
+================================================================
+
+Think beyond screen-for-screen comparison.
+
+Audit whether Lilica adequately supports common coordination problems around
+helping another person.
+
+Consider areas such as:
+
+HEALTH
+- appointments
+- medication
+- prescriptions
+- health contacts
+- important health information
+- follow-up
+- outcomes
+
+DAILY LIFE
+- tasks
+- recurring responsibilities
+- shopping/errands where relevant
+- household matters
+- transport
+- appointments
+- reminders
+
+FINANCIAL / ADMIN
+- bills
+- renewals
+- insurance
+- important documents
+- correspondence
+- follow-up
+- deadlines
+
+HOME & CAR
+- maintenance
+- servicing
+- repairs
+- MOT/insurance where relevant
+- household services
+
+PEOPLE
+- family helpers
+- professional contacts
+- emergency contacts
+- responsibilities
+- permissions
+
+COORDINATION
+- who did what
+- who is doing what
+- what changed
+- handover between carers
+- avoiding duplicated effort
+- visibility into recent activity
+
+CONTINGENCY
+- what another person needs to know if the usual carer suddenly cannot help
+- emergency/critical information
+- continuity of care
+
+INFORMATION RETRIEVAL
+- finding something entered months ago
+- finding documents
+- finding historical events
+- understanding why current state exists
+
+COMMUNICATION
+- whether Lilica needs contextual communication at all
+- whether external messaging apps already solve the problem better
+- whether comments/activity are enough
+
+Do not presume Lilica needs a feature in every category.
+
+
+================================================================
+7. PARTICULAR AREAS I WANT EXAMINED DEEPLY
+================================================================
+
+The following are review candidates, NOT approved features.
+
+Analyse each properly.
+
+------------------------------------------------------------
+A. RECENT ACTIVITY / CARE HISTORY
+------------------------------------------------------------
+
+Once several people help Beauty, can David answer:
+
+"What has happened since I last looked?"
+
+Examples:
+
+- Marion added a GP appointment.
+- David marked Water as paid.
+- Sarah uploaded an insurance document.
+- Jackie completed Collect prescription.
+- Marion changed an appointment date.
+
+Determine:
+
+- whether existing audit/history infrastructure already supports this;
+- what is missing;
+- where activity would naturally live;
+- whether it belongs under People/Care Circle;
+- whether a tiny Home indication is useful or unnecessary;
+- privacy/permission implications.
+
+------------------------------------------------------------
+B. SEARCH
+------------------------------------------------------------
+
+Can someone quickly find:
+
+- an old appointment;
+- a document;
+- an insurance policy;
+- a contact;
+- a historical task;
+- a bill;
+- something associated with a keyword?
+
+Determine whether the current product becomes difficult once somebody has
+used it for a year.
+
+Consider whether global search is genuinely necessary.
+
+------------------------------------------------------------
+C. MEDICATION
+------------------------------------------------------------
+
+Lilica already has medicine-related record capability.
+
+Determine whether that is enough.
+
+Compare against actual carer needs and Jointly.
+
+Possible distinctions include:
+
+- medicine information;
+- dosage;
+- schedule;
+- repeat prescription;
+- reorder;
+- collection;
+- administration tracking;
+- adherence;
+- notes;
+- responsible person.
+
+Do NOT recommend turning Lilica into a clinical medication-management system
+without analysing safety/liability implications.
+
+------------------------------------------------------------
+D. CONTINGENCY / EMERGENCY INFORMATION
+------------------------------------------------------------
+
+Jointly/Carers UK may support information intended to help if the primary
+carer cannot provide care.
+
+Investigate this carefully.
+
+Ask whether Lilica currently provides somewhere obvious for:
+
+"If something happens to me, what does another person need to know about
+Beauty?"
+
+This could be materially important to carers.
+
+Assess value, privacy, security and scope.
+
+------------------------------------------------------------
+E. CALENDAR INTEGRATION
+------------------------------------------------------------
+
+Investigate Jointly's calendar behaviour.
+
+Would carers benefit from Lilica appointments appearing in:
+
+- Apple Calendar;
+- Google Calendar;
+- device calendar?
+
+Could import create duplication/confusion?
+
+Would export/subscription be sufficient?
+
+Assess rather than assume.
+
+------------------------------------------------------------
+F. NOTES
+------------------------------------------------------------
+
+Jointly has Notes.
+
+Determine whether Lilica actually lacks a need here or whether:
+
+- records;
+- documents;
+- task notes;
+- appointment outcomes;
+- general information
+
+already cover it better.
+
+Do not create a generic Notes feature simply to tick a box.
+
+------------------------------------------------------------
+G. MESSAGING / COMMUNICATION
+------------------------------------------------------------
+
+Jointly has messaging.
+
+Ask whether Lilica should.
+
+Families already use:
+
+- WhatsApp;
+- iMessage;
+- SMS;
+- Messenger;
+- etc.
+
+Would duplicating general chat make Lilica worse?
+
+Alternatively, is there a genuine need for contextual comments such as:
+
+"Spoke to GP - prescription will be ready Friday"
+
+attached to a record/task?
+
+Analyse the NEED, not the competitor checkbox.
+
+------------------------------------------------------------
+H. CONTACT IMPORTING
+------------------------------------------------------------
+
+Would importing from the device address book materially improve Key Contact
+creation?
+
+Assess:
+
+- convenience;
+- permission burden;
+- privacy;
+- cross-platform behaviour;
+- implementation complexity.
+
+------------------------------------------------------------
+I. RECURRING TASKS / CHECKLISTS
+------------------------------------------------------------
+
+Determine whether Lilica's existing recurrence engine adequately serves
+repeated caring responsibilities.
+
+Consider:
+
+- weekly shopping;
+- bins;
+- prescription collection;
+- recurring bills;
+- routine calls/check-ins;
+- household tasks.
+
+Do not duplicate existing recurrence capability.
+
+------------------------------------------------------------
+J. NOTIFICATION SOPHISTICATION
+------------------------------------------------------------
+
+Review whether the existing Phase 14 reminder engine provides enough.
+
+Consider:
+
+- assignment notification;
+- upcoming deadline;
+- overdue item;
+- Care Circle activity;
+- changed appointment;
+- invitation;
+- completed responsibility.
+
+Separate:
+
+REMINDER
+from
+COLLABORATION NOTIFICATION.
+
+They are not necessarily the same thing.
+
+------------------------------------------------------------
+K. SUPPORTED-PERSON PROFILE INFORMATION
+------------------------------------------------------------
+
+Jointly collects substantial information about the person being cared for.
+
+Determine which information is genuinely useful in Lilica and which would
+make Lilica feel like a medical/social-care record.
+
+Examples to assess:
+
+- preferred name;
+- date of birth;
+- important health conditions;
+- allergies;
+- dietary requirements;
+- accessibility needs;
+- communication preferences;
+- likes/dislikes;
+- assistance needs;
+- emergency information.
+
+Remember:
+
+Lilica's onboarding deliberately avoids forcing users through a giant dossier.
+
+Even if additional information is valuable, it does NOT follow that it should
+be collected during onboarding.
+
+------------------------------------------------------------
+L. MEMBER MANAGEMENT / FILTERING
+------------------------------------------------------------
+
+Jointly has mature circle/member concepts.
+
+Compare against Lilica's current Care Circle.
+
+Assess whether managing a larger family/helper group exposes gaps around:
+
+- member list;
+- role;
+- relationship;
+- permissions;
+- filtering;
+- former members;
+- invitations;
+- activity;
+- responsibilities.
+
+------------------------------------------------------------
+M. OFFLINE
+------------------------------------------------------------
+
+Jointly has historically emphasised practical carer access.
+
+Lilica already has substantial offline architecture.
+
+Determine whether this is:
+
+- parity;
+- advantage;
+- or whether important workflows remain online-only.
+
+Do not rebuild the sync system.
+
+------------------------------------------------------------
+N. EXPORT / CONTINUITY
+------------------------------------------------------------
+
+Compare Jointly's export/contingency behaviour with Lilica's current export.
+
+Ask whether Lilica's export is technically complete but not useful enough to
+a human carer.
+
+Could there eventually be a useful human-readable:
+
+- care summary;
+- emergency summary;
+- handover summary;
+
+distinct from raw data export?
+
+Analyse only.
+
+
+================================================================
+8. LOOK FOR THINGS JOINTLY DOES NOT DO WELL
+================================================================
+
+The analysis must also identify areas where Lilica should deliberately NOT
+follow Jointly.
+
+The product owner found Jointly:
+
+- badly designed;
+- visually dated;
+- awkward to navigate;
+- heavily menu/module-driven;
+- cumbersome in use.
+
+Do not import those weaknesses.
+
+Explicitly identify where Lilica currently has an advantage such as:
+
+- Home projection;
+- unified To Do;
+- cleaner Calendar;
+- universal Add;
+- document relationships/follow-up;
+- modern People/Care Circle experience;
+- assignment model;
+- information hierarchy;
+- multi-person switching;
+- visual quality;
+- reduced onboarding burden.
+
+Protect those advantages.
+
+
+================================================================
+9. DO NOT IGNORE SMALL HIGH-VALUE FEATURES
+================================================================
+
+A useful outcome of this phase may be several SMALL improvements rather than
+one giant feature.
+
+Look particularly for:
+
+LOW COMPLEXITY
++
+HIGH CARER VALUE
++
+LOW REGRESSION RISK
+
+examples.
+
+Do not favour large engineering projects merely because they sound more
+substantial.
+
+
+================================================================
+10. DATA / SECURITY IMPACT
+================================================================
+
+For every proposed gap closure identify whether it requires:
+
+- no schema change;
+- new record_data fields;
+- new canonical record type;
+- new table;
+- new RPC;
+- new Storage use;
+- new RLS;
+- new notification infrastructure;
+- new device permission;
+- new external integration.
+
+Prefer fitting useful capabilities into the existing architecture where that
+is semantically correct.
+
+Do not force unrelated concepts into generic JSON simply to avoid a migration.
+
+
+================================================================
+11. SAFETY / LEGAL IMPACT
+================================================================
+
+Flag areas involving:
+
+- medical information;
+- medication administration;
+- emergency information;
+- special-category data;
+- consent;
+- professional-care implications;
+- messaging retention;
+- contact importing;
+- notification privacy.
+
+Do not make legal conclusions.
+
+Classify specialist review where required.
+
+
+================================================================
+12. CURRENT LILICA VS JOINTLY MATRIX
+================================================================
+
+Produce a comprehensive comparison table with columns:
+
+CAPABILITY
+CARER NEED
+JOINTLY
+CURRENT LILICA
+LILICA QUALITY/PARITY
+GAP?
+RECOMMENDATION
+PRIORITY
+
+Use these parity labels:
+
+LILICA ADVANTAGE
+PARITY
+PARTIAL
+GENUINE GAP
+DELIBERATE OMISSION
+UNCERTAIN
+
+
+================================================================
+13. GAP CLASSIFICATION
+================================================================
+
+Every candidate must receive exactly one classification:
+
+A. LILICA ALREADY HANDLES THIS BETTER
+
+B. LILICA HANDLES THIS DIFFERENTLY BUT ADEQUATELY
+
+C. GENUINE PRODUCT GAP WORTH ADDING
+
+D. USEFUL BUT NOT LAUNCH-CRITICAL
+
+E. DELIBERATELY SHOULD NOT BE COPIED
+
+F. REQUIRES FURTHER LEGAL/PRIVACY/PRODUCT RESEARCH
+
+
+================================================================
+14. RECOMMENDATION DETAIL
+================================================================
+
+For every C candidate provide:
+
+1. User/carer problem.
+2. Evidence/competitor rationale.
+3. Current Lilica behaviour.
+4. Why current behaviour is insufficient.
+5. Proposed Lilica solution.
+6. Where it belongs in Lilica.
+7. Data-model impact.
+8. Security/privacy impact.
+9. Offline impact.
+10. Notification impact.
+11. UX complexity.
+12. Engineering complexity.
+13. Regression risk.
+14. Whether physical mock/design is needed.
+15. Whether it should be included BEFORE launch.
+16. Dependencies on other candidates.
+
+
+================================================================
+15. PRIORITISATION
+================================================================
+
+Rank genuine gaps using:
+
+P0 - launch-critical deficiency
+P1 - strong pre-launch improvement
+P2 - useful post-launch improvement
+P3 - optional / evidence needed
+
+Be conservative with P0.
+
+A competitor having a feature does NOT make it P0.
+
+
+================================================================
+16. PROPOSED PHASE 20 IMPLEMENTATION SET
+================================================================
+
+At the end, recommend THREE sets:
+
+MINIMUM
+The smallest set required to avoid a meaningful deficiency against established
+carer products.
+
+RECOMMENDED
+The set you believe creates the strongest launch product without bloating
+Lilica.
+
+EXPANDED
+Useful additional capabilities that could be built but increase scope.
+
+Estimate relative effort:
+
+XS
+S
+M
+L
+XL
+
+Do not estimate developer hours unless evidence supports them.
+
+
+================================================================
+17. PRODUCT SIMPLICITY TEST
+================================================================
+
+For every recommendation ask:
+
+"If we add this, does Lilica become easier or harder to understand?"
+
+A feature that provides value but destroys the product's simplicity may need
+a different implementation or rejection.
+
+Specifically guard against creating a Jointly-like drawer containing:
+
+Messages
+Calendar
+Notes
+Tasks
+Reminders
+Contacts
+Medications
+etc.
+
+Lilica's information architecture should remain substantially simpler.
+
+
+================================================================
+18. ONE-YEAR USER TEST
+================================================================
+
+Mentally model a user who has used Lilica for 12 months.
+
+They have:
+
+- two supported people;
+- hundreds of records;
+- many completed tasks;
+- many appointments;
+- dozens of documents;
+- several Care Circle members;
+- historical bills;
+- recurring responsibilities.
+
+Ask:
+
+"What becomes difficult in Lilica after a year?"
+
+This is particularly important for:
+
+- search;
+- history;
+- activity;
+- document retrieval;
+- member activity;
+- old records.
+
+Include findings.
+
+
+================================================================
+19. FAMILY HANDOVER TEST
+================================================================
+
+Model:
+
+David normally organises Beauty's care.
+
+David becomes unavailable for two weeks.
+
+Marion needs to take over tomorrow.
+
+Ask:
+
+Can Marion determine:
+
+- what is happening soon;
+- what needs doing;
+- what has already been done;
+- who the important contacts are;
+- what medication/health information matters;
+- where important documents are;
+- what bills/renewals are approaching;
+- what recent changes happened;
+- what Beauty needs day-to-day?
+
+Identify any meaningful failure.
+
+This is an important carer-specific test.
+
+
+================================================================
+20. EMERGENCY TEST
+================================================================
+
+Model:
+
+A family member needs critical information about Beauty unexpectedly.
+
+What can Lilica provide quickly today?
+
+What cannot it provide?
+
+Do not assume Lilica must become an emergency medical record.
+
+Assess what reasonable organiser/continuity information would add genuine
+value.
+
+
+================================================================
+21. COLLABORATION TEST
+================================================================
+
+Model a Care Circle of 6 people.
+
+Ask:
+
+- can everyone tell who is responsible for what?
+- can they tell what changed?
+- can they avoid duplicated effort?
+- can the organiser understand participation?
+- can permissions remain understandable?
+- can somebody leave safely?
+- can historical contribution remain understandable?
+
+Identify gaps.
+
+
+================================================================
+22. DO NOT ANALYSE BILLING
+================================================================
+
+Phase 21 owns:
+
+- trial;
+- £9.99/year;
+- StoreKit;
+- Google Play Billing;
+- commercial membership;
+- entitlement.
+
+Do not include monetisation recommendations in Phase 20.
+
+
+================================================================
+23. DO NOT PERFORM PREMIUM VISUAL AUDIT
+================================================================
+
+Phase 22 owns the comprehensive:
+
+- typography;
+- spacing;
+- hierarchy;
+- card;
+- gradient;
+- animation;
+- premium-quality;
+- cross-screen visual polish audit.
+
+Phase 20 may mention a UX problem where it directly affects a proposed
+feature, but do NOT turn this into Phase 22.
+
+
+================================================================
+24. CREATE PHASE 20 AUDIT DOCUMENT
+================================================================
+
+Create:
+
+docs/PHASE_20_GAP_AUDIT.md
+
+This should contain the complete durable analysis.
+
+Do NOT create PHASE_20_ARCHITECTURE.md yet.
+
+Architecture should only be written after GPT/product-owner approves what
+Phase 20 will actually implement.
+
+
+================================================================
+25. UPDATE ROADMAP STATUS ONLY IF APPROPRIATE
+================================================================
+
+You may update documentation only enough to state:
+
+Phase 19 approved.
+Phase 20 audit underway.
+
+Do not mark Phase 20 implemented.
+
+Do not mark any candidate enhancement approved.
+
+
+================================================================
+26. NO COMMIT
+================================================================
+
+DO NOT COMMIT.
+
+DO NOT PUSH.
+
+The audit must be reviewed first.
+
+
+================================================================
+27. COMPLETION REPORT
+================================================================
+
+Return a structured report containing:
+
+1. Current Lilica capability inventory.
+2. Jointly capability inventory and evidence quality.
+3. Carer-needs analysis.
+4. Full Lilica-vs-Jointly matrix.
+5. Lilica advantages.
+6. Genuine gaps.
+7. Deliberate omissions.
+8. Uncertain/research-required areas.
+9. Recent Activity assessment.
+10. Search assessment.
+11. Medication assessment.
+12. Contingency/emergency assessment.
+13. Calendar integration assessment.
+14. Notes assessment.
+15. Messaging assessment.
+16. Contact-import assessment.
+17. Recurrence/checklist assessment.
+18. Notification assessment.
+19. Supported-person information assessment.
+20. Care Circle/member-management assessment.
+21. Offline assessment.
+22. Export/handover assessment.
+23. One-year-user findings.
+24. Family-handover findings.
+25. Emergency-test findings.
+26. Six-person collaboration findings.
+27. Data/security implications.
+28. Legal/privacy flags.
+29. P0/P1/P2/P3 ranking.
+30. MINIMUM implementation set.
+31. RECOMMENDED implementation set.
+32. EXPANDED implementation set.
+33. Relative effort for each recommendation.
+34. Items requiring mock/design before implementation.
+35. Explicit list of things you recommend we DO NOT COPY.
+36. Documentation changed.
+37. Confirmation ZERO product implementation occurred.
+38. Git status.
+
+Then STOP.
+
+
+================================================================
+PHASE 20A ACCEPTANCE STANDARD
+================================================================
+
+This task passes only if it gives GPT and the product owner enough evidence to
+answer:
+
+"What, if anything, should Lilica add before launch because our current
+product is meaningfully deficient against the real needs of carers?"
+
+The answer may be:
+
+- several additions;
+- only a few additions;
+- or no major additions.
+
+Do not manufacture gaps to justify Phase 20.
+
+Equally, do not defend Lilica merely because we built it.
+
+Be critical.
+
+The purpose is to make Lilica a better product for carers while protecting
+the simplicity and architecture that differentiate it from Jointly.
+
+NO IMPLEMENTATION UNTIL GPT + PRODUCT OWNER APPROVE THE REPORT.

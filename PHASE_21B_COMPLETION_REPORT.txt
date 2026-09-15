@@ -1,0 +1,673 @@
+LILICA - HOME / SEARCH INTERACTION REFINEMENT
+IMPLEMENTATION AGENT: CLAUDE
+
+This is a tightly bounded UI/interaction refinement.
+
+IMPORTANT:
+Do NOT redesign Home.
+Do NOT reinterpret the approved mock.
+Do NOT introduce a new visual system.
+
+The approved target is saved at:
+
+\downloads\search4.png
+
+You already have access to this file.
+
+Use it as the primary visual reference.
+
+The goal is to make the existing Home implementation match that approved
+target closely, while preserving all existing Home logic and Phase 20 Search
+behaviour.
+
+
+================================================================
+1. FIRST - INSPECT BEFORE CHANGING ANYTHING
+================================================================
+
+Before editing:
+
+1. Open and inspect:
+   \downloads\search4.png
+
+2. Inspect the current implementation of:
+   - HomeScreen
+   - supported-person selector/avatar
+   - search affordance
+   - horizontal summary/dashboard cards
+   - Home header
+   - person switching
+   - SearchScreen
+   - navigation between Home and Search
+
+3. Inspect the current physical-device behaviour already implemented.
+
+Do not rely on memory.
+
+Determine the smallest set of changes needed to make the current app match
+the approved mock.
+
+
+================================================================
+2. APPROVED HOME TARGET
+================================================================
+
+The approved mock is:
+
+\downloads\search4.png
+
+Stay very close to it.
+
+Specifically preserve:
+
+- current cream Lilica background;
+- existing Lilica/Home header;
+- existing + Add button;
+- existing Settings cog;
+- current overall spacing/hierarchy;
+- existing dashboard card colours;
+- existing Today cards;
+- existing bottom navigation;
+- current typography family/style;
+- existing Home logic.
+
+Do NOT produce a completely different Home design.
+
+
+================================================================
+3. SUPPORTED-PERSON AVATAR
+================================================================
+
+The current supported-person avatar at the top-left should be adjusted to
+match the mock.
+
+Requirements:
+
+- make the initial inside the avatar larger;
+- keep the existing soft Lilica avatar styling;
+- preserve the dropdown/chevron used for switching supported person;
+- do not make the avatar disproportionately large.
+
+For example:
+
+M
+
+should be visually more prominent inside the avatar.
+
+
+================================================================
+4. SUPPORTED-PERSON FIRST NAME
+================================================================
+
+Directly beneath the avatar, show the supported person's FIRST NAME.
+
+Example:
+
+Maggie
+
+This must be dynamic.
+
+Do NOT hard-code "Maggie".
+
+If the selected supported person changes to:
+
+Beauty
+
+then the label beneath the avatar must become:
+
+Beauty
+
+If the selected person changes to Jackie:
+
+Jackie
+
+Use the same supported-person source of truth already used elsewhere.
+
+Do not create duplicate person state.
+
+
+================================================================
+5. SPACING BELOW PERSON NAME
+================================================================
+
+There must be a deliberate amount of breathing room between:
+
+the supported-person first name
+
+and
+
+the horizontal dashboard card strip beneath it.
+
+The approved mock intentionally gives these elements some visual separation.
+
+Do not cram the strip directly against the name.
+
+At the same time:
+
+do not introduce excessive dead space.
+
+Match the approved reference closely.
+
+
+================================================================
+6. HOME SEARCH AFFORDANCE
+================================================================
+
+The search control on Home should visually match the approved mock.
+
+It should continue to communicate that the search applies to the CURRENT
+supported person.
+
+Example content:
+
+Everything for Maggie, in one place.
+
+This text must be dynamic.
+
+Examples:
+
+Everything for Beauty, in one place.
+Everything for Jackie, in one place.
+
+Do not hard-code Maggie.
+
+
+================================================================
+7. SEARCH INTERACTION - REQUIRED BEHAVIOUR
+================================================================
+
+The Home search box is NOT an inline expanding search field.
+
+When the user taps/highlights the Home search control:
+
+Home
+→ Search [FirstName]
+
+Example:
+
+Home
+→ Search Maggie
+
+The app should navigate to the existing dedicated Search screen.
+
+This is the interaction already physically tested and approved.
+
+
+================================================================
+8. SEARCH SCREEN - REQUIRED STATE
+================================================================
+
+When the dedicated Search screen opens:
+
+- title should be:
+  Search Maggie
+  using the current supported person's first name;
+
+- the search field should immediately receive focus;
+
+- the device keyboard should open automatically;
+
+- the user can immediately begin typing;
+
+- search results should populate beneath the field as they type;
+
+- no second tap should be required to activate the field.
+
+Preserve the existing Phase 20 unified-search logic.
+
+Do NOT rebuild Search.
+
+
+================================================================
+9. SEARCH SCREEN COPY
+================================================================
+
+Retain the current simple supported-person-specific copy.
+
+Example:
+
+Search Maggie
+
+Search appointments, tasks, documents...
+
+Search for anything already saved for Maggie - an appointment, a task,
+a document, a contact.
+
+Keep this dynamic based on the current supported person.
+
+Do not hard-code Maggie.
+
+
+================================================================
+10. SEARCH BACK NAVIGATION
+================================================================
+
+The back navigation on Search has one clear job:
+
+Search Maggie
+→ Back
+→ Home
+
+When the user presses the top-left back button:
+
+- return directly to Home;
+- do not route through onboarding;
+- do not route through setup;
+- do not change tab;
+- do not change supported person;
+- do not open an intermediate screen.
+
+The user should feel they temporarily entered Search from Home and then
+returned to Home.
+
+Preserve the currently selected supported person.
+
+
+================================================================
+11. SEARCH EXIT STATE
+================================================================
+
+On returning to Home:
+
+- Home should still show the same supported person;
+- the Home state should remain coherent;
+- no stale search results should remain visible;
+- the app should not reset unrelated Home state.
+
+Do not create a navigation stack regression.
+
+
+================================================================
+12. HORIZONTAL DASHBOARD STRIP
+================================================================
+
+The horizontal dashboard card strip must remain horizontally scrollable.
+
+The cards currently represent the Home summary/dashboard information.
+
+Do not replace these cards with another concept.
+
+
+================================================================
+13. ADD ACTIVE LEFT / RIGHT CHEVRONS
+================================================================
+
+A usability problem remains:
+
+it is not sufficiently obvious that the dashboard card strip is horizontally
+scrollable.
+
+Add a clear but restrained ACTIVE CHEVRON on BOTH sides of the horizontal
+strip.
+
+Visually:
+
+<   [ cards / horizontally scrollable content ]   >
+
+The chevrons should make it obvious that more content can be explored.
+
+
+================================================================
+14. CHEVRON BEHAVIOUR
+================================================================
+
+The chevrons must not be decorative only.
+
+They must be interactive.
+
+LEFT CHEVRON:
+- scrolls the horizontal strip left by a sensible amount.
+
+RIGHT CHEVRON:
+- scrolls the horizontal strip right by a sensible amount.
+
+Use smooth scrolling where supported.
+
+Do not jump unpredictably.
+
+
+================================================================
+15. CHEVRON ENABLE / DISABLE STATE
+================================================================
+
+The chevrons should reflect whether further scrolling is possible.
+
+At the left-most position:
+
+- left chevron should appear disabled/subdued;
+- right chevron remains active if more content exists.
+
+At the right-most position:
+
+- right chevron becomes disabled/subdued;
+- left chevron remains active.
+
+In the middle:
+
+- both may be active.
+
+Do not show an apparently active chevron that does nothing.
+
+
+================================================================
+16. SWIPE MUST STILL WORK
+================================================================
+
+The user must still be able to swipe/drag the horizontal strip naturally.
+
+Chevrons are an additional discoverability/navigation aid.
+
+They must NOT replace touch scrolling.
+
+
+================================================================
+17. CHEVRON VISUAL STYLE
+================================================================
+
+Use the existing Lilica visual language.
+
+Chevrons should be:
+
+- restrained;
+- obvious enough to notice;
+- premium;
+- not giant;
+- not floating blue developer controls;
+- not visually dominant over the cards.
+
+They may sit just outside or slightly overlap the strip edges if that best
+matches the approved design.
+
+Use existing colours/theme tokens where possible.
+
+
+================================================================
+18. CHEVRON ACCESSIBILITY
+================================================================
+
+Add appropriate accessibility labels/roles.
+
+Examples:
+
+Scroll dashboard left
+Scroll dashboard right
+
+Disabled state must be conveyed correctly.
+
+
+================================================================
+19. CARD STRIP LAYOUT
+================================================================
+
+Do not compress the cards merely to fit all of them on screen.
+
+The point is that the strip is horizontally explorable.
+
+Preserve card quality and readable spacing.
+
+Do not make cards tiny just to eliminate scrolling.
+
+
+================================================================
+20. PERSON SWITCHING
+================================================================
+
+When the supported person changes:
+
+- avatar initial updates;
+- first name beneath avatar updates;
+- Home search copy updates;
+- Search title/copy updates;
+- dashboard data updates;
+- Today cards update;
+- no stale previous-person data remains.
+
+Example:
+
+Maggie
+→ switch to Beauty
+
+must immediately become:
+
+B
+Beauty
+
+Everything for Beauty, in one place.
+
+Search Beauty
+
+Do not duplicate or cache stale labels.
+
+
+================================================================
+21. RESPONSIVE BEHAVIOUR
+================================================================
+
+Test:
+
+- iPhone
+- narrow Android
+- taller Android
+- shorter device
+- large text where practical
+
+Ensure:
+
+- avatar/name do not collide with search box;
+- Add and Settings remain aligned;
+- chevrons remain usable;
+- horizontal strip still scrolls correctly;
+- supported-person name does not overlap strip;
+- Search screen keyboard remains usable.
+
+
+================================================================
+22. PROTECT HOME FUNCTIONALITY
+================================================================
+
+Do NOT change:
+
+- Home projection logic;
+- record classification;
+- Today logic;
+- overdue logic;
+- Due today logic;
+- Completed logic;
+- record counts;
+- card click behaviour;
+- Add flow;
+- Settings drawer;
+- bottom navigation;
+- Calendar;
+- To Do;
+- People;
+- assignment logic;
+- reminders;
+- documents;
+- care-space permissions;
+- offline sync;
+- billing work.
+
+This is a UI/interaction refinement only.
+
+
+================================================================
+23. PROTECT SEARCH FUNCTIONALITY
+================================================================
+
+Do NOT change:
+
+- current-person search scope;
+- search matching logic;
+- search permission model;
+- search result grouping;
+- record-detail opening;
+- offline search;
+- care-space isolation.
+
+Only ensure the Home → Search → Home interaction behaves exactly as approved.
+
+
+================================================================
+24. REFERENCE IMAGE DISCIPLINE
+================================================================
+
+The approved reference is:
+
+\downloads\search4.png
+
+Use it closely.
+
+Do not reinterpret it into:
+
+- a different dashboard;
+- a new card system;
+- a new header;
+- a new navigation pattern;
+- a new brand treatment.
+
+This task exists specifically because the product owner wants the implemented
+Home to remain very close to the agreed mock.
+
+
+================================================================
+25. TESTS
+================================================================
+
+Add/update focused tests for:
+
+1. supported-person first name appears beneath avatar;
+2. avatar initial comes from current supported person;
+3. switching supported person updates avatar/name;
+4. Home search copy uses current supported person's name;
+5. tapping Home search opens dedicated Search screen;
+6. Search title uses current person's name;
+7. Search field receives focus on open where testable;
+8. Search back returns to Home;
+9. supported person remains unchanged after returning;
+10. left/right dashboard chevrons render;
+11. right chevron scrolls strip;
+12. left chevron scrolls strip;
+13. disabled states respond to scroll position;
+14. normal swipe scrolling remains enabled;
+15. no Home projection logic changed.
+
+
+================================================================
+26. PHYSICAL QA CHECKLIST
+================================================================
+
+Prepare a concise physical-device QA list.
+
+HOME:
+- larger avatar initial looks balanced;
+- supported-person first name sits clearly beneath avatar;
+- spacing before dashboard strip looks intentional;
+- dashboard chevrons clearly communicate scrollability;
+- chevrons work;
+- swipe still works.
+
+SEARCH:
+- tap Home search;
+- Search Maggie opens;
+- keyboard opens immediately;
+- type query;
+- results appear;
+- open a result;
+- return;
+- top back from Search returns directly to Home.
+
+PERSON SWITCH:
+- Maggie → Beauty/other person;
+- avatar/name/search copy all update;
+- no stale data.
+
+Test on Android and iPhone where available.
+
+
+================================================================
+27. DIFF DISCIPLINE
+================================================================
+
+Expected changes should be limited to the Home/Search UI and focused tests.
+
+Classify changes as:
+
+A. Home avatar/name refinement
+B. Home dashboard chevrons
+C. Home → Search navigation/focus behaviour
+D. tests
+E. documentation if genuinely needed
+F. unexpected
+
+F must be EMPTY.
+
+Do not perform unrelated cleanup.
+
+
+================================================================
+28. GIT
+================================================================
+
+DO NOT COMMIT.
+
+DO NOT PUSH.
+
+Leave the changes for product-owner physical review first.
+
+
+================================================================
+29. COMPLETION REPORT
+================================================================
+
+When finished report:
+
+1. Starting HEAD/origin.
+2. Reference image inspected.
+3. Files changed.
+4. Avatar change.
+5. Dynamic supported-person name implementation.
+6. Spacing adjustment.
+7. Search affordance behaviour.
+8. Search focus/keyboard behaviour.
+9. Search back-navigation behaviour.
+10. Horizontal strip chevron implementation.
+11. Chevron active/disabled logic.
+12. Swipe behaviour preserved.
+13. Person-switch behaviour.
+14. Responsive/accessibility result.
+15. Tests added/updated.
+16. Full regression result.
+17. Physical QA still required.
+18. Complete diff audit.
+19. Git status.
+20. Confirmation no unrelated feature work was performed.
+
+Then STOP.
+
+
+================================================================
+ACCEPTANCE STANDARD
+================================================================
+
+This task passes only if the implemented Home remains recognisably and closely
+aligned with:
+
+\downloads\search4.png
+
+and specifically:
+
+- the supported-person avatar initial is larger;
+- the supported person's first name appears directly beneath the avatar;
+- there is deliberate breathing room before the horizontal dashboard strip;
+- the Home search affordance remains dynamic for the selected person;
+- tapping it opens the dedicated "Search [FirstName]" screen;
+- the search field is immediately focused and keyboard opens;
+- pressing Search's top back button returns directly to Home;
+- the selected supported person is preserved;
+- the horizontal dashboard strip remains swipeable;
+- active chevrons on both sides make scrollability obvious;
+- chevrons actually scroll the strip;
+- their enabled/disabled state reflects real scroll position;
+- Home/Search domain logic is not changed;
+- no unrelated UI or architecture is redesigned.

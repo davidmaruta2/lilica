@@ -10,10 +10,22 @@
 
 export type InvitationEmailInput = {
   inviterName: string;
-  personFirstName: string;
+  // Multi-person Care Circle invitation scope (`\downloads\perm.txt`, 15
+  // September 2026): one or more first names -- a legacy single-person
+  // invitation passes a one-element array, so its wording is completely
+  // unchanged. Brief section 10: never expose surnames.
+  personFirstNames: string[];
   joinUrl: string;
   inviteCode: string;
 };
+
+// "Maggie" | "Maggie and Ben" | "Maggie, Ben and Jackie" -- ordinary,
+// grammatical English list joining, used only for the email/Share text.
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? 'someone';
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
 
 export type InvitationEmailContent = {
   subject: string;
@@ -37,12 +49,22 @@ function formatCode(code: string): string {
   return `${code.slice(0, 4)}-${code.slice(4)}`;
 }
 
-export function buildInvitationEmail({ inviterName, personFirstName, joinUrl, inviteCode }: InvitationEmailInput): InvitationEmailContent {
-  const subject = `${inviterName} has invited you to help with ${personFirstName}'s care`;
+export function buildInvitationEmail({ inviterName, personFirstNames, joinUrl, inviteCode }: InvitationEmailInput): InvitationEmailContent {
+  const isMultiple = personFirstNames.length > 1;
+  const namesJoined = joinNames(personFirstNames);
+  // Brief section 10: for one person, keep the natural existing wording
+  // ("...help with Maggie's care") completely unchanged; for more than
+  // one, the grammatically cleaner "...help support: Maggie, Ben".
+  const subject = isMultiple
+    ? `${inviterName} has invited you to help support ${namesJoined}`
+    : `${inviterName} has invited you to help with ${namesJoined}'s care`;
+  const introLine = isMultiple
+    ? `${inviterName} has invited you to join Lilica to help support ${namesJoined}.`
+    : `${inviterName} has invited you to help with ${namesJoined}'s care in Lilica.`;
   const formattedCode = formatCode(inviteCode);
 
   const text = [
-    `${inviterName} has invited you to help with ${personFirstName}'s care in Lilica.`,
+    introLine,
     '',
     "Lilica helps families organise the things involved in supporting someone.",
     '',
@@ -56,9 +78,12 @@ export function buildInvitationEmail({ inviterName, personFirstName, joinUrl, in
   ].join('\n');
 
   const safeInviter = escapeHtml(inviterName);
-  const safePerson = escapeHtml(personFirstName);
+  const safeNamesJoined = escapeHtml(namesJoined);
   const safeUrl = escapeHtml(joinUrl);
   const safeCode = escapeHtml(formattedCode);
+  const safeIntroHtml = isMultiple
+    ? `<strong>${safeInviter}</strong> has invited you to join Lilica to help support <strong>${safeNamesJoined}</strong>.`
+    : `<strong>${safeInviter}</strong> has invited you to help with <strong>${safeNamesJoined}'s care</strong> in Lilica.`;
 
   const html = `<!doctype html>
 <html>
@@ -66,7 +91,7 @@ export function buildInvitationEmail({ inviterName, personFirstName, joinUrl, in
     <div style="max-width: 480px; margin: 0 auto; background-color: #FFFFFF; border-radius: 12px; padding: 32px;">
       <p style="font-size: 20px; font-weight: 700; margin: 0 0 16px;">Lilica</p>
       <p style="font-size: 16px; line-height: 24px; margin: 0 0 16px;">
-        <strong>${safeInviter}</strong> has invited you to help with <strong>${safePerson}'s care</strong> in Lilica.
+        ${safeIntroHtml}
       </p>
       <p style="font-size: 14px; line-height: 22px; color: #6B615C; margin: 0 0 24px;">
         Lilica helps families organise the things involved in supporting someone.

@@ -1,0 +1,292 @@
+LILICA - PHASE 20A: COMPETITIVE GAP REVIEW - AUDIT ONLY
+COMPLETION REPORT
+Source brief: phase20.txt
+Date: 13 September 2026
+
+ABSOLUTE NO-CODE GATE HONOURED: zero application code, database code,
+migrations, dependencies, screens, fields, navigation, UI, competitor
+features, billing, or visual polish were implemented. This report and
+docs/PHASE_20_GAP_AUDIT.md are the sole outputs.
+
+1. CURRENT LILICA CAPABILITY INVENTORY
+Built from direct inspection of the real repository (not an old roadmap
+description) - AGENTS.md/CLAUDE.md/README.md/docs/PROJECT_BRIEF.md/
+docs/LUMEN_HANDOFF.md/docs/CORE_SYSTEM_CONTRACT.md/docs/REVISION_LOG.md/
+docs/PHASE_19_ARCHITECTURE.md/docs/PHASE_19_QA.md read, plus direct grep/
+read of src/, App.tsx and supabase/migrations/. Full inventory in
+docs/PHASE_20_GAP_AUDIT.md section 1. Headline confirmations: no search
+feature exists anywhere (grep-verified); no dedicated medication record
+type (medication is folded into free-text careNote, grep-verified against
+src/data/options.ts); no cross-record activity feed exists (only per-record
+confirmationHistory and a raw Home "Updates this week" count); no device
+contact-import dependency installed; no calendar device sync/export.
+
+2. JOINTLY CAPABILITY INVENTORY AND EVIDENCE QUALITY
+Sourced via live web research (WebSearch + WebFetch) against the official
+Apple App Store listing and Carers UK's own page/search-result summaries -
+SEO comparison articles deliberately not used as a primary source per the
+brief's instruction. Google Play's listing could not be retrieved (fetch
+tool returned truncated content). Every capability recorded with an
+explicit evidence label: VERIFIED CURRENT CAPABILITY (App Store listing/
+Carers UK page), OBSERVED IN PRODUCT-OWNER SCREENSHOT (the product owner's
+screenshots referenced in phase20.txt were not attached/visible in this
+session, so this label cites the brief's own description of them rather
+than independent re-analysis), or UNCERTAIN. Full inventory and source
+table in docs/PHASE_20_GAP_AUDIT.md section 2.
+
+3. CARER-NEEDS ANALYSIS
+For every significant Jointly capability, the underlying carer need was
+identified and matched against current Lilica behaviour (already handles
+better / differently-but-adequately / does not solve). Full analysis in
+docs/PHASE_20_GAP_AUDIT.md section 3.
+
+4. FULL LILICA-VS-JOINTLY MATRIX
+Built with the required columns (Capability/Carer need/Jointly/Current
+Lilica/Parity/Gap?/Recommendation/Priority) and parity labels. See
+docs/PHASE_20_GAP_AUDIT.md section 4.
+
+5. LILICA ADVANTAGES
+Home projection, unified To Do, cleaner Calendar, universal Add, document
+relationships/follow-up, modern People/Care Circle experience, a real
+server-enforced per-domain assignment/permission model, a coherent
+information hierarchy (vs. Jointly's module drawer), real multi-person
+switching, light onboarding, and higher visual quality (per the product
+owner's own direct comparison). Full list: docs/PHASE_20_GAP_AUDIT.md
+section 5.
+
+6. GENUINE GAPS
+Recent Activity/care history, Search, Medication structure (bounded/
+non-clinical), Contingency/emergency information, Calendar device sync/
+export, contextual record comments (a narrow slice distinct from
+messaging), Contact importing, collaboration notifications (distinct from
+personal reminders), Supported-person optional profile fields, member
+management/filtering refinements, export narrative/handover readability.
+Full detail in docs/PHASE_20_GAP_AUDIT.md sections 6-22.
+
+7. DELIBERATE OMISSIONS
+General group messaging/chat; a generic parallel Notes feature; connected
+health-device integration; copying Jointly's own flat module-drawer
+navigation. Full reasoning: docs/PHASE_20_GAP_AUDIT.md section 7.
+
+8. UNCERTAIN/RESEARCH-REQUIRED AREAS
+DST-recurrence technical parity (a small self-check, not a product
+decision); Jointly's exact Contingency Plan export content; whether Jointly
+has a dedicated keyword search distinct from confirmed member/type
+filtering; exact scope boundary for contextual record comments; legal/
+privacy research needed before medication/health/emergency-information
+work. Full list: docs/PHASE_20_GAP_AUDIT.md section 8.
+
+9. RECENT ACTIVITY ASSESSMENT
+Assessed as the single most carer-relevant genuine gap found, independently
+corroborated by the one-year-user, family-handover and six-person-
+collaboration tests rather than only the competitor comparison. Existing
+per-record timestamp/confirmation data provides a foundation; no
+cross-record aggregation or UI exists today. Full detail: section 9.
+
+10. SEARCH ASSESSMENT
+No search of any kind exists; severity grows materially over a user's first
+year. A scoped per-section text filter (Documents/Bills/Contacts) is
+recommended as the lower-risk, likely-sufficient version over a full global
+search index. Full detail: section 10.
+
+11. MEDICATION ASSESSMENT
+Current careNote folding is insufficient for schedule/dose/administration
+tracking, but the brief explicitly warns against a clinical system without
+a safety/liability analysis this audit cannot perform. A bounded,
+non-clinical "what/dose/schedule as reference information" slice is
+identified, gated on legal/privacy classification before any commitment.
+Full detail: section 11.
+
+12. CONTINGENCY/EMERGENCY ASSESSMENT
+No single place answers "what does someone else need to know if I'm
+unavailable" today. A curated summary VIEW built from already-existing data
+(not a new record type or new data collection) is the bounded, low-schema-
+impact recommendation. Full detail: section 12.
+
+13. CALENDAR INTEGRATION ASSESSMENT
+No device-calendar sync/export exists. Two-way sync risks real duplication;
+a one-way, read-only export/subscription feed is recommended as materially
+lower-risk. Full detail: section 13.
+
+14. NOTES ASSESSMENT
+Existing careNote + per-record notes + attachments already adequately
+cover the general unstructured-information need; a generic parallel Notes
+feature is not justified. Full detail: section 14.
+
+15. MESSAGING ASSESSMENT
+General chat is a deliberate omission (duplicates WhatsApp/iMessage/SMS,
+risks the module-drawer anti-pattern). A narrower "contextual comment on a
+record" need is genuinely different and identified as a small, bounded
+candidate requiring explicit product-owner scope judgement to avoid
+scope-creep into general chat. Full detail: section 15.
+
+16. CONTACT-IMPORT ASSESSMENT
+Genuine convenience win for Key Contacts; costs a new expo-contacts
+dependency and a new device permission; recommend a one-time
+import/copy, never a live sync. Low-medium complexity, low regression
+risk. Full detail: section 16.
+
+17. RECURRENCE/CHECKLIST ASSESSMENT
+Lilica's existing Phase 8 recurrence engine already adequately serves
+repeated caring responsibilities. No gap found; do not duplicate. Full
+detail: section 17.
+
+18. NOTIFICATION ASSESSMENT
+Phase 14's reminder engine covers personal dated reminders well but has no
+collaboration-notification concept (someone else's action affecting you).
+Identified as dependent on the Recent Activity feed existing first, not
+independent. Full detail: section 18.
+
+19. SUPPORTED-PERSON INFORMATION ASSESSMENT
+Jointly's DOB/condition/likes-dislikes profile fields are genuinely useful
+but usefulness does not imply onboarding placement - Lilica's light
+onboarding is a protected advantage. Recommend optional, post-onboarding
+fields only, DOB still excluded, gated on legal/privacy classification for
+health-adjacent fields. Full detail: section 19.
+
+20. CARE CIRCLE/MEMBER-MANAGEMENT ASSESSMENT
+Lilica already exceeds Jointly on security/permission granularity - a
+genuine advantage. Narrower gaps found: no former-member list UI (data
+exists per Phase 18B, unsurfaced), no cross-record member filtering, no
+role-change UI (RPC exists, deferred by design). Full detail: section 20.
+
+21. OFFLINE ASSESSMENT
+Lilica's offline architecture is substantial; whether it represents parity
+or advantage vs. Jointly's own current depth is genuinely uncertain from
+available public sources. No gap identified; sync system not re-audited or
+touched, per the brief's own instruction. Full detail: section 21.
+
+22. EXPORT/HANDOVER ASSESSMENT
+export_my_data() is technically complete but not human-optimised for an
+emergency/handover moment. A distinct narrative summary view, built from
+already-exported data, is identified as a natural sequel to the Recent
+Activity and Contingency-summary candidates. Full detail: section 22.
+
+23. ONE-YEAR-USER FINDINGS
+Search and activity/history become the most acute difficulties; document
+retrieval compounds without either; member activity becomes opaque exactly
+as a circle grows. Full detail: section 23.
+
+24. FAMILY-HANDOVER FINDINGS
+Marion (David's stand-in) can determine what's happening soon, what needs
+doing, and where documents/bills are - but cannot easily tell what has
+already been done recently or what changed while she wasn't looking. A
+real, meaningful gap directly corroborating the Recent Activity/Contingency
+candidates. Full detail: section 24.
+
+25. EMERGENCY-TEST FINDINGS
+Lilica can provide whatever is already recorded, but only via manual
+navigation and only to someone with prior Care Circle access - no fast
+"what matters now" view exists. Recommendation is a curated summary for
+someone who already has access, not a new access-control bypass or new
+clinical data collection. Full detail: section 25.
+
+26. SIX-PERSON COLLABORATION FINDINGS
+Assignment/permission visibility already works well (a genuine strength);
+nobody can easily tell what changed recently; historical contribution is
+correctly retained but not surfaced as a coherent view. Full detail:
+section 26.
+
+27. DATA/SECURITY IMPLICATIONS
+Built as a per-candidate table (schema impact / new RLS / new notification
+infra / new device permission / new external integration) in
+docs/PHASE_20_GAP_AUDIT.md section 27. Every candidate reuses existing
+domain-grant access rules; none proposes a new authorisation system.
+
+28. LEGAL/PRIVACY FLAGS
+Structured medication/health-condition data and supported-person health
+fields are special-category data requiring genuine legal review before any
+schema commitment; contingency/emergency information visible outside the
+normal Care Circle boundary raises an access-control exception needing
+explicit sign-off; contact importing touches third-party personal data;
+any future comment/notification content needs a retention-policy review.
+No legal conclusions were drawn - classified for specialist review only,
+per the brief's own instruction. Full detail: section 28.
+
+29. P0/P1/P2/P3 RANKING
+No P0 (launch-critical) issue was found - every genuine gap has a workable
+narrower interim or a legal/privacy gate ahead of it. P1: Recent Activity
+feed, scoped search/filter, Contingency/emergency summary. P2: bounded
+medication structure, calendar export feed, contextual record comments,
+contact import, collaboration notifications, supported-person optional
+fields, former-member visibility/filtering, export narrative summary. P3:
+full global search, two-way calendar sync, DST-recurrence self-check. Full
+ranking: docs/PHASE_20_GAP_AUDIT.md section 29.
+
+30. MINIMUM IMPLEMENTATION SET
+Recent Activity feed (S/M) + scoped per-section search/filter (S). Full
+detail: section 30.
+
+31. RECOMMENDED IMPLEMENTATION SET
+MINIMUM + Contingency/emergency summary view (M) + contact import (S/M).
+Full detail: section 31.
+
+32. EXPANDED IMPLEMENTATION SET
+RECOMMENDED + bounded medication structure (pending legal review),
+collaboration notifications, contextual record comments, calendar export
+feed, supported-person optional profile fields (pending legal review),
+former-member visibility/filtering, export narrative summary. Full detail:
+section 32.
+
+33. RELATIVE EFFORT FOR EACH RECOMMENDATION
+XS/S/M/L/XL estimates given per candidate in docs/PHASE_20_GAP_AUDIT.md
+section 33 - no developer-hour estimates given, since no calibrated
+evidence for this codebase's own hour-per-point rate exists, per the
+brief's own instruction.
+
+34. ITEMS REQUIRING MOCK/DESIGN BEFORE IMPLEMENTATION
+Recent Activity feed placement/restraint; Contingency/emergency summary
+layout; export narrative summary layout; contextual record comments'
+visual treatment (must read as "a note on a record", never a chat thread).
+Full detail: section 34.
+
+35. EXPLICIT LIST OF THINGS RECOMMENDED NOT TO COPY
+General messaging/chat; a generic parallel Notes feature; connected
+health-device integration; Jointly's flat module-drawer navigation;
+mandatory upfront DOB/condition/likes-dislikes collection at onboarding;
+live two-way contact sync; live two-way calendar sync; framing any
+medication feature as clinical administration-tracking. Full list: section
+35.
+
+36. DOCUMENTATION CHANGED
+docs/PHASE_20_GAP_AUDIT.md (new) - the complete durable analysis.
+docs/REVISION_LOG.md (modified) - a small, permitted roadmap-status note
+("Phase 19 approved. Phase 20 audit underway.") plus a summary of what the
+audit covered. No PHASE_20_ARCHITECTURE.md was created, per the brief's own
+explicit instruction - that is written only after GPT/product-owner
+approves what Phase 20 will actually implement. No candidate enhancement
+was marked approved anywhere.
+
+37. CONFIRMATION: ZERO PRODUCT IMPLEMENTATION OCCURRED
+No application code, database code, migration, dependency, screen, field,
+navigation change, UI change, competitor feature, billing logic, or visual
+polish was implemented. Confirmed via git status --short: only
+docs/REVISION_LOG.md (modified) and docs/PHASE_20_GAP_AUDIT.md (new) appear
+as tracked changes. Zero .ts/.tsx files touched. package.json/
+package-lock.json untouched. No file under supabase/migrations/ or
+supabase/tests/ was created or modified. git diff --check clean (only a
+benign LF/CRLF advisory).
+
+38. GIT STATUS
+Modified: docs/REVISION_LOG.md.
+New (tracked): docs/PHASE_20_GAP_AUDIT.md.
+Untracked (unrelated, pre-existing convention): standing scratch Notepad
+completion-report .txt files from prior phases, plus this report and
+phase20.txt itself (the source brief, left in place, not moved or deleted).
+NOT committed. NOT pushed. Per this brief's own explicit instruction: "DO
+NOT COMMIT. DO NOT PUSH. The audit must be reviewed first."
+
+CONCLUSION
+This report gives GPT and the product owner evidence to answer: "What, if
+anything, should Lilica add before launch because our current product is
+meaningfully deficient against the real needs of carers?" The honest answer
+from this audit is: a few genuine, well-corroborated gaps exist (most
+notably Recent Activity/history and search-at-scale), none of them rise to
+launch-critical severity, and several Jointly capabilities are deliberately
+recommended against copying. No gaps were manufactured to justify this
+phase, and Lilica's existing advantages were not defended merely because
+they were already built - they are named because the evidence (including
+the product owner's own direct comparison) supports them.
+
+STOP - awaiting GPT and product-owner review and explicit approval of a
+precise enhancement set before any Phase 20 implementation begins.

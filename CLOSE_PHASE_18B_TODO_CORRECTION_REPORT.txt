@@ -1,0 +1,161 @@
+LILICA - CLOSE PHASE 18B + APPROVED TO DO VISUAL CORRECTION
+Completion Report
+13 September 2026
+
+============================================================
+STATUS: Committed and pushed. HEAD == origin/master.
+Working tree clean except the standing untracked scratch
+Notepad completion-report .txt files (never committed).
+============================================================
+
+1. STARTING HEAD / origin/master: 1c1c682 ("People screen: final
+   visual implementation"), already in sync before this task began.
+
+2. PHASE 18B CHANGES FOUND (uncommitted, inspected directly rather
+   than from memory): src/accountLifecycle.ts (deleteMyAccount,
+   real document-file export), src/components/RecordDetail.tsx
+   (the "Assignee no longer available" fallback), src/screens/
+   PrivacyDataScreen.tsx (real delete-account flow, per-file export
+   list), the account-deletion migration
+   (20260912170000_phase18b_account_deletion.sql) and its pgTAP
+   test, plus tests/phase18-account-lifecycle.test.ts, tests/
+   phase18-privacy-data-screen.test.tsx, tests/record-detail.test.ts,
+   and Phase 18B documentation across docs/PHASE_18_ARCHITECTURE.md,
+   docs/SUPABASE_OPERATIONS.md, AGENTS.md, CLAUDE.md, docs/
+   LUMEN_HANDOFF.md. These were sitting in the same working tree
+   as unrelated, later, not-yet-approved work.
+
+3. TO DO QA CORRECTION FOUND (also uncommitted, intermixed in the
+   same files as some Phase 18B content): src/components/
+   ScreenBackdrop.tsx (new opt-in `stretch`/`stops` props) and
+   src/screens/ToDoScreen.tsx's own gradient/layout hunks (sharing
+   that one file with Phase 18B's own "Assignee no longer available"
+   edit), plus the new tests/todo-background-fix.test.tsx.
+
+4. EXACT TO DO CORRECTION PRESERVED: confirmed byte-for-byte
+   unchanged from the physically-approved state --
+   ScreenBackdrop's `stretch` mode makes the LinearGradient itself
+   the flex container (no fixed height, no absolute-positioning
+   ambiguity), sized to whatever height the ScrollView's own
+   `flexGrow: 1` content container actually provides.
+   ToDoScreen's `stops` hold deep olive through ~38% of that height
+   before easing through colors.olive/tabAccent.todo.tint/
+   colors.oliveSoft (all pre-existing To Do colours, nothing new)
+   to the lightest tone at the very bottom. Home/Calendar/People
+   pass neither prop and remain structurally untouched. Nothing was
+   altered during this closure task -- validation found no technical
+   defect, so the approved appearance was left exactly as approved.
+
+5. DOCUMENTATION UPDATED: new docs/REVISION_LOG.md entry, dated
+   13 September 2026, explicitly titled as a "post-Phase-18B visual
+   QA correction" -- records the defect found, the fix, and that it
+   was subsequently physically inspected and approved, without
+   rewriting Phase 18B's own history to pretend the correction was
+   part of the original implementation. New "PASSED" section added
+   to docs/PHASE_18_QA.md naming exactly what was physically
+   confirmed (the To Do background only) and clarifying that no
+   other Phase 18B item may be inferred as passed from it.
+
+6. QA ITEMS GENUINELY PASSED: exactly one -- the To Do background
+   correction, physically inspected and approved by the product
+   owner on a real device (existing olive identity retained,
+   continuous background through the full available content
+   viewport in empty/populated/scrolling states, no accidental
+   cream rectangle, bottom navigation unaffected).
+
+7. QA ITEMS STILL OUTSTANDING (explicitly not claimed passed):
+   the full Phase 18B two-account deletion/export scenarios
+   (David/Sarah organiser scenario, Beauty/Jackie export-permission
+   scenario) and every Android/iPhone device checklist item in
+   docs/PHASE_18_QA.md. No device results were fabricated or
+   inferred from anything actually supplied.
+
+8. FINAL JEST RESULT: 46 suites / 466 tests, all passing, run
+   against the exact approved-baseline working tree (unrelated
+   later work temporarily set aside during validation -- see item
+   16 below).
+
+9. FINAL pgTAP RESULT: 274 assertions across 9 files, all passing
+   locally -- matches the Phase 18B baseline exactly, confirming no
+   unintended drift once the out-of-scope migration was set aside.
+
+10. TYPESCRIPT / EXPO / WEB / SECRET / LINT RESULTS: TypeScript
+    clean; npm run secrets:check clean (219 files); npx expo config
+    --type public clean; npx expo export --platform web clean;
+    npx supabase db lint --local clean; git diff --check clean (only
+    benign pre-existing CRLF line-ending warnings, no actual
+    whitespace/conflict errors).
+
+11. DATABASE MIGRATION STATE: no new migration was created for this
+    closure task. 20260912170000_phase18b_account_deletion.sql
+    confirmed as the latest migration file on disk for this
+    approved baseline -- verified directly (`ls supabase/
+    migrations/`), not assumed. No schema, RLS, or backend
+    behaviour was touched by the To Do visual correction. Note,
+    disclosed rather than hidden: a separate, unrelated
+    profile-avatars migration exists in this session's own
+    later, not-yet-approved work (set aside for this task, see
+    item 16) -- it is NOT part of this commit and was not deployed
+    or referenced by anything committed here.
+
+12. COMPLETE DIFF CLASSIFICATION (of the 19 files actually
+    committed):
+    A (Phase 18B implementation) -- src/accountLifecycle.ts,
+       src/components/RecordDetail.tsx, src/screens/
+       PrivacyDataScreen.tsx, and the "Assignee no longer available"
+       portion of src/screens/ToDoScreen.tsx.
+    B (Phase 18B database/test/documentation) --
+       supabase/migrations/20260912170000_phase18b_account_
+       deletion.sql, supabase/tests/database/phase18b_account_
+       deletion.test.sql, tests/phase18-account-lifecycle.test.ts,
+       tests/phase18-privacy-data-screen.test.tsx, tests/
+       record-detail.test.tsx, the assignee-fallback portion of
+       tests/todo-card-hierarchy.test.tsx, docs/PHASE_18_
+       ARCHITECTURE.md, docs/SUPABASE_OPERATIONS.md, AGENTS.md,
+       CLAUDE.md, docs/LUMEN_HANDOFF.md.
+    C (approved To Do visual correction) --
+       src/components/ScreenBackdrop.tsx, the gradient/layout
+       portion of src/screens/ToDoScreen.tsx,
+       tests/todo-background-fix.test.tsx (new).
+    D (documentation recording that correction) --
+       docs/REVISION_LOG.md, docs/PHASE_18_QA.md.
+    E (unexpected): EMPTY -- every changed file maps cleanly to
+       A, B, C or D.
+
+13. COMMIT HASH: e3dc819 ("Phase 18B account lifecycle and QA
+    corrections").
+
+14. PUSH RESULT: succeeded -- 1c1c682..e3dc819  master -> master.
+
+15. FINAL GIT STATUS: HEAD == origin/master (both
+    e3dc8192a218d2a351f5cbeeb1c26732619b1d49, confirmed via
+    git fetch + git rev-parse on both). Tracked working tree clean.
+    The known untracked scratch Notepad completion-report .txt
+    files remain present and untracked, exactly as instructed --
+    not deleted merely to obtain a fully empty git status.
+
+16. HOW THE APPROVED BASELINE WAS ISOLATED (transparency note):
+    the working tree also contained later, unrelated, not-yet-
+    approved work from this same session -- a Settings drawer
+    visual overhaul, a profile-picture feature (with its own
+    migration), and a Care Circle avatar detail popup. None of
+    that was requested or approved in this closure task. It was
+    temporarily set aside (git stash, scoped to exactly those
+    files) before validation and commit, so typecheck/Jest/pgTAP
+    all ran against precisely the Phase-18B-plus-To-Do-correction
+    state this task describes, then restored immediately after
+    the push -- confirmed present and still compiling cleanly
+    afterward. Nothing was lost; nothing out-of-scope was
+    committed.
+
+17. EXPLICIT CONFIRMATION -- PEOPLE REDESIGN: NOT started. No file
+    belonging to a People-screen redesign was created, modified, or
+    discussed as implementation in this task.
+
+18. EXPLICIT CONFIRMATION -- PHASE 19: NOT started. Nothing beyond
+    Phase 18B and the one approved To Do visual correction was
+    implemented, planned in code, or scaffolded.
+
+============================================================
+STOPPED here, as instructed. Awaiting the next task.
+============================================================
