@@ -49,6 +49,8 @@ describe('mapEvent', () => {
 describe('verifySignature', () => {
   const secret = 'test-webhook-secret';
   const body = '{"api_version":"1.0","event":{"id":"evt-1","type":"INITIAL_PURCHASE","app_user_id":"user-1"}}';
+  const timestamp = 1_789_166_400;
+  const nowMs = timestamp * 1000;
 
   async function sign(payload: string, key: string): Promise<string> {
     const cryptoKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -56,29 +58,41 @@ describe('verifySignature', () => {
     return Array.from(new Uint8Array(bytes)).map((b) => b.toString(16).padStart(2, '0')).join('');
   }
 
-  it('accepts a correctly-signed body', async () => {
-    const signature = await sign(body, secret);
-    expect(await verifySignature(body, signature, secret)).toBe(true);
+  async function header(payload = body, key = secret, signedAt = timestamp): Promise<string> {
+    return `t=${signedAt},v1=${await sign(`${signedAt}.${payload}`, key)}`;
+  }
+
+  it('accepts RevenueCat\'s timestamped, correctly-signed header', async () => {
+    expect(await verifySignature(body, await header(), secret, nowMs)).toBe(true);
   });
 
   it('rejects a missing signature header outright', async () => {
-    expect(await verifySignature(body, null, secret)).toBe(false);
+    expect(await verifySignature(body, null, secret, nowMs)).toBe(false);
   });
 
   it('rejects a signature computed with the wrong secret', async () => {
-    const signature = await sign(body, 'wrong-secret');
-    expect(await verifySignature(body, signature, secret)).toBe(false);
+    expect(await verifySignature(body, await header(body, 'wrong-secret'), secret, nowMs)).toBe(false);
   });
 
   it('rejects a signature that does not match a tampered body', async () => {
-    const signature = await sign(body, secret);
+    const signature = await header();
     const tamperedBody = body.replace('user-1', 'user-2');
-    expect(await verifySignature(tamperedBody, signature, secret)).toBe(false);
+    expect(await verifySignature(tamperedBody, signature, secret, nowMs)).toBe(false);
   });
 
   it('rejects a well-formed but incorrect signature of the same length', async () => {
-    const real = await sign(body, secret);
+    const real = await sign(`${timestamp}.${body}`, secret);
     const wrong = real.slice(0, -2) + (real.slice(-2) === '00' ? '11' : '00');
-    expect(await verifySignature(body, wrong, secret)).toBe(false);
+    expect(await verifySignature(body, `t=${timestamp},v1=${wrong}`, secret, nowMs)).toBe(false);
+  });
+
+  it('rejects a valid signature with a stale timestamp to prevent replay', async () => {
+    const staleTimestamp = timestamp - 301;
+    expect(await verifySignature(body, await header(body, secret, staleTimestamp), secret, nowMs)).toBe(false);
+  });
+
+  it('rejects legacy bare signatures and malformed headers', async () => {
+    expect(await verifySignature(body, await sign(body, secret), secret, nowMs)).toBe(false);
+    expect(await verifySignature(body, 't=not-a-time,v1=abc', secret, nowMs)).toBe(false);
   });
 });

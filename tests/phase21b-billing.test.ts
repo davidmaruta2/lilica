@@ -109,12 +109,12 @@ describe('getAnnualPackage', () => {
     expect(result.data?.identifier).toBe('annual');
   });
 
-  it('falls back to the first available package if no ANNUAL package is configured, rather than failing silently', async () => {
+  it('fails closed when no ANNUAL package is configured rather than selling the wrong duration', async () => {
     mockGetOfferings.mockResolvedValueOnce({ current: { availablePackages: [{ packageType: 'MONTHLY', identifier: 'monthly' }] } });
     const result = await getAnnualPackage();
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data?.identifier).toBe('monthly');
+    expect(result.data).toBeUndefined();
   });
 
   it('returns undefined, not a fabricated package, when no offering exists at all', async () => {

@@ -9,6 +9,7 @@ import { SettingsMenu } from '../src/components/SettingsMenu';
 import { ContactScreen, SUPPORT_EMAIL } from '../src/screens/ContactScreen';
 import { FaqScreen } from '../src/screens/FaqScreen';
 import { HowToUseScreen } from '../src/screens/HowToUseScreen';
+import { FEATURE_REQUEST_EMAIL, FeatureRequestScreen } from '../src/screens/FeatureRequestScreen';
 
 describe('SettingsMenu: Help group (How to use Lilica, FAQ, Contact)', () => {
   const baseProps = {
@@ -20,18 +21,21 @@ describe('SettingsMenu: Help group (How to use Lilica, FAQ, Contact)', () => {
     onOpenSubscription: jest.fn(),
   };
 
-  it('shows all three Help rows and calls the real handler for each, always -- no gating', async () => {
+  it('shows all Help rows and calls the real handler for each, always -- no gating', async () => {
     const onOpenHowTo = jest.fn();
     const onOpenFaq = jest.fn();
     const onOpenContact = jest.fn();
+    const onOpenFeatureRequest = jest.fn();
     const screen = await render(
-      <SettingsMenu {...baseProps} onOpenHowTo={onOpenHowTo} onOpenFaq={onOpenFaq} onOpenContact={onOpenContact} />,
+      <SettingsMenu {...baseProps} onOpenHowTo={onOpenHowTo} onOpenFaq={onOpenFaq} onOpenFeatureRequest={onOpenFeatureRequest} onOpenContact={onOpenContact} />,
     );
     screen.getByText('Help');
     await fireEvent.press(screen.getByLabelText('How to use Lilica'));
     expect(onOpenHowTo).toHaveBeenCalledTimes(1);
     await fireEvent.press(screen.getByLabelText('FAQ'));
     expect(onOpenFaq).toHaveBeenCalledTimes(1);
+    await fireEvent.press(screen.getByLabelText('Suggest a feature'));
+    expect(onOpenFeatureRequest).toHaveBeenCalledTimes(1);
     await fireEvent.press(screen.getByLabelText('Contact'));
     expect(onOpenContact).toHaveBeenCalledTimes(1);
   });
@@ -59,6 +63,14 @@ describe('FaqScreen', () => {
     const screen = await render(<FaqScreen onBack={jest.fn()} />);
     await fireEvent.press(screen.getByLabelText('How do I remove someone I support if they no longer need it? question'));
     screen.getByText(/Remove a supported person/);
+  });
+
+  it('explains Care Summary PDF export and feature requests', async () => {
+    const screen = await render(<FaqScreen onBack={jest.fn()} />);
+    await fireEvent.press(screen.getByLabelText('How do I export a Care Summary? question'));
+    screen.getByText(/tap Export PDF/);
+    await fireEvent.press(screen.getByLabelText('How do I suggest a feature? question'));
+    screen.getByText(new RegExp(FEATURE_REQUEST_EMAIL));
   });
 
   it('Back calls the real handler', async () => {
@@ -103,5 +115,15 @@ describe('ContactScreen', () => {
     const screen = await render(<ContactScreen onBack={onBack} />);
     await fireEvent.press(screen.getByLabelText('Go back'));
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('FeatureRequestScreen', () => {
+  it('opens a pre-addressed feature-request email', async () => {
+    const openURLSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    const screen = await render(<FeatureRequestScreen onBack={jest.fn()} />);
+    await fireEvent.press(screen.getByText('Email a feature request'));
+    expect(openURLSpy).toHaveBeenCalledWith(`mailto:${FEATURE_REQUEST_EMAIL}?subject=Lilica%20feature%20request`);
+    openURLSpy.mockRestore();
   });
 });

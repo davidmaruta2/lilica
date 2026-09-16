@@ -21,6 +21,9 @@ type Props = {
   onSubscribe: () => Promise<{ ok: boolean; message?: string }>;
   onRestore: () => Promise<{ ok: boolean; message?: string }>;
   billingConfigured: boolean;
+  annualPrice?: string;
+  productLoading: boolean;
+  productError?: string;
 };
 
 // Apple/Google both own subscription cancellation/management -- Lilica
@@ -32,7 +35,18 @@ function openManageSubscription() {
   void Linking.openURL(url).catch(() => undefined);
 }
 
-export function SubscriptionScreen({ entitlement, loading, error, onBack, onSubscribe, onRestore, billingConfigured }: Props) {
+export function SubscriptionScreen({
+  entitlement,
+  loading,
+  error,
+  onBack,
+  onSubscribe,
+  onRestore,
+  billingConfigured,
+  annualPrice,
+  productLoading,
+  productError,
+}: Props) {
   const [actionPending, setActionPending] = useState<'subscribe' | 'restore'>();
   const [actionMessage, setActionMessage] = useState<string>();
 
@@ -54,6 +68,9 @@ export function SubscriptionScreen({ entitlement, loading, error, onBack, onSubs
 
   const isActive = entitlement ? isEntitlementActiveNow(entitlement) : false;
   const isPaidSubscriber = entitlement?.status === 'SUBSCRIPTION_ACTIVE' || entitlement?.status === 'GRACE_PERIOD';
+  const isFreePeriodActive = entitlement?.status === 'TRIAL_ACTIVE' && isActive;
+  const canSubscribe = billingConfigured && Boolean(annualPrice) && !productLoading && !productError;
+  const displayedPrice = annualPrice ? `${annualPrice}/year` : productLoading ? 'Loading annual price…' : 'Annual subscription';
 
   return (
     <Screen>
@@ -66,7 +83,7 @@ export function SubscriptionScreen({ entitlement, loading, error, onBack, onSubs
         <View style={styles.content}>
           <View style={styles.priceCard}>
             <AppText variant="section">Lilica</AppText>
-            <AppText variant="title">£8.99/year</AppText>
+            <AppText variant="title">{displayedPrice}</AppText>
             <AppText variant="secondary" tone="soft">
               Continue organising everything around the person you support.
             </AppText>
@@ -81,11 +98,15 @@ export function SubscriptionScreen({ entitlement, loading, error, onBack, onSubs
             ) : null}
           </View>
 
-          {!isPaidSubscriber ? (
+          {isFreePeriodActive ? (
+            <AppText variant="secondary" tone="soft" style={styles.configNotice}>
+              Your free period is active. You will not be charged before it ends.
+            </AppText>
+          ) : !isPaidSubscriber ? (
             <Button
-              label={actionPending === 'subscribe' ? 'Subscribing…' : 'Subscribe for £8.99/year'}
+              label={actionPending === 'subscribe' ? 'Subscribing…' : annualPrice ? `Subscribe for ${annualPrice}/year` : 'Annual subscription unavailable'}
               onPress={() => void handleSubscribe()}
-              disabled={actionPending !== undefined || !billingConfigured}
+              disabled={actionPending !== undefined || !canSubscribe}
             />
           ) : (
             <Button label="Manage subscription" onPress={openManageSubscription} variant="secondary" />
@@ -106,9 +127,17 @@ export function SubscriptionScreen({ entitlement, loading, error, onBack, onSubs
             </AppText>
           ) : null}
 
-          <AppText variant="meta" tone="soft" style={styles.legal}>
-            £8.99/year, billed annually through the {Platform.OS === 'ios' ? 'App Store' : 'Google Play'}. Renews automatically unless cancelled at least 24 hours before the end of the current period. Manage or cancel any time in your {Platform.OS === 'ios' ? 'App Store' : 'Google Play'} account settings.
-          </AppText>
+          {billingConfigured && productError ? (
+            <AppText variant="secondary" tone="soft" style={styles.configNotice}>
+              {productError}
+            </AppText>
+          ) : null}
+
+          {annualPrice ? (
+            <AppText variant="meta" tone="soft" style={styles.legal}>
+              {annualPrice}/year, billed annually through the {Platform.OS === 'ios' ? 'App Store' : 'Google Play'}. Renews automatically unless cancelled at least 24 hours before the end of the current period. Manage or cancel any time in your {Platform.OS === 'ios' ? 'App Store' : 'Google Play'} account settings.
+            </AppText>
+          ) : null}
         </View>
       )}
     </Screen>

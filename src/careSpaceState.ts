@@ -193,6 +193,29 @@ export function integrateReconnectedCareSpaces(
   return projectActiveCareSpace({ ...state, careSpaces, activeCareSpaceId });
 }
 
+// A signed-in account can be opened on a genuinely fresh install with no
+// owner-scoped AsyncStorage yet, even though its care spaces already exist
+// on the server. Treating that empty local state as a new account lets the
+// person run first-time setup again and provision duplicate care spaces.
+// Once the authoritative reconnect returns existing people, the account is
+// therefore no longer in first-time onboarding. Individual spaces remain
+// `identity_only` when their device-local setup state is unavailable, so
+// Home can still offer the established "finish setup" path without ever
+// recreating their identity records.
+export function resolveOnboardingStateAfterAccountReconnect(
+  state: OnboardingState,
+  provisioned: ProvisionedPerson[],
+): OnboardingState {
+  const integrated = integrateReconnectedCareSpaces(state, provisioned);
+  if (state.onboardingComplete || provisioned.length === 0) return integrated;
+  return {
+    ...integrated,
+    onboardingComplete: true,
+    onboardingDraft: undefined,
+    stage: 'home',
+  };
+}
+
 // Extracted from App.tsx's handleAcceptInvitation() (14 September 2026,
 // `\downloads\perm.txt`'s brand-new-invitee closure follow-up) so the
 // exact fix has real, isolated unit-test coverage -- App.tsx itself has

@@ -150,7 +150,7 @@ describe('Phase 10: Calendar month/date rendering', () => {
 
   it('shows an icon legend explaining every category shown in the grid', async () => {
     const screen = await render(<CalendarScreen records={[apptToday]} personName="Maggie" onOpenRecord={jest.fn()} />);
-    screen.getByText('Something to do');
+    screen.getByText('Errand or activity');
     screen.getByText('Home or car matter');
     screen.getByText('Important document');
     screen.getByText('Needs attention');

@@ -1,0 +1,39 @@
+LILICA - CARE CIRCLE INVITATION CLOSURE
+15 September 2026
+
+FINAL VALIDATION RESULTS
+- npm run typecheck: clean.
+- npm run secrets:check: clean (371 files inspected).
+- npx expo config --type public: clean, exit 0.
+- git diff --check: clean (only harmless LF/CRLF advisories).
+- Targeted Care Circle/invitation Jest suites re-run against the exact
+  committed tree: 7 files, 55/55 tests passing (including the "Send
+  invitation" -> "Continue" rename across every affected test).
+
+COMMIT HASH
+f6285fc (on top of 938241a, which carried the full multi-person
+invitation/rate-limit/discoverability work committed and pushed
+earlier this session)
+
+PUSH RESULT
+Pushed successfully to origin/prephase22-remove-supported-person-faq-help
+(938241a..f6285fc).
+
+WORKING TREE
+Clean. Nothing staged or pending. The only items present are the known,
+intentional untracked scratch files (completion-report .txt files,
+expo-dev-server.log, expo-qr.png, loose brief .txt files) -- removed
+from git tracking in this pass per your instruction, kept locally only.
+
+CARE CIRCLE WORK: COMPLETE
+Physical QA has passed on the full Care Circle invitation system.
+Confirmed included in the pushed history: invitation email/Share
+delivery, the invitation-code landing/join flow, server-persisted
+delivery state, invitation-code security/rate limiting, "Join a Care
+Circle" discoverability and navigation, multi-person invitation groups,
+organiser supported-person selection, existing-member/additional-person
+handling, the associated migrations, tests, and documentation
+(docs/PHASE_15_ARCHITECTURE.md, docs/REVISION_LOG.md, CLAUDE.md).
+
+PHASE 22
+Not started.

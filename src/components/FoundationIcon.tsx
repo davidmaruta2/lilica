@@ -8,14 +8,15 @@ type Props = {
   icon: FoundationIconComponent;
   role: FoundationIconRole;
   color?: string;
+  size?: number;
   testID?: string;
 };
 
-export function FoundationIcon({ icon: Icon, role, color = colors.ink, testID }: Props) {
+export function FoundationIcon({ icon: Icon, role, color = colors.ink, size, testID }: Props) {
   return (
     <Icon
       testID={testID}
-      size={phase22Foundation.iconSize[role]}
+      size={size ?? phase22Foundation.iconSize[role]}
       color={color}
       strokeWidth={phase22Foundation.iconStrokeWidth}
       accessibilityElementsHidden

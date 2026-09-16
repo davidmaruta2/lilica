@@ -110,3 +110,24 @@ Unchanged from Phase 21B: no RevenueCat project, App Store/Google Play subscript
 **Server-rejection race**: a mutation queued while still entitled, which the server then rejects because entitlement expired before it actually synced, shows the calm "couldn't be saved… nothing is lost" notice rather than a raw error, and clears automatically once entitlement is restored and the mutation resyncs.
 
 **No regression of ungated actions**: while read-only, confirm Account/Privacy & data/Export, accepting or declining an invitation, leaving a care space, and an organiser removing a member all remain fully available exactly as before this phase.
+
+## RevenueCat production-readiness preflight (16 September 2026)
+
+### Automated validation completed
+
+- `npm run typecheck`: clean.
+- Focused Jest: 9 suites/103 assertions passing (the five Phase 21 billing/entitlement/webhook suites plus four Settings/navigation suites covering the Subscription entry path).
+- `npm run secrets:check`, `npx expo config --type public`, `npx expo export --platform web`, and `git diff --check`: clean.
+- Repository-wide combined Jest: reached the existing command timeout without reporting an individual test failure; bounded relevant suites are green rather than misreporting the timeout as a pass.
+- `npx expo install --check`: continues to report the pre-existing Expo SDK 57 patch-level dependency drift. No dependency was changed or upgraded during this preflight.
+- Webhook coverage now proves the current timestamped RevenueCat header succeeds and missing, malformed, stale, wrongly keyed, wrong-body, subtly altered and legacy bare signatures fail.
+- Billing coverage proves only an Annual package can be selected; a monthly-only/default-offering mistake fails closed.
+- Subscription coverage proves an active free period cannot offer purchase, an expired period uses the store-formatted localized price throughout, unavailable product metadata disables purchase, and Restore remains available.
+
+### Physical/store QA still required
+
+- Open Subscription in UK and non-UK sandbox storefronts and confirm `product.priceString` matches the native purchase sheet exactly.
+- During a genuinely active Lilica free period, confirm there is no purchase CTA and Restore remains available.
+- After expiry, complete one Apple sandbox and one Google Play test purchase and verify the Annual product is the only purchasable package.
+- Deliver a real RevenueCat signed webhook to the deployed Edge Function and verify successful signature validation, entitlement transition and idempotent redelivery.
+- Confirm no App Store or Google Play introductory free-trial offer is attached to either product; Lilica's own fixed 60-day period must remain the only free period.

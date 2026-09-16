@@ -1,0 +1,252 @@
+LILICA - REVENUECAT AND STORE SUBSCRIPTION SETUP
+=================================================
+
+AGREED COMMERCIAL MODEL
+-----------------------
+
+- One subscription per Lilica user account.
+- The subscription covers every care space commercially owned by that account.
+- Lilica provides 60 days completely free.
+- After the free period, the subscription costs GBP 8.99 per year.
+- RevenueCat entitlement identifier: lilica_active
+- iOS bundle identifier: com.luxfordinteractive.lilica
+- Android package name: com.luxfordinteractive.lilica
+- RevenueCat identifies each customer using their Supabase auth user UUID, never their email address.
+- Supabase remains authoritative for whether a care space is writable.
+
+IMPORTANT FREE-PERIOD DECISION
+------------------------------
+
+Lilica's existing 60-day free period begins in Lilica's backend when the user creates their first care space. The App Store and Google Play products should therefore NOT include another introductory free trial. Adding a store trial would give users Lilica's 60 days followed by a second free period. Apple also offers two calendar months rather than an exact 60-day period.
+
+STEP 1 - TECHNICAL SUBSCRIPTION PREFLIGHT
+-----------------------------------------
+
+1. Correct RevenueCat webhook signature verification to parse the current t=<timestamp>,v1=<signature> header and verify HMAC-SHA256 over timestamp.raw_body.
+2. Preserve raw request bytes until signature verification is complete.
+3. Continue using constant-time signature comparison and idempotent event processing.
+4. Load the annual subscription price from the native store product so every user sees the correct localized price and currency.
+5. Retain GBP 8.99/year as the UK product price and as a fallback only when store metadata is unavailable.
+6. Prevent the app from charging during Lilica's active 60-day free period. Purchase becomes available after the free period ends.
+7. Keep Restore Purchases available.
+8. Confirm RevenueCat is identified with the signed-in Supabase UUID.
+9. Confirm the entitlement identifier remains exactly lilica_active.
+10. Add focused regression tests and run validation.
+
+STEP 2 - APPLE COMMERCIAL ACCOUNT
+---------------------------------
+
+The Apple Account Holder must:
+
+1. Maintain an active Apple Developer Program membership.
+2. Accept the Paid Apps Agreement in App Store Connect.
+3. Complete banking and tax information.
+4. Complete legal-entity and identity verification where requested.
+5. Approve Apple two-factor-authentication prompts when required.
+
+These are legal and financial owner actions and cannot be delegated to an implementation agent.
+
+STEP 3 - APP STORE APP AND SUBSCRIPTION
+---------------------------------------
+
+1. Create or verify the Lilica App Store Connect app record.
+2. Confirm bundle identifier com.luxfordinteractive.lilica.
+3. Enable the In-App Purchase capability.
+4. Create one subscription group named Lilica.
+5. Create one one-year auto-renewable subscription.
+6. Proposed permanent product ID: com.luxfordinteractive.lilica.annual
+7. Display name: Lilica Annual
+8. Set the UK price to GBP 8.99 per year.
+9. Configure regional availability and appropriate localized equivalent prices.
+10. Add localized product name, description and App Review screenshot.
+11. Do not add an introductory free trial.
+12. Create Apple sandbox testers.
+13. Submit the first subscription with the first app version.
+
+STEP 4 - CONNECT APPLE TO REVENUECAT
+------------------------------------
+
+1. Generate an Apple In-App Purchase key in App Store Connect.
+2. Securely retain the one-time-download .p8 file, Key ID and Issuer ID.
+3. Generate an App Store Connect API key if required for product automation.
+4. Upload the correct Apple credentials to the RevenueCat Apple app configuration.
+5. Validate the credentials in RevenueCat.
+6. Configure App Store Server Notifications V2 for RevenueCat.
+7. Configure and verify sandbox and production notification delivery.
+
+STEP 5 - GOOGLE PLAY COMMERCIAL ACCOUNT
+---------------------------------------
+
+The Google Play account owner must:
+
+1. Own and maintain a verified Google Play developer account.
+2. Complete personal or organisation identity verification.
+3. Create or connect the Google payments/merchant profile.
+4. Complete tax and banking information.
+5. Accept Google Play agreements.
+6. Approve security or two-factor-authentication prompts when required.
+
+For a personal developer account created after 13 November 2023, Google currently requires a closed test with at least 12 testers continuously opted in for 14 days before production access can be requested.
+
+STEP 6 - GOOGLE PLAY SUBSCRIPTION
+---------------------------------
+
+1. Create or verify the Lilica Play Console app.
+2. Confirm package name com.luxfordinteractive.lilica.
+3. Upload a signed Android App Bundle to an internal or closed test track.
+4. Create subscription ID lilica-annual.
+5. Create auto-renewing base plan ID annual.
+6. Set the billing period to one year.
+7. Set the UK price to GBP 8.99.
+8. Configure regional availability and localized prices.
+9. Do not create a free-trial offer.
+10. Explicitly configure grace-period, account-hold and resubscribe behaviour.
+11. Activate the base plan.
+12. Configure license testers and testing-track users.
+
+STEP 7 - CONNECT GOOGLE PLAY TO REVENUECAT
+------------------------------------------
+
+1. Create a dedicated Google Cloud service account for RevenueCat.
+2. Enable the Google Play Developer API and Pub/Sub API.
+3. Grant the service account only the required Google Play and Google Cloud permissions.
+4. Generate its JSON key and store it securely outside the repository.
+5. Upload the key to the RevenueCat Google app configuration.
+6. Allow up to 36 hours for newly created credentials to propagate if required.
+7. Create or connect the Google Pub/Sub topic used by RevenueCat.
+8. Configure Google Play Real-time Developer Notifications.
+9. Send a Google test notification.
+10. Confirm RevenueCat records the notification as received.
+
+STEP 8 - REVENUECAT PROJECT CONFIGURATION
+-----------------------------------------
+
+1. Create the Lilica RevenueCat project.
+2. Add the Apple app using com.luxfordinteractive.lilica.
+3. Add the Google app using com.luxfordinteractive.lilica.
+4. Import the Apple annual product.
+5. Import the Google subscription and annual base plan.
+6. Create entitlement identifier lilica_active.
+7. Attach both store products to lilica_active.
+8. Create offering identifier default.
+9. Add an Annual package to the offering.
+10. Attach the equivalent Apple and Google annual products to that package.
+11. Mark default as the current/default offering.
+12. Configure the approved purchase restore/transfer policy.
+
+Recommended restore policy: Keep with original App User ID. Lilica requires an authenticated account before purchase and defines the subscription as belonging to that Lilica account. This prevents another Lilica account using the same Apple or Google store identity from taking over the subscription. Customer support must be prepared to help users recover their original Lilica login.
+
+STEP 9 - REVENUECAT TO SUPABASE WEBHOOK
+---------------------------------------
+
+1. Complete and validate the corrected webhook signature implementation.
+2. Deploy the Supabase entitlement-webhook Edge Function.
+3. Enable RevenueCat HMAC webhook signing.
+4. Store the signing secret as the Supabase REVENUECAT_WEBHOOK_SECRET Edge Function secret.
+5. Never commit that secret or place it in an EXPO_PUBLIC variable.
+6. Add the deployed HTTPS Edge Function URL to RevenueCat.
+7. Configure delivery for sandbox and production purchases.
+8. Send a signed test webhook.
+9. Verify the corresponding Supabase entitlement and entitlement-event records.
+10. Verify duplicate webhook delivery remains harmless and idempotent.
+
+STEP 10 - EXPO AND EAS NATIVE BUILDS
+------------------------------------
+
+1. Create or verify the Lilica EAS project.
+2. Configure development, preview and production build profiles.
+3. Add the RevenueCat Apple public SDK key to the iOS build environment.
+4. Add the RevenueCat Google public SDK key to the Android build environment.
+5. Never put RevenueCat secret API keys in the mobile app.
+6. Verify the iOS In-App Purchase capability.
+7. Verify Android billing and Activity launch-mode configuration.
+8. Create an iOS development/TestFlight build.
+9. Create an Android internal/closed-testing build.
+10. Do not use Expo Go for real purchase testing; native development or store builds are required.
+
+STEP 11 - END-TO-END PURCHASE QA
+--------------------------------
+
+Test on both platforms:
+
+1. Annual product and localized price load correctly.
+2. A successful initial purchase grants lilica_active in RevenueCat.
+3. RevenueCat sends a correctly signed webhook.
+4. Supabase changes the account to SUBSCRIPTION_ACTIVE.
+5. Care-space mutations become available again.
+6. Restore Purchases works after reinstalling or changing device.
+7. The same Lilica account receives its entitlement across iOS and Android.
+8. A different Lilica account cannot improperly inherit or take over the entitlement.
+9. Cancellation retains access until the paid period expires.
+10. Renewal extends access.
+11. Billing retry and grace-period states behave correctly.
+12. Expiration returns the care space to read-only without deleting data.
+13. Refund and revocation events are handled correctly.
+14. Account switching does not leak entitlement state.
+15. Webhook retries and duplicate events are safe.
+
+STEP 12 - PRODUCTION SUBMISSION
+-------------------------------
+
+1. Publish a Privacy Policy URL.
+2. Publish Terms of Use URL.
+3. Publish Google's required web-based account-deletion resource.
+4. Verify clear subscription price, duration, renewal and cancellation wording.
+5. Verify Restore Purchases and Manage Subscription links.
+6. Complete App Store subscription review information.
+7. Complete Google Play subscription, Data Safety and app-content declarations.
+8. Supply reviewer instructions and test credentials where appropriate.
+9. Submit iOS app and subscription for review.
+10. Complete Android closed testing where required.
+11. Apply for Google production access where required.
+12. Perform a controlled production rollout and monitor RevenueCat, Supabase and store events.
+
+ACCESS REQUIRED FOR IMPLEMENTATION
+----------------------------------
+
+Apple Developer/App Store Connect:
+- App Manager access to Lilica.
+- Certificates, Identifiers and Profiles access.
+- Permission to generate an individual App Store Connect API key where appropriate.
+
+Google Play Console:
+- Access to the Lilica app.
+- Testing-track and production-release permissions.
+- Store-presence and subscription-product permissions.
+- Subscription/order and required financial-data permissions.
+
+Google Cloud:
+- Permission to create and manage the RevenueCat service account, service-account key, Pub/Sub topic and required IAM bindings.
+
+RevenueCat:
+- Administrator access to the Lilica project.
+
+Expo/EAS:
+- Developer access for builds and credentials.
+- Admin access if project ownership or environment configuration requires it.
+
+Supabase:
+- Access to deploy Edge Functions and set project secrets.
+
+Testing:
+- One physical iPhone and one Play-enabled Android device.
+- Apple sandbox and Google Play tester accounts.
+
+Public web presence:
+- Ability to publish Privacy Policy, Terms of Use and account-deletion pages under the approved Lilica domain.
+
+OWNER ACTIONS THAT CANNOT BE DELEGATED
+--------------------------------------
+
+1. Creating and legally owning the Apple and Google developer accounts.
+2. Identity and legal-entity verification.
+3. Tax and banking information.
+4. Accepting binding commercial agreements.
+5. Approving occasional login and 2FA prompts.
+6. Approving permanent product identifiers and the final commercial settings.
+7. Approving production submission and release.
+
+SECURITY RULE
+-------------
+
+Passwords and private credentials must not be pasted into chat or committed to Git. Access should be provided through console roles, a signed-in browser session, and narrowly scoped API/service credentials. Apple .p8 keys and Google service-account JSON keys must be stored securely outside the repository and revoked immediately if exposed.

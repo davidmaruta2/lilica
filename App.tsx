@@ -1,6 +1,6 @@
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,6 +8,8 @@ import { AuthProvider, useAuth } from './src/auth/AuthProvider';
 import { RecordQuickEditor } from './src/components/RecordQuickEditor';
 import type { RecordSheetOrigin } from './src/components/RecordSheet';
 import { SettingsMenu } from './src/components/SettingsMenu';
+import { NotificationCentre } from './src/components/NotificationCentre';
+import type { NotificationAnchor } from './src/components/NotificationBellButton';
 import { TabBar } from './src/components/TabBar';
 import { AppText } from './src/components/Text';
 import { AboutYouScreen } from './src/screens/AboutYouScreen';
@@ -64,6 +66,7 @@ import {
   removeCareSpace,
   replaceCareSpace,
   resolveBackStage,
+  resolveOnboardingStateAfterAccountReconnect,
   resolveOnboardingStateAfterAcceptingInvitation,
   setCareSpaceStatus,
   validatePersonDraft,
@@ -94,11 +97,18 @@ import { InvitationsScreen } from './src/screens/InvitationsScreen';
 import { useInvitationDeepLink } from './src/invitationDeepLink';
 import { ActivityEvent, listRecentActivity } from './src/activity';
 import {
+  buildNotificationCentreItems,
+  loadNotificationLastViewedAt,
+  saveNotificationLastViewedAt,
+  unreadNotificationCount,
+} from './src/notificationCentre';
+import {
   CareSpaceCommercialStatus,
   cacheCommercialStatus,
   describeEntitlement,
   getCareSpaceCommercialStatus,
   getMyEntitlement,
+  isEntitlementActiveNow,
   MyEntitlement,
   readCachedCommercialStatus,
 } from './src/entitlement';
@@ -113,6 +123,7 @@ import { ContactScreen } from './src/screens/ContactScreen';
 import { DocumentsScreen } from './src/screens/DocumentsScreen';
 import { FaqScreen } from './src/screens/FaqScreen';
 import { HowToUseScreen } from './src/screens/HowToUseScreen';
+import { FeatureRequestScreen } from './src/screens/FeatureRequestScreen';
 import { ManageCareScreen } from './src/screens/ManageCareScreen';
 import { SearchScreen } from './src/screens/SearchScreen';
 import {
@@ -259,7 +270,7 @@ function LilicaApp() {
   // Care Circle keeps a second, separate direct entry point from People's
   // own "Manage care circle" link -- see showCareCircle below -- which is
   // deliberately unchanged (full-screen, not the drawer).
-  const [settingsSection, setSettingsSection] = useState<'menu' | 'careSummary' | 'recentActivity' | 'documents' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'joinCareCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'contact'>('menu');
+  const [settingsSection, setSettingsSection] = useState<'menu' | 'careSummary' | 'documents' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'joinCareCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'featureRequest' | 'contact'>('menu');
   // Care Circle invitation final closure (`\downloads\carecircle-final-
   // closure.txt`, 15 September 2026): "Join a Care Circle" inside the
   // Settings drawer is reachable from two different places -- the main
@@ -276,6 +287,9 @@ function LilicaApp() {
   const [myEntitlement, setMyEntitlement] = useState<MyEntitlement>();
   const [entitlementLoading, setEntitlementLoading] = useState(false);
   const [entitlementError, setEntitlementError] = useState<string>();
+  const [annualSubscriptionPrice, setAnnualSubscriptionPrice] = useState<string>();
+  const [annualProductLoading, setAnnualProductLoading] = useState(false);
+  const [annualProductError, setAnnualProductError] = useState<string>();
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   // Phase 15: the active care space's real members, for the record
   // editor's assignment selector and the Care Circle screen. Never
@@ -316,6 +330,11 @@ function LilicaApp() {
   // fetching their own copy -- one source of truth, multiple projections.
   const [recentActivity, setRecentActivity] = useState<ActivityEvent[]>([]);
   const [showRecentActivity, setShowRecentActivity] = useState(false);
+  const [showNotificationCentre, setShowNotificationCentre] = useState(false);
+  const [notificationOrigin, setNotificationOrigin] = useState<NotificationAnchor>();
+  const [notificationLastViewedAt, setNotificationLastViewedAt] = useState<string>();
+  const [notificationReadStateLoaded, setNotificationReadStateLoaded] = useState(false);
+  const [notificationUnreadIds, setNotificationUnreadIds] = useState<Set<string>>(new Set());
   const [showCareSummary, setShowCareSummary] = useState(false);
   // Phase 20B: Search is keyed by the active care space id in renderShell
   // below, so switching supported person while it's open always remounts
@@ -326,6 +345,7 @@ function LilicaApp() {
   const storageOwnerId = auth.session?.user.id ?? null;
   const legacyBootstrapInFlight = useRef(false);
   const reconnectedOwnerId = useRef<string | undefined>(undefined);
+  const [careSpacesReadyOwnerId, setCareSpacesReadyOwnerId] = useState<string>();
   const localRecordRevision = useRef(0);
   // Phase 17: which attachment ids this session has already queued for
   // upload -- see the retry effect below.
@@ -335,6 +355,16 @@ function LilicaApp() {
   activeStorageOwnerId.current = storageOwnerId;
   const [fontsLoaded] = useFonts(appFontAssets);
   const currentSpace = activeCareSpace(state);
+  const notificationItems = useMemo(() => buildNotificationCentreItems({
+    records: currentSpace?.records ?? [],
+    activity: recentActivity,
+    activeMembershipId: currentSpace?.membershipId,
+    personName: currentSpace?.displayName,
+    remindersEnabled: notificationSettings.remindersEnabled,
+  }), [currentSpace?.records, currentSpace?.membershipId, currentSpace?.displayName, recentActivity, notificationSettings.remindersEnabled]);
+  const notificationUnreadCount = notificationReadStateLoaded
+    ? unreadNotificationCount(notificationItems, notificationLastViewedAt)
+    : 0;
   // Phase 20D: the ordinary active-person switcher must never surface an
   // archived care space (brief section 6) -- archivedCareSpaces() below
   // feeds the separate, intentional "Archived care" destination instead.
@@ -505,6 +535,9 @@ function LilicaApp() {
   }
 
   async function handleSubscribe(): Promise<{ ok: boolean; message?: string }> {
+    if (myEntitlement?.status === 'TRIAL_ACTIVE' && isEntitlementActiveNow(myEntitlement)) {
+      return { ok: false, message: 'Your free period is still active. You will not be charged before it ends.' };
+    }
     const offer = await getAnnualPackage();
     if (!offer.ok) return { ok: false, message: offer.message };
     if (!offer.data) return { ok: false, message: 'No subscription product is available yet.' };
@@ -524,6 +557,38 @@ function LilicaApp() {
     await refreshMyEntitlement();
     return { ok: true };
   }
+
+  // Store metadata is loaded only when the Subscription section is open.
+  // The store's own formatted price is the only price used for a purchase
+  // CTA, so non-UK users never see a hard-coded GBP amount immediately
+  // before the native purchase sheet shows a different local currency.
+  useEffect(() => {
+    if (settingsSection !== 'subscription' || !isBillingConfigured()) {
+      setAnnualSubscriptionPrice(undefined);
+      setAnnualProductLoading(false);
+      setAnnualProductError(undefined);
+      return;
+    }
+    let cancelled = false;
+    setAnnualProductLoading(true);
+    setAnnualProductError(undefined);
+    getAnnualPackage().then((result) => {
+      if (cancelled) return;
+      setAnnualProductLoading(false);
+      if (!result.ok) {
+        setAnnualSubscriptionPrice(undefined);
+        setAnnualProductError(result.message);
+      } else if (!result.data) {
+        setAnnualSubscriptionPrice(undefined);
+        setAnnualProductError('The annual subscription is not available from the store just now.');
+      } else {
+        setAnnualSubscriptionPrice(result.data.product.priceString);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [settingsSection]);
 
   // Care Circle can be opened two ways -- People's own direct link
   // (showCareCircle) or the Settings drawer (settingsSection) -- both
@@ -588,8 +653,26 @@ function LilicaApp() {
       setShowSearch(false);
       setShowRecentActivity(false);
       setShowCareSummary(false);
+      setShowNotificationCentre(false);
     }
   }, [currentSpace?.careSpaceId]);
+
+  useEffect(() => {
+    setNotificationReadStateLoaded(false);
+    setNotificationLastViewedAt(undefined);
+    if (!storageOwnerId || !currentSpace?.careSpaceId) {
+      setNotificationReadStateLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    loadNotificationLastViewedAt(storageOwnerId, currentSpace.careSpaceId).then((value) => {
+      if (!cancelled) {
+        setNotificationLastViewedAt(value);
+        setNotificationReadStateLoaded(true);
+      }
+    }).catch(() => { if (!cancelled) setNotificationReadStateLoaded(true); });
+    return () => { cancelled = true; };
+  }, [storageOwnerId, currentSpace?.careSpaceId]);
 
   // Phase 20B: reload the active care space's first page of recent
   // activity whenever the active space changes, and again whenever Recent
@@ -608,7 +691,7 @@ function LilicaApp() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSpace?.careSpaceId, showRecentActivity, showCareSummary]);
+  }, [currentSpace?.careSpaceId, showRecentActivity, showCareSummary, showNotificationCentre]);
 
   // Phase 15: surface the invitations screen automatically the first time
   // this session finds any pending invitation -- but only once, so a user
@@ -973,7 +1056,9 @@ function LilicaApp() {
     if (reconnectedOwnerId.current === storageOwnerId) return;
     reconnectedOwnerId.current = storageOwnerId;
     reconnectCareSpaces().then((result) => {
-      if (result.ok) setState((current) => integrateReconnectedCareSpaces(current, result.people));
+      if (result.ok) setState((current) => resolveOnboardingStateAfterAccountReconnect(current, result.people));
+    }).finally(() => {
+      setCareSpacesReadyOwnerId(storageOwnerId);
     });
     // Phase 15: check once per signed-in owner for pending invitations
     // addressed to this account's own email -- never inferred from any
@@ -1354,6 +1439,22 @@ function LilicaApp() {
     if (!draft || draft.people.length === 0 || !draft.people.every(validatePersonDraft) || provisioning) return;
     setProvisioning(true);
     setProvisionError(undefined);
+
+    // Defence in depth for a returning account whose first startup
+    // reconciliation failed transiently: immediately before first-time
+    // provisioning, ask the server once more. Existing remote people win
+    // and first-time setup is abandoned rather than creating another set
+    // under newly generated draft ids. Later Add Person flows are allowed
+    // through because onboardingComplete is already true for them.
+    if (!state.onboardingComplete) {
+      const existing = await reconnectCareSpaces();
+      if (existing.ok && existing.people.length > 0) {
+        setState((current) => resolveOnboardingStateAfterAccountReconnect(current, existing.people));
+        setProvisioning(false);
+        return;
+      }
+    }
+
     const result = await provisionSupportedPeople(draft.people);
     setProvisioning(false);
     if (!result.ok) {
@@ -1449,6 +1550,21 @@ function LilicaApp() {
     setTodoInitialFocusGroup(undefined);
     setTodoInitialFilter('mine');
     setActiveTab('todo');
+  }
+
+  function openNotifications(origin?: NotificationAnchor) {
+    const viewedAt = new Date().toISOString();
+    setNotificationOrigin(origin);
+    setNotificationUnreadIds(new Set(
+      notificationItems
+        .filter((item) => !notificationLastViewedAt || item.occurredAt > notificationLastViewedAt)
+        .map((item) => item.id),
+    ));
+    setShowNotificationCentre(true);
+    setNotificationLastViewedAt(viewedAt);
+    if (storageOwnerId && currentSpace?.careSpaceId) {
+      void saveNotificationLastViewedAt(storageOwnerId, currentSpace.careSpaceId, viewedAt);
+    }
   }
 
   // Corrective task 4: Settings is app-level, so Account/Care Circle must
@@ -1583,6 +1699,8 @@ function LilicaApp() {
           onOpenDueToday={() => openToDoFocusedOn('today')}
           onOpenAssignedToYou={openToDoAssignedToMe}
           onOpenWellbeingUpdates={() => setShowWellbeingUpdates(true)}
+          notificationCount={notificationUnreadCount}
+          onOpenNotifications={openNotifications}
           onOpenSettings={() => setShowSettingsMenu(true)}
           onOpenSearch={() => setShowSearch(true)}
         />
@@ -1594,6 +1712,8 @@ function LilicaApp() {
           records={state.records}
           personName={currentSpace?.displayName}
           onOpenRecord={openRecordFromProjection}
+          notificationCount={notificationUnreadCount}
+          onOpenNotifications={openNotifications}
           onOpenSettings={() => setShowSettingsMenu(true)}
         />
       ) : (
@@ -1615,6 +1735,8 @@ function LilicaApp() {
           onOpenRecord={openRecordFromProjection}
           onSaveRecord={saveRecord}
           onAddSomething={() => guardMutation(() => go('firstThing'))}
+          notificationCount={notificationUnreadCount}
+          onOpenNotifications={openNotifications}
           onOpenSettings={() => setShowSettingsMenu(true)}
           onBack={todoInitialFilter || todoInitialFocusGroup ? () => {
             setTodoInitialFilter(undefined);
@@ -1641,6 +1763,8 @@ function LilicaApp() {
           onAddPerson={startAddPerson}
           onOpenRecord={openRecordFromProjection}
           onAddType={(type) => guardMutation(() => openNewFromProjection(type))}
+          notificationCount={notificationUnreadCount}
+          onOpenNotifications={openNotifications}
           onOpenSettings={() => setShowSettingsMenu(true)}
           onOpenCareCircle={careCircleAvailable ? () => setShowCareCircle(true) : undefined}
           careCircleMembers={careCircleMembers}
@@ -1692,13 +1816,22 @@ function LilicaApp() {
             onBlockedEdit={() => showBlockedGate()}
           />
         ) : null}
+        <NotificationCentre
+          visible={showNotificationCentre}
+          origin={notificationOrigin}
+          items={notificationItems}
+          unreadIds={notificationUnreadIds}
+          personName={currentSpace?.displayName}
+          onDismiss={() => setShowNotificationCentre(false)}
+          onOpenRecord={openRecordFromProjection}
+          onViewActivity={careCircleAvailable ? () => setShowRecentActivity(true) : undefined}
+        />
         <SettingsMenu
           visible={showSettingsMenu}
           section={settingsSection}
           onClose={() => { setShowSettingsMenu(false); setSettingsSection('menu'); }}
           personName={currentSpace?.displayName}
           onOpenCareSummary={careCircleAvailable ? () => setSettingsSection('careSummary') : undefined}
-          onOpenRecentActivity={careCircleAvailable ? () => setSettingsSection('recentActivity') : undefined}
           onOpenDocuments={careCircleAvailable ? () => setSettingsSection('documents') : undefined}
           onOpenManageCare={careCircleAvailable && currentSpace?.role === 'organiser' ? () => setSettingsSection('manageCare') : undefined}
           onOpenAccount={() => setSettingsSection('account')}
@@ -1710,6 +1843,7 @@ function LilicaApp() {
           onOpenArchivedCare={archivedSpaces.length > 0 ? () => setSettingsSection('archivedCare') : undefined}
           onOpenHowTo={() => setSettingsSection('howTo')}
           onOpenFaq={() => setSettingsSection('faq')}
+          onOpenFeatureRequest={() => setSettingsSection('featureRequest')}
           onOpenContact={() => setSettingsSection('contact')}
         >
           {settingsSection === 'careSummary' ? (
@@ -1717,13 +1851,6 @@ function LilicaApp() {
               records={state.records}
               careCircleMembers={careCircleMembers}
               recentActivity={recentActivity}
-              personName={currentSpace?.displayName}
-              onBack={() => setSettingsSection('menu')}
-              onOpenRecord={openRecordFromProjection}
-            />
-          ) : settingsSection === 'recentActivity' ? (
-            <RecentActivityScreen
-              careSpaceId={currentSpace && !currentSpace.careSpaceId.startsWith('local-') ? currentSpace.careSpaceId : undefined}
               personName={currentSpace?.displayName}
               onBack={() => setSettingsSection('menu')}
               onOpenRecord={openRecordFromProjection}
@@ -1836,6 +1963,9 @@ function LilicaApp() {
               loading={entitlementLoading}
               error={entitlementError}
               billingConfigured={isBillingConfigured()}
+              annualPrice={annualSubscriptionPrice}
+              productLoading={annualProductLoading}
+              productError={annualProductError}
               onBack={() => setSettingsSection('menu')}
               onSubscribe={handleSubscribe}
               onRestore={handleRestore}
@@ -1844,6 +1974,8 @@ function LilicaApp() {
             <HowToUseScreen onBack={() => setSettingsSection('menu')} />
           ) : settingsSection === 'faq' ? (
             <FaqScreen onBack={() => setSettingsSection('menu')} />
+          ) : settingsSection === 'featureRequest' ? (
+            <FeatureRequestScreen onBack={() => setSettingsSection('menu')} />
           ) : settingsSection === 'contact' ? (
             <ContactScreen onBack={() => setSettingsSection('menu')} />
           ) : null}
@@ -1851,12 +1983,21 @@ function LilicaApp() {
         <TabBar
           active={activeTab}
           onChange={(tab) => {
+            // Primary navigation always wins over a secondary destination.
+            // Without these resets, changing activeTab while Care Summary
+            // was open had no visible effect because renderShell checks the
+            // secondary screens before it reaches the active-tab branches.
+            setShowSearch(false);
+            setShowRecentActivity(false);
+            setShowCareSummary(false);
+            setShowWellbeingUpdates(false);
+            setShowCareCircle(false);
+            setShowJoinCareCircle(false);
+            setShowAllContacts(false);
+            setShowNotificationCentre(false);
             setActiveTab(tab);
             setShowSettingsMenu(false);
             setSettingsSection('menu');
-            setShowCareCircle(false);
-            setShowAllContacts(false);
-            setShowWellbeingUpdates(false);
             // A direct tab-bar tap always starts To Do at its normal
             // defaults, never inheriting an earlier Home strip tap's
             // target -- only openToDoFocusedOn/openToDoAssignedToMe set
@@ -2234,6 +2375,13 @@ function LilicaApp() {
     );
   } else if (!auth.profile) {
     content = <AboutYouScreen onSave={completeProfile} />;
+  } else if (storageOwnerId && careSpacesReadyOwnerId !== storageOwnerId) {
+    content = (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.primary} />
+        <AppText variant="secondary" tone="soft" style={styles.loadingText}>Opening your care spaces...</AppText>
+      </View>
+    );
   } else if (showInvitations) {
     content = (
       <InvitationsScreen

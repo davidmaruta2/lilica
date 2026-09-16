@@ -1,0 +1,252 @@
+LILICA - SETTINGS DRAWER NAVIGATION CORRECTION
+Completion Report (per Downloads\settings.txt section 26)
+12 September 2026
+
+============================================================
+STATUS: Implemented and validated. NOT committed or pushed,
+per the brief's own explicit instruction (section 25) and the
+product owner's separate "hold off on push".
+============================================================
+
+1. PREVIOUS INCORRECT ARCHITECTURE
+
+Two rejected iterations, both same-day:
+  a) Original Phase 18 SettingsMenu: a full-width bottom sheet
+     (Modal, justifyContent: flex-end) opening from the bottom
+     of the screen, far from the cog that triggered it.
+  b) First correction attempt: a small anchored dropdown card
+     (260px, top-right near the cog) -- fixed the "far from the
+     cog" complaint but not the real problem.
+  In BOTH, tapping Account/Care Circle/Privacy & data closed the
+  menu/card and swapped the ENTIRE app content area (App.tsx's
+  `content` variable) to a separate top-level screen. That
+  screen's own Back button then had nowhere to return to except
+  App.tsx's normal tab content -- so leaving Care Circle or
+  Privacy & data dropped the user on the dashboard, not back in
+  Settings. It was a launcher for unrelated pages, not a menu.
+
+2. NEW DRAWER ARCHITECTURE
+
+Settings is now a right-hand application drawer with its own
+internal navigation hierarchy. Settings subsections render
+within the drawer and do not become ordinary application
+screens.
+
+  APP
+  |-- currently active tab (Home/Calendar/To Do/People) -- stays
+  |   mounted and visible (dimmed) the entire time the drawer is
+  |   open; never unmounted, never replaced.
+  `-- SETTINGS DRAWER (src/components/SettingsMenu.tsx)
+      |-- section: 'menu'        -> the row list
+      |-- section: 'account'     -> AccountScreen, real & unchanged
+      |-- section: 'careCircle'  -> CareCircleScreen, real & unchanged
+      `-- section: 'privacyData' -> PrivacyDataScreen, real & unchanged
+
+  Visual: slides in from the right edge, Animated.timing-driven,
+  ~88% of screen width (capped at 480 for tablets), dimmed
+  backdrop over the app behind it, safe-area-respecting header
+  with a persistent Close, cream/off-white surface and the
+  existing borders/spacing language -- no new visual system.
+
+3. FILES CHANGED
+
+  - src/components/SettingsMenu.tsx (rewritten)
+  - App.tsx (settingsSection state + wiring; showAccount/
+    showPrivacyData booleans removed)
+  - tests/settings-cog.test.tsx (updated for the new contract)
+  - tests/settings-navigation.test.tsx (new)
+  - docs/PHASE_18_ARCHITECTURE.md (new addendum)
+  - docs/REVISION_LOG.md (new dated entry)
+  - CLAUDE.md (pointer to the correction)
+  No other file touched. No database migration.
+
+4. INTERNAL NAVIGATION IMPLEMENTATION
+
+  App.tsx owns one state value:
+    settingsSection: 'menu' | 'account' | 'careCircle' | 'privacyData'
+  plus the existing showSettingsMenu (drawer visible/hidden).
+
+  - A menu row's onPress (SettingsMenu's onOpenAccount/
+    onOpenCareCircle/onOpenPrivacyData props) now ONLY calls
+    setSettingsSection(x) -- it no longer calls onClose. The
+    drawer stays mounted and open; its body swaps.
+  - Each embedded screen's onBack now calls
+    setSettingsSection('menu') instead of exiting.
+  - SettingsMenu's own Close button (and the dimmed backdrop)
+    call onClose, which sets showSettingsMenu(false) AND resets
+    settingsSection back to 'menu', so the next open always
+    starts at the root.
+  - This is exactly the smallest-safe-architecture the brief
+    asked for (section 19) -- no navigation library, no new
+    dependency, a single extra piece of local state plus a
+    render-prop (`children`) so SettingsMenu never needs to know
+    any of the screens' own data/callbacks.
+
+5. ACCOUNT REUSE
+
+  AccountScreen.tsx is completely unchanged (same file, same
+  props, same Phase 14 reminders/quiet-hours logic, same Phase
+  18 display-name editing via AuthProvider.saveProfile). The
+  ONLY difference from before: App.tsx now renders it as
+  SettingsMenu's `children` when settingsSection === 'account',
+  with onBack={() => setSettingsSection('menu')} instead of
+  onBack={() => setShowAccount(false)}.
+
+6. CARE CIRCLE REUSE
+
+  CareCircleScreen.tsx is completely unchanged -- same
+  memberships list, same invitation logic, same role/permission
+  display, same Supabase calls (listCareSpaceMembers/
+  listCareSpaceInvitations), same refreshCareCircle function.
+  Nothing about care_space_memberships, invitations, roles,
+  permissions, RLS, or assignment eligibility was touched.
+
+  People's own SEPARATE, pre-existing direct "Manage care
+  circle" link (PersonScreen's own chip, independent of the
+  Settings cog) is deliberately UNCHANGED -- it still opens
+  CareCircleScreen as a full top-level screen via the original
+  showCareCircle boolean, with a plain onBack that closes it.
+  This was never part of the reported problem (it doesn't route
+  through Settings at all), so it was left alone rather than
+  folded into the drawer.
+
+  Care Circle therefore now has two possible presentations of
+  the SAME screen component: full-screen (from People's direct
+  link) and drawer-embedded (from the Settings cog) -- zero
+  duplicated business logic between them.
+
+7. PRIVACY & DATA REUSE
+
+  PrivacyDataScreen.tsx is completely unchanged -- same What-
+  Lilica-stores copy, same exportMyData() call, same
+  pendingLocalWork()/clearLocalDataForOwner() local-data flow,
+  same leaveCareSpace() wiring, same
+  checkAccountDeletionEligibility() precheck and its honest
+  "not available yet" message. Only its onBack now points at
+  setSettingsSection('menu') instead of setShowPrivacyData(false).
+
+8. UNDERLYING-ROUTE PRESERVATION
+
+  App.tsx's `content` variable (which decides whether Home/
+  Calendar/To Do/People/etc. is showing) no longer has ANY
+  branch for Account or Privacy & data at all -- those two
+  screens ONLY ever render inside the drawer now. The active tab
+  is rendered once, underneath the drawer, and the drawer is a
+  sibling overlay -- opening any Settings section never touches
+  `content`. Proven by tests/settings-navigation.test.tsx's
+  parameterised test across all four tabs.
+
+9. SELECTED-PERSON PRESERVATION
+
+  Nothing about the Settings drawer reads or writes
+  state.activeCareSpaceId, the person switcher, or any
+  onboarding/setup state. The active care space is untouched by
+  opening/closing/navigating the drawer -- proven by the same
+  test (route+person text asserted unchanged before, during and
+  after a full walk through every section).
+
+10. SCROLLING BEHAVIOUR
+
+  Each embedded screen keeps its own existing Screen/ScrollView
+  (AccountScreen, CareCircleScreen and PrivacyDataScreen already
+  each use the shared `Screen` component's KeyboardAwareScrollView
+  -- unchanged). The drawer itself is a fixed-height
+  SafeAreaView; its body is either the fixed-height menu list or
+  the embedded screen's own already-scrolling content. The
+  drawer does not add a second, competing scroll container, and
+  the app's bottom tab bar (rendered as a sibling outside the
+  drawer entirely) never becomes part of any Settings scroll.
+
+11. TESTS ADDED
+
+  tests/settings-navigation.test.tsx (9 new tests): cog opens
+  the drawer at its root; Account/Care Circle/Privacy & data
+  each open inside the drawer; each one's internal back returns
+  to the root; the underlying route/person text never changes
+  while any of this happens; closing the drawer after visiting
+  every section, from each of Home/Calendar/To Do/People,
+  restores exactly that same route/person; Phase 18's real
+  handlers are still what's called, never a stand-in.
+
+  tests/settings-cog.test.tsx (revised): a row press now asserts
+  it does NOT call onClose (previously asserted the opposite --
+  this was the old, now-incorrect behaviour under test); added a
+  test that a non-'menu' section renders the passed-in children,
+  not the row list; split the previously-ambiguous "Close
+  settings" label into the header's "Close" and the backdrop's
+  "Dismiss settings", each independently addressable.
+
+12. FULL VALIDATION RESULT
+
+  npm run typecheck: clean.
+  npm test: 44 suites / 436 tests passing (up from 43/425),
+  ZERO regressions -- every existing Home/Calendar/To Do/People/
+  person-switching/add/record-editing/Care-Circle/invitations/
+  permissions/assignment/documents/export/account-deletion/auth/
+  onboarding/keyboard-handling/bottom-tab-navigation test still
+  passes unchanged.
+
+13. CONFIRMATION: NO DATABASE MIGRATION
+
+  Confirmed. This correction touched zero SQL, zero RPCs, zero
+  RLS policies. No supabase/migrations file was created or
+  modified. This was presentation/navigation-ownership only.
+
+14. CONFIRMATION: NO PHASE 18 BUSINESS LOGIC WAS REWRITTEN
+
+  Confirmed. AccountScreen.tsx, CareCircleScreen.tsx and
+  PrivacyDataScreen.tsx are byte-for-byte the same components as
+  before this correction, with the single exception of each
+  one's onBack prop now being pointed at a different callback
+  (setSettingsSection('menu') instead of exiting). export_my_data(),
+  account_deletion_precheck(), the document-cleanup queue, local-
+  data clearing, and leaveCareSpace() wiring are all untouched.
+
+15. COMPLETE DIFF AUDIT
+
+  A (implementation): App.tsx, src/components/SettingsMenu.tsx.
+  B (database): none.
+  C (tests): tests/settings-cog.test.tsx (updated),
+     tests/settings-navigation.test.tsx (new).
+  D (docs): docs/PHASE_18_ARCHITECTURE.md, docs/REVISION_LOG.md,
+     CLAUDE.md.
+  E (unexpected): empty -- nothing changed outside this scope.
+
+16. GIT STATUS
+
+  NOT committed, NOT pushed. Working tree currently shows:
+    M App.tsx
+    M CLAUDE.md
+    M docs/PHASE_18_ARCHITECTURE.md
+    M docs/REVISION_LOG.md
+    M src/components/SettingsMenu.tsx
+    M tests/settings-cog.test.tsx
+    ?? tests/settings-navigation.test.tsx
+    (?? PHASE_16/17/18_COMPLETION_REPORT.txt and this file are
+    scratch Notepad reports, never committed in this repo)
+  Per section 25 of the brief and your own separate "hold off on
+  push", this stops here for your physical review. Say the word
+  and I will commit (push only if you separately say so).
+
+============================================================
+ACCEPTANCE TEST (from the brief) -- self-check against the
+actual implementation, not yet against a physical device:
+============================================================
+
+"Opening the Lilica Settings cog opens a proper right-hand
+drawer." -- Yes: Animated slide-in from the right, ~88% width.
+
+"I can move between Settings, Account, Care Circle and Privacy
+& data entirely within that drawer, using internal back
+navigation, without being thrown onto separate app pages." --
+Yes, by construction: Account/Care Circle/Privacy & data now
+only ever render as the drawer's own body.
+
+"When I close Settings I am returned exactly to the screen, tab,
+person and state I was using before." -- Yes: the underlying tab
+is never touched by the drawer's own state.
+
+Physical-device confirmation is still required before this is
+considered actually approved -- please test the exact sequence
+in section 21 of the brief on-device (both iPhone and Android)
+before I commit.

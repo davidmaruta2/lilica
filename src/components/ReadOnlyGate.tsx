@@ -55,9 +55,9 @@ export function ReadOnlyGate({ visible, isCommercialOwner, ownerEntitlementStatu
                 Your information is safe and you can still view everything you've saved.
               </AppText>
               <AppText variant="body" tone="soft" style={styles.body}>
-                Subscribe for £8.99/year to continue adding or making changes.
+                Subscribe annually to continue adding or making changes. Your local store price is shown before purchase.
               </AppText>
-              <Button label="Subscribe for £8.99/year" onPress={onSubscribe} />
+              <Button label="View annual subscription" onPress={onSubscribe} />
               <Button label="Not now" variant="text" onPress={onClose} />
             </>
           ) : (

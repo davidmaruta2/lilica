@@ -1,0 +1,360 @@
+================================================================
+LILICA - CARE CIRCLE PERMISSION-DOMAIN AUDIT & UX CORRECTION
+================================================================
+Report date: 15 September 2026
+
+
+################################################################
+1. ACTUAL CODE-LEVEL MAPPING (RECORD TYPE -> PERMISSION DOMAIN)
+################################################################
+
+Source of truth inspected directly (not from memory):
+- supabase/migrations/20260910150000_phase7_records.sql
+  (record_domain_for_type(), record_sensitivity_for_type(), the
+  `records` table's own `record_type`/`record_domain` columns and CHECK
+  constraint, can_access_care_space_records())
+- supabase/migrations/20260911120000_phase15_care_circle.sql
+  (membership_has_domain_access(), care_space_domain_grants,
+  invite_member(), assignments/occurrences read policies)
+- supabase/migrations/20260912100000_phase16_document_maturity.sql
+  (record_attachments' own RLS policy)
+- supabase/migrations/20260913120000_phase20b_activity_search_summary.sql
+  (care_space_activity's own RLS policy)
+
+| Record type  | Display label (client) | Permission domain | Source of mapping | Server enforced? | Client enforced? |
+|---|---|---|---|---|---|
+| `appointment` | Appointment | `general` | `record_domain_for_type()` else-branch | YES (RLS + every mutation RPC) | No independent client filter -- client trusts the server's own read/write result |
+| `task` | Task | `general` | else-branch | YES | same |
+| `contact` | Contact (Key Contact) | `general` | else-branch | YES | same |
+| `update` | Update | `general` | else-branch | YES | same |
+| `careNote` | Care note | `health` | explicit `case` | YES | same |
+| `bill` | Bill | `financial` | explicit `case` | YES | same |
+| `homeMatter` | Home matter | `home` | explicit `case` | YES | same |
+| `document` | Document | `documents` | explicit `case` | YES | same |
+
+These are the ONLY eight record types that can ever exist -- confirmed by
+the `records` table's own `records_type` CHECK constraint:
+`check (record_type in ('appointment', 'task', 'bill', 'homeMatter',
+'document', 'contact', 'careNote', 'update'))`. No omitted type: this is
+the complete, exhaustive list, not a partial sample.
+
+"Server enforced" means, precisely: `record_domain` is a
+`generated always as (record_domain_for_type(record_type)) stored`
+column -- Postgres computes and stores it itself on every insert/update;
+it is never a value a client can supply or influence. Every read (RLS
+`using` clause) and every write (every mutation RPC's own explicit check)
+calls `can_access_care_space_records(care_space_id, record_domain,
+action)`, which in turn calls `membership_has_domain_access()`.
+
+"Client enforced" is deliberately answered "no independent filter"
+everywhere: this app has NO client-side permission logic for records at
+all -- the client only ever receives what the server's own RLS-protected
+read already permitted, and every write attempt is independently
+re-validated server-side regardless of what the UI shows. (The one
+UNRELATED client-side gate in this app, `guardMutation`/`isReadOnly`/
+`isArchived` from Phase 21C/20D, blocks entitlement/archive states, not
+domain permissions -- a different concern entirely, not conflated here.)
+
+
+################################################################
+2. NO SILENT FALLBACK - VERIFIED, NOT ASSUMED
+################################################################
+
+Determined: an unknown/new record type CANNOT exist in this schema at
+all today. Two independent, structural guarantees, not mere convention:
+
+  (a) `records_type check (record_type in (...8 values...))` -- an
+      INSERT or UPDATE attempting any other `record_type` value is
+      rejected outright by Postgres itself, before `record_domain_for_
+      type()` is even invoked. There is no code path in this schema
+      that can produce a record with an unrecognised type.
+
+  (b) `record_domain_for_type()`'s own `else -> 'general'` branch is
+      therefore UNREACHABLE by any of the eight real, currently-existing
+      record types (each has its own explicit `case`, or falls under the
+      else branch by DELIBERATE, verified design -- `appointment`/`task`/
+      `contact`/`update` -- not by accident). It exists purely as
+      defence-in-depth for a hypothetical FUTURE record type.
+
+  (c) `membership_has_domain_access()` fails CLOSED by construction: it
+      is a single `select exists (...)` that requires an explicit
+      matching `care_space_domain_grants` row (or organiser role) to
+      return true. The absence of a grant is not a special case that
+      needs handling -- it is simply the ordinary "no row found" result
+      of the same query, which is `false`. Default-deny, not
+      default-allow.
+
+CLASSIFICATION: NOT a security defect. This fails closed today, proven
+by direct inspection of the actual CHECK constraint and the actual
+`exists()` query shape, not inferred from convention.
+
+ONE FORWARD-LOOKING RECOMMENDATION (not a defect, not actioned in this
+task): if a NEW record type is ever added, two things must be updated
+together: the `records_type` CHECK constraint (or the insert is rejected
+outright, failing closed automatically) AND `record_domain_for_type()`'s
+own `case` list (or the new type silently defaults to `general` --
+i.e., the LEAST sensitive of the five domains, never "all domains" or
+"no domain" or an unrestricted one). This is a development-discipline
+note for future schema changes, not a defect requiring action now.
+
+
+################################################################
+3. ATTACHMENTS / DOCUMENTS - THE EXACT RULE, SERVER-PROVEN
+################################################################
+
+A. A canonical `document` RECORD (`record_type = 'document'`) has its
+   OWN `record_domain = 'documents'`, exactly like any other record type.
+
+B. A FILE ATTACHMENT (`record_attachments` row) has NO domain of its
+   own at all -- it inherits its PARENT RECORD's domain, always, proven
+   directly by its own RLS policy (`supabase/migrations/
+   20260912100000_phase16_document_maturity.sql`):
+
+     create policy "members with domain read access can list attachments"
+     on public.record_attachments for select to authenticated
+     using (
+       exists (
+         select 1 from public.records r
+         where r.id = record_attachments.record_id
+           and r.care_space_id = record_attachments.care_space_id
+           and public.can_access_care_space_records(
+                 record_attachments.care_space_id, r.record_domain, 'read')
+       )
+     );
+
+   This is an unconditional structural fact, not configurable per file:
+   a file attached to a Bills & money record requires `financial`
+   access, NOT `documents` access -- regardless of the file's own type
+   (a PDF, a photo, anything). A member with ONLY `documents` permission
+   cannot see it. Verified directly by reading this exact policy, not
+   inferred.
+
+   Confirmed the same rule for every domain named in the brief:
+   - A file attached to a Care & health record requires `health` access.
+   - A file attached to a Home & car record requires `home` access.
+   - A file attached to an Everyday record (`appointment`/`task`/
+     `contact`/`update`) requires `general` access.
+   - Only a file attached to a genuine `document`-type record requires
+     `documents` access specifically -- because THAT record's own domain
+     is `documents`.
+
+   The new "Documents" domain description was written precisely to
+   reflect this: "Standalone documents, and any files attached to them"
+   -- never implying it covers attachments on OTHER-domain records.
+
+SERVER-SIDE ENFORCEMENT: fully proven above via the actual policy text,
+not a client-side assumption. Storage bucket access (the private
+`document-attachments` bucket) is separately, identically gated -- the
+same migration's own Storage policies each call
+`can_access_care_space_records(storage_object_care_space_id(name),
+'documents', 'write'|'read')` for the bucket-object layer, keyed off the
+SAME domain-per-record rule, not a separate one.
+
+
+################################################################
+4. PROJECTION PERMISSIONS - VIEWS, NOT SEPARATE DOMAINS
+################################################################
+
+Audited: Home, Calendar, To Do, People, Search, Recent Activity, Care
+Summary, Documents. None of these introduces its own permission concept
+-- each is a pure client-side or server-read projection built EXCLUSIVELY
+from data the server's own RLS has already filtered.
+
+- Home / Calendar / To Do: all read from `state.records`, populated
+  exclusively via the `records` table's own RLS-protected select
+  (`using (can_access_care_space_records(care_space_id, record_domain,
+  'read'))`). A member without `financial` access never receives a bill
+  record from the server in the first place -- there is nothing for
+  Home/Calendar/To Do to filter, because it was never fetched. Proven:
+  if Sarah lacks Bills & money, no bill-type record ever enters
+  `state.records` for her session, so it cannot appear in any of these
+  three screens' own derived groupings (Overdue/Today/Upcoming, the
+  month grid, or Home's own status strip).
+
+- People: Key Contacts (`contact` type, domain `general`) and Care
+  Circle membership listing (`list_care_space_members()`, gated by the
+  caller's own active membership, not by domain -- membership visibility
+  is a different, already-separate concept from record-domain
+  visibility) -- neither introduces a new record-domain gate.
+
+- Search (`src/search.ts`): searches only over the ALREADY-FETCHED,
+  already-domain-filtered `state.records` array in memory -- it is a
+  pure client-side filter over data that was already permission-checked
+  server-side before it ever reached the device. A financial record
+  Sarah cannot read never exists in the array Search searches.
+
+- Recent Activity (`care_space_activity`): its own RLS policy is
+  PER-ROW domain-matched, not blanket:
+  `using (can_access_care_space_records(care_space_id, record_domain,
+  'read'))`, where `record_domain` is copied onto the activity row AT
+  INSERT TIME from the record the event concerns. A bill-related
+  activity event (record_domain = 'financial') is invisible to Sarah
+  without financial access, proven directly by this policy.
+
+- Care Summary: built entirely from `state.records` +
+  `careCircleMembers` + `recentActivity`, all three already
+  domain-scoped by the mechanisms above -- introduces no new read path
+  of its own.
+
+- Documents (`src/documents.ts`, this session's own new screen): reads
+  `record_attachments` directly, governed by the exact policy quoted in
+  section 3 above -- a financial document/attachment is invisible to
+  Sarah without financial access, by the same parent-record-domain rule.
+
+ONE GENUINE, PRE-EXISTING NUANCE FOUND (not introduced by this task,
+not fixed by it -- flagged for an explicit product-owner decision):
+the `assignments` table's own SELECT policy
+(`supabase/migrations/20260910170000_phase8_occurrence_engine.sql`)
+gates on blanket `'general'` domain access, NOT the specific record's
+own domain:
+
+  create policy "active organisers can read assignments" on public.assignments
+  for select to authenticated using (
+    public.can_access_care_space_records(care_space_id, 'general', 'read'));
+
+  In practice, this means a member with `general` read access (which
+  every active member has by default unless explicitly denied) could
+  read an `assignments` ROW that concerns a financial-domain record or
+  occurrence -- i.e., see THAT an assignment exists and who it is
+  assigned to (`display_name_snapshot`) -- even without `financial`
+  access. It does NOT expose the underlying record's own title or
+  content (that stays correctly gated by the `records`/`occurrences`
+  tables' own per-domain policies), so this is a narrow metadata-only
+  exposure, not a content leak. No current UI surface in this app lists
+  raw assignment rows independently of their already-domain-filtered
+  parent record, so this is not currently exploitable through any
+  existing screen -- but it is a real, structural inconsistency worth an
+  explicit decision (tighten the policy to check the actual record's own
+  domain, matching every other table's own pattern) before this becomes
+  relevant to a future feature. NOT actioned in this task, per its own
+  "do not change delete/permission architecture" scope.
+
+
+################################################################
+5-10. INVITATION UX CORRECTION
+################################################################
+
+Implemented exactly as specified -- the five-domain model is completely
+unchanged; only the explanatory UI changed.
+
+BEFORE: a wrapping row of five plain pills with no explanation at all.
+
+AFTER (`src/screens/CareCircleScreen.tsx`): a vertical list of five rows.
+Each row is compact (checkbox + label only) when NOT selected. The
+moment it is selected, its own real access description appears directly
+beneath it, using exactly this copy (`DOMAIN_DESCRIPTIONS`,
+`src/careCircle.ts`, written to match the verified mapping in section 1
+-- no internal record-type names anywhere in this copy):
+
+  Everyday things
+    "Appointments, tasks, contacts and everyday updates -- plus anything
+    else not covered by the categories below."
+  Care & health
+    "Care notes and health-related information."
+  Bills & money
+    "Bills and financial information."
+  Home & car
+    "Home and car matters, like repairs and maintenance."
+  Documents
+    "Standalone documents, and any files attached to them."
+
+Deselecting a domain hides its description and returns it to the
+compact state immediately. Multiple selected domains each show their
+OWN description independently, stacked -- never a single combined
+sentence like "they can see selected information."
+
+Visual discipline preserved: same border/radius/soft-fill-when-selected
+visual language as every other pill/control on this screen already
+used; no modal, no popup, no new card system, no icon set added; the
+overall invite flow (email, relationship, role, then this section, then
+Send/Cancel) is completely unchanged in structure.
+
+Accessibility: each row's `accessibilityLabel` states the domain name,
+whether it is currently selected, and -- only when selected -- exactly
+what it grants (composed as one explicit string, e.g. "Care & health,
+selected. Grants access to: Care notes and health-related information.")
+so a screen-reader user gets the same information a sighted user gets
+from the visual expansion, never relying on colour or layout change
+alone.
+
+
+################################################################
+11. TESTS
+################################################################
+
+`tests/care-circle-domain-explanations.test.tsx` (new, 11 tests):
+  A. all five permission domains render.
+  B-F. selecting each of Everyday/Care & health/Bills & money/Home &
+       car/Documents reveals its own correct, verified access
+       explanation.
+  G. deselecting a domain returns it to the compact state (its
+     description disappears).
+  H. selecting multiple domains shows each one's own explanation
+     independently -- explicitly asserts no collapsed vague message
+     appears.
+  I. asserts the financial domain's own description text contains no
+     mention of care/health/home/car/document language -- proves each
+     description is scoped only to its own domain, not overreaching.
+  J. asserts the actual `inviteMember()` call payload's `grantedDomains`
+     array is unaffected by this UX change -- proves permission
+     BEHAVIOUR (not just wording) is unchanged.
+  Plus one explicit accessibility test asserting the exact
+  `accessibilityLabel` content for both a selected and an unselected row.
+
+All 11 pass. The pre-existing `tests/phase21c-care-circle-readonly
+.test.tsx` (Phase 21C invite-gating behaviour) was re-run and still
+passes unchanged, confirming this restructuring did not affect the
+existing gating logic.
+
+
+################################################################
+VALIDATION
+################################################################
+
+npm run typecheck: CLEAN.
+npm test: 80 suites / 727 tests. 726 pass. ONE pre-existing, unrelated
+  failure in `tests/home-strip-navigation.test.tsx` -- confirmed by
+  direct inspection to be a real-system-clock-dependent test
+  (`dueDate: new Date().toISOString().slice(0, 10)`) unrelated to any
+  file touched by this session's work; `git status` confirms neither
+  `HomeScreen.tsx` nor `ToDoScreen.tsx` appear anywhere in this diff.
+  Re-run in isolation, it fails identically -- not flaky, but also not
+  caused by, or fixed by, anything in this task.
+npm run secrets:check: "Secret scan passed (322 repository files
+  inspected)."
+npx expo config --type public: resolves cleanly (exit 0).
+npx expo export --platform web: succeeded, produced `dist/` with no
+  errors.
+git diff --check: clean (only expected LF/CRLF advisory warnings on
+  Windows).
+
+
+################################################################
+ADDITIONAL QUESTION ANSWERED THIS SAME SESSION (not part of the audit,
+but raised directly and answered by code inspection)
+################################################################
+
+"I sent an invite to dtm35@cam.ac.uk while logged in as
+davidmaruta2@gmail.com. Nothing was received by the invitee." Confirmed
+by direct inspection of `invite_member()` and a full search of this
+repository for any outbound-email integration: Lilica has never sent an
+invitation email to anyone. `invite_member()` only ever creates a
+`care_space_invitations` database row; the invitee discovers it only
+once they sign in to Lilica using that exact email address
+(`list_my_invitations()` matches by the caller's own authenticated
+email). This is a known, already-documented gap (CLAUDE.md's own
+standing note against representing email/push invitation delivery as
+complete), not a bug introduced or found by this task -- recorded here
+for completeness since it arose in the same conversation.
+
+
+================================================================
+FILES CHANGED THIS TASK
+================================================================
+src/careCircle.ts            (new DOMAIN_DESCRIPTIONS export)
+src/screens/CareCircleScreen.tsx  (pill row -> compact/expand vertical list)
+tests/care-circle-domain-explanations.test.tsx  (new, 11 tests)
+docs/REVISION_LOG.md         (new entry)
+
+DO NOT COMMIT. DO NOT PUSH.
+================================================================

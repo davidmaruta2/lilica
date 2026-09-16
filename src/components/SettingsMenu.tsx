@@ -6,7 +6,7 @@ const ZERO_INSETS = { top: 0, bottom: 0, left: 0, right: 0 };
 
 import { colors, radius, shadow, spacing } from '../theme';
 import { FoundationIcon, FoundationIconComponent } from './FoundationIcon';
-import { ArchiveIcon, BookOpenIcon, CircleHelpIcon, ClipboardListIcon, CreditCardIcon, FileTextIcon, ForwardIcon, HeartHandshakeIcon, HistoryIcon, LockIcon, MailIcon, UserIcon, UsersRoundIcon, XIcon } from './foundationIcons';
+import { ArchiveIcon, BookOpenIcon, CircleHelpIcon, ClipboardListIcon, CreditCardIcon, FileTextIcon, ForwardIcon, HeartHandshakeIcon, LightbulbIcon, LockIcon, MailIcon, UserIcon, UsersRoundIcon, XIcon } from './foundationIcons';
 import { SecondaryIconCircle } from './SecondaryPage';
 import { SecondaryPageCloseProvider } from './Header';
 import { AppText } from './Text';
@@ -46,21 +46,19 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // wide screens/tablets so it doesn't stretch edge-to-edge there.
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.88, 480);
 
-type Section = 'menu' | 'careSummary' | 'recentActivity' | 'documents' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'joinCareCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'contact';
+type Section = 'menu' | 'careSummary' | 'documents' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'joinCareCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'featureRequest' | 'contact';
 
 // Phase 20C (approved Option 2): the drawer becomes a small hybrid --
 // person-scoped navigation ABOVE the existing account/app settings group,
-// not a wholesale navigation-hub conversion. Care Summary and Recent
-// Activity already exist (Phase 20B); this adds a second, faster route to
-// each, alongside their existing People-screen links, which remain
-// unchanged -- deliberate dual-route discoverability, not a replacement.
+// not a wholesale navigation-hub conversion. Recent Activity now belongs
+// to the notification bell on every primary tab, while Care Summary remains
+// here as a person-scoped destination.
 export function SettingsMenu({
   visible,
   section,
   onClose,
   personName,
   onOpenCareSummary,
-  onOpenRecentActivity,
   onOpenDocuments,
   onOpenManageCare,
   onOpenAccount,
@@ -72,6 +70,7 @@ export function SettingsMenu({
   onOpenArchivedCare,
   onOpenHowTo,
   onOpenFaq,
+  onOpenFeatureRequest,
   onOpenContact,
   children,
 }: {
@@ -87,15 +86,10 @@ export function SettingsMenu({
   // Both omitted together for a local-only (never-synced) care space --
   // the same guard (`careCircleAvailable` in App.tsx) already used for
   // onOpenCareCircle below, reused rather than inventing a second rule.
-  // Opens the EXISTING Care Summary/Recent Activity screens IN-DRAWER
-  // (App.tsx's settingsSection state, exactly like Account/Care Circle/
-  // Privacy & data already work) -- not the separate full-screen overlay
-  // People's own links use. Bug fix: this originally reused that
-  // full-screen overlay from the drawer too, which broke the "stays in
-  // the menu" expectation every other drawer row already satisfies.
+  // Opens the existing Care Summary screen in-drawer (App.tsx's
+  // settingsSection state, exactly like Account/Care Circle/Privacy & data).
   onOpenCareSummary?: () => void;
-  onOpenRecentActivity?: () => void;
-  // Phase 20D: same guard as onOpenCareSummary/onOpenRecentActivity.
+  // Phase 20D: same care-space availability guard as Care Summary.
   // onOpenManageCare is FURTHER restricted to organisers only (App.tsx) --
   // every one of its own actions requires organiser authority, so a
   // contributor/viewer is never shown a destination full of controls they
@@ -133,6 +127,7 @@ export function SettingsMenu({
   // sync state, same as Account.
   onOpenHowTo: () => void;
   onOpenFaq: () => void;
+  onOpenFeatureRequest?: () => void;
   onOpenContact: () => void;
   // The active section's own screen (App.tsx builds it, since that's
   // where all the data/callbacks it needs already live) -- rendered in
@@ -178,9 +173,6 @@ export function SettingsMenu({
     ...(onOpenCareSummary
       ? [{ key: 'careSummary', label: 'Care Summary', description: 'A quick view of what matters right now', icon: ClipboardListIcon, onPress: onOpenCareSummary }]
       : []),
-    ...(onOpenRecentActivity
-      ? [{ key: 'recentActivity', label: 'Recent Activity', description: 'What has changed recently', icon: HistoryIcon, onPress: onOpenRecentActivity }]
-      : []),
     ...(onOpenDocuments
       ? [{ key: 'documents', label: 'Documents', description: 'Every document saved for them', icon: FileTextIcon, onPress: onOpenDocuments }]
       : []),
@@ -216,6 +208,9 @@ export function SettingsMenu({
   const helpEntries = [
     { key: 'howTo', label: 'How to use Lilica', description: 'Guides and tips', icon: BookOpenIcon, onPress: onOpenHowTo },
     { key: 'faq', label: 'FAQ', description: 'Common questions', icon: CircleHelpIcon, onPress: onOpenFaq },
+    ...(onOpenFeatureRequest
+      ? [{ key: 'featureRequest', label: 'Suggest a feature', description: 'Tell us what would help', icon: LightbulbIcon, onPress: onOpenFeatureRequest }]
+      : []),
     { key: 'contact', label: 'Contact', description: 'Get in touch', icon: MailIcon, onPress: onOpenContact },
   ];
 

@@ -99,7 +99,7 @@ describe('describeEntitlement', () => {
 
   it('describes an active subscription with its real renewal date when known', () => {
     const copy = describeEntitlement(entitlement({ status: 'SUBSCRIPTION_ACTIVE', entitlementExpiresAt: '2027-09-13T00:00:00.000Z' }), now);
-    expect(copy).toContain('£8.99/year');
+    expect(copy).toContain('Lilica Annual');
     expect(copy).toContain('2027');
   });
 

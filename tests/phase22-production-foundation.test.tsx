@@ -45,9 +45,11 @@ describe('Phase 22 production typography', () => {
 });
 
 describe('Phase 22 production navigation controls', () => {
-  it('uses a restrained Lucide Settings icon inside a 44px target', async () => {
+  it('uses a prominent Lucide Settings icon inside a 44px target', async () => {
     const screen = await render(<SettingsCogButton onPress={jest.fn()} />);
     expect(countNativeType(screen.toJSON(), 'RNSVGSvgView')).toBe(1);
+    expect(viewStyle(screen.getByTestId('settings-cog-icon')).width).toBe(28);
+    expect(viewStyle(screen.getByTestId('settings-cog-icon')).height).toBe(28);
     expect(viewStyle(screen.getByRole('button', { name: 'Settings' })).width).toBe(phase22Foundation.control.minimumTouchTarget);
     expect(viewStyle(screen.getByRole('button', { name: 'Settings' })).height).toBe(phase22Foundation.control.minimumTouchTarget);
   });

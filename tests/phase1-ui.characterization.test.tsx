@@ -115,7 +115,7 @@ describe('protected Phase 1 onboarding surfaces', () => {
     screen.getByText('What do you help Margaret with?');
     [
       'Appointment',
-      'Something to do',
+      'Errand or activity',
       'Bill or renewal',
       'Home or car matter',
       'Important document',
@@ -153,7 +153,7 @@ describe('protected structured-record onboarding', () => {
     screen.getByText("Let's get Margaret organised.");
     [
       'Appointment',
-      'Something to do',
+      'Errand or activity',
       'Bill or renewal',
       'Home or car matter',
       'Important document',
@@ -224,14 +224,14 @@ describe('protected structured-record onboarding', () => {
   it('Done saves a valid new draft, rather than just parking it unsaved', async () => {
     const onSaveRecord = jest.fn();
     const screen = await render(<FirstThingScreen {...props} onSaveRecord={onSaveRecord} />);
-    await fireEvent.press(screen.getByLabelText('Add Something to do'));
+    await fireEvent.press(screen.getByLabelText('Add Errand or activity'));
     await fireEvent.changeText(screen.getAllByDisplayValue('')[0], 'Order prescription');
     await fireEvent.press(screen.getByText('Done'));
     await waitFor(() => expect(screen.queryByText('What needs doing?')).toBeNull());
     expect(onSaveRecord).toHaveBeenCalledWith(expect.objectContaining({ type: 'task', title: 'Order prescription' }));
     // Saved, not parked -- reopening the category offers a fresh blank
     // draft, not the same typed text again.
-    await fireEvent.press(screen.getByLabelText('Add Something to do'));
+    await fireEvent.press(screen.getByLabelText('Add Errand or activity'));
     expect(screen.queryByDisplayValue('Order prescription')).toBeNull();
   });
 

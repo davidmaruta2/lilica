@@ -1,0 +1,484 @@
+================================================================
+LILICA - CARE CIRCLE INVITATION FINAL PHYSICAL CLOSURE
+CUSTOM DOMAIN + REAL END-TO-END DEVICE QA
+================================================================
+Report date: 14 September 2026
+
+
+################################################################
+DNS / HOSTING
+################################################################
+
+1. DNS BEFORE
+   lilica.co.uk's apex (@) A record held a single GoDaddy Website
+   Builder placeholder value ("WebsiteBuilder Site") -- a real, live,
+   non-empty page (HTTP 200, ~87KB body, GoDaddy's own DPS server) was
+   actually being served there. This was confirmed and explicitly
+   disclosed to the product owner BEFORE any change, since replacing it
+   is destructive to whatever that page was. Explicit go-ahead was given
+   ("Yes, replace it") before proceeding.
+
+2. DNS CHANGE MADE
+   The apex A record was replaced with GitHub Pages' four official,
+   long-published IPs, via the GoDaddy API:
+     185.199.108.153
+     185.199.109.153
+     185.199.110.153
+     185.199.111.153
+   No other record type was touched.
+
+3. DNS AFTER
+   Confirmed directly (not inferred):
+     - GoDaddy API readback: exactly the four A records above, TTL 600.
+     - Public resolution via 8.8.8.8 (Google) and 1.1.1.1 (Cloudflare):
+       both return exactly those four addresses. DNS has genuinely
+       propagated.
+
+4. RESEND DOMAIN HEALTH AFTERWARD
+   Re-checked directly via the Resend API after the DNS change:
+   lilica.co.uk domain status = "verified", sending capability
+   "enabled". The existing SPF/DKIM/DMARC/MX TXT and MX records were
+   independently re-read and confirmed completely untouched (same
+   values as before the A-record change). Mail health is unaffected.
+
+5. CANONICAL SITE HTTPS RESULT
+   Mixed, stated precisely:
+   - CONTENT/ROUTING LAYER: genuinely correct. Bypassing certificate
+     validation to inspect the actual response (a "-k"/insecure probe,
+     used only to separate "is the content right" from "is the
+     certificate right") shows the real Lilica landing page HTML being
+     served at the apex, and the new /invite/?id=<id> query-param route
+     (see item 7-9) returning a genuine 200.
+   - TLS/CERTIFICATE LAYER: NOT yet complete. A strict, standards-
+     compliant HTTPS request to https://lilica.co.uk currently fails
+     certificate validation -- direct certificate inspection (openssl)
+     shows GitHub is still serving its generic `*.github.io` wildcard
+     certificate, not one issued specifically for lilica.co.uk. This is
+     GitHub's own normal automatic certificate-provisioning delay after
+     a custom domain's DNS is newly verified (documented to take up to
+     ~24 hours, often less) -- not a misconfiguration, and not something
+     that can be forced from here. Re-saving the custom-domain setting
+     via the GitHub API did not accelerate it.
+   Do not read "content is correct" as "the public HTTPS URL is fully
+   live for an ordinary browser yet" -- it is not, until the certificate
+   finishes provisioning.
+
+6. FINAL INVITATION URL FORMAT
+   https://lilica.co.uk/invite/?id=<invitation-id>
+   (changed from a path-segment form -- see the routing decision below)
+
+7. 404-VS-200 ROUTING ANALYSIS
+   OPTION A (keep the GitHub Pages 404.html fallback for /invite/<id>):
+     - Visually correct (right body renders).
+     - Real HTTP status is 404 for every such request.
+     - Risk: corporate email-security link-scanners (Safe Links-style
+       rewriters), some webmail preview/crawler bots, and generic
+       "is this link broken" heuristics can judge a link by its status
+       code rather than its rendered body -- a 404 on an invitation
+       email link is exactly the kind of thing that invites a warning
+       banner, a stripped link, or a "this link appears broken" user
+       reaction, for a feature whose entire job is to be trusted enough
+       to tap.
+     - No implementation cost (already built).
+   OPTION B (query parameter, /invite/?id=<id>):
+     - A real static file (public/invite/index.html) at a real path --
+       genuinely returns HTTP 200 on every static host, GitHub Pages or
+       otherwise. No path-based server routing needed at all.
+     - Email-client reliability: strictly better -- no status-code risk.
+     - Mobile-browser behaviour: identical rendering; the id is read
+       from location.search instead of location.pathname.
+     - Universal Links / App Links (future): unaffected either way --
+       Apple/Android path-matching rules match on the URL PATH
+       (/invite/*), not the query string, so a constant /invite/ path
+       with a varying ?id= is, if anything, a SIMPLER match than a
+       varying path segment per invitation.
+     - Deep-link parsing (src/invitationLinks.ts): trivial, contained
+       change -- one regex added alongside the existing one, old form
+       kept as a harmless parsing fallback.
+     - Share: unaffected in shape, only the URL string changes.
+     - Aesthetics/readability: both are similarly short; not a factor.
+     - Implementation complexity: small and fully contained (5 files).
+     - Backwards compatibility: nothing in production depends on the
+       old format yet (never released), so a clean switch to ONE
+       canonical format was possible with no transition period needed;
+       old-format parsing was still kept as a defensive fallback.
+
+8. RESULTING ROUTING DECISION
+   OPTION B was implemented. This was NOT changed merely because "404
+   sounds undesirable" -- it was changed because a 404 is a genuine,
+   documented reliability risk specifically for EMAIL links (the exact
+   delivery channel this feature depends on), the fix was small and
+   fully contained, and it removes the only meaningful downside Option
+   A had while keeping every other property identical. Changed
+   consistently across: src/invitationLinks.ts (invitationWebUrl +
+   parseInvitationIdFromUrl), the deployed send-invitation-email Edge
+   Function's joinUrl (redeployed), public/invite/index.html's
+   client-side parsing script, the isolated github-pages-hosting
+   branch's matching public/invite/index.html and public/404.html
+   (committed 5f1466f, pushed, deployed), and every affected automated
+   test (tests/invitation-links.test.ts,
+   tests/care-circle-invitation-delivery.test.tsx). There is now
+   exactly ONE canonical web invitation URL format.
+
+9. FINAL HTTP STATUS FOR CANONICAL INVITATION URL
+   200, at the content/routing layer (confirmed directly against both
+   the davidmaruta2.github.io mirror and, via an insecure probe pending
+   certificate provisioning, the custom domain itself). See item 5 for
+   the separate, still-pending TLS/certificate caveat.
+
+
+################################################################
+EMAIL
+################################################################
+
+10. REAL APPLICATION-GENERATED INVITE RESULT
+    PASS -- genuinely run through the real production pipeline, not a
+    direct Resend API call. A disposable, admin-created (pre-confirmed
+    -- completing a real signup's email-OTP step needs a human to read
+    an inbox, which this agent cannot do) test organiser account signed
+    in with a real password grant (a genuine, RLS-governed session,
+    the same shape the app itself holds after sign-in), then called the
+    real bootstrap_supported_people RPC, the real invite_member RPC,
+    and the DEPLOYED send-invitation-email Edge Function with that
+    organiser's own real Authorization header -- exactly the path
+    CareCircleScreen.tsx's sendInvitationEmail() takes. The Edge
+    Function returned {"ok":true}.
+
+11. RECEIVED EMAIL RESULT
+    PASS -- confirmed via Resend's own API: last_event "delivered" to
+    dtm35@cam.ac.uk. The exact sent content was then fetched BACK from
+    Resend's own API (not re-typed or assumed) to verify it directly.
+
+12. EXACT JOIN URL
+    https://lilica.co.uk/invite/?id=d5a97b2b-b20b-48b2-8167-c3e18cde8f54
+    -- the real, live invitation id created by this test, confirmed
+    character-for-character from the actual delivered email's own text
+    body, in the new canonical query-parameter format.
+
+
+################################################################
+DEVICE
+################################################################
+
+13. DEVICE/RUNTIME USED
+    NONE. This agent has no physical device, no iOS/Android simulator,
+    and no way to tap a real link, open a real mobile browser, or
+    launch an installed app in this environment. Every item below that
+    requires a physical device is marked NOT RUN, honestly, rather than
+    inferred from any automated test or from the real-pipeline test
+    above. The real-pipeline test proves the SERVER-SIDE chain works;
+    it does not and cannot prove what a human sees or taps.
+
+14. LANDING-PAGE MOBILE RESULT
+    NOT RUN (requires a real mobile browser).
+
+15. OPEN-IN-LILICA RESULT
+    NOT RUN. Additionally, per the brief's own explicit warning: Expo
+    Go's ability to honour lilica:// is genuinely uncertain without a
+    real device test -- this project has no development/EAS build, and
+    Expo Go's own custom-URL-scheme handling for a THIRD-PARTY app
+    scheme (as opposed to exp://) is known to be unreliable across Expo
+    Go versions. This is stated as a real, load-bearing unknown, not
+    assumed to work.
+
+16. EXISTING-USER RESULT
+    NOT RUN.
+
+17. SIGNED-OUT-AUTH RESULT
+    NOT RUN.
+
+18. BRAND-NEW-INVITEE RESULT
+    NOT RUN physically. Strengthened since the prior report: the exact
+    fix is now covered by a real, isolated automated unit test (see
+    item 39) rather than logical tracing alone -- but a physical device
+    run has still not been performed.
+
+19. ONBOARDING-BYPASS RESULT
+    Same as item 18 -- unit-tested, not physically tested.
+
+20. DECLINE RESULT
+    NOT RUN physically. The relevant fall-through logic is directly
+    confirmed by the new automated test (item 39's third case) and was
+    already unchanged/correct per the prior report's tracing.
+
+21. INVITATION-REVIEW RESULT
+    NOT RUN as a real device visual check. Its content correctness
+    (inviter name, person's first name, role, every granted domain with
+    its real description, Accept/Decline) remains covered by existing
+    automated tests (tests/phase15-invitations-screen.test.tsx).
+
+22. ACCEPT RESULT
+    NOT RUN as a physical tap. Server-side membership creation on
+    accept remains proven by existing pgTAP (unchanged this pass); the
+    real-pipeline test above additionally proved accept_invitation
+    correctly REJECTS a revoked id server-side (item 27).
+
+23. RESULTING CARE-SPACE RESULT
+    NOT RUN physically.
+
+
+################################################################
+PERMISSIONS
+################################################################
+
+24. DOMAINS GRANTED (for the restricted physical test the brief asked
+    for)
+    NOT RUN -- this specific restricted-grant physical walkthrough
+    requires a real second device/account and was not performed. The
+    real-pipeline test above granted ["general","health"] to its
+    disposable invitation, but that invitation was revoked (item 27) as
+    part of proving revoke, not accepted, so no live restricted-access
+    session exists to inspect physically.
+
+25. DOMAINS WITHHELD
+    Not applicable -- see item 24.
+
+26-34. HOME / CALENDAR / TO DO / PEOPLE / SEARCH / RECENT ACTIVITY /
+       CARE SUMMARY / DOCUMENTS / ASSIGNMENT RESULTS
+    ALL NOT RUN physically. The underlying server-side enforcement for
+    every one of these projections remains proven at the database
+    level by the existing pgTAP suite (assignments_domain_scoped_read
+    .test.sql and the wider Phase 15 suite, unchanged this pass -- see
+    item 46), and by the earlier direct-inspection permission audit
+    (CARE_CIRCLE_PERMISSION_AUDIT_REPORT.txt). Neither is a substitute
+    for a live, physical, restricted-account walkthrough of the actual
+    running app, which was not performed.
+
+
+################################################################
+OTHER DELIVERY
+################################################################
+
+35. SHARE RESULT
+    NOT RUN physically. Automated coverage (tests/care-circle
+    -invitation-delivery.test.tsx) confirms the Share message contains
+    the inviter, the person's first name, and the new canonical query-
+    parameter URL, and nothing else -- updated and passing this pass.
+
+36. RESEND RESULT
+    NOT RUN physically as a repeat-tap. Confirmed at the pipeline level
+    by item 10-12's real send; automated coverage confirms resending
+    never creates a second invitation row.
+
+37. REVOKE RESULT
+    PASS -- genuinely run, not merely automated. The real disposable
+    invitation from items 10-12 was revoked via the real revoke_invitation
+    RPC, then accept_invitation was called against that same, now-
+    revoked id: the server rejected it ("Invitation not found"),
+    proving revoke is enforced server-side, not merely hidden client-
+    side. This is real-pipeline confirmation, though still not a tap on
+    a physical device against the OLD LINK specifically (the brief's
+    own "try the old link" framing implies a browser/device action;
+    this instead called the same underlying RPC the link would
+    eventually resolve to, which is the mechanism that actually decides
+    the outcome).
+
+38. MULTIPLE-INVITATION RESULT
+    NOT RUN physically or with fresh automated App-level coverage this
+    pass (the brief permits relying on existing coverage where a full
+    physical test is disproportionate) -- unchanged from the prior
+    report's direct-tracing conclusion: refreshMyInvitations() only
+    closes the review screen once the refreshed list is genuinely
+    empty, so accepting/declining one of several leaves the rest
+    visible. No new bug surfaced; nothing required a fresh test this
+    pass.
+
+
+################################################################
+AUTOMATED
+################################################################
+
+39. NEW ONBOARDING-ROUTING REGRESSION COVERAGE
+    ADDED. The brand-new-invitee fix's own state-transition logic was
+    extracted from App.tsx's handleAcceptInvitation() into a small,
+    pure, exported function --
+    resolveOnboardingStateAfterAcceptingInvitation() in
+    src/careSpaceState.ts, alongside its already-tested siblings like
+    integrateReconnectedCareSpaces(). This is a deliberately minimal
+    extraction (a handful of lines), NOT the giant App.tsx render-
+    harness refactor the brief explicitly warned against. New tests
+    (tests/resolve-onboarding-after-accept-invitation.test.ts, 3 cases)
+    directly prove: a brand-new invitee resolves to
+    onboardingComplete=true, stage='home' (never initialPersonStage()'s
+    branches); an existing organiser accepting a second invitation is a
+    true no-op (identical object reference returned, genuinely
+    untouched); and decline's fall-through path stays intact since
+    decline never calls this function at all. App.tsx now calls this
+    exact function instead of inlining the logic.
+
+40. JEST RESULT
+    85 suites / 752 tests. ALL GREEN (up from 84/748 -- the new test
+    file).
+
+41. TYPESCRIPT
+    npm run typecheck: CLEAN.
+
+42. SECRETS
+    "Secret scan passed (343 repository files inspected)."
+
+43. EXPO CONFIG
+    npx expo config --type public: resolves cleanly (exit 0).
+
+44. WEB EXPORT
+    npx expo export --platform web: succeeded, dist/ produced, no
+    errors.
+
+45. DB STATE
+    No database/schema code changed this pass. The established
+    415/415 pgTAP baseline is preserved as-is; no new migration was
+    invented, and local/linked pgTAP were not re-run since nothing
+    database-side changed.
+
+46. GIT DIFF --CHECK
+    Clean (only the expected LF/CRLF advisory warnings on Windows).
+
+
+################################################################
+CLOSURE
+################################################################
+
+47. PHYSICAL QA MATRIX A-T
+
+    A. canonical lilica.co.uk DNS resolves ................... PASS
+       (confirmed via GoDaddy API and two independent public
+       resolvers)
+    B. HTTPS works ............................................ PARTIAL
+       -- content/routing layer correct (200, right body, confirmed
+       via an insecure probe); TLS certificate for the custom domain
+       is still mid-provisioning by GitHub (generic *.github.io cert
+       currently served) -- see item 5. NOT a full PASS until that
+       finishes.
+    C. real Lilica invite email arrives ....................... PASS
+       (item 10-11, genuinely delivered, confirmed via Resend's API)
+    D. email Join opens canonical landing page ................ NOT RUN
+       (no physical device/browser tap performed; the URL itself is
+       confirmed correct and the page is confirmed to serve 200 at
+       the content layer)
+    E. landing page visually works on mobile .................. NOT RUN
+    F. Open in Lilica opens actual installed app .............. NOT RUN
+       (Expo Go's ability to honour lilica:// is a genuine, unresolved
+       unknown without a real device -- see item 15)
+    G. existing signed-in invitee reaches review .............. NOT RUN
+    H. signed-out invitee preserves invitation through auth ... NOT RUN
+    I. brand-new invitee bypasses organiser onboarding ........ FIXED,
+       now UNIT-TESTED (item 39) -- NOT physically tested
+    J. invitation review correct .............................. PASS
+       (automated -- tests/phase15-invitations-screen.test.tsx)
+    K. Accept creates membership .............................. PASS
+       (automated pgTAP, unchanged)
+    L. accepted user enters correct care space ................ FIXED,
+       now UNIT-TESTED (item 39) -- NOT physically tested
+    M. restricted permissions physically correct .............. NOT RUN
+       (item 24-34 -- no live restricted-access session exists to
+       inspect; server-side enforcement remains pgTAP-proven only)
+    N. Decline behaviour correct ............................... PASS
+       at the logic level, now with a direct assertion (item 39's
+       third case) -- NOT physically tested
+    O. Resend physically correct ............................... NOT RUN
+       as a repeat-tap; PASS at the pipeline level (item 10-12)
+    P. Revoke physically correct ............................... PASS
+       at the real-pipeline level (item 37, genuinely run against a
+       real invitation and a real subsequent accept attempt) -- NOT a
+       literal device tap against an old link
+    Q. native Share physically correct ......................... NOT RUN
+       physically; PASS via automated coverage of its exact content
+    R. multiple invitations correct ............................ NOT RUN
+       (relies on existing direct-tracing conclusion, unchanged)
+    S. malformed link handled .................................. PASS
+       (public/invite/index.html's own script explicitly handles a
+       missing/malformed id and shows a calm message -- confirmed by
+       direct code reading, not a real browser test)
+    T. no protected information leaks before acceptance ........ PASS
+       (the landing page and the invitation-review screen both
+       contain, by direct code reading, only the inviter's name, the
+       supported person's first name, role, and domain LABELS/
+       DESCRIPTIONS -- never a record, task, bill, or health note)
+
+48. EXACT REMAINING RELEASE-ONLY DEPENDENCIES
+    - TLS certificate for lilica.co.uk: provisioning automatically via
+      GitHub, not yet complete as of writing. No action possible from
+      here; re-check in a few hours.
+    - Apple Team ID: does not exist (no Apple Developer Program
+      enrolment completed for Lilica specifically; placeholder still in
+      public/.well-known/apple-app-site-association).
+    - Android signing SHA256 fingerprint: does not exist (no EAS build
+      has ever been run); placeholder still in
+      public/.well-known/assetlinks.json.
+    - App Store / Google Play listings: do not exist.
+    - Universal Links / App Links: consequently NOT functional. Current
+      development journey remains, exactly as before: HTTPS landing
+      page -> lilica:// custom scheme -> installed application. This is
+      a later, separate release-configuration task, not attempted here.
+    - A genuine physical-device QA pass covering every item marked NOT
+      RUN above -- this remains the single largest outstanding gap
+      before this feature can be called fully closed.
+
+49. FILES CHANGED THIS PASS
+    Main working branch (uncommitted, per standing instruction):
+      App.tsx (now calls the extracted function instead of inlining
+        the fix)
+      src/careSpaceState.ts (new exported
+        resolveOnboardingStateAfterAcceptingInvitation())
+      src/invitationLinks.ts (query-param routing format)
+      public/invite/index.html (local reference copy, same change)
+      supabase/functions/send-invitation-email/index.ts (joinUrl format
+        -- also REDEPLOYED to lilica-development)
+      tests/invitation-links.test.ts (rewritten for the new format)
+      tests/care-circle-invitation-delivery.test.tsx (URL assertion
+        updated)
+      tests/resolve-onboarding-after-accept-invitation.test.ts (NEW)
+      docs/REVISION_LOG.md (new entry, this pass)
+    Isolated github-pages-hosting branch (pushed, the one pre-approved
+    exception):
+      public/invite/index.html, public/404.html (same routing change) --
+      commit 5f1466f
+    GitHub-side settings changed (not a code diff, but a real, scoped
+    action): custom-domain A records at GoDaddy; github-pages
+    environment's deployment-branch-policies (added github-pages
+    -hosting as an allowed branch, since GitHub had silently restricted
+    it to master only after the first deploy).
+
+50. GIT STATUS
+    Main working branch: prephase22-remove-supported-person-faq-help.
+    Everything in item 49's first list remains UNCOMMITTED, alongside
+    the rest of the already-uncommitted Care Circle/Phase 20D work, per
+    standing instruction. origin/master: a67c40f, untouched.
+    github-pages-hosting: pushed to origin at 5f1466f (was 88b8936).
+
+51. CONFIRMATION: NO MAIN-BRANCH CLOSURE COMMIT/PUSH
+    Confirmed. Nothing on prephase22-remove-supported-person-faq-help
+    was committed or pushed this pass. The ONLY push was the isolated
+    github-pages-hosting branch's own routing-fix commit (5f1466f),
+    which is the exact same kind of narrow, pre-authorised exception as
+    its first commit (88b8936) -- required because GitHub Pages cannot
+    serve content that doesn't exist on the remote.
+
+52. CONFIRMATION: PHASE 22 NOT STARTED
+    Confirmed. docs/PHASE_22_VISUAL_AUDIT.md was not opened, read, or
+    modified this pass.
+
+
+================================================================
+SUMMARY
+================================================================
+
+DNS is genuinely live and propagated; the invitation link's HTTP-status
+risk was identified and fixed with a small, contained, deliberate
+engineering decision (query parameter over path segment) rather than
+left alone by default; a real invitation was sent through the actual
+production pipeline (not a shortcut) and delivered with the new
+canonical URL, confirmed by reading the sent email back from Resend
+itself; the brand-new-invitee fix is now genuinely unit-tested, not
+only logically traced; and revoke was proven enforced server-side
+against a real invitation, not only by pgTAP.
+
+What remains explicitly, honestly open: the custom domain's TLS
+certificate is still provisioning (GitHub's own automatic process, not
+stuck on anything I can act on); and the large majority of the physical
+QA matrix is NOT RUN because it requires a real device, which this
+environment does not have. No physical result has been inferred from
+an automated test or claimed without having actually been performed.
+
+DO NOT START PHASE 22.
+DO NOT COMMIT/PUSH THE WIDER WORK WITHOUT PRODUCT-OWNER APPROVAL.
+================================================================

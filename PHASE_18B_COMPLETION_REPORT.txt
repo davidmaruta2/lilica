@@ -1,0 +1,404 @@
+LILICA - PHASE 18B COMPLETION REPORT
+Account Deletion & Complete Data Export
+12 September 2026
+
+============================================================
+STATUS: Implemented and validated. NOT committed or pushed,
+per the brief's own explicit instruction (section 60) to stop
+and wait for GPT review, product-owner review, physical QA and
+two-account QA.
+============================================================
+
+1. REPOSITORY BASELINE: branch master, HEAD 74b1a61, confirmed
+   equal to origin/master (fetched and compared directly). Working
+   tree was clean except the four pre-existing scratch Notepad
+   completion-report .txt files this repo never commits (same as
+   every prior phase). Hard Start Gate satisfied.
+
+2. PRE_PHASE_18B VALIDATION: TypeScript clean; 44 Jest suites /
+   436 tests passing; secrets scan clean (211 files); local
+   db:reset + db:test + db:lint clean, 245 pgTAP assertions across
+   8 files. Existing Phase 18A behaviour (export_my_data,
+   account_deletion_precheck, clear local data, leave care space,
+   document cleanup queue) spot-verified unchanged before starting.
+
+3. CURRENT ACCOUNT-DELETION BLOCKER CONFIRMED: read directly from
+   the migrations (not from memory). care_space_memberships.user_id
+   references auth.users(id) on delete restrict, and membership
+   rows are permanently on-delete-restrict-referenced from records,
+   occurrences, assignments, record_links and record_attachments --
+   all by design, to preserve historical attribution. A SECOND,
+   previously-unreported reference was found during this phase's
+   own test-writing: care_spaces.bootstrap_owner_id also references
+   auth.users(id) on delete restrict (a Phase 6 idempotency marker,
+   its own comment already says "access is granted exclusively
+   through membership").
+
+4. MEMBERSHIP/AUTH DECOUPLING DESIGN: a Lilica account (live auth
+   identity) and a care-space membership (stable historical
+   identity) are now separable. care_space_memberships.id is NEVER
+   deleted or regenerated. Its user_id becomes nullable and is set
+   to null on account deletion; membership_status gains a third
+   value, 'former', alongside the existing 'active'/'revoked'.
+
+5. SCHEMA CHANGES (one new migration,
+   20260912170000_phase18b_account_deletion.sql):
+   - care_space_memberships.user_id: not null -> nullable.
+   - care_space_memberships.former_display_name: new, nullable text
+     column, a minimal historical snapshot.
+   - care_space_memberships.membership_status check constraint:
+     ('active','revoked') -> ('active','revoked','former').
+   - New consistency constraint: former <=> user_id null AND
+     former_display_name set; not-former <=> user_id set.
+   - care_spaces.bootstrap_owner_id: not null -> nullable (the
+     second blocker found in item 3).
+   - protect_membership_identity() trigger extended: user_id may now
+     transition from live to null exactly once; never reassigned to
+     a different live user; never re-attached once detached.
+   - Two new functions: delete_my_account(), resolve_membership_
+     identities(uuid[]).
+   - account_deletion_precheck() and export_my_data() are completely
+     UNCHANGED -- reused exactly as Phase 18A shipped them.
+
+6. HISTORICAL SNAPSHOT DESIGN: former_display_name captures ONLY
+   the caller's current profiles.display_name at the moment of
+   deletion (or "Former member" if none) -- never an email, never a
+   login identity, never anything else from auth.users. Data
+   minimisation per the brief's own instruction (section 6).
+
+7. BACKFILL BEHAVIOUR: none needed or performed. Every EXISTING
+   membership already has a live user_id and membership_status of
+   'active' or 'revoked' -- the new 'former' state and its snapshot
+   are only ever produced going forward, by delete_my_account()
+   itself, from authoritative live data at the moment of deletion.
+   No inference, no fabricated identity, per section 42.
+
+8. account_deletion_precheck() CHANGES: none. Already did exactly
+   what the brief asks (sole-active-organiser detection, returning
+   enough information -- care_space_id/name/blocking -- for the UI
+   to explain a blocker). Reused, not bypassed or replaced.
+
+9. SECURE SERVER DELETION MECHANISM: delete_my_account(), a single
+   `security definer` Postgres function. This project has no
+   separate Edge Function/service-role backend (a mobile client
+   talking directly to Supabase) -- a security-definer function
+   scoped to exactly this one operation is the narrowest secure
+   mechanism available, and the standard pattern for self-serve
+   deletion in that architecture. No service-role credential, admin
+   credential, or privileged secret is ever exposed to the client.
+   Target is derived exclusively from auth.uid() -- never a
+   caller-supplied id, so a caller can only ever delete themselves.
+
+10. EXACT DELETION SEQUENCE (as implemented, all in one Postgres
+    transaction):
+    1. Require authentication (auth.uid() not null, role
+       'authenticated').
+    2. Idempotency check: if the identity no longer exists in
+       auth.users, return successfully as a no-op.
+    3. Re-run the sole-organiser check server-side; refuse with a
+       plain-language message naming the specific care space if
+       blocked.
+    4. Snapshot + detach every membership the caller holds (former_
+       display_name, membership_status='former', user_id=null).
+    5. Detach care_spaces.bootstrap_owner_id the same way.
+    6. Revoke the caller's own still-pending SENT invitations only.
+    7. Delete the auth.users row (profiles cascades away via its
+       existing Phase 5 on-delete-cascade FK).
+
+11. SOLE-ORGANISER PROTECTION: identical rule/check to
+    account_deletion_precheck() and Phase 15's leave_care_space()/
+    remove_member(). Re-run server-side inside delete_my_account()
+    itself -- never trusts the client-side precheck alone. Blocked
+    with a message naming the exact care space.
+
+12. MULTI-ORGANISER BEHAVIOUR: if a second active organiser already
+    exists in every space the caller organises, deletion proceeds
+    cleanly. Proven in pgTAP: David deletes after Sarah is promoted
+    to co-organiser of Beauty -- Beauty, its records, documents,
+    links and history all survive untouched; David loses all future
+    access.
+
+13. MEMBERSHIP STATE AFTER DELETION: id unchanged; user_id null;
+    membership_status='former'; former_display_name populated;
+    every existing access check (already requiring 'active') denies
+    it access automatically -- zero new RLS logic needed.
+
+14. PROFILE DELETION/DETACHMENT: the live profiles row is removed
+    via the EXISTING profiles.id references auth.users(id) on
+    delete cascade constraint (Phase 5) -- not duplicated with a
+    second explicit delete. Supported people (a wholly separate
+    identity/table) are never touched by this function at all --
+    proven implicitly by every surviving-data assertion in pgTAP.
+
+15. AUTH DELETION: delete from auth.users where id = caller_id, the
+    final step, only after every detach/snapshot/revoke step above
+    has already succeeded in the same transaction.
+
+16. SHARED-RECORD RETENTION: proven directly in pgTAP -- an
+    appointment and a document created by the deleting user both
+    survive, still queryable by the remaining organiser, with
+    created_by_membership_id still pointing at the (now former)
+    membership.
+
+17. OCCURRENCE RETENTION: occurrences reference membership.id, never
+    user_id or touched by this function at all -- no occurrence was
+    created/mutated by this migration or function, so none needed
+    a dedicated survival assertion beyond what the schema itself
+    already guarantees (same FK shape as records/assignments, both
+    of which ARE explicitly tested).
+
+18. ASSIGNMENT HANDLING: proven in pgTAP -- an assignment made to
+    the deleting user survives, still pointing at their (now
+    former) membership id, with its own pre-existing
+    display_name_snapshot (a Phase 8 field) untouched. Never
+    silently reassigned to the remaining organiser or to
+    "Unassigned". Client-side, RecordDetail.tsx/ToDoScreen.tsx's
+    assignmentLabel() now shows "Assignee no longer available"
+    instead of silently rendering nothing for such an assignee (a
+    real, named, pre-existing gap fixed along the way).
+
+19. ACTIVITY ATTRIBUTION: no activity-log table exists in this
+    schema (unchanged from Phase 18A's own finding) -- there is
+    nothing to preserve attribution IN beyond what
+    created_by_membership_id/display_name_snapshot already do,
+    both of which are proven to survive (items 16/18).
+
+20. DOCUMENT RETENTION: proven in pgTAP -- a document record and its
+    attachment metadata both survive deletion, remain readable by
+    the remaining organiser, and the underlying cloud file (Storage
+    object) is never touched by delete_my_account() at all (the
+    function contains no Storage call whatsoever).
+
+21. ATTACHMENT RETENTION: same as above -- record_attachments rows
+    are untouched; created_by_membership_id still points at the now-
+    former membership.
+
+22. RECORD-LINK RETENTION: proven in pgTAP -- a document-to-
+    appointment link created by the deleting user survives and
+    remains visible to the remaining organiser.
+
+23. INVITATION HANDLING: the deleting user's own still-PENDING sent
+    invitation is revoked (proven in pgTAP); an invitation they sent
+    that was already ACCEPTED (now a real membership, handled by
+    item 13) is untouched; nothing about invitations created by
+    OTHER organisers is ever touched (there is no query surface for
+    it in the function).
+
+24. DEVICE CLEANUP: no server-side device-registration table exists
+    in this schema at all -- Phase 14's reminders are local-device-
+    only by explicit design (see docs/PHASE_14_ARCHITECTURE.md).
+    Nothing server-side to clean up; documented rather than
+    fabricating a table that has no other use.
+
+25. REMINDER CLEANUP: same as above -- purely local device state,
+    cleared by the existing clearLocalDataForOwner() the client
+    calls after a successful deletion (item 26).
+
+26. LOCAL CLEANUP: src/accountLifecycle.ts's deleteMyAccount() calls
+    delete_my_account() first; only on genuine server success does
+    App.tsx's new onAccountDeleted handler run -- which calls the
+    SAME clearLocalDataForOwner()+signOut() sequence "Clear data
+    from this device" already used. Server deletion always happens
+    before any local wipe (brief section 24).
+
+27. FAILURE HANDLING: if delete_my_account() errors (e.g. the
+    sole-organiser block), PrivacyDataScreen shows the real error
+    verbatim and local data is never touched -- onAccountDeleted()
+    is only ever called after a genuinely successful RPC result.
+    Proven directly in a client test.
+
+28. RETRY/IDEMPOTENCY: proven in pgTAP -- calling delete_my_account()
+    a second time against an already-deleted identity is a safe,
+    silent no-op; the former membership is confirmed not duplicated
+    or corrupted by the retry.
+
+29. EXPORT ARCHIVE IMPLEMENTATION: per direct product-owner decision
+    (a zip dependency was proposed and explicitly declined -- see
+    item 43 below), NOT a single .zip. Instead: data.json plus one
+    downloaded file per authorised, available document, organised
+    into documents/<care space>/<safe filename>, offered
+    INDIVIDUALLY through the native share sheet (each with its own
+    Share button in the UI) rather than as one combined archive.
+
+30. data.json STRUCTURE: unchanged from Phase 18A's export_my_data()
+    server shape (profile, careSpaces[] each with records/
+    attachments/recordLinks), with each attachment gaining two
+    client-added fields: exportPath (e.g.
+    "documents/Beauty/Hospital letter.pdf") and fileAvailable
+    (true/false). Never includes storageObjectPath, a signed URL,
+    an auth token, or any credential -- verified directly in tests.
+
+31. ACTUAL DOCUMENT FILE EXPORT: for each attachment the (unchanged)
+    export_my_data() RPC already authorised, the client separately
+    queries record_attachments directly (its own existing SELECT
+    RLS re-scopes this to exactly the same authorisation) for that
+    attachment's storage_object_path, then downloads the CURRENT
+    cloud file via a short-lived signed URL -- never a possibly-
+    stale local device copy, per the brief's own explicit
+    instruction (section 30).
+
+32. PERMISSION FILTERING: happens at two independent layers before
+    any byte is ever fetched. export_my_data()'s own domain-grant
+    filter decides which attachment metadata even appears in the
+    export (a restricted document's id never reaches the client at
+    all); the Storage bucket's own RLS (Phase 16, unchanged)
+    independently re-checks the same domain-grant decision before
+    serving any byte. No document is ever downloaded first and
+    filtered after.
+
+33. MULTIPLE-CARE-SPACE EXPORT: unchanged, already correct in Phase
+    18A's export_my_data() -- each care space's records/attachments/
+    links are filtered independently through that membership's own
+    domain grants; an organiser role in one space confers no
+    authority in another.
+
+34. MISSING-FILE HANDLING: a legacy attachment with no storage path,
+    one not yet marked 'uploaded', or one whose signed-URL download
+    fails, is marked fileAvailable:false and skipped -- the export
+    completes for everything else, never aborts, never fabricates
+    bytes. The UI reports how many documents, if any, were skipped.
+
+35. TESTS ADDED (client): tests/phase18-account-lifecycle.test.ts
+    extended by 11 (deleteMyAccount success/blocker-passthrough/
+    generic-failure; exportMyData's real-file download, always-
+    current-copy behaviour, skip-on-not-uploaded, skip-on-download-
+    failure without aborting, filename de-duplication; shareExportFile
+    success/unavailable). tests/phase18-privacy-data-screen.test.tsx
+    extended by 7 (per-file Share list, skipped-document count, the
+    real final confirmation gated on a clear precheck, a confirmed
+    deletion calling the real function then onAccountDeleted, a
+    failed deletion never calling onAccountDeleted).
+    tests/record-detail.test.tsx and tests/todo-card-hierarchy.test.tsx
+    each gained one test for the new "Assignee no longer available"
+    fallback.
+
+36. pgTAP/RLS TESTS: supabase/tests/database/phase18b_account_
+    deletion.test.sql, 29 new assertions (274 total across 9 files).
+    Covers unauthenticated rejection, sole-organiser block (naming
+    the space, leaving state untouched), a no-care-spaces account
+    deleting freely, a second organiser unblocking deletion, actual
+    auth.users/profiles removal, membership survival (id/detached/
+    former/snapshotted), selective invitation revocation, shared
+    record/link/attachment/assignment survival with intact
+    attribution, resolve_membership_identities() correctness for
+    both a live and a former membership, idempotent retry, and the
+    trigger refusing both re-attachment and cross-user reassignment.
+
+37. SETTINGS DRAWER REGRESSION RESULT: PASS. src/components/
+    SettingsMenu.tsx was not touched at all in this phase (confirmed
+    by its absence from the diff, item 45). Delete account's new
+    real flow lives entirely inside the same PrivacyDataScreen the
+    drawer already hosted, wired the same way. The existing
+    tests/settings-navigation.test.tsx suite (unchanged) still
+    passes unmodified, continuing to prove the drawer's internal-
+    navigation behaviour end-to-end.
+
+38. FULL PRE/POST VALIDATION: PRE (item 2) vs POST -- TypeScript:
+    clean both. Jest: 44 suites/436 tests -> 44 suites/450 tests,
+    zero regressions. Secrets: 211 files clean -> 213 files clean.
+    pgTAP: 245 assertions/8 files -> 274 assertions/9 files, both
+    clean lint. Expo config/web export: clean both.
+
+39. lilica-development MIGRATION/DEPLOYMENT: npx supabase db push
+    --linked --dry-run confirmed exactly one pending migration
+    (20260912170000_phase18b_account_deletion.sql), no unrelated
+    diff; applied; npx supabase migration list --linked confirmed
+    local/remote histories match through that migration; npx
+    supabase test db --linked passed all 274 assertions; npx
+    supabase db lint --linked clean. NEVER production -- no
+    production Lilica project exists.
+
+40. PHYSICAL QA STILL REQUIRED: yes, entirely. Nothing in
+    docs/PHASE_18_QA.md's new Phase 18B sections (account deletion,
+    complete export, Settings drawer regression) has been performed
+    on a real device. No item there may be marked passed until the
+    product owner actually does so.
+
+41. TWO-ACCOUNT QA STILL REQUIRED: yes. The brief's own two-account
+    scenario (David/Sarah organising Beauty together, David
+    deleting, Sarah retaining everything) and the export QA scenario
+    (Beauty organiser + Jackie restricted viewer) are both written
+    out in docs/PHASE_18_QA.md but not yet performed.
+
+42. DOCUMENTATION UPDATED: docs/PHASE_18_ARCHITECTURE.md (new Phase
+    18B section, ~2500 words, covering every design decision above
+    plus known limitations); docs/PHASE_18_QA.md (new Phase 18B
+    checklist sections, two-account scenario, export scenario,
+    drawer regression); docs/REVISION_LOG.md (new dated entry);
+    AGENTS.md, CLAUDE.md, docs/LUMEN_HANDOFF.md (status pointers);
+    docs/SUPABASE_OPERATIONS.md (hosted deployment record). Phase
+    18A's own history was NOT rewritten -- its known-limitations
+    section was updated to strike through the two items 18B
+    resolves, with a note pointing to where, rather than pretending
+    18A always had them.
+
+43. KNOWN LIMITATIONS: (a) No .zip archive -- a zip dependency
+    (JSZip) was proposed with full rationale and explicitly
+    DECLINED by the product owner (asked directly mid-implementation,
+    per the brief's own section 38 gate); export instead shares
+    data.json and each document individually. (b) resolve_membership_
+    identities() is implemented and tested server-side but wired
+    into the client only as a generic "Assignee no longer available"
+    fallback, not yet the fuller "David M - Former member" treatment
+    the brief's own examples show -- a named scope reduction given
+    this phase's size. (c) Email change, in-app password change, an
+    About screen, and care-space deletion remain unimplemented,
+    unchanged from Phase 18A and out of this phase's scope too. (d)
+    No legal/retention claims are made anywhere (no invented 30-day
+    recovery window, no GDPR conclusions, no supported-person legal-
+    authority rules) -- per the brief's own explicit instruction not
+    to invent them.
+
+44. OUT-OF-SCOPE FINDINGS: the second auth.users reference
+    (care_spaces.bootstrap_owner_id, item 3) was the only
+    out-of-scope-adjacent discovery, and it was squarely IN scope
+    once found (it directly blocked the very feature being built) --
+    handled as part of this same migration rather than deferred.
+    Nothing else outside Phase 18B's stated boundary was touched:
+    Settings drawer, Home/Calendar/To Do/People, onboarding, the
+    self/someone-else fork, billing/trial/paywall, OCR, Ask Lilica,
+    global search, and whole-care-space deletion were all left
+    completely alone.
+
+45. COMPLETE DIFF AUDIT:
+    A (Phase 18B app implementation) -- App.tsx, src/accountLifecycle.ts,
+       src/screens/PrivacyDataScreen.tsx, src/components/RecordDetail.tsx,
+       src/screens/ToDoScreen.tsx.
+    B (database/backend) -- one new migration
+       (20260912170000_phase18b_account_deletion.sql).
+    C (tests) -- one new pgTAP file, four updated client test files.
+    D (documentation) -- this file plus the seven named in item 42.
+    E (unexpected) -- EMPTY. Nothing changed outside this scope;
+       src/components/SettingsMenu.tsx (the Settings drawer) does not
+       appear in the diff at all.
+
+46. GIT STATUS: NOT committed, NOT pushed. Working tree currently
+    shows the 16 files above as modified/new, plus the untracked
+    scratch Notepad completion-report .txt files this repo never
+    commits (same convention as every prior phase).
+
+47. SETTINGS DRAWER NOT REDESIGNED: confirmed. Zero changes to
+    src/components/SettingsMenu.tsx, its width, its animation, or
+    its internal-navigation model. Verified both by the diff (it
+    isn't in it) and by the unmodified tests/settings-navigation.test.tsx
+    suite still passing unchanged.
+
+48. BILLING/PAYWALL NOT STARTED: confirmed. No subscription code,
+    trial timer, StoreKit/Play Billing integration, entitlement
+    state, paywall, restore-purchase flow, or pricing screen exists
+    anywhere in this change or the wider repository.
+
+49. WHOLE-CARE-SPACE DELETION NOT STARTED: confirmed. No lifecycle
+    policy, function, or UI for deleting a care_spaces row was
+    added, discussed as an implementation, or improvised. (It was
+    named and explicitly declined as future scope in Phase 18A's
+    own architecture doc, and is untouched here.)
+
+50. PHASE 19+ NOT STARTED: confirmed. Nothing beyond the Phase 18B
+    boundary described in the brief's own acceptance standard was
+    implemented, planned in code, or scaffolded.
+
+============================================================
+This stops here. Say the word once you (and/or GPT) have reviewed
+this and I will commit -- push only if you separately say so.
+============================================================

@@ -76,7 +76,7 @@ const CLOSED_HEIGHT = 118;
 const ITEM_GAP = 12;
 const categoryTerms: Record<LilicaRecordType, { heading: string; singular: string; plural: string; add: string }> = {
   appointment: { heading: 'Appointments', singular: 'appointment', plural: 'appointments', add: 'Add appointment' },
-  task: { heading: 'Things to do', singular: 'thing to do', plural: 'things to do', add: 'Add something to do' },
+  task: { heading: 'Errands or activities', singular: 'errand or activity', plural: 'errands or activities', add: 'Add an errand or activity' },
   bill: { heading: 'Bills and renewals', singular: 'bill or renewal', plural: 'bills or renewals', add: 'Add bill or renewal' },
   homeMatter: { heading: 'Home or car matters', singular: 'home or car matter', plural: 'home or car matters', add: 'Add home or car matter' },
   document: { heading: 'Important documents', singular: 'document', plural: 'documents', add: 'Add document' },

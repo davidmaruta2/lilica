@@ -1,3 +1,8 @@
+const mockExportCareSummaryPdf = jest.fn();
+jest.mock('../src/careSummaryPdf', () => ({
+  exportCareSummaryPdf: (...args: unknown[]) => mockExportCareSummaryPdf(...args),
+}));
+
 import { fireEvent, render } from '@testing-library/react-native';
 
 import { CareSummaryScreen } from '../src/screens/CareSummaryScreen';
@@ -10,6 +15,11 @@ const records: LilicaRecord[] = [
 const members: CareCircleMember[] = [
   { membershipId: 'mem-1', displayName: 'David', role: 'organiser', relationshipType: 'Mum', isSelf: true, grantedDomains: [] },
 ];
+
+beforeEach(() => {
+  mockExportCareSummaryPdf.mockReset();
+  mockExportCareSummaryPdf.mockResolvedValue({ ok: true, uri: 'file:///care-summary.pdf' });
+});
 
 describe('CareSummaryScreen', () => {
   it('shows a calm empty state when there is nothing to summarise yet', async () => {
@@ -41,5 +51,16 @@ describe('CareSummaryScreen', () => {
   it('never shows a "N hidden" placeholder for anything', async () => {
     const screen = await render(<CareSummaryScreen records={records} careCircleMembers={members} recentActivity={[]} personName="Beauty" onBack={jest.fn()} onOpenRecord={jest.fn()} />);
     expect(screen.queryByText(/hidden/i)).toBeNull();
+  });
+
+  it('exports a detailed PDF from the complete authorised screen inputs', async () => {
+    const screen = await render(<CareSummaryScreen records={records} careCircleMembers={members} recentActivity={[]} personName="Beauty" onBack={jest.fn()} onOpenRecord={jest.fn()} />);
+    await fireEvent.press(screen.getByLabelText('Export Care Summary as PDF'));
+    expect(mockExportCareSummaryPdf).toHaveBeenCalledWith({
+      records,
+      careCircleMembers: members,
+      recentActivity: [],
+      personName: 'Beauty',
+    });
   });
 });

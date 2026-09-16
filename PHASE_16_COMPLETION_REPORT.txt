@@ -1,0 +1,341 @@
+LILICA -- PHASE 16 COMPLETION REPORT (for GPT / product-owner review)
+Prepared 12 September 2026. Structured against the brief's own section 40.
+
+SCOPE NOTE UP FRONT: partway through implementation, the product owner
+gave direct instruction to split the brief's full scope. This report
+covers the DURABLE FOUNDATION only (schema, RLS, cloud file transfer,
+client library) -- RecordEditor/RecordDetail UI integration, physical
+QA, and the hosted migration apply are explicitly out of scope for this
+report and are now named Phase 17 (UI) / a separate hosted-apply step.
+Nothing below claims that deferred work is done.
+
+
+1. STARTING HEAD / REPOSITORY STATE
+------------------------------------
+Branch: master. Starting HEAD: a00c099 (in sync with origin/master).
+Working tree: one known uncommitted change (src/screens/PersonScreen.tsx's
+2-column tile grid, from immediately prior in the same session, not
+unrelated to this work) -- not "unexpectedly dirty," so implementation
+proceeded per the brief's own instruction on that point.
+
+2. PRE-PHASE-16 VALIDATION BASELINE
+------------------------------------
+TypeScript: clean. Jest: 34 suites / 348 tests (347 passing; 1
+pre-existing, unrelated UTC/local-date flake in
+tests/home-strip-navigation.test.tsx, already documented before this
+phase began, confirmed via git-stash to predate this work). pgTAP: 183
+assertions across 6 files, clean lint, clean local database rebuild.
+Secret scan: clean.
+
+3. DATABASE MIGRATIONS ADDED
+------------------------------------
+One: supabase/migrations/20260912100000_phase16_document_maturity.sql.
+Adds record_links, record_attachments, a private Storage bucket and its
+RLS policies, and one helper function (storage_object_care_space_id).
+Does not alter any existing table, function or policy from Phases 6-15.
+
+4. SUPABASE STORAGE CHANGES
+------------------------------------
+New private bucket `document-attachments` (public=false, 25MB file size
+limit). Path convention: "{care_space_id}/{record_id}/{attachment_id}-
+{safe filename}" -- stable IDs identify ownership; the filename suffix
+is for human readability only and is never itself a security boundary.
+Four storage.objects RLS policies (select/insert/update/delete) gate on
+the existing can_access_care_space_records(care_space_id, 'documents',
+read-or-write) -- the same domain-grant decision every record already
+uses. No service-role key reaches the client at any point; all
+upload/download happens through the authenticated user's own session
+plus RLS.
+
+5. ATTACHMENT ARCHITECTURE
+------------------------------------
+Two representations now exist, deliberately, side by side:
+- record_attachments (new): durable, independently-RLS-protected cloud
+  metadata with its own upload_status lifecycle (pending/uploaded/
+  failed), narrow security-definer RPCs (upsert_record_attachment,
+  mark_attachment_upload_status, remove_record_attachment) so an
+  "uploading..." status tick never has to go through the generic record
+  outbox's conflict-merge machinery meant for user edits.
+- records.attachment_manifest (existing, Phase 7, unchanged): the
+  local-first convenience mirror. Since its own payload builder already
+  spreads every attachment field except uri, the two new client-side
+  fields (storageObjectPath, uploadStatus) flow through it with zero
+  changes needed to that existing sync code.
+RecordAttachment.uri (src/types.ts) is now optional, reflecting reality:
+a record pulled fresh on a second device genuinely has no local file
+until that device downloads its own copy.
+
+6. UPLOAD/OFFLINE ARCHITECTURE
+------------------------------------
+src/attachments.ts's queuePendingAttachmentUploads(careSpaceId, record):
+for a document record, uploads every attachment not yet marked
+'uploaded' -- persists metadata via RPC, uploads bytes (the local Expo
+File object passed directly to Supabase Storage, since it implements
+Blob), then marks uploaded ONLY on genuine success. Any failure at any
+step leaves the attachment 'pending' for a later retry; nothing here
+ever marks a file uploaded before it is. Client-generated attachment IDs
+(matching records.id's own pattern) make a retried call converge rather
+than duplicate, both for the metadata RPC (upsert on conflict) and the
+byte upload (upsert:true).
+HONEST LIMITATION: this function is written and unit-tested but not yet
+called from anywhere in the app (see item 25). A document added today
+still only gets a local-device copy, exactly as before this phase --
+Phase 16 did not change what happens when a user adds a document today,
+only what the CODE IS CAPABLE OF once Phase 17 calls it.
+
+7. SECOND-DEVICE BEHAVIOUR
+------------------------------------
+A REAL, PRE-EXISTING BUG WAS FOUND AND FIXED (not merely investigated
+this time): src/recordSync.ts's localRecordFromRow() used to reconstruct
+a pulled record's attachments from ONLY whatever the pulling device
+already had locally -- always empty on a fresh device -- never from the
+server's own attachment_manifest, even though that metadata was sitting
+in Supabase the whole time. It now builds attachments from the
+authoritative server manifest, overlaying a local uri only where the
+SAME device already has a copy under that attachment id. Confirmed by
+two tests in tests/record-sync.test.ts (one updated from asserting the
+old buggy behaviour to the correct one; one new test proving THIS
+device's own local file survives its own create-then-echo round trip).
+This makes the DATA side of "second device discovers the attachment"
+true today, independent of whether Phase 17 has built a way to open it
+yet.
+
+8. DOCUMENT-VIEW BEHAVIOUR
+------------------------------------
+src/attachments.ts's openAttachment(attachment): prefers this device's
+own local copy; otherwise requests a short-lived signed URL (the bucket
+is private -- no permanent public URL exists), downloads to a scratch
+cache directory, then hands the file to the native share/open sheet via
+the newly added expo-sharing dependency -- no custom PDF/image renderer
+was built, per the brief's own instruction. Every failure mode (missing
+local copy, cloud-only file not yet uploaded, download failure, sharing
+unavailable) resolves to a friendly message, never a throw/crash.
+HONEST LIMITATION: not yet wired to any button in the UI (Phase 17).
+
+9. RECORD-LINK SCHEMA AND SEMANTICS
+------------------------------------
+record_links: id, care_space_id, source_record_id, target_record_id,
+link_type ('related_to' | 'action_for' -- both already existed in the
+pre-existing RecordLink TypeScript shape, so nothing was renamed),
+created_by_membership_id, created_at, deleted_at. A partial unique index
+on (source, target, type) where not deleted makes creation idempotent
+without a separate receipts table. Both records must belong to the same
+care space -- enforced in create_record_link() by looking each record up
+scoped to the caller-supplied care_space_id; a cross-space attempt is
+rejected outright (proven by pgTAP). No direct table writes are
+permitted (RLS has no insert/update/delete policy) -- only the
+security-definer RPCs.
+
+10. BIDIRECTIONAL PRESENTATION
+------------------------------------
+One stored row, read from either side: list_record_links(record_id)
+returns every OTHER record linked to/from the one passed in, with a
+direction ('outgoing'|'incoming') computed relative to that record --
+proven by pgTAP (the document sees the appointment as outgoing; the
+SAME row shows the document from the appointment's side as incoming).
+No duplicate reverse row is ever created.
+HONEST LIMITATION: RecordDetail does not yet render this (Phase 17) --
+the query and its filtering are ready; no screen calls it yet.
+
+11. LINKED-TASK WORKFLOW
+------------------------------------
+No new task-creation mechanism was built -- by design. The existing
+RecordEditor.save() -> onSave(record) -> host onSaveRecord chain (used by
+every "Add" button today) is exactly what a document-driven task would
+call; create_record_link(..., 'action_for') is the only new piece
+needed to connect the two. This was confirmed architecturally, not
+executed end-to-end in a UI flow yet, since that flow doesn't exist
+until Phase 17 builds the "Does anything need doing?" prompt.
+
+12. EXPIRY BEHAVIOUR
+------------------------------------
+Untouched. record.expiryDate remains exactly what it was -- a fact about
+the document, structurally isolated from a linked task's own dueDate.
+No automatic task was created from expiry, and none will be unless the
+user explicitly creates a linked task (matching the brief's FACT-vs-
+ACTION separation).
+
+13. RECORDDETAIL INTEGRATION
+------------------------------------
+Not touched this phase -- deliberately. RecordDetail.tsx's existing
+per-type-conditional-row pattern is confirmed (in docs/PHASE_16_ARCHITECTURE.md)
+as the right place for a future "Related to"/"Documents"/"View document"
+addition, but no code there was changed. This is Phase 17 scope.
+
+14. RLS/PERMISSIONS BEHAVIOUR
+------------------------------------
+Every new table/bucket enforces the SAME can_access_care_space_records()
+domain-grant decision Phase 15 already established -- no second
+authorisation system was introduced anywhere. A companion verification
+(docs/PHASE_15_ARCHITECTURE.md's 12 September addendum, done just before
+this phase) had already confirmed Phase 15's own enforcement has no
+organiser-only gap; this phase's own pgTAP suite re-confirms the same
+pattern holds for the new tables specifically.
+
+15. EXPLICIT DOCUMENTS-DOMAIN TESTS
+------------------------------------
+45 new pgTAP assertions (supabase/tests/database/phase16_document_maturity.test.sql,
+228 total across 7 files, zero regressions) covering, at minimum, every
+item the brief's section 13 asked for: organiser access; contributor
+WITH the documents grant (read+write); contributor WITHOUT it (denied);
+a synthetic read-only grant (proves the read/write primitive is correct
+independent of what today's invite UI happens to offer); viewer (read
+yes, write no); pending invitee (denied); cross-care-space member
+(denied); revoked member (immediate denial); assignment does not grant
+access (assigning to an ungranted member is rejected outright by the
+existing Phase 15 assignee-visibility check, now proven specifically for
+'documents'). Plus link idempotency/tombstone/cross-space-rejection/
+non-disclosure-to-an-unauthorised-viewer, plus storage.objects RLS
+proven at the row level for insert/select.
+ONE DOCUMENTED TEST LIMITATION: the storage DELETE policy could not be
+exercised via raw SQL locally -- Supabase's own storage.protect_delete()
+trigger blocks ANY raw delete against storage.objects regardless of
+role, before RLS is even evaluated. The policy itself is still correct
+and in place for when the real Storage API is used; this is a testing
+limitation, not a gap in the policy.
+
+16. BACKWARD COMPATIBILITY
+------------------------------------
+Every existing document record already has zero link/task data (nothing
+could have created one before this phase existed) and, per the type
+change, an attachments array whose entries may now legitimately lack
+uri -- both states the existing RecordEditor/RecordDetail code already
+handled correctly (neither ever assumed uri was populated for anything
+beyond local display). No existing record needed migrating, and none
+was touched.
+
+17. DELETION/FILE CLEANUP BEHAVIOUR
+------------------------------------
+remove_record_link() and remove_record_attachment() exist and tombstone
+correctly (proven by pgTAP) -- deleting a document's link never deletes
+the record on the other end, and removing an attachment's metadata row
+never deletes the underlying canonical document record.
+HONEST LIMITATION: nothing currently CALLS remove_record_attachment or
+deletes the actual Storage object when a document (or one of its
+attachments) is removed via the existing RecordEditor "Remove" flow --
+that wiring is Phase 17 scope, named explicitly in
+docs/PHASE_16_ARCHITECTURE.md's numbered list.
+
+18. MULTI-PERSON ISOLATION
+------------------------------------
+Every new RLS policy and RPC scopes strictly by care_space_id, mirroring
+every existing Phase 7/15 pattern exactly. Cross-care-space rejection is
+proven by pgTAP at three separate layers: record_links creation (a
+different organiser's care space cannot link Beauty's records),
+record_attachments (a different care space's member cannot attach a
+file to, or even read attachment metadata for, another space's record),
+and storage.objects (a different care space's member cannot upload into
+or read another space's document path).
+
+19. TESTS ADDED
+------------------------------------
+Database: 45 pgTAP assertions (1 new file). Client: tests/phase16-record-links.test.ts
+(5 tests), tests/phase16-attachments.test.ts (12 tests, with explicit
+expo-file-system/expo-sharing mocks), plus 2 tests/record-sync.test.ts
+cases (1 updated, 1 new) proving the second-device fix. Total: 17 new
+Jest tests, 45 new pgTAP assertions.
+
+20. PRE/POST VALIDATION COMPARISON
+------------------------------------
+TypeScript: clean before and after. Jest: 34 suites/348 tests ->
+36 suites/366 tests (net +2 suites/+18 tests -- 17 new plus one existing
+test's assertion corrected, nothing else changed or removed). pgTAP:
+183 -> 228 assertions across 6 -> 7 files. Database lint: clean before
+and after. Secret scan: clean before (187 files) and after (189 files).
+Local database rebuild: clean before and after.
+
+21. HOSTED lilica-development CHANGES
+------------------------------------
+NONE APPLIED. `npx supabase db push --linked --dry-run` was run and
+confirmed exactly one pending migration (20260912100000_phase16_document_maturity.sql)
+with no unrelated diff, no seeds, no roles. The migration was NOT pushed
+-- awaiting explicit product-owner instruction, per this project's
+standing Supabase-operations discipline (never push without an explicit
+go-ahead, dry-run first, report exactly what would change).
+
+22. PHYSICAL-DEVICE QA STILL REQUIRED
+------------------------------------
+Not applicable yet and explicitly not claimed as done. There is no new
+UI in the app for a physical device to exercise this phase -- see
+docs/PHASE_16_QA.md, which carries forward the full A-Z checklist from
+the original brief for whenever Phase 17's UI lands. No physical-device
+claim is made anywhere in this report or the docs.
+
+23. DOCUMENTATION UPDATED
+------------------------------------
+New: docs/PHASE_16_ARCHITECTURE.md (full technical detail, including an
+explicit numbered list of exactly what Phase 17 still needs to build),
+docs/PHASE_16_QA.md. Updated: docs/REVISION_LOG.md (one detailed entry
+matching this project's established per-change convention),
+docs/PHASE_16_DOCUMENTS_INVESTIGATION.md (a pointer added at the top,
+noting Phase 16 was subsequently authorised -- the investigation's own
+findings were NOT rewritten, preserving the actual development history
+per the brief's own instruction), AGENTS.md, CLAUDE.md,
+docs/LUMEN_HANDOFF.md (current-state sections updated to name Phase 16
+as foundation-complete and Phase 17 as the next, not-yet-started step).
+
+24. KNOWN LIMITATIONS
+------------------------------------
+- queuePendingAttachmentUploads() and openAttachment() are written and
+  unit-tested but called by nothing yet -- documents added today behave
+  exactly as they did before this phase (local-only) until Phase 17
+  wires them in.
+- No UI exists yet to create a link, answer "does anything need doing?",
+  or view a document's related records/tasks.
+- The storage.objects DELETE RLS policy could not be exercised via raw
+  SQL locally (a Supabase-native test-harness limitation, not a policy
+  gap -- see item 15).
+- No cleanup job exists yet for an orphaned Storage object left behind
+  by a record/attachment deletion that happened while offline (Phase 17
+  scope, named in the architecture doc).
+- The hosted lilica-development migration has not been applied.
+
+25. OUT-OF-SCOPE ISSUES DISCOVERED BUT NOT FIXED
+------------------------------------
+None newly discovered during THIS phase's implementation beyond what the
+prior Documents investigation had already surfaced (which this phase
+existed specifically to address). No other unrelated defect was found
+and left unfixed during this pass.
+
+26. COMPLETE DIFF CLASSIFICATION
+------------------------------------
+A. Required Phase 16 production implementation: src/types.ts,
+   src/recordSync.ts, src/recordLinks.ts (new), src/attachments.ts (new),
+   package.json/package-lock.json/app.json (expo-sharing).
+B. Phase 16 database/storage migration: supabase/migrations/20260912100000_phase16_document_maturity.sql.
+C. Phase 16 tests: tests/record-sync.test.ts (updated),
+   tests/phase16-record-links.test.ts (new),
+   tests/phase16-attachments.test.ts (new),
+   supabase/tests/database/phase16_document_maturity.test.sql (new).
+D. Phase 16 documentation: docs/PHASE_16_ARCHITECTURE.md (new),
+   docs/PHASE_16_QA.md (new), docs/PHASE_16_DOCUMENTS_INVESTIGATION.md,
+   docs/REVISION_LOG.md, AGENTS.md, CLAUDE.md, docs/LUMEN_HANDOFF.md.
+E. Unexpected/unrelated: src/screens/PersonScreen.tsx, src/screens/ToDoScreen.tsx,
+   src/screens/CalendarScreen.tsx, src/components/SettingsCogButton.tsx.
+   THESE ARE PRESENT and are explicitly flagged here rather than hidden
+   inside the Phase 16 commit description without comment: they are
+   small, PRODUCT-OWNER-DIRECTED visual follow-ups from the SAME live
+   session (People's "Care circle" pill redesign through several
+   rejected iterations, Calendar's empty-state text colour, To Do's
+   cards becoming a 2-up tile grid with icon-above-text) -- given
+   directly and explicitly by the product owner mid-session, not
+   self-initiated scope creep, and were called out as a separate
+   category in the commit message rather than folded silently into the
+   Phase 16 architectural description. No Welcome/auth/onboarding/
+   Home/Phase 7-15 file was touched.
+
+27. GIT STATUS
+------------------------------------
+Committed as deb79e2 ("Phase 16 Document Maturity: durable link/
+attachment foundation (UI in Phase 17)") and pushed to origin/master, on
+explicit product-owner instruction ("commit and push. phase 17 is next
+step"). Working tree confirmed clean after push.
+
+28. EXPLICIT CONFIRMATION
+------------------------------------
+Phase 17 was NOT started. No RecordEditor/RecordDetail UI change, no
+task-creation-from-a-document flow, and no physical-device QA exists
+for any of this work. The next step requires its own separate, explicit,
+bounded implementation prompt, per standing project discipline.
+
+END OF REPORT.

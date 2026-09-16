@@ -1,0 +1,1329 @@
+LILICA — PRE-PHASE-22 STRUCTURAL COMPLETION
+PHASE 20C IMPLEMENTATION + PHASE 20D/20E ARCHITECTURE AUDIT
++ FINAL JOINTLY GAP RECONCILIATION
+
+IMPLEMENTATION AGENT: CLAUDE
+
+
+============================================================
+PURPOSE
+============================================================
+
+Phase 20C's Jointly Navigation & Discoverability Reconciliation has now been
+reviewed by GPT + the product owner.
+
+The audit identified several distinct things which must NOT be conflated:
+
+1. Two EXISTING Lilica capabilities are genuinely under-exposed:
+   - Care Summary
+   - Recent Activity
+
+2. Lilica has document support but no genuine current-person Documents
+   collection/browsing destination.
+
+3. A more fundamental supported-person/care-space lifecycle question has now
+   been identified:
+
+   What does an organiser do when the person being cared for:
+
+   - no longer requires care;
+   - asks to stop being managed through Lilica;
+   - asks for their care information to be removed;
+   - needs another organiser to take over;
+   - or should simply disappear from the current organiser's active care list
+     while the care history remains preserved?
+
+4. Phase 20A also left several Jointly-inspired capabilities deferred, and
+   before Phase 22 visual polishing begins we need a final explicit decision
+   about whether any of them remain genuine pre-release structural gaps.
+
+We do NOT want to begin premium visual polishing while the underlying
+information architecture and care-space lifecycle may still change.
+
+This task therefore has THREE different authority levels:
+
+A. IMPLEMENT:
+   Phase 20C approved drawer improvement only.
+
+B. AUDIT / ARCHITECTURE PROPOSAL ONLY:
+   supported-person/care-space lifecycle;
+   Documents collection.
+
+C. RECONCILE / RECOMMEND ONLY:
+   remaining Jointly-inspired deferred gaps.
+
+Do not cross these boundaries.
+
+
+============================================================
+1. STARTING STATE
+============================================================
+
+Before doing anything:
+
+- git fetch;
+- confirm branch;
+- confirm HEAD;
+- confirm origin/master;
+- confirm HEAD == origin/master;
+- inspect git status.
+
+Important:
+
+Phase 21 has been fully tested, approved, committed and pushed.
+
+Phase 20C audit documents currently exist uncommitted.
+
+A Phase 22A visual audit was started and then deliberately PAUSED when the
+navigation question arose.
+
+Do not accidentally discard:
+
+docs/PHASE_20C_NAVIGATION_RECONCILIATION.md
+
+or the paused:
+
+docs/PHASE_22_VISUAL_AUDIT.md
+
+Do NOT resume Phase 22 during this task.
+
+
+============================================================
+2. READ BEFORE ACTING
+============================================================
+
+Read the actual current repository and all relevant history.
+
+At minimum:
+
+- docs/PHASE_20_GAP_AUDIT.md
+- docs/PHASE_20_ARCHITECTURE.md
+- docs/PHASE_20C_NAVIGATION_RECONCILIATION.md
+- docs/PHASE_21_ARCHITECTURE.md
+- docs/PHASE_21_QA.md
+- docs/PHASE_18_ARCHITECTURE.md
+- docs/PHASE_18_QA.md
+- docs/CORE_SYSTEM_CONTRACT.md
+- docs/PROJECT_BRIEF.md
+- docs/LUMEN_HANDOFF.md
+- docs/SUPABASE_OPERATIONS.md
+- docs/REVISION_LOG.md
+- AGENTS.md
+- CLAUDE.md
+
+Inspect actual code/schema rather than relying on documentation alone.
+
+Pay particular attention to:
+
+- care_spaces
+- supported_people
+- care_space_memberships
+- commercial_owner_id
+- bootstrap_owner_id
+- records
+- assignments
+- record links
+- documents/attachments
+- invitations
+- former-member identity handling
+- account deletion
+- export
+- Care Circle
+- person switching
+- SettingsMenu
+- People
+- Care Summary
+- Recent Activity
+- Search
+- billing/entitlement relationships.
+
+
+################################################################
+PART A — IMPLEMENT APPROVED PHASE 20C NAVIGATION FIX
+################################################################
+
+
+============================================================
+3. APPROVED DRAWER DECISION
+============================================================
+
+Phase 20C OPTION 2 is APPROVED.
+
+The current drawer should become a small HYBRID:
+
+PERSON-SCOPED NAVIGATION
++
+ACCOUNT/APP SETTINGS
+
+Do NOT turn it into a giant navigation catalogue.
+
+
+============================================================
+4. IMPLEMENT THIS EXACT INFORMATION ARCHITECTURE
+============================================================
+
+The drawer should conceptually become:
+
+Settings
+
+[CurrentFirstName]'s care
+--------------------------------
+Care Summary
+Recent Activity
+
+Account
+--------------------------------
+Account
+Care Circle
+Privacy & data
+Subscription
+
+Example:
+
+Maggie's care
+
+Care Summary
+Recent Activity
+
+Account
+
+Account
+Care Circle
+Privacy & data
+Subscription
+
+
+============================================================
+5. DYNAMIC PERSON NAME
+============================================================
+
+"[CurrentFirstName]'s care" must be dynamic.
+
+Examples:
+
+Maggie's care
+Beauty's care
+Jackie's care
+
+Use the EXISTING supported-person source of truth.
+
+Do NOT create duplicate person state.
+
+Do NOT hard-code Maggie.
+
+
+============================================================
+6. EXISTING ROUTES ONLY
+============================================================
+
+Care Summary and Recent Activity ALREADY EXIST.
+
+The drawer rows must route to the SAME existing destinations currently used
+from People.
+
+Do NOT:
+
+- create duplicate screens;
+- create new state;
+- create new RPCs;
+- duplicate projection logic.
+
+Reuse the existing:
+
+Care Summary
+Recent Activity
+
+navigation/state paths.
+
+
+============================================================
+7. KEEP PEOPLE ROUTES
+============================================================
+
+The existing links from People to:
+
+Care Summary
+Recent Activity
+
+must REMAIN.
+
+This is intentional dual-route discoverability.
+
+Do not remove them.
+
+
+============================================================
+8. DO NOT ADD OTHER ROWS YET
+============================================================
+
+Do NOT currently add:
+
+- Documents
+- Key Contacts
+- Search
+- Home
+- Calendar
+- To Do
+- People
+- Add
+- Medications
+- Notes
+- Devices
+- Messages
+- record categories
+
+Documents is being assessed separately below.
+
+Do not create fake navigation to something that does not yet exist.
+
+
+============================================================
+9. CARE CIRCLE LOCATION
+============================================================
+
+For this implementation, retain Care Circle in the existing Account group as
+approved by the Phase 20C audit.
+
+Do not restructure Care Circle in this task.
+
+
+============================================================
+10. LOCAL-ONLY CARE SPACE
+============================================================
+
+Follow the Phase 20C recommendation/current People behaviour for a local-only,
+never-synced care space.
+
+Do not show person-scoped destinations that cannot operate meaningfully.
+
+Reuse existing guards rather than inventing a second rule.
+
+
+============================================================
+11. MULTIPLE SUPPORTED PEOPLE
+============================================================
+
+Switching the current supported person must update the drawer person section.
+
+Example:
+
+Maggie's care
+→ switch to Beauty
+→ Beauty's care
+
+Care Summary and Recent Activity must then concern Beauty.
+
+No stale Maggie data.
+
+No globalised care summary/activity.
+
+
+============================================================
+12. VISUAL DISCIPLINE
+============================================================
+
+This is NOT Phase 22.
+
+Integrate the two new rows into the EXISTING approved Settings drawer visual
+language.
+
+Do not redesign:
+
+- drawer;
+- typography system;
+- colours;
+- shadows;
+- cards;
+- wordmark;
+- Close button;
+- navigation model.
+
+Make the smallest coherent visual addition.
+
+
+################################################################
+PART B — PHASE 20D SUPPORTED-PERSON / CARE-SPACE LIFECYCLE
+AUDIT + ARCHITECTURE PROPOSAL ONLY
+################################################################
+
+
+============================================================
+13. NEWLY IDENTIFIED PRODUCT NEED
+============================================================
+
+We currently need a clear answer to:
+
+"What does the organiser do when care for this person ends?"
+
+This is NOT the same as:
+
+delete_my_account()
+
+Phase 18B handles a LILICA USER deleting their own ACCOUNT.
+
+The new problem concerns the lifecycle of the:
+
+SUPPORTED PERSON / CARE SPACE.
+
+
+============================================================
+14. DO NOT IMPLEMENT LIFECYCLE YET
+============================================================
+
+ABSOLUTELY NO implementation of:
+
+- archive care space;
+- delete care space;
+- remove supported person;
+- transfer care responsibility;
+- care-space closure;
+- cascade deletion;
+- new lifecycle RPC;
+- new migration;
+- new destructive button.
+
+This part is architecture/proposal only.
+
+The consequences are too significant to guess.
+
+
+============================================================
+15. INVESTIGATE CURRENT DATA OWNERSHIP
+============================================================
+
+Map exactly what belongs to a care space.
+
+At minimum inspect:
+
+- supported person;
+- care_space;
+- memberships;
+- organisers;
+- contributors;
+- viewers;
+- invitations;
+- records;
+- appointments;
+- tasks;
+- documents;
+- attachments;
+- assignments;
+- reminders;
+- record links;
+- activity;
+- Care Summary projections;
+- search;
+- former-member identity;
+- commercial ownership;
+- entitlement;
+- offline/outbox state;
+- export relationships.
+
+For each identify what happens TODAY if the care space simply ceases to be
+actively used.
+
+
+============================================================
+16. DISTINGUISH THE USER SCENARIOS
+============================================================
+
+Do not design one destructive "Delete Maggie" action for every circumstance.
+
+Analyse at least these scenarios separately.
+
+
+SCENARIO A — CARE NO LONGER REQUIRED
+
+Example:
+
+Maggie has recovered or the family no longer needs active care coordination.
+
+Desired conceptual outcome may be:
+
+ARCHIVE CARE
+
+Existing history remains preserved.
+
+Maggie disappears from normal active-care switching/navigation.
+
+Data can potentially be reviewed/exported later.
+
+
+SCENARIO B — ORGANISER NO LONGER RESPONSIBLE
+
+Example:
+
+David is stepping away, but Marion and other Care Circle members continue
+supporting Maggie.
+
+The organiser should NOT be able to destroy Maggie's shared care space merely
+because David personally is leaving.
+
+Potential outcome:
+
+TRANSFER RESPONSIBILITY / LEAVE CARE SPACE.
+
+
+SCENARIO C — SUPPORTED PERSON ASKS TO BE REMOVED
+
+Example:
+
+Maggie asks that her care information no longer be managed through Lilica.
+
+This may require a materially different workflow from archive.
+
+Analyse:
+
+- deletion;
+- retention;
+- collaborators' contributions;
+- documents;
+- audit history;
+- former-member attribution;
+- privacy implications;
+- export;
+- confirmation.
+
+Do not pretend Archive satisfies an explicit deletion request.
+
+
+SCENARIO D — SOLE ORGANISER
+
+If the only organiser wants to stop caring for Maggie:
+
+determine what should happen.
+
+Consider:
+
+- transfer;
+- archive;
+- delete;
+- warning;
+- outstanding Care Circle membership.
+
+
+SCENARIO E — MULTIPLE ORGANISERS
+
+Determine who should be authorised to:
+
+- archive;
+- unarchive;
+- transfer responsibility;
+- request/execute deletion.
+
+Do not assume every organiser should have equal destructive authority.
+
+
+SCENARIO F — COMMERCIAL OWNER LEAVES
+
+Phase 21 introduced:
+
+commercial_owner_id
+
+Determine interaction with:
+
+- care-space transfer;
+- organiser departure;
+- archive;
+- deletion;
+- subscription entitlement.
+
+Do not redesign Phase 21.
+
+
+============================================================
+17. ARCHIVE VS DELETE VS LEAVE VS TRANSFER
+============================================================
+
+Produce a rigorous semantic distinction between:
+
+ARCHIVE CARE
+LEAVE CARE SPACE
+TRANSFER RESPONSIBILITY
+DELETE/REMOVE CARE SPACE
+
+For each state/action specify:
+
+- purpose;
+- actor;
+- prerequisites;
+- data retained;
+- data hidden;
+- reversibility;
+- Care Circle effect;
+- commercial-owner effect;
+- subscription effect;
+- supported-person switcher effect;
+- Search effect;
+- Calendar effect;
+- To Do effect;
+- People effect;
+- Documents effect;
+- export effect;
+- audit/history effect.
+
+
+============================================================
+18. ARCHIVE MODEL
+============================================================
+
+Assess whether Lilica should support an explicit:
+
+ARCHIVED
+
+care-space state.
+
+Potential intended semantics:
+
+- no longer appears among ordinary active supported people;
+- no new care-management mutations;
+- history remains intact;
+- export remains possible;
+- organisers can find archived care spaces through an intentional management
+  route;
+- authorised restoration/unarchive may be possible.
+
+But do not assume this exact design is correct.
+
+Evaluate it against the current schema and product model.
+
+
+============================================================
+19. DELETION MODEL
+============================================================
+
+Investigate what true care-space deletion would mean.
+
+Explicitly map:
+
+what would be deleted?
+
+what would be retained?
+
+what happens to:
+
+- other members' contributions;
+- documents;
+- attachments/storage objects;
+- reminders;
+- assignments;
+- invitations;
+- activity;
+- former-member identity snapshots;
+- commercial ownership;
+- entitlement;
+- audit evidence?
+
+Do NOT propose silent orphaning.
+
+Do NOT propose cascading blindly.
+
+
+============================================================
+20. PRIVACY / LEGAL BOUNDARY
+============================================================
+
+Flag legal/privacy decisions honestly.
+
+Do NOT invent GDPR conclusions.
+
+Distinguish:
+
+ENGINEERING REQUIREMENT
+
+from:
+
+PRODUCT DECISION
+
+from:
+
+LEGAL/PRIVACY REVIEW REQUIRED.
+
+In particular, an organiser deleting information about another living person
+may have implications that cannot be decided by code architecture alone.
+
+Identify those clearly.
+
+
+============================================================
+21. SUPPORTED PERSON PARTICIPATION
+============================================================
+
+Consider the current model where the supported person may or may not
+personally have a Lilica account.
+
+Analyse separately:
+
+- supported person has no Lilica account;
+- supported person is a Care Circle member;
+- supported person is an organiser;
+- supported person is the commercial owner;
+- supported person requests removal but another organiser owns the care
+  space.
+
+Do not assume the organiser always has unilateral authority.
+
+
+============================================================
+22. PROPOSE "MANAGE [NAME]'S CARE"
+============================================================
+
+Assess whether Lilica should eventually have a person-specific management
+destination such as:
+
+Manage Maggie's care
+
+This could become the home for infrequent administrative lifecycle actions.
+
+Potential examples:
+
+- Care Circle / responsibility
+- Transfer responsibility
+- Archive Maggie's care
+- Remove/Delete Maggie's care
+
+Do NOT implement this screen.
+
+Propose its purpose, hierarchy and exact responsibilities.
+
+Avoid duplicating ordinary People/Care Circle management unnecessarily.
+
+
+============================================================
+23. DRAWER IMPLICATION
+============================================================
+
+Determine whether the eventual person-scoped drawer should become:
+
+Maggie's care
+- Care Summary
+- Recent Activity
+- Documents
+- Manage Maggie's care
+
+or something different.
+
+This is a PROPOSAL only.
+
+Do not add Manage Maggie's care in Part A.
+
+
+============================================================
+24. LIFECYCLE STATE MACHINE
+============================================================
+
+Propose an explicit care-space lifecycle if warranted.
+
+For example conceptually:
+
+ACTIVE
+ARCHIVED
+PENDING_DELETION?
+DELETED?
+
+Do not invent states merely for completeness.
+
+For every proposed state specify:
+
+- allowed reads;
+- allowed writes;
+- visibility;
+- membership behaviour;
+- restoration;
+- billing implications.
+
+Keep it as simple as possible.
+
+
+============================================================
+25. SERVER AUTHORITY / SECURITY
+============================================================
+
+Any eventual lifecycle action must be server-authoritative.
+
+Audit which existing permission concepts could safely authorise it.
+
+Do not propose client-only archive/delete flags.
+
+Identify required:
+
+- RPCs;
+- RLS changes;
+- constraints;
+- audit events;
+- tests
+
+but DO NOT implement them.
+
+
+============================================================
+26. PHASE 18B INTERACTION
+============================================================
+
+Explicitly explain how the proposed care-space lifecycle differs from and
+interacts with:
+
+delete_my_account()
+
+Protect Phase 18B's fundamental rule that one member deleting their account
+does not destroy shared care data.
+
+A care-space lifecycle feature must not accidentally undermine that.
+
+
+============================================================
+27. PHASE 21 INTERACTION
+============================================================
+
+Explicitly analyse:
+
+commercial_owner_id
+
+and entitlement when:
+
+- care is archived;
+- organiser leaves;
+- commercial ownership transfers;
+- care space is deleted.
+
+One £8.99/year subscription remains account-level.
+
+Do not redesign billing.
+
+
+################################################################
+PART C — PHASE 20E DOCUMENTS COLLECTION AUDIT / PROPOSAL ONLY
+################################################################
+
+
+============================================================
+28. DOCUMENTS GAP
+============================================================
+
+Phase 20C confirmed:
+
+Lilica supports documents/attachments,
+
+BUT:
+
+there is no genuine browsable current-person Documents collection screen.
+
+This is now a product decision requiring architecture before implementation.
+
+
+============================================================
+29. DO NOT IMPLEMENT DOCUMENTS YET
+============================================================
+
+Do NOT:
+
+- create DocumentsScreen;
+- add drawer Documents row;
+- change document schema;
+- add search;
+- change attachment storage;
+- add categories;
+- create migrations.
+
+Audit/proposal only.
+
+
+============================================================
+30. MAP CURRENT DOCUMENT MODEL
+============================================================
+
+Determine exactly:
+
+- how documents enter Lilica;
+- what record owns/links them;
+- storage model;
+- metadata available;
+- filename/title;
+- upload date;
+- document type/category if any;
+- linked records;
+- permissions;
+- current open/share/download behaviour;
+- replacement/versioning;
+- offline behaviour;
+- deletion behaviour;
+- search indexing.
+
+Do not guess.
+
+
+============================================================
+31. DEFINE THE USER NEED
+============================================================
+
+The intended question is simple:
+
+"Show me Maggie's documents."
+
+A long-term user should not need to remember:
+
+- which record a document belongs to;
+- when it was uploaded;
+- which tab originally exposed it.
+
+Assess the smallest architecture that answers this.
+
+
+============================================================
+32. PROPOSE DOCUMENTS COLLECTION
+============================================================
+
+Propose the smallest useful:
+
+Documents
+
+destination for the CURRENT supported person.
+
+Consider:
+
+- list/card presentation;
+- filename/title;
+- type;
+- date;
+- linked record;
+- search/filter only if genuinely necessary;
+- sort;
+- opening;
+- permissions;
+- empty state.
+
+Do not overbuild a document-management system.
+
+
+============================================================
+33. DOCUMENTS SHOULD REMAIN CONTEXTUAL
+============================================================
+
+A collection view must not break the useful fact that documents belong in
+care context.
+
+The user should be able to:
+
+Documents
+→ open document
+→ understand what it relates to
+
+where the current data model supports that.
+
+Do not turn documents into detached generic cloud storage.
+
+
+============================================================
+34. DOCUMENTS DRAWER LOCATION
+============================================================
+
+If approved later, assess whether:
+
+Maggie's care
+- Care Summary
+- Recent Activity
+- Documents
+
+is the correct discoverability model.
+
+Do not add the row yet.
+
+
+################################################################
+PART D — FINAL JOINTLY-INSPIRED GAP DECISION
+################################################################
+
+
+============================================================
+35. REVISIT ONLY THE REMAINING DEFERRED GAPS
+============================================================
+
+Do NOT redo all of Phase 20A.
+
+Use its existing findings.
+
+Focus on the items still relevant after subsequent development.
+
+At minimum reconsider:
+
+1. collaboration notifications;
+2. narrative handover/export summary;
+3. contingency/emergency summary;
+4. medication structure;
+5. supported-person profile fields;
+6. contact import;
+7. contextual record comments;
+8. calendar export;
+9. former-member visibility/filtering;
+10. Documents collection.
+
+For each answer:
+
+- what user need did Jointly expose?
+- does current Lilica now satisfy it?
+- partly satisfy it?
+- not satisfy it?
+- is it necessary before release?
+- should it remain deferred?
+
+
+============================================================
+36. COLLABORATION NOTIFICATIONS
+============================================================
+
+This deserves specific attention.
+
+Recent Activity now exists.
+
+Determine whether the remaining user need is actually:
+
+"I need to know what other carers changed"
+
+and whether Recent Activity already solves enough of that.
+
+Distinguish:
+
+activity history
+
+from:
+
+proactive notification.
+
+Recommend:
+
+NO LONGER A GAP
+KEEP DEFERRED
+RECONSIDER BEFORE RELEASE
+
+with reasoning.
+
+
+============================================================
+37. HANDOVER / NARRATIVE EXPORT
+============================================================
+
+Care Summary now exists.
+
+Export already exists.
+
+Determine whether combining those existing capabilities sufficiently handles
+the underlying Jointly need, or whether a genuine:
+
+"handover pack"
+
+or narrative export remains valuable.
+
+Do not implement.
+
+
+============================================================
+38. CONTINGENCY / EMERGENCY INFORMATION
+============================================================
+
+This deserves serious consideration.
+
+Ask:
+
+If the primary carer suddenly became unavailable, could another authorised
+person quickly understand:
+
+- who Maggie is;
+- key contacts;
+- important care information;
+- current tasks/appointments;
+- critical documents;
+- essential instructions?
+
+Determine how much:
+
+Care Summary
+Key Contacts
+Calendar
+To Do
+Documents
+
+already solve.
+
+If an explicit emergency/contingency summary remains a real gap, say so.
+
+Do not implement.
+
+
+============================================================
+39. MEDICATION
+============================================================
+
+Do not create a medication module merely because Jointly has one.
+
+Determine whether Lilica's current record model adequately supports the
+actual medication-information use case.
+
+Separate:
+
+medication information
+
+from:
+
+medication administration/tracking.
+
+The latter may have much higher complexity/risk.
+
+
+============================================================
+40. PRODUCT GAP DISPOSITION
+============================================================
+
+For every remaining item assign exactly one:
+
+A. NO LONGER A GAP
+B. ADEQUATELY COVERED — NO NEW FEATURE
+C. KEEP DEFERRED
+D. RECONSIDER BEFORE RELEASE
+E. RECOMMEND BEFORE RELEASE
+
+Explain why.
+
+
+################################################################
+PART E — HOLISTIC PRE-PHASE-22 DECISION REPORT
+################################################################
+
+
+============================================================
+41. CREATE / UPDATE DOCUMENTATION
+============================================================
+
+Update:
+
+docs/PHASE_20C_NAVIGATION_RECONCILIATION.md
+
+to record the approved Option 2 implementation once completed.
+
+Create:
+
+docs/PHASE_20D_CARE_SPACE_LIFECYCLE_PROPOSAL.md
+
+Create:
+
+docs/PHASE_20E_DOCUMENTS_PROPOSAL.md
+
+Create:
+
+docs/PRE_PHASE_22_PRODUCT_GAP_REVIEW.md
+
+Update docs/REVISION_LOG.md minimally.
+
+Do NOT create implementation architecture docs for 20D/20E yet.
+
+These are proposals awaiting approval.
+
+
+============================================================
+42. VALIDATE PART A
+============================================================
+
+For the implemented 20C drawer change add focused tests proving:
+
+- current person's first name shown;
+- Care Summary row shown appropriately;
+- Recent Activity row shown appropriately;
+- Care Summary opens existing screen;
+- Recent Activity opens existing screen;
+- existing People routes remain;
+- Account rows remain;
+- Care Circle remains;
+- Privacy & data remains;
+- Subscription remains;
+- person switch updates drawer scope;
+- local-only behaviour remains correct.
+
+Run:
+
+- typecheck;
+- full Jest;
+- secrets check;
+- Expo config;
+- web export;
+- git diff --check.
+
+No database work should be required for Part A.
+
+
+============================================================
+43. DIFF DISCIPLINE
+============================================================
+
+Application-code changes are authorised ONLY for Part A:
+
+SettingsMenu.tsx
+App.tsx
+focused tests
+
+and only additional files if genuinely required by the existing component
+structure.
+
+Part B:
+NO application implementation.
+
+Part C:
+NO application implementation.
+
+Part D:
+NO application implementation.
+
+Classify every changed file:
+
+A. approved 20C navigation implementation
+B. 20C tests
+C. 20C documentation
+D. 20D proposal
+E. 20E proposal
+F. final gap review
+G. unexpected
+
+G MUST BE EMPTY.
+
+
+============================================================
+44. GIT
+============================================================
+
+DO NOT COMMIT.
+
+DO NOT PUSH.
+
+Everything must return to GPT + product owner for review.
+
+Do not resume Phase 22.
+
+
+============================================================
+45. COMPLETION REPORT
+============================================================
+
+Return:
+
+PART A — PHASE 20C
+1. Starting HEAD/origin.
+2. Current drawer before change.
+3. Exact drawer after change.
+4. Dynamic-person implementation.
+5. Care Summary routing.
+6. Recent Activity routing.
+7. Existing People routes preserved.
+8. Existing Account rows preserved.
+9. Multiple-person behaviour.
+10. Local-only behaviour.
+11. Tests.
+12. Validation.
+
+PART B — CARE-SPACE LIFECYCLE
+13. Current care-space lifecycle.
+14. Current data ownership map.
+15. Scenario A — care no longer required.
+16. Scenario B — organiser leaving.
+17. Scenario C — supported-person removal request.
+18. Scenario D — sole organiser.
+19. Scenario E — multiple organisers.
+20. Scenario F — commercial owner leaving.
+21. Archive recommendation.
+22. Leave recommendation.
+23. Transfer recommendation.
+24. Delete/remove recommendation.
+25. Proposed lifecycle state machine.
+26. Proposed Manage [Name]'s care destination.
+27. Permission model recommendation.
+28. Phase 18B interaction.
+29. Phase 21 interaction.
+30. Legal/privacy decisions requiring external review.
+31. Exact product-owner decisions required before implementation.
+
+PART C — DOCUMENTS
+32. Current document architecture.
+33. Exact Documents gap.
+34. Proposed Documents collection.
+35. Proposed information shown per document.
+36. Permissions.
+37. Context/linked-record behaviour.
+38. Drawer recommendation.
+39. Engineering complexity/risk.
+40. Exact product-owner decisions required.
+
+PART D — JOINTLY GAPS
+41. Collaboration notifications disposition.
+42. Handover/export disposition.
+43. Contingency/emergency disposition.
+44. Medication disposition.
+45. Supported-person profile disposition.
+46. Contact import disposition.
+47. Contextual comments disposition.
+48. Calendar export disposition.
+49. Former-member visibility disposition.
+50. Documents disposition.
+51. Final NO LONGER A GAP list.
+52. Final KEEP DEFERRED list.
+53. Final RECONSIDER BEFORE RELEASE list.
+54. Final RECOMMEND BEFORE RELEASE list.
+
+PART E — NEXT STEPS
+55. Recommended final pre-Phase-22 implementation sequence.
+56. What should NOT be built.
+57. Phase 22 implications.
+58. Files changed.
+59. Complete diff audit.
+60. Confirmation no 20D implementation occurred.
+61. Confirmation no 20E implementation occurred.
+62. Confirmation no Phase 22 implementation occurred.
+63. Git status.
+
+Then STOP.
+
+
+============================================================
+ACCEPTANCE STANDARD
+============================================================
+
+This task passes only if we finish with a coherent answer to all of these:
+
+NAVIGATION
+Can a user now discover Care Summary and Recent Activity without Lilica
+becoming Jointly's giant module menu?
+
+CARE ENDING
+What exactly happens when Maggie no longer needs care?
+
+ORGANISER LEAVING
+Can David leave without destroying Maggie's care environment for Marion?
+
+TRANSFER
+Can responsibility move safely to another organiser?
+
+ARCHIVE
+Can a finished care relationship disappear from normal active use without
+destroying history?
+
+REMOVAL
+What should happen when Maggie explicitly asks for her care information to
+be removed?
+
+DOCUMENTS
+Can a long-term user eventually simply say:
+"Show me Maggie's documents"?
+
+JOINTLY
+Have we explicitly accounted for every remaining useful Jointly-inspired gap
+rather than allowing it to disappear into a backlog?
+
+PHASE 22
+Are the product structure and information architecture sufficiently settled
+that we can finally polish them without immediately redesigning them again?
+
+Only Phase 20C's approved drawer change may be implemented.
+
+Everything else returns as architecture/recommendation for explicit
+GPT + product-owner approval.
+
+DO NOT COMMIT.
+DO NOT PUSH.
+DO NOT RESUME PHASE 22.
+STOP FOR REVIEW.

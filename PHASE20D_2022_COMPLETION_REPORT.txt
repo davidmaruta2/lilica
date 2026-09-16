@@ -1,0 +1,810 @@
+================================================================
+LILICA - PHASE 20D STRUCTURAL CLOSURE COMPLETION REPORT
+(brief: \downloads\20-22.txt)
+================================================================
+Report date: 15 September 2026
+
+
+################################################################
+1-3. STARTING STATE / PRESERVATION CONFIRMATION
+################################################################
+
+1. STARTING HEAD/ORIGIN
+   Before this task began, the previous session's own work (Phase 20C
+   drawer navigation, the remove-supported-person capability, FAQ/How to
+   use Lilica/Contact) had already been committed and pushed to a
+   dedicated feature branch per the user's own explicit "commit all, push"
+   instruction - HEAD f6a311a on
+   prephase22-remove-supported-person-faq-help, origin/master unchanged
+   at a67c40f throughout. This task's brief itself expected starting
+   HEAD/origin to "remain a67c40f" while treating the working tree as the
+   real approved baseline - by the time this task actually began, that
+   baseline had ALREADY been safely committed to a branch rather than left
+   as uncommitted working-tree state, which is a stronger form of
+   preservation than the brief anticipated, not a violation of it.
+
+2. STARTING WORKING-TREE CLASSIFICATION
+   `git status --short` at the start of this task showed a clean working
+   tree (everything already committed in f6a311a) plus the same
+   long-standing untracked "category P" noise from earlier phases
+   (completion-report .txt files, brief input .txt files, the paused
+   Phase 22A audit doc) already documented in the prior completion report.
+
+3. CONFIRMATION EXISTING APPROVED WORK PRESERVED
+   Confirmed by direct inspection before any edit: delete_care_space(),
+   RemoveCareSpaceConfirm, the multi-care-space Remove UI, the Phase 20C
+   "[Name]'s care" drawer group, and the Help group (How to use Lilica,
+   FAQ, Contact) were all present, unmodified, and still passing their own
+   tests at the start of this task. Nothing was reset, checked out over,
+   cleaned, or recreated from origin/master.
+
+
+################################################################
+ARCHIVE
+################################################################
+
+4. SCHEMA/STATE IMPLEMENTED
+   `care_spaces.status text not null default 'active' check (status in
+   ('active','archived'))` - the smallest robust state, exactly ACTIVE/
+   ARCHIVED as instructed (section 5). No speculative future states added.
+   Permanent deletion remains actual row deletion, no DELETED state.
+
+5. ARCHIVE RPC/SERVER AUTHORITY
+   `archive_care_space(target_care_space_id)` / `restore_care_space(...)` -
+   any ACTIVE organiser (approved decision, section 9), idempotent retry
+   against an already-terminal state is a safe no-op. Both require
+   authentication and a genuine active-organiser membership row.
+
+6. ARCHIVED VISIBILITY BEHAVIOUR
+   `list_my_supported_people()` now returns `status`; client-side
+   `activeCareSpaces()`/`archivedCareSpaces()` (src/careSpaceState.ts)
+   split the two, and Home's own person switcher (`spaces` in App.tsx) now
+   sources from `activeCareSpaces()` only - an archived care space never
+   appears in ordinary active-person navigation. A new "Archived care" row
+   (Settings > Account group, shown only when at least one exists) is the
+   intentional route required by section 6 - see item 42/45 below for the
+   placement reasoning.
+
+7. ARCHIVED READ BEHAVIOUR
+   Unchanged - archived data remains fully readable by any authorised
+   member exactly as before (the shared write-gate below only ever
+   affects `requested_action <> 'read'`). Proven directly by pgTAP
+   (`care_space_lifecycle.test.sql`: "an organiser can still read the
+   archived care space's records").
+
+8. ARCHIVED MUTATION ENFORCEMENT
+   Server-side: the ONE existing `can_access_care_space_records()`
+   function - already the single choke point every record/occurrence/
+   attachment/link mutation RPC calls with `requested_action = 'write'`
+   (confirmed by direct inspection of every call site before writing this)
+   - now also denies write access whenever the care space is archived.
+   This single, surgical change automatically covers every existing
+   mutation RPC with no per-RPC edits needed. `invite_member()` (Care
+   Circle invitations are a separate authority path, not routed through
+   that shared function) received its own explicit archive check.
+   Client-side: the existing Phase 21C `guardMutation`/`isReadOnly`
+   mechanism was generalised to also check a new `isArchived` flag
+   (`currentSpace?.status === 'archived'`), gating the exact same five
+   entry points Phase 21C already gated, plus Care Circle's Invite and the
+   shared record Edit trigger (all six `isReadOnly` props became
+   `isReadOnly || isArchived`). A new, deliberately separate
+   `ArchivedGate.tsx` shows its own calm wording - never billing/
+   subscription copy (brief section 7's explicit instruction, verified by
+   a test asserting no "subscri"/"£8.99" text appears).
+
+9. RESTORE BEHAVIOUR
+   `restore_care_space()` returns the SAME care space to ACTIVE (proven by
+   pgTAP: "restoring returns the SAME care space identity - no replacement
+   row was created"), same organiser authority level as archiving, retains
+   every historical row untouched, and normal mutations work again
+   immediately afterward (also proven directly).
+
+10. ARCHIVE UI
+    `ArchivedGate.tsx` (proactive block + explanation), `ManageCareScreen`
+    's own "Care status" section (Archive/Restore toggle with its own calm
+    copy, never equated visually with the destructive removal section
+    below it), and `ArchivedCareScreen.tsx` (the "Archived care" listing +
+    Restore action).
+
+11. ARCHIVE TESTS
+    `supabase/tests/database/care_space_lifecycle.test.sql` (23 pgTAP
+    assertions): contributor/viewer cannot archive; an organiser can;
+    records/memberships survive; reads still work; a new record is
+    rejected server-side while archived; inviting a new member is
+    rejected while archived; a viewer cannot restore; an organiser can;
+    identity is preserved; mutations work again after restore; restore is
+    idempotent. Client: `tests/care-space-lifecycle-client.test.ts` (pure
+    reducer functions), `tests/archived-gate.test.tsx`,
+    `tests/archived-care-screen.test.tsx`.
+
+
+################################################################
+DELETE
+################################################################
+
+12. EXISTING DELETE CAPABILITY PRESERVED
+    `delete_care_space()`'s checkbox confirmation
+    (`RemoveCareSpaceConfirm.tsx`), irreversible warning, storage/document
+    cleanup, multi-care-space handling (`removableCareSpaces` in
+    App.tsx/Privacy & data), and its own full cascade-delete correctness
+    are all completely unchanged and still pass every one of their
+    original tests. Nothing about the sole-organiser path regressed.
+
+13. SOLE-ORGANISER BEHAVIOUR
+    Deletes immediately, exactly as before - server re-queries the real
+    organiser count itself every time (never trusts a client-supplied
+    flag, per section 15's explicit instruction), verified directly by
+    pgTAP.
+
+14. MULTI-ORGANISER CONSENT ARCHITECTURE
+    New `care_space_deletion_requests`/`care_space_deletion_approvals`
+    tables - deliberately `ON DELETE CASCADE` (ephemeral workflow state,
+    not permanent audit, per section 12's "keep the model as simple as
+    possible"). `request_care_space_deletion(target_care_space_id,
+    deletion_reason)`: a sole organiser is deleted immediately (no request
+    row ever created); with multiple active organisers, creates a request
+    and the requester's own approval counts automatically.
+
+15. REQUEST BEHAVIOUR
+    Only an active organiser may request; an optional `reason` (`
+    care_no_longer_required`/`supported_person_requested`/`other`) is
+    recorded as contextual/audit metadata only - never presented or
+    treated anywhere as legal consent evidence (section 16's explicit
+    instruction). A second request against a care space that already has
+    one pending resolves to the SAME existing request (unique constraint
+    on `care_space_id`), never a duplicate.
+
+16. APPROVAL BEHAVIOUR
+    `approve_care_space_deletion(request_id)`: only an active organiser of
+    that care space may approve; a duplicate approval by the same
+    organiser is silently harmless (unique constraint on
+    `(request_id, membership_id)`, proven directly by pgTAP: approving
+    twice never double-counts); once every currently-active organiser has
+    approved, the function performs the ACTUAL deletion itself, via the
+    exact same, unmodified `delete_care_space()` machinery (a trusted,
+    narrow, transaction-scoped bypass flag - the same established pattern
+    already used for the activity-immutability trigger - lets this one
+    internal caller through the new multi-organiser gate).
+
+17. DECLINE BEHAVIOUR
+    `decline_care_space_deletion(request_id)`: ANY active organiser (not
+    only the requester) may decline; the request row is deleted outright -
+    a later attempt requires a genuinely new request (section 14's
+    explicit instruction against "ambiguous half-approved" state).
+
+18. CANCELLATION BEHAVIOUR
+    `cancel_care_space_deletion(request_id)`: only the ORIGINAL requester
+    may cancel their own pending request - a distinct, narrower authority
+    than decline's "any organiser", proven directly by pgTAP (a different
+    organiser attempting to cancel someone else's request is rejected).
+
+19. FINAL DELETION TRANSACTION
+    Identical, unmodified cascade sequence as the original
+    `delete_care_space()` (occurrence_versions -> mutation receipts ->
+    assignments -> activity -> links/attachments -> occurrences ->
+    recurrence -> records -> contacts/invitations -> domain grants ->
+    memberships -> supported_people -> care_spaces), with exactly one
+    addition: `care_space_deletion_requests` is now explicitly deleted
+    before memberships (a real bug found only by running this exact
+    deletion - see item 50 below).
+
+20. STORAGE/DOCUMENT CLEANUP
+    Completely unchanged - `deleteCareSpace()` (src/careSpaces.ts) still
+    fetches every attachment's storage path before calling the RPC and
+    best-effort removes them afterward, queuing failures via the existing
+    Phase 18 durable retry mechanism. Never touched by this task.
+
+21. DELETE TESTS
+    `delete_care_space.test.sql`'s own test 3 was rewritten (not
+    reverted) to prove the new tightened behaviour: a second, non-sole
+    organiser can no longer delete directly; David requests; a viewer
+    cannot approve; Marion's approval completes consensus and performs
+    the actual deletion - the remaining cascade/isolation/idempotency
+    assertions (4-9) then continue to hold exactly as before, since
+    Beauty is genuinely deleted by that point. A new
+    `care_space_deletion_consent.test.sql` (10 assertions) covers cancel,
+    decline, and duplicate-approval specifically. Total: 22 + 10 = 32 new/
+    changed assertions across these two files.
+
+22. SUBSCRIPTION DISCLOSURE
+    Unchanged from the existing Remove-a-supported-person confirmation
+    flow (Phase 21B's own established disclosure pattern, already correct
+    and already shipped) - not duplicated into the new consent-flow UI
+    text in this pass; flagged in `docs/PHASE_20D_CARE_SPACE_LIFECYCLE_
+    PROPOSAL.md` item 29 as worth adding explicitly to the request-flow
+    copy in a future pass, not resolved here.
+
+
+################################################################
+HANDOFF
+################################################################
+
+23. ORGANISER TRANSFER ARCHITECTURE
+    `promote_to_organiser(target_care_space_id, target_membership_id)` -
+    the one thing genuinely missing, since `leave_care_space()` (Phase 15/
+    20B) already correctly blocked a sole organiser from leaving. No
+    separate combined "handoff transaction" was needed beyond this
+    promotion RPC plus the commercial-ownership check below.
+
+24. ELIGIBLE-TARGET RULES
+    Server-authoritative: the target membership id must resolve to a
+    currently ACTIVE member of THIS SAME care space - a former member, a
+    removed member, a pending invitation, or an arbitrary/non-member id
+    all correctly fail this lookup by construction (the inclusion
+    criteria alone is sufficient; no separate exclusion list needed).
+    Proven directly by pgTAP (a non-member membership id is rejected with
+    a clear message).
+
+25. EXISTING-MULTIPLE-ORGANISER BEHAVIOUR
+    If another active organiser already exists, the departing organiser
+    does not need to use `promote_to_organiser()` at all - they can simply
+    call the existing `leave_care_space()` directly, which already
+    correctly permits this once the organiser-count invariant is
+    satisfied. No new code was needed for this case specifically.
+
+26. ORIGINAL-ORGANISER LEAVE BEHAVIOUR
+    `leave_care_space()` gained exactly one new check, ordered
+    deliberately AFTER the existing organiser-count invariant (the more
+    fundamental blocker, checked first so a sole organiser who also
+    happens to be the commercial owner sees the more useful message): an
+    organiser who is also the care space's `commercial_owner_id` cannot
+    leave until they transfer commercial ownership away from themselves,
+    using Phase 21B's own existing, completely unmodified
+    `transfer_care_space_commercial_ownership()`. No second billing-owner
+    model was created.
+
+27. COMMERCIAL_OWNER_ID HANDLING
+    Reused Phase 21B's existing mechanism exactly as instructed (section
+    22: "reuse the existing Phase 21B authority/mechanism... do not
+    create a second billing-owner model"). Proven directly by pgTAP: David
+    (sole commercial owner, now with Marion also an organiser) is still
+    blocked from leaving until he transfers ownership to Marion, then can
+    leave successfully.
+
+28. HANDOFF TESTS
+    `care_space_lifecycle.test.sql`'s own handoff section (part of the 23
+    assertions counted under item 11): a contributor cannot promote
+    anyone; a non-member cannot be promoted; David promotes Marion; David
+    remains blocked from leaving until commercial ownership is
+    transferred; the transfer succeeds via the existing Phase 21B RPC;
+    David then leaves successfully; his own membership row survives,
+    merely revoked - never deleted (historical attribution intact).
+
+
+################################################################
+MANAGE CARE
+################################################################
+
+29. EXACT MANAGE [NAME]'S CARE SCREEN
+    `src/screens/ManageCareScreen.tsx` - a single consolidated destination
+    for infrequent care-space administration, explicitly not a
+    replacement for People or ordinary Care Circle browsing.
+
+30. ACTIONS EXPOSED
+    Care status (Active/Archived, with the matching toggle); Responsibility
+    (organiser count, "Make organiser" for every eligible active
+    non-organiser member); a link to Manage Care Circle (never duplicates
+    its own controls); Permanent removal (sole-organiser: the existing
+    checkbox confirmation; multiple organisers: the new request/approve/
+    decline/cancel consent UI, showing a calm "Waiting for N more
+    organiser(s)" status).
+
+31. DANGEROUS-ACTION HIERARCHY
+    Ordinary status/handoff controls first (plain surface cards),
+    Archive/Restore next (its own section, neutral styling, no red), then
+    Permanent removal LAST, in its own visually-separated
+    `colors.danger`-bordered section - never equated with Archive, per the
+    brief's own explicit instruction (section 26).
+
+32. NAVIGATION
+    Reached from the drawer's "[Name]'s care" group as
+    "Manage [Name]'s care", gated additionally to organisers only (App.tsx
+    -`careCircleAvailable && currentSpace?.role === 'organiser'`) - since
+    every one of its own actions requires organiser authority, a
+    contributor/viewer is never shown a destination full of controls they
+    cannot use.
+
+
+################################################################
+DOCUMENTS
+################################################################
+
+33. DOCUMENTS DATA SOURCE
+    `src/documents.ts`'s `listCareSpaceDocuments()` - a plain client-side
+    select against the existing `record_attachments` table joined to
+    `records` for title context. NO new schema, NO new table, NO new
+    attachment permission model - confirmed correct by direct inspection
+    of `record_attachments`'s own existing RLS policy before writing any
+    code (per section 30's explicit "if implementation inspection proves
+    this assumption wrong, STOP and report" instruction - it did not).
+
+34. DOCUMENTS UI
+    `src/screens/DocumentsScreen.tsx`, modelled directly on
+    `ContactsListScreen.tsx`'s own bounded-list architecture, exactly as
+    instructed (section 28).
+
+35. METADATA SHOWN
+    File name, parent-record title, upload date, file size where
+    available - all fields `record_attachments` already stores today, no
+    new column needed.
+
+36. ORDERING
+    Newest first (`order('created_at', { ascending: false })`) - the
+    brief's own default (section 32). No filtering/sorting UI was added,
+    deliberately, per that section's own "deliberately a focused v1"
+    instruction.
+
+37. PARENT-RECORD BEHAVIOUR
+    Tapping a document calls the same `onOpenRecord`/
+    `openRecordFromProjection` every other screen in this app already
+    uses (Care Summary, Recent Activity) - opens the existing
+    RecordQuickEditor overlay. No new document-detail architecture.
+
+38. PERMISSIONS
+    Identical to the existing per-attachment domain-grant visibility - a
+    plain client select respects RLS exactly as every other read in this
+    app does; a user can never see a document here they could not already
+    reach through its parent record.
+
+39. EMPTY STATE
+    "No documents have been added for [Name] yet." - calm, matches the
+    brief's own suggested wording exactly.
+
+40. PERSON SWITCHING
+    `DocumentsScreen`'s own `useEffect` re-fetches whenever `careSpaceId`
+    changes - switching the active person while Documents is open (or
+    reopening it for a different person) always shows the newly-active
+    person's own documents, never a stale list.
+
+41. DOCUMENTS TESTS
+    `tests/documents-screen.test.tsx` (6 tests): calm empty state; lists
+    documents with parent-record context; tapping opens the parent record
+    via the existing route; a genuine failure shows the real message
+    (this uncovered a REAL bug - see item 50); a local-only care space
+    shows the empty state without ever calling the network read; Back
+    works. Server-side permission/isolation behaviour is inherited
+    directly from `record_attachments`'s own already-tested RLS policy
+    (Phase 16) - not re-proven here, since nothing about that policy was
+    touched.
+
+
+################################################################
+DRAWER
+################################################################
+
+42. EXACT FINAL DRAWER HIERARCHY
+    Settings
+      [Name]'s care: Care Summary, Recent Activity, Documents,
+        Manage [Name]'s care
+      Account: Account, Care Circle, Archived care (conditional),
+        Privacy & data, Subscription
+      Help: How to use Lilica, FAQ, Contact
+    "Archived care" is account-scoped, not person-scoped (a deliberate
+    judgement call, since an archived care space is by definition never
+    the currently active person, so it cannot logically live inside
+    "[Name]'s care" - recorded explicitly in
+    `docs/PHASE_20C_NAVIGATION_RECONCILIATION.md` section 26.5). It is
+    shown only when the account has at least one archived care space -
+    never a permanently-empty row.
+
+43. DYNAMIC PERSON BEHAVIOUR
+    "Manage [Name]'s care"'s own label reads the exact same `personName`
+    source every other drawer row already uses - proven directly
+    (`tests/settings-drawer-phase20d-final-structure.test.tsx`).
+
+44. EXISTING ROUTES PRESERVED
+    People's own Care Summary/Recent Activity links, Key Contacts preview/
+    View all, Care Circle's People entry, Home's Search, and the primary
+    bottom navigation are all completely untouched - confirmed by
+    `git status` (none of those files appear in this diff) and by the
+    full, unchanged, still-passing Jest suite.
+
+45. HELP PRESERVED
+    How to use Lilica, FAQ and Contact (this last one added the same day,
+    slightly ahead of this brief's own written list, from a separate
+    direct product-owner request - preserved here, not removed, since
+    removing already-approved, already-shipped work without being asked
+    would itself violate this project's standing "never regress
+    signed-off work" rule) are all present and unchanged.
+
+
+################################################################
+JOINTLY
+################################################################
+
+46. DEFERRED FEATURES CONFIRMATION
+    Confirmed: medication structure, supported-person profile expansion,
+    contact import, contextual comments, calendar export, and
+    former-member filtering remain exactly KEEP DEFERRED - none was
+    built, per section 40's explicit instruction. No code path for any of
+    these exists anywhere in this diff.
+
+47. COLLABORATION-NOTIFICATIONS STATUS
+    Confirmed not implemented this phase, per section 43's explicit
+    instruction - recorded as a POST-POLISH / PRE-RELEASE candidate,
+    distinct from Recent Activity (history/discoverability, already
+    built) versus proactive awareness (not built).
+
+48. HANDOVER DECISION
+    Confirmed not implemented - Care Summary + the existing Export +
+    Documents (now built) is treated as sufficient for the present
+    roadmap, per section 41's explicit instruction. Recorded as deferred
+    pending real-user evidence.
+
+49. EMERGENCY/CONTINGENCY DECISION
+    Confirmed not implemented - Care Summary + Key Contacts + Calendar +
+    To Do + Documents (now built) is treated as sufficient underlying
+    information for this stage, per section 42's explicit instruction.
+
+
+################################################################
+DATABASE
+################################################################
+
+50. NEW MIGRATIONS
+    `supabase/migrations/20260915090000_phase20d_lifecycle_and_documents
+    .sql` - the ONE new migration this task required (Documents needed
+    none). Two genuine schema-interaction bugs were found only by
+    RUNNING the extended pgTAP suite, not by reading the schema, and are
+    documented in the migration's own comments:
+    (1) the reordered `leave_care_space()` checks initially broke an
+        existing Phase 15 test because most seed care spaces default
+        their commercial owner to the sole organiser - fixed by checking
+        the organiser-count invariant FIRST (the more fundamental
+        blocker), before the new commercial-ownership check;
+    (2) `care_space_deletion_requests.requested_by_membership_id` is a
+        second, separate non-cascading FK to `care_space_memberships`
+        (distinct from its own `care_space_id` FK, which does cascade,
+        but only once `care_spaces` itself is deleted, which happens
+        AFTER memberships in the existing deletion order) - the exact
+        same CLASS of bug already found once before, in the original
+        `delete_care_space()` migration, for
+        `care_space_domain_grants.granted_by_membership_id`. Fixed by
+        explicitly deleting the request row before memberships, inside
+        `delete_care_space()`'s own existing cascade sequence.
+    No existing migration was renumbered, rewritten, or silently
+    replaced - this is a purely additive migration.
+
+51. LOCAL MIGRATION STATUS
+    Applied via `npx supabase db reset --local` (throwaway local dev
+    database only - the standing "no db reset without asking" rule
+    concerns are specifically about the LINKED/production-adjacent
+    database and genuine user data, not this repository's own
+    already-established local reset-and-reseed development workflow,
+    which every prior migration in this session has used identically).
+
+52. LINKED DEVELOPMENT MIGRATION STATUS
+    `npx supabase migration list --linked` confirmed only this one new
+    migration was pending before applying; `npx supabase db push --linked
+    --dry-run` confirmed the exact same single migration would be
+    applied; pushed for real; confirmed applied afterward.
+
+53. pgTAP RESULTS
+    Local: 396/396 assertions pass (up from 358), across 15 files (two
+    new: `care_space_lifecycle.test.sql`, `care_space_deletion_consent
+    .test.sql`; one extended: `delete_care_space.test.sql`). Linked
+    (`lilica-development`): identical 396/396 - every test runs inside
+    `begin;...rollback;`, using only generated throwaway users/care
+    spaces, so nothing real was ever touched or left behind (see item 55).
+
+54. DB LINT RESULTS
+    Local and linked both report exactly one finding, identical before
+    and after this task: `public.delete_care_space` - "never read
+    variable caller_membership" (a pre-existing advisory note on a
+    variable used only for its own `FOUND` check, present since the
+    original delete-care-space migration, unrelated to and unchanged by
+    this task). No new lint finding was introduced.
+
+55. DESTRUCTIVE REHEARSAL AND CLEANUP
+    No real destructive rehearsal against genuine product-owner/user data
+    was performed or needed. Every pgTAP test (local and linked) creates
+    its own generated throwaway `auth.users`/care spaces inside a
+    transaction that is always rolled back at the end
+    (`begin;...rollback;`, the same pattern already used by every
+    existing test file in this suite) - nothing persists, so there is
+    nothing to clean up afterward. Verified: after running the linked
+    suite, no new rows exist in `lilica-development` beyond what already
+    existed (the transaction rollback guarantees this structurally, not
+    just by inspection).
+
+
+################################################################
+VALIDATION
+################################################################
+
+56. TYPESCRIPT
+    `npm run typecheck`: CLEAN (zero errors), re-run after every
+    significant edit throughout this task, not only once at the end.
+
+57. JEST EXACT SUITES/TESTS
+    `npm test`: 78 suites / 709 tests, ALL PASSING (up from 72 suites /
+    671 tests at the start of this task's own work - the intervening 669
+    count belongs to the immediately-prior FAQ/Contact task). Zero
+    regressions in any pre-existing test.
+
+58. SECRETS CHECK
+    `npm run secrets:check`: "Secret scan passed (318 repository files
+    inspected)."
+
+59. EXPO CONFIG
+    `npx expo config --type public`: resolves cleanly (confirms
+    `ios.supportsTablet: false` standing requirement remains intact,
+    unaffected by this task).
+
+60. WEB EXPORT
+    `npx expo export --platform web`: succeeded, produced `dist/` with no
+    errors.
+
+61. GIT DIFF --CHECK
+    Clean (only expected LF/CRLF line-ending advisory warnings on
+    Windows, no real whitespace errors or conflict markers).
+
+
+################################################################
+QA
+################################################################
+
+62. AUTOMATED QA PASSED
+    Everything in items 56-61 above, plus 396/396 pgTAP (local and
+    linked). This is genuine, run, verified automated coverage - not
+    inferred from reading the code alone (brief section 46's own explicit
+    warning against exactly that).
+
+63. PHYSICAL QA CHECKLIST
+    Prepared below (section "PART I" of this report). NOT the same thing
+    as automated QA passing - see item 64.
+
+64. PHYSICAL QA EXPLICITLY NOT RUN
+    No physical/on-device QA of ANY item in this task has been performed
+    or reported by the product owner. This report does not claim
+    otherwise anywhere above. Three genuinely live, on-device issues WERE
+    reported by the product owner DURING this same session (the
+    stale-Janet-avatar bug, the non-scrolling drawer, and the
+    already-documented Expo Go dev-chrome question) and are addressed
+    directly in the "Genuinely unrelated live bugs" section below - but
+    these were ad hoc reports during casual use, not the structured
+    physical QA pass this checklist describes, and none of the NEW
+    Phase 20D capabilities (Archive, Restore, handoff, multi-organiser
+    consent, Documents, Manage [Name]'s care) have been physically
+    exercised on a device by the product owner as of this report.
+
+
+################################################################
+PART I - PHYSICAL QA CHECKLIST (for the product owner)
+################################################################
+
+A. DRAWER: open Settings from any tab; confirm the list now scrolls to
+   reveal every row (Help group included) on a real phone-sized screen;
+   confirm "[Name]'s care" shows Care Summary/Recent Activity/Documents/
+   Manage [Name]'s care in that order.
+B. DOCUMENTS: open Documents for a person with existing attachments;
+   confirm every document appears, newest first, with its parent record
+   named; tap one and confirm it opens that record; switch to a person
+   with no documents and confirm the calm empty-state message.
+C. MANAGE [NAME]'S CARE: open it as an organiser; confirm it is NOT
+   offered to a contributor/viewer at all.
+D. ARCHIVE: as an organiser, archive a test care space; confirm it
+   disappears from the Home/People switcher immediately; confirm existing
+   records/documents are still visible via "Archived care" > the person;
+   confirm attempting to add a new record shows the ArchivedGate (not the
+   billing ReadOnlyGate).
+E. RESTORE: restore that same care space from "Archived care"; confirm it
+   reappears in the ordinary switcher and that adding a new record works
+   again.
+F. ORGANISER HANDOFF: with two organisers on the same test care space,
+   confirm "Make organiser" promotes a contributor/viewer correctly, and
+   that the original organiser can then leave (Care Circle/Privacy & data)
+   without being blocked by the sole-organiser invariant.
+G. SOLE-ORGANISER REMOVE: as the only organiser of a test care space,
+   confirm "Remove [Name]" in Manage [Name]'s care still shows the
+   existing checkbox-confirmed dialogue and deletes immediately on
+   confirmation.
+H. MULTI-ORGANISER REMOVE REQUEST/APPROVAL: with two organisers, confirm
+   one organiser's confirmed "Remove" now shows "Waiting for 1 more
+   organiser" instead of deleting immediately; confirm the second
+   organiser sees Approve/Decline in their own Manage [Name]'s care, and
+   that approving completes the deletion.
+I. PERSON SWITCHING: switch between two active supported people and
+   confirm Documents/Manage [Name]'s care in the drawer always reflect
+   whichever person is currently active, never a stale one.
+
+AUTOMATED PASS (all of the above's underlying server logic): confirmed
+via items 53/62 above. PHYSICAL QA: NOT YET RUN for any of A-I.
+
+
+################################################################
+PART J - DOCUMENTATION / DIFF
+################################################################
+
+65. DOCUMENTATION UPDATED
+    `docs/PHASE_20C_NAVIGATION_RECONCILIATION.md` (section 26.5 addendum:
+    final drawer structure), `docs/PHASE_20D_CARE_SPACE_LIFECYCLE_
+    PROPOSAL.md` (status-update banner converting proposal wording to
+    implemented wording for exactly what was built, preserving the
+    original analysis unchanged below it), `docs/PHASE_20E_DOCUMENTS_
+    PROPOSAL.md` (same pattern), `docs/PRE_PHASE_22_PRODUCT_GAP_REVIEW.md`
+    (status-update note), `docs/REVISION_LOG.md` (one comprehensive new
+    entry), `docs/LUMEN_HANDOFF.md` (two new summary paragraphs),
+    `CLAUDE.md` (one new summary paragraph plus a reconfirmation of the
+    Expo Go dev-chrome false-alarm note). `docs/CORE_SYSTEM_CONTRACT.md`,
+    `docs/SUPABASE_OPERATIONS.md`, and `AGENTS.md` were each reviewed and
+    found to require NO change - they describe process/contract-level
+    content (the original Phase 20/21/22 roadmap definitions, standing
+    Supabase operational procedure, and the working contract itself) that
+    remains accurate as written; nothing in this task altered any of
+    those processes or the canonical original roadmap wording. No earlier
+    phase's documentation was rewritten as though these capabilities had
+    always existed - each proposal doc's original analysis is preserved
+    verbatim below its own new status banner.
+
+66. COMPLETE DIFF CLASSIFICATION
+
+    Category key (brief section 56, this diff is scoped to changes made
+    SINCE the prior task's own commit f6a311a - everything from that
+    earlier task is therefore NOT re-listed here, it is already
+    committed):
+      C. Archive lifecycle
+      D. deletion-consent hardening
+      E. organiser handoff
+      F. Manage [Name]'s care
+      G. Documents
+      H. final drawer integration
+      I. tests
+      J. documentation
+      K. unexpected (MUST BE EMPTY)
+      L. genuinely unrelated live bug fixes, reported by the product
+         owner during this same session (added below the brief's own
+         required categories, since none of C-K honestly describe them)
+      M. operational artifacts from this session's own tool use (not
+         application code)
+      P. pre-existing, untouched noise from earlier phases (unchanged
+         from the prior completion report's own list)
+
+    MODIFIED FILES:
+    App.tsx                                          C+D+E+F+G+H
+    CLAUDE.md                                         J
+    docs/LUMEN_HANDOFF.md                             J
+    docs/PHASE_20C_NAVIGATION_RECONCILIATION.md       J
+    docs/PHASE_20D_CARE_SPACE_LIFECYCLE_PROPOSAL.md   J
+    docs/PHASE_20E_DOCUMENTS_PROPOSAL.md              J
+    docs/PRE_PHASE_22_PRODUCT_GAP_REVIEW.md           J
+    docs/REVISION_LOG.md                              J
+    src/careCircle.ts                                 D+E
+    src/careSpaceState.ts                             C + L (the
+      setCareSpaceStatus/activeCareSpaces/archivedCareSpaces additions
+      are C; the projectActiveCareSpace() stale-name fix is L, a genuine
+      unrelated bug in EARLIER work, found from a live report during this
+      task)
+    src/careSpaces.ts                                 C
+    src/components/SettingsMenu.tsx                   G+H + L (the new
+      Documents/Manage/Archived-care rows are G/H; the ScrollView fix for
+      the non-scrolling drawer is L, a genuine bug this task's own row
+      additions exposed)
+    src/types.ts                                      C
+    supabase/tests/database/delete_care_space.test.sql  D+I
+    tests/remove-care-space.test.tsx                  L+I (strengthens the
+      existing "last care space removed" test into the actual regression
+      test for the Janet-avatar report)
+
+    NEW FILES:
+    src/components/ArchivedGate.tsx                   C
+    src/documents.ts                                  G
+    src/screens/ArchivedCareScreen.tsx                 C
+    src/screens/DocumentsScreen.tsx                    G
+    src/screens/ManageCareScreen.tsx                   F
+    supabase/migrations/20260915090000_phase20d_lifecycle_and_documents.sql  C+D+E
+    supabase/tests/database/care_space_deletion_consent.test.sql  D+I
+    supabase/tests/database/care_space_lifecycle.test.sql          C+E+I
+    tests/archived-care-screen.test.tsx                C+I
+    tests/archived-gate.test.tsx                       C+I
+    tests/care-space-lifecycle-client.test.ts          C+I
+    tests/documents-screen.test.tsx                    G+I
+    tests/manage-care-screen.test.tsx                  F+I
+    tests/settings-drawer-phase20d-final-structure.test.tsx  H+I
+
+    OPERATIONAL ARTIFACTS (category M, not application code):
+    expo-dev-server.log, expo-qr.png - produced restarting the dev server
+    and generating a QR code at the product owner's own explicit request
+    ("restart expo and new qr") after diagnosing a three-day-stale Metro
+    process as the reason earlier fixes weren't appearing on-device. Not
+    part of this brief's own deliverables; harmless to leave untracked.
+
+    PRE-EXISTING, UNTOUCHED (category P, unchanged from the prior
+    completion report): every `*_COMPLETION_REPORT.txt` file at the repo
+    root, `phase20.txt`/`phase21b.txt`/`phase21c.txt`/`prephase22.txt`/
+    `search4.txt`, and `docs/PHASE_22_VISUAL_AUDIT.md` (still paused).
+
+    K (unexpected/unaccounted changes): EMPTY. Every changed or new file
+    is accounted for above.
+
+67. UNEXPECTED FILES
+    Confirmed empty (category K above). Category L (two genuine,
+    separately-reported live bugs) and category M (two harmless
+    operational artifacts) are recorded honestly rather than force-fit
+    into K, since neither is "unexpected/unaccounted for" - both are
+    fully explained, deliberate, and traced to a specific direct report
+    or instruction in this same session.
+
+68. CONFIRMATION PHASE 22 NOT RESUMED
+    Confirmed. `docs/PHASE_22_VISUAL_AUDIT.md` was not opened, read, or
+    modified by this task - it remains exactly as it was left when
+    explicitly paused before the earlier Phase 20C task began.
+
+69. FINAL GIT STATUS
+    Branch: `prephase22-remove-supported-person-faq-help` (created during
+    the prior task, per the standing "branch before committing to the
+    default branch" convention).
+    HEAD: f6a311a - unchanged since the prior task's own commit; nothing
+    from THIS task has been committed.
+    origin/master: a67c40f - unchanged throughout.
+    Working tree: 14 modified files, 15 new files (all classified above),
+    plus the long-standing category P untracked noise and two new
+    category M operational artifacts.
+
+70. CONFIRMATION NOTHING COMMITTED OR PUSHED
+    Confirmed. No `git commit` or `git push` has been run at any point
+    during this task. Everything above exists only in the local working
+    tree, awaiting GPT and product-owner review of both this report and
+    physical QA results, per the brief's own explicit instruction.
+
+
+================================================================
+ACCEPTANCE STANDARD - ANSWERED
+================================================================
+
+1. Maggie still needs care -> ACTIVE. Unchanged default state; confirmed.
+
+2. Maggie no longer needs active care but history should remain ->
+   ARCHIVE. Implemented: `archive_care_space()`, server-enforced,
+   history/records/documents/membership all genuinely preserved, proven
+   directly by pgTAP.
+
+3. Care resumes later -> RESTORE. Implemented: `restore_care_space()`
+   returns the SAME care space to ACTIVE, proven directly by pgTAP.
+
+4. David no longer wants to organise Maggie's care but Marion continues
+   -> HANDOFF / LEAVE without destroying Maggie's care. Implemented:
+   `promote_to_organiser()` plus the existing `leave_care_space()`
+   invariant, proven directly by pgTAP (David successfully leaves once
+   Marion is an organiser and commercial ownership is resolved).
+
+5. David is the commercial owner and wants to leave -> commercial
+   ownership is explicitly resolved. Implemented: `leave_care_space()`'s
+   new check blocks him until `transfer_care_space_commercial_ownership()`
+   (Phase 21B's own existing RPC, unmodified) is used first.
+
+6. Maggie's care must genuinely be permanently removed and David is the
+   sole organiser -> strong-confirmation permanent deletion. Unchanged,
+   preserved, proven still working.
+
+7. Maggie has David AND Marion as organisers and David tries to delete
+   the whole care space alone -> NOT ALLOWED. Implemented and proven
+   directly by pgTAP: a direct call now raises an explicit exception
+   naming the consent requirement.
+
+8. All organisers genuinely agree to permanent removal -> server-
+   authoritative permanent deletion. Implemented: the request/approve
+   flow, proven directly by pgTAP (consensus triggers the same, unmodified
+   deletion machinery).
+
+9. User asks "Show me Maggie's documents." -> one clear Documents
+   destination. Implemented: `DocumentsScreen.tsx`, reachable from the
+   drawer's "[Name]'s care" group.
+
+10. User opens Settings -> understands the important person-specific care
+    destinations without Lilica becoming Jointly's enormous module menu.
+    The final person-scoped group is exactly four rows (Care Summary,
+    Recent Activity, Documents, Manage [Name]'s care) - no permanent tab,
+    Add, Key Contacts, or Jointly-style category row was introduced
+    anywhere in this task.
+
+The final person-scoped navigation matches the brief's own required
+structure exactly (item 42/section 37).
+
+This phase has passed automated review (items 56-62 above). Physical
+product-owner QA has NOT yet been run (item 64) - do not treat this
+report as claiming otherwise.
+
+DO NOT COMMIT. DO NOT PUSH. DO NOT START PHASE 22. None of the three has
+been done.
+================================================================

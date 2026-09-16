@@ -36,3 +36,4 @@ export const ClipboardListIcon = iconFromModule(require('lucide-react-native/ico
 export const BellIcon = iconFromModule(require('lucide-react-native/icons/bell'));
 export const PhoneIcon = iconFromModule(require('lucide-react-native/icons/phone'));
 export const ShieldIcon = iconFromModule(require('lucide-react-native/icons/shield-check'));
+export const LightbulbIcon = iconFromModule(require('lucide-react-native/icons/lightbulb'));

@@ -57,18 +57,31 @@ export function mapEvent(event: RevenueCatEvent): { status: EntitlementStatus; e
   }
 }
 
-// HMAC-SHA256 verification of RevenueCat's own `x-revenuecat-signature`
-// header, using the Web Crypto API available in both Deno (index.ts's own
-// runtime) and modern Node (this file's Jest test runtime) -- no
-// Deno-specific API used here, which is exactly what makes this function
-// testable at all.
-export async function verifySignature(rawBody: string, signatureHeader: string | null, secret: string): Promise<boolean> {
+// RevenueCat signs `<unix timestamp>.<raw request body>` and sends the
+// timestamp/signature pair as `t=...,v1=...`. The timestamp check prevents
+// a captured, valid delivery from being replayed outside a short clock-skew
+// window; provider event IDs remain the separate idempotency boundary.
+export async function verifySignature(
+  rawBody: string,
+  signatureHeader: string | null,
+  secret: string,
+  nowMs = Date.now(),
+): Promise<boolean> {
   if (!signatureHeader) return false;
+  const fields = signatureHeader.split(',').map((field) => field.trim());
+  const timestampText = fields.find((field) => field.startsWith('t='))?.slice(2);
+  const signatures = fields.filter((field) => field.startsWith('v1=')).map((field) => field.slice(3));
+  if (!timestampText || signatures.length === 0 || !/^\d+$/.test(timestampText)) return false;
+  const timestamp = Number(timestampText);
+  if (!Number.isSafeInteger(timestamp) || Math.abs(Math.floor(nowMs / 1000) - timestamp) > 300) return false;
+
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const signatureBytes = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody));
+  const signatureBytes = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${timestampText}.${rawBody}`));
   const computed = Array.from(new Uint8Array(signatureBytes)).map((b) => b.toString(16).padStart(2, '0')).join('');
-  if (computed.length !== signatureHeader.length) return false;
-  let diff = 0;
-  for (let i = 0; i < computed.length; i += 1) diff |= computed.charCodeAt(i) ^ signatureHeader.charCodeAt(i);
-  return diff === 0;
+  return signatures.some((candidate) => {
+    if (!/^[a-f0-9]+$/i.test(candidate) || computed.length !== candidate.length) return false;
+    let diff = 0;
+    for (let i = 0; i < computed.length; i += 1) diff |= computed.charCodeAt(i) ^ candidate.toLowerCase().charCodeAt(i);
+    return diff === 0;
+  });
 }

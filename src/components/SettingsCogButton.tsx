@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { colors } from '../theme';
 import { phase22Foundation } from '../visualFoundation';
@@ -13,11 +13,14 @@ export function SettingsCogButton({ onPress, tone = 'dark' }: { onPress: () => v
       onPress={onPress}
       style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
     >
-      <FoundationIcon
-        icon={SettingsIcon}
-        role="utility"
-        color={tone === 'light' ? colors.white : colors.primary}
-      />
+      <View testID="settings-cog-icon" style={styles.icon}>
+        <FoundationIcon
+          icon={SettingsIcon}
+          role="utility"
+          size={28}
+          color={tone === 'light' ? colors.white : colors.primary}
+        />
+      </View>
     </Pressable>
   );
 }
@@ -32,5 +35,9 @@ const styles = StyleSheet.create({
   },
   chipPressed: {
     opacity: 0.7,
+  },
+  icon: {
+    width: 28,
+    height: 28,
   },
 });

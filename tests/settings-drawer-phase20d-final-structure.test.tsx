@@ -21,27 +21,26 @@ const baseProps = {
 };
 
 describe('Settings drawer: final Phase 20D person-scoped structure', () => {
-  it('the "[Name]\'s care" group contains Care Summary, Recent Activity, Documents and Manage [Name]\'s care, in that order', async () => {
+  it('the "[Name]\'s care" group contains Care Summary, Documents and Manage care, with Recent Activity moved to the bell', async () => {
     const screen = await render(
       <SettingsMenu
         {...baseProps}
         personName="Maggie"
         onOpenCareSummary={jest.fn()}
-        onOpenRecentActivity={jest.fn()}
         onOpenDocuments={jest.fn()}
         onOpenManageCare={jest.fn()}
       />,
     );
     screen.getByText("Maggie's care");
     screen.getByLabelText('Care Summary');
-    screen.getByLabelText('Recent Activity');
+    expect(screen.queryByLabelText('Recent Activity')).toBeNull();
     screen.getByLabelText('Documents');
     screen.getByLabelText("Manage Maggie's care");
   });
 
   it('Documents and Manage are each independently omitted when their own callback is not offered -- never a fabricated destination', async () => {
     const screen = await render(
-      <SettingsMenu {...baseProps} personName="Maggie" onOpenCareSummary={jest.fn()} onOpenRecentActivity={jest.fn()} />,
+      <SettingsMenu {...baseProps} personName="Maggie" onOpenCareSummary={jest.fn()} />,
     );
     expect(screen.queryByLabelText('Documents')).toBeNull();
     expect(screen.queryByLabelText("Manage Maggie's care")).toBeNull();
@@ -81,7 +80,6 @@ describe('Settings drawer: final Phase 20D person-scoped structure', () => {
         {...baseProps}
         personName="Maggie"
         onOpenCareSummary={jest.fn()}
-        onOpenRecentActivity={jest.fn()}
         onOpenDocuments={jest.fn()}
         onOpenManageCare={jest.fn()}
         onOpenCareCircle={jest.fn()}

@@ -1,0 +1,613 @@
+================================================================
+LILICA - CARE CIRCLE INVITATION & JOINING FLOW
+HOLISTIC CORRECTION / COMPLETION TASK
+COMPLETION REPORT
+================================================================
+Report date: 14 September 2026
+Source brief: C:\Users\DavidPC\Downloads\carecircle.txt
+
+
+1. ROOT CAUSE OF THE SAFARI "ADDRESS IS INVALID" FAILURE
+   Unchanged from the prior, separate investigation this same day (see
+   INVITATION_DEEP_LINK_PHYSICAL_TEST_REPORT.txt and
+   docs/PHASE_15_ARCHITECTURE.md's matching addendum): NOT a code
+   defect. The link chain (email -> https://lilica.co.uk/invite/?id=
+   <id>&code=<code> -> the landing page's own script -> lilica://
+   invite/<id>) is syntactically and architecturally correct end to
+   end, confirmed by direct inspection of every component. The failure
+   is environmental: no EAS build of Lilica has ever existed, so the
+   test device was necessarily running Expo Go, which cannot register
+   a third-party app's own custom URL scheme with iOS. This brief's
+   own item 18 asked me to investigate before fixing rather than
+   assume any of its listed possible causes -- inspection confirmed
+   none of them (no malformed URL, no scheme mismatch, no missing
+   registration in app.json, no route-format disagreement) is real;
+   the cause is the test environment, not the app.
+
+2. EXACT DEEP-LINK FIX
+   None required at the link-format level (already correct). Two
+   genuine, separate corrections WERE made this session, both
+   documented in full elsewhere and not repeated in detail here:
+   (a) the query-parameter routing decision (avoiding GitHub Pages'
+   404-status fallback) -- done in an earlier pass the same day; (b)
+   the landing-page copy correction (no longer implies a failed tap
+   proves the app isn't installed) -- also done in that earlier pass.
+   This task's own contribution to the link itself: the web URL gained
+   an optional second query parameter, `&code=<code>`, so the landing
+   page can show the invitation code as a pre-launch fallback (brief
+   section 20) -- no change to the id parameter or the custom-scheme
+   format.
+
+3. EXISTING INVITATION ARCHITECTURE DISCOVERED
+   Inspected directly before any change, per this brief's own explicit
+   instruction (section 1) -- not inferred from the brief's own
+   framing:
+   - `care_space_invitations` (id/care_space_id/invited_by_membership_id/
+     invitee_email/role/relationship_type/relationship_label/
+     granted_domains/status/operation_id/created_at/expires_at/
+     responded_at/accepted_membership_id) -- the invitation's own `id`
+     (a server-owned `gen_random_uuid()`) IS the secure token; no
+     separate token column existed or was needed.
+   - `invite_member()` (organiser-only, idempotent via operation_id,
+     archive/entitlement-gated, upserts on a re-invite of the same
+     pending email) creates it.
+   - `accept_invitation()` (SECURITY DEFINER, checks the caller's own
+     `auth.users.email` against `invitee_email` -- the real identity
+     boundary) creates/reactivates membership and its domain grants,
+     logs activity, marks the invitation accepted.
+   - `decline_invitation()`/`revoke_invitation()` handle the other two
+     deliberate terminal states; expiry is lazy (checked whenever
+     anything next resolves the invitation).
+   - `list_my_invitations()` (SECURITY DEFINER, scoped to the caller's
+     own authenticated email) is how an existing user's pending
+     invitations are auto-discovered -- unrelated to and unaffected by
+     the new code route.
+   - Email delivery (`supabase/functions/send-invitation-email/`,
+     Resend), native Share (`CareCircleScreen.tsx`), the landing page
+     (`public/invite/index.html`) and the deep-link hook
+     (`src/invitationDeepLink.ts`) were all already implemented from
+     earlier passes this same day.
+   - Onboarding's `initialPersonStage()` (App.tsx) already had the
+     exact condition needed for the new routing fork (`!hasStarted`,
+     meaning no care space and no in-progress draft) -- confirmed by
+     reading it, not assumed.
+
+4. INVITATION-CODE IMPLEMENTATION
+   `care_space_invitations.invite_code` -- one additive column, NOT a
+   new table, NOT a second invitation record. 8 characters, an
+   unambiguous alphabet (`ABCDEFGHJKMNPQRSTUVWXYZ23456789` -- no 0/O,
+   1/I/L), generated server-side by `generate_invitation_code()`
+   (retries on collision -- checked, not merely assumed unique given
+   the alphabet size), unique, case-insensitive at resolution time
+   (`resolve_invitation_by_code()` normalises via `upper()` and strips
+   non-alphanumerics, so `abcd-1234` and `ABCD1234` resolve identically),
+   expires/revokes with the invitation (no independent lifecycle),
+   cannot be resolved once the invitation leaves 'pending', cannot
+   alter role or domain grants (the preview it returns is read-only;
+   acceptance reads role/domains from the invitation row itself,
+   unchanged), and does not bypass the invited-recipient restriction
+   (proven directly by pgTAP -- see item 14).
+   Displayed grouped as `ABCD-1234` (client-side formatting only; the
+   database stores one plain 8-character string).
+
+5. DATABASE/SCHEMA CHANGES
+   ONE additive migration:
+   `supabase/migrations/20260916140000_invitation_code.sql`
+   - `generate_invitation_code()` (new function).
+   - `care_space_invitations.invite_code` (new column, NOT NULL,
+     UNIQUE, CHECKed to the exact alphabet/length, backfilled for every
+     existing row).
+   - `resolve_invitation_by_code()` (new function, SECURITY DEFINER,
+     `authenticated` only).
+   - `list_care_space_invitations()` redefined (dropped and recreated,
+     since its OUT-parameter shape changed) to also return `invite_code`
+     to the organiser's own existing read.
+   No table was added or removed. No existing invitation/membership/
+   permission table changed shape. `invite_member()` and
+   `accept_invitation()` were NOT redefined -- `invite_member()`'s
+   existing `returning *` already includes the new column with zero
+   change to its own body; `accept_invitation()` needed literally no
+   change since it has never read or needed a code.
+
+6. SERVER/RPC CHANGES
+   New: `generate_invitation_code()`, `resolve_invitation_by_code()`.
+   Redefined (shape-only, logic otherwise identical):
+   `list_care_space_invitations()` (adds `invite_code` to its return
+   row). Nothing else. `invite_member`, `accept_invitation`,
+   `decline_invitation`, `revoke_invitation`, `list_my_invitations`,
+   `list_care_space_members`, `change_member_role`, `remove_member`,
+   `leave_care_space` are ALL completely unchanged.
+
+7. CARE CIRCLE UI CHANGES
+   `src/screens/CareCircleScreen.tsx`:
+   - The invitation code is now shown (grouped `ABCD-1234`) on both the
+     "Invitation created" panel and every Pending Invitations row.
+   - Native Share's message now includes the code alongside the link
+     (brief section 23's exact structure).
+   - A new, optional "Join another Care Circle" button (only rendered
+     when the caller supplies the callback) at the foot of the Members
+     list.
+   - The CREATED-vs-PENDING duplicate-display bug (see item 8) fixed.
+   Two new screens: `src/screens/JoinCareCircleScreen.tsx` (code entry
+   -> review -> accept) and `src/screens/JoinOrSetupScreen.tsx` (the
+   one new onboarding fork).
+
+8. INVITATION-CREATED VS PENDING-INVITATION UX FIX
+   Root cause (unchanged from the earlier, narrower brief that first
+   raised this the same day): the "Invitation created" panel and the
+   Pending Invitations list were two independent, unfiltered views of
+   the SAME underlying `invitations` array, so a just-created
+   invitation appeared in both at once. Fixed by excluding the
+   just-created invitation's id from the Pending list's own filter
+   while its creation panel is showing, and closing that panel
+   automatically the moment a REAL success (email accepted by Resend,
+   or a non-cancelled share) occurs -- at which point the SAME
+   invitation reappears exactly once in Pending, truthfully labelled.
+   Dismiss closes the panel without recording any delivery status,
+   so the invitation reappears as "Not sent yet." rather than being
+   lost. Truthful delivery state (`invitationDeliveryStatus`) is
+   PERSISTED per device via a new optional field on the existing
+   `LocalCareSpaceState`, saved through the exact same
+   `JSON.stringify(state)` AsyncStorage path every other local-only UI
+   truth (e.g. `allSetDismissed`) already uses -- genuinely NOT a new
+   persistence mechanism, and genuinely NOT a database column (the
+   server itself has no delivery-state column at all -- a real,
+   honestly-named architectural gap this works around at the client
+   level rather than papering over).
+
+9. EMAIL CHANGES
+   `supabase/functions/send-invitation-email/email-content.ts` and
+   `index.ts` (redeployed to `lilica-development`): the email now
+   selects and includes `invite_code`, shown formatted (`ABCD-1234`)
+   with the brief's own exact instructional sentence ('If necessary,
+   install/open Lilica and choose "Join a Care Circle", then enter this
+   code.'). The `joinUrl` itself gained the `&code=` parameter. Wording
+   otherwise adjusted to match the brief's own example ("has invited
+   you to help with Maggie's care in Lilica" / "Open invitation")
+   without changing what information is disclosed -- still only
+   inviter name, supported person's first name, role-neutral, no
+   record/task/bill/health/document content.
+
+10. NATIVE-SHARE CHANGES
+    `CareCircleScreen.tsx`'s `handleShare()`: the shared message now
+    includes the invitation code and the brief's own suggested closing
+    line ("If you already have Lilica, you can also open Care Circle
+    -> Join a Care Circle and enter the code."), alongside the
+    unchanged wording/link structure. Still calls the same native
+    `Share.share()`, still no dedicated WhatsApp/SMS integration.
+
+11. LANDING-PAGE CHANGES
+    `public/invite/index.html` (local reference copy -- see item 20 for
+    why the live `github-pages-hosting` branch was not pushed to): now
+    parses an optional `&code=` query parameter and, only when present,
+    shows "You can also enter this invitation code in Lilica: ABCD-1234"
+    as an additional, honest fallback -- never invented, never shown
+    when the link didn't actually carry one. No redesign; same visual
+    language (same card, same font sizes, one new small text block).
+
+12. EXISTING-USER JOINING JOURNEY
+    Traced directly (App.tsx): `showInvitations` (automatic discovery)
+    is checked before any onboarding-stage logic, unchanged. The new
+    "Join another Care Circle" button on `CareCircleScreen.tsx` opens
+    the SAME `JoinCareCircleScreen`, wired to the SAME
+    `handleAcceptInvitation()` App.tsx already uses for every other
+    acceptance route -- an existing user reaching the SAME invitation
+    via automatic discovery, a link, or a manually-entered code all
+    converge on identical membership/permission outcomes, never
+    different behaviour depending on the route (brief section 13's
+    explicit requirement).
+
+13. NEW-USER JOINING/ONBOARDING JOURNEY
+    `initialPersonStage()` now returns `'joinOrSetup'` instead of
+    jumping straight to `'careFork'` when `!hasStarted` is true (no
+    care space, no in-progress draft) -- the ONE authorised onboarding
+    change, confirmed to be the exact same condition already used, not
+    a new check. `JoinOrSetupScreen` offers "Set up care for someone"
+    (-> `careFork`, at exactly the same logical point as before this
+    task) or "Join a Care Circle" (-> `JoinCareCircleScreen`, same
+    component/acceptance path as the existing-user route). Successfully
+    joining does NOT force supported-person creation -- confirmed by
+    tracing that `handleAcceptInvitation()` already runs
+    `resolveOnboardingStateAfterAcceptingInvitation()` (an earlier
+    fix), which is what actually sets `onboardingComplete: true,
+    stage: 'home'`; this task added no new logic there, only a new
+    entry point into the same existing function. Every subsequent
+    onboarding screen for an ordinary organiser (relationship,
+    peopleReview, privacyConsent, interests, firstThing, etc.) is
+    completely unchanged -- confirmed by reading `initialPersonStage()`
+    and the `renderAuthenticatedOnboarding()` switch directly; nothing
+    else in that switch was touched.
+
+14. SECURITY PROTECTIONS
+    Confirmed unweakened, by direct pgTAP proof, not assertion (see
+    `supabase/tests/database/invitation_code.test.sql`, 15/15 passing):
+    - `resolve_invitation_by_code()` never checks caller identity and
+      never creates membership -- it only ever returns a minimal
+      preview.
+    - `accept_invitation()` -- completely unmodified -- still refuses
+      an unrelated authenticated account regardless of how it obtained
+      the invitation id (proven directly: an unrelated account that
+      successfully previewed a code was then refused ("Invitation not
+      found") when it tried to accept the exact same invitation id).
+    - The genuinely invited account, resolving the identical code,
+      succeeded, with a membership whose role and domain grants were
+      proven EXACTLY equal to the invitation's own values -- never
+      broadened by having been reached via a code.
+    - A revoked invitation's code resolves to a distinct "no longer
+      active" message and CANNOT be accepted (`accept_invitation()`'s
+      own existing terminal-state check, unchanged, still fires).
+    - No invitation lookup by email alone was added anywhere.
+    - No raw database identifier substitutes for a secure token
+      anywhere -- the code is purely a locator, resolved server-side
+      only.
+    - No client-side membership insert exists anywhere in this change.
+    - No RLS policy was weakened, added, or removed.
+
+15. PERMISSION BEHAVIOUR
+    Unchanged, confirmed by the same pgTAP proof as item 14: role and
+    domain grants always come from the invitation row itself, via the
+    unmodified `accept_invitation()`, regardless of which of the four
+    routes (auto-discovery, email link, native Share, manual code)
+    reached it.
+
+16. TESTS ADDED
+    Database (`supabase/tests/database/invitation_code.test.sql`, 15
+    assertions, all passing): code shape/uniqueness, valid-code
+    preview correctness, case/dash tolerance, exact-column-shape
+    (never leaking invitee_email/care_space_id), empty/malformed/
+    nonexistent code failure, revoked-code failure (both at the
+    preview layer and via a direct accept_invitation() call using the
+    revoked id), unrelated-account preview-permitted-but-accept-refused,
+    genuine-invitee accept-succeeds, post-accept code no-longer-active,
+    and exact role/domain-grant equality on the resulting membership.
+    Client:
+    - `tests/join-care-circle-screen.test.tsx` (NEW, 8 tests): code
+      entry/Continue-disabled, valid review, invalid code, expired/
+      cancelled code, explicit-acceptance-only (never joins on preview
+      alone), genuine accept failure surfaced honestly, Not-now closes
+      without accepting, empty-domains calm state.
+    - `tests/care-circle-invitation-delivery.test.tsx` (rewritten +
+      extended, 16 tests): the full CREATED-vs-DELIVERED state model
+      (unchanged from the earlier same-day pass) PLUS 3 new tests for
+      the invitation code display and the "Join another Care Circle"
+      button (present only when the callback is supplied; calls it).
+    - `tests/invitation-email-content.test.ts` (updated): the code
+      appears, formatted, with the brief's own instructional wording;
+      HTML-escaping re-verified.
+    Existing/unaffected, re-run and confirmed still green:
+    `tests/invitation-links.test.ts`, `tests/invitation-deep-link
+    .test.tsx`, `tests/resolve-onboarding-after-accept-invitation
+    .test.ts`, `tests/care-circle-domain-explanations.test.tsx`, the
+    full pgTAP suite for `accept_invitation`/`decline_invitation`/
+    `revoke_invitation`/permission enforcement.
+    NOT added (and why): a dedicated App.tsx-level render test for the
+    new `joinOrSetup` onboarding stage -- this project has no App.tsx
+    render harness by established convention (the same limitation
+    named honestly for the earlier brand-new-invitee fix). Verified
+    instead by direct code tracing of `initialPersonStage()` and the
+    `renderAuthenticatedOnboarding()` switch, stated honestly as such.
+
+17. COMPLETE VALIDATION RESULTS
+    npm run typecheck: CLEAN.
+    npm test: 88 suites / 787 tests, ALL GREEN.
+    npm run secrets:check: "Secret scan passed (352 repository files
+      inspected)."
+    npx expo config --type public: resolves cleanly (exit 0).
+    git diff --check: clean (only expected LF/CRLF advisory warnings).
+    Local pgTAP (full suite, all 18 files including the new one):
+      430/430 assertions, zero errors, zero failures (was 415 before
+      this pass).
+    Local db lint: only the same single, pre-existing, unrelated
+      finding (`delete_care_space`'s own unread `caller_membership`
+      variable) -- confirmed unchanged by this pass.
+    Migration applied to `lilica-development` (dry-run clean beforehand,
+      migration history parity confirmed afterward via `supabase
+      migration list --linked` -- every one of 17 migrations matches
+      local<->remote exactly).
+    Linked db lint: identical clean result (same single pre-existing
+      finding).
+    Real end-to-end verification against `lilica-development` (not
+      only pgTAP): a genuine invitation created via the real
+      `invite_member` RPC, its real server-generated code sent through
+      the real deployed `send-invitation-email` Edge Function (Resend
+      accepted it, `last_event: "sent"`), resolved by a genuinely
+      separate, freshly-created, unrelated authenticated account via
+      `resolve_invitation_by_code()`, and that same account's accept
+      attempt genuinely refused ("Invitation not found") by the
+      unmodified `accept_invitation()`.
+    Physical-device behaviour (deep-link hand-off, on-device code
+      entry, real Share sheet, real email inbox tap) is explicitly NOT
+      claimed as tested -- see item 19.
+
+18. FULL REGRESSION MATRIX
+    (BEFORE / INTENDED AFTER / ACTUAL AFTER / EVIDENCE for each)
+
+    Organiser creates invitation
+      BEFORE: worked, but the created invitation duplicated under
+        Pending while its own delivery panel was open.
+      INTENDED: same creation flow; no duplicate display.
+      ACTUAL: identical creation flow (`invite_member`, unchanged);
+        duplicate-display bug fixed.
+      EVIDENCE: tests 1/2 in care-circle-invitation-delivery.test.tsx.
+
+    Permission selection
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- same domain
+        checklist, same DOMAIN_DESCRIPTIONS source of truth, untouched.
+      EVIDENCE: tests/care-circle-domain-explanations.test.tsx, all
+        passing unmodified.
+
+    Email send
+      BEFORE: worked (real Resend delivery, from the earlier same-day
+        pass); email text/wording only.
+      INTENDED: same delivery mechanism; now also carries the code.
+      ACTUAL: identical Edge Function/Resend call; content updated.
+      EVIDENCE: real end-to-end run (item 17); tests/invitation-email-
+        content.test.ts.
+
+    Email resend
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- resending still
+        targets the exact same invitation id, never creates a second
+        invitation.
+      EVIDENCE: test in care-circle-invitation-delivery.test.tsx
+        ("resending an already-emailed pending invitation").
+
+    Native Share
+      BEFORE: worked; message text only.
+      INTENDED: same Share.share() call; message now also carries the
+        code.
+      ACTUAL: identical mechanism; content updated.
+      EVIDENCE: care-circle-invitation-delivery.test.tsx's Share tests.
+
+    Re-share
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- "Share again"
+        still targets the same invitation, same truthful-state model.
+      EVIDENCE: same test file, delivery-state tests.
+
+    Pending invitation
+      BEFORE: correct list, but a just-created invitation could appear
+        here AND in the creation panel simultaneously.
+      INTENDED: appears here exactly once, always, with a truthful
+        delivery-state line and now the invitation code.
+      ACTUAL: as intended.
+      EVIDENCE: care-circle-invitation-delivery.test.tsx tests 2, 3-4-
+        5-13, 11, and the new invitation-code test.
+
+    Cancel/revoke
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- `revoke_invitation()`
+        untouched; a revoked invitation's code now also correctly
+        fails to resolve/accept.
+      EVIDENCE: pgTAP invitation_code.test.sql assertions 8-9; existing
+        pgTAP for revoke_invitation itself, unchanged and still passing.
+
+    Decline
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- `decline_invitation()`
+        untouched.
+      EVIDENCE: existing pgTAP suite, unchanged, still passing.
+
+    Accept
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- `accept_invitation()`
+        not redefined by this pass; now provably reachable via a code-
+        resolved id with identical identity enforcement.
+      EVIDENCE: pgTAP invitation_code.test.sql assertions 11-13; real
+        end-to-end run (item 17).
+
+    Existing invited user
+      BEFORE: could accept via auto-discovery or a link.
+      INTENDED: can ALSO now enter a code manually, converging on the
+        same outcome.
+      ACTUAL: as intended.
+      EVIDENCE: JoinCareCircleScreen tests; CareCircleScreen's "Join
+        another Care Circle" tests.
+
+    Brand-new invited user
+      BEFORE: could accept via a link (with the earlier onboarding-
+        bypass fix already in place); had no manual-code route.
+      INTENDED: can ALSO choose "Join a Care Circle" from the new
+        onboarding fork, without being forced through supported-person
+        creation.
+      ACTUAL: as intended -- reaches the same resolveOnboardingStateAfterAcceptingInvitation()
+        fix, traced directly (item 13); NOT physically tested (item 19).
+      EVIDENCE: JoinCareCircleScreen tests (client logic); direct code
+        tracing (onboarding wiring, no App.tsx harness exists).
+
+    Normal non-invited new-user onboarding
+      BEFORE: careFork was the very first screen for a brand-new user.
+      INTENDED: joinOrSetup precedes it; choosing "Set up care for
+        someone" reaches careFork identically to before.
+      ACTUAL: as intended -- confirmed by direct code tracing of
+        `initialPersonStage()`/the onboarding switch; every screen
+        after careFork is byte-for-byte unchanged.
+      EVIDENCE: direct code reading (no App.tsx harness exists, named
+        honestly, same limitation as the earlier onboarding fix).
+
+    Existing organiser onboarding
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- an organiser who
+        has already completed onboarding never sees joinOrSetup at all
+        (`state.onboardingComplete` short-circuits to 'home' before
+        `initialPersonStage()` is ever called).
+      EVIDENCE: direct code reading of the unchanged ternary at both
+        call sites.
+
+    User with multiple care spaces
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- accepting an
+        invitation (by any route) still adds to the existing multi-
+        care-space architecture via the unmodified reconciliation flow
+        (`reconnectCareSpaces()`/`integrateReconnectedCareSpaces()`),
+        never overwriting an existing space.
+      EVIDENCE: direct code reading; existing reconnect tests
+        (tests/reconnect-prunes-deleted-care-space.test.ts), unchanged
+        and still passing.
+
+    Role grants
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED, proven directly for
+        the new route too -- resulting role always exactly matches the
+        invitation.
+      EVIDENCE: pgTAP invitation_code.test.sql assertion 14.
+
+    Domain grants
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED, proven directly for
+        the new route too -- resulting domain grants always exactly
+        match the invitation, never broadened.
+      EVIDENCE: pgTAP invitation_code.test.sql assertion 15.
+
+    Care-space switching
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- not touched by any
+        file in this pass.
+      EVIDENCE: no diff touches PersonSwitcher/ChooseActivePersonScreen/
+        switching logic.
+
+    Invitation-link route
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- same canonical
+        `https://lilica.co.uk/invite/?id=<id>` format; only gained an
+        OPTIONAL `&code=` parameter alongside it, never replacing it.
+      EVIDENCE: tests/invitation-links.test.ts, unchanged and passing;
+        tests/invitation-deep-link.test.tsx, unchanged and passing.
+
+    Manual-code route
+      BEFORE: did not exist.
+      INTENDED: a working, secure, minimal-preview manual entry point.
+      ACTUAL: as intended.
+      EVIDENCE: items 4, 14, 16 above.
+
+    Account deletion
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- no file in this
+        pass touches `delete_my_account()` or its precheck.
+      EVIDENCE: no diff in that area; brief section 30 explicitly
+        excluded this from scope.
+
+    Member removal
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- `remove_member()`
+        untouched; its own confirmation dialog (added in an earlier
+        same-day pass, unrelated to this brief) is unaffected.
+      EVIDENCE: no diff in `remove_member()`; existing tests for it
+        pass unmodified.
+
+    Leave Care Circle
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- `leave_care_space()`
+        untouched.
+      EVIDENCE: no diff in that function.
+
+    Archive/Restore
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- no file in this
+        pass touches `archive_care_space()`/`restore_care_space()`.
+      EVIDENCE: no diff in that area; brief section 30 explicitly
+        excluded this from scope.
+
+    Phase 21 entitlement/read-only behaviour
+      BEFORE/INTENDED/ACTUAL: BEHAVIOUR UNCHANGED -- `invite_member()`'s
+        own existing entitlement gate (`care_space_has_active_entitlement()`)
+        is untouched; the new code-joining route never calls
+        `invite_member()` at all (only an organiser invites; joining by
+        code only ever calls `resolve_invitation_by_code()` and the
+        unchanged `accept_invitation()`, neither of which is
+        entitlement-gated, matching every other acceptance route's
+        existing, deliberate exemption).
+      EVIDENCE: direct code reading; no diff in
+        `care_space_has_active_entitlement()` or any Phase 21 file.
+
+19. PHYSICAL QA STILL REQUIRED
+    Genuinely NOT RUN on a physical device (see the new checklist items
+    in docs/PHASE_15_QA.md):
+    - A real new-user account choosing "Join a Care Circle" during
+      onboarding and successfully joining without being forced through
+      supported-person creation.
+    - A real existing-user account using "Join another Care Circle"
+      from the Care Circle screen for a second, different care space.
+    - Real on-device typing of a code (autocapitalize/keyboard
+      behaviour, not just simulated `fireEvent.changeText`).
+    - A real received email/Share message visually confirmed to show
+      the code correctly.
+    - The complete "Open in Lilica" hand-off (blocked on a real EAS
+      build existing at all -- unrelated to this brief's own code,
+      already tracked as outstanding).
+    No physical result is claimed as tested anywhere in this report
+    that was not actually tested; every item above is explicitly
+    marked NOT RUN rather than inferred from the automated coverage
+    above it.
+
+20. COMPLETE FILE-BY-FILE DIFF CLASSIFICATION
+    NEW files (main working branch, uncommitted):
+      supabase/migrations/20260916140000_invitation_code.sql
+      supabase/tests/database/invitation_code.test.sql
+      src/screens/JoinCareCircleScreen.tsx
+      src/screens/JoinOrSetupScreen.tsx
+      tests/join-care-circle-screen.test.tsx
+    MODIFIED files (main working branch, uncommitted):
+      App.tsx (initialPersonStage() fork; new stage cases; new
+        showJoinCareCircle overlay; new imports)
+      src/types.ts (new OnboardingStage values; new
+        invitationDeliveryStatus field -- the latter was actually added
+        in the earlier same-day delivery-UX pass, confirmed unchanged
+        by this one)
+      src/careCircle.ts (CareCircleInvitation.inviteCode; new
+        CodeResolvedInvitation type; inviteMember() return shape;
+        new resolveInvitationByCode())
+      src/screens/CareCircleScreen.tsx (invite-code display; Share/
+        email content; "Join another Care Circle" button and its prop)
+      supabase/functions/send-invitation-email/email-content.ts,
+        index.ts (redeployed)
+      public/invite/index.html (code-fallback display; local reference
+        copy only, see item 22)
+      src/invitationLinks.ts (invitationWebUrl() gains optional
+        inviteCode parameter)
+      tests/care-circle-invitation-delivery.test.tsx (extended)
+      tests/invitation-email-content.test.ts (updated)
+      AGENTS.md, CLAUDE.md, docs/LUMEN_HANDOFF.md,
+        docs/PHASE_15_ARCHITECTURE.md, docs/PHASE_15_QA.md,
+        docs/REVISION_LOG.md (documentation)
+    UNCHANGED, verified by absence from `git diff`:
+      Every file governing accept_invitation/decline_invitation/
+      revoke_invitation/remove_member/leave_care_space/change_member_role/
+      archive_care_space/restore_care_space/delete_my_account/billing/
+      entitlement/care-space switching/PersonSwitcher/
+      ChooseActivePersonScreen/RelationshipScreen/PeopleReviewScreen.
+
+21. CONFIRMATION NO UNRELATED FUNCTIONALITY WAS CHANGED
+    Confirmed by direct `git status`/`git diff` inspection (item 20) --
+    every changed file maps to one of this brief's own categories A-D
+    (invitation-code support, the physically-proven delivery-UX fix,
+    the new-user/existing-user joining routes). Category E ("unrelated")
+    changes were identified and deliberately NOT made: most notably,
+    the discovered `friendlyAuthError('profile')` message-swallowing
+    gap in the OTHER existing careCircle.ts functions (item 16 of the
+    architecture addendum) was named and left alone rather than fixed
+    as part of this pass.
+    Explicit confirmation of each item this brief asked me to state:
+    - Membership architecture: UNCHANGED.
+    - Roles: UNCHANGED.
+    - Permission/domain model: UNCHANGED.
+    - Multi-care-space model: UNCHANGED.
+    - Billing/entitlement: UNCHANGED.
+    - Archive/Restore: UNCHANGED.
+    - Account deletion: UNCHANGED.
+    - Member removal: UNCHANGED.
+    - Normal organiser onboarding: UNCHANGED.
+
+22. GIT STATUS
+    Branch: prephase22-remove-supported-person-faq-help.
+    HEAD: 280c7ec (unchanged by this task).
+    Every file in item 20's NEW/MODIFIED lists remains UNCOMMITTED, per
+    this brief's own explicit stop condition. origin/master and
+    github-pages-hosting are both untouched by this task -- NO commit,
+    NO push, made anywhere during this pass. (The landing-page copy
+    fix from the EARLIER same-day deep-link brief also remains
+    unpushed to github-pages-hosting, for the same stated reason --
+    that brief's own stop condition did not carve out an exception
+    this time.)
+
+
+================================================================
+STOP CONDITIONS -- NONE TRIGGERED
+================================================================
+None of section 38's eight stop conditions applied: the invitation
+architecture did not need replacing; identity binding was fully
+preserved (proven directly); acceptance never required client-side
+membership creation; existing permission grants were reused exactly;
+deep linking required no architectural change beyond what was already
+done in the earlier, separate investigation; onboarding needed only
+the one authorised narrow fork; nothing here weakens RLS/security; and
+the repository did not contradict any assumption this brief made.
+
+DO NOT COMMIT. DO NOT PUSH.
+STOPPING for GPT/product-owner review, as instructed.
+================================================================

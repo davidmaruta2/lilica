@@ -5,6 +5,7 @@ import { FoundationIcon } from '../components/FoundationIcon';
 import { BackIcon, ForwardIcon, GridIcon, ListIcon } from '../components/foundationIcons';
 import { PlusIcon } from '../components/PlusIcon';
 import { PrimaryTabHeader } from '../components/PrimaryTabHeader';
+import { NotificationAnchor } from '../components/NotificationBellButton';
 import { ScreenBackdrop } from '../components/ScreenBackdrop';
 import type { RecordSheetOrigin } from '../components/RecordSheet';
 import { AppText } from '../components/Text';
@@ -45,6 +46,8 @@ type Props = {
   // Corrective task 4: app-level Settings entry point, same component and
   // placement as Home/Calendar/People. Omitted (no cog) when not supplied.
   onOpenSettings?: () => void;
+  notificationCount?: number;
+  onOpenNotifications?: (origin?: NotificationAnchor) => void;
   // Reported gap: arriving here via a Home strip tap (Overdue/Due today/
   // Assigned to you) left no way back except the bottom tab bar -- the
   // user had visibly "gone into" To Do from Home, not chosen the To Do
@@ -68,11 +71,11 @@ type AssignmentFilter = 'all' | 'mine' | 'unassigned';
 type ViewMode = 'list' | 'grid';
 type TaskGroupKey = 'overdue' | 'today' | 'upcoming' | 'completed';
 
-const TASK_GROUP_VISUALS: Record<TaskGroupKey, { section: string; tile: string; heading: string; metadata: string }> = {
-  overdue: { section: '#ECEFF2', tile: '#FFFFFF', heading: colors.primary, metadata: colors.danger },
-  today: { section: '#F5F1E7', tile: '#FBF8F4', heading: colors.primary, metadata: colors.inkSoft },
-  upcoming: { section: '#D8F2FD', tile: '#E6F7FE', heading: '#155E8A', metadata: '#356F88' },
-  completed: { section: '#E3E8EA', tile: '#F1F4F5', heading: colors.inkSoft, metadata: colors.inkSoft },
+const TASK_GROUP_VISUALS: Record<TaskGroupKey, { tile: string; heading: string; metadata: string }> = {
+  overdue: { tile: '#FFFFFF', heading: colors.white, metadata: colors.danger },
+  today: { tile: '#FBF8F4', heading: colors.white, metadata: colors.inkSoft },
+  upcoming: { tile: '#E6F7FE', heading: '#155E8A', metadata: '#356F88' },
+  completed: { tile: '#F1F4F5', heading: colors.inkSoft, metadata: colors.inkSoft },
 };
 
 const TODO_ICON_COLORS: Partial<Record<LilicaRecord['type'], string>> = {
@@ -83,11 +86,13 @@ const TODO_ICON_COLORS: Partial<Record<LilicaRecord['type'], string>> = {
 };
 
 export function todoGridLayout(windowWidth: number, fontScale: number) {
-  const availableWidth = Math.max(windowWidth - (spacing.lg * 2) - (spacing.sm * 2), 0);
-  const singleColumn = availableWidth < 300 || fontScale >= 1.3;
+  const contentWidth = Math.max(windowWidth - (spacing.lg * 2), 0);
+  const singleColumn = contentWidth < 300 || fontScale >= 1.3;
   return {
     columns: singleColumn ? 1 : 2,
-    tileWidth: singleColumn ? availableWidth : (availableWidth - spacing.sm) / 2,
+    tileWidth: singleColumn
+      ? contentWidth
+      : Math.min(220, Math.max(124, (contentWidth - spacing.sm) / 2)),
   };
 }
 
@@ -147,7 +152,7 @@ function dueMetaText(record: LilicaRecord, derived: DerivedRecordState): string 
   return formatDateForDisplay(dueDate);
 }
 
-export function ToDoScreen({ records, personName, activeMembershipId, onOpenRecord, onAddSomething, initialFilter, initialFocusGroup, onOpenSettings, onBack, careCircleMembers }: Props) {
+export function ToDoScreen({ records, personName, activeMembershipId, onOpenRecord, onAddSomething, initialFilter, initialFocusGroup, onOpenSettings, notificationCount = 0, onOpenNotifications, onBack, careCircleMembers }: Props) {
   const { width: windowWidth, fontScale } = useWindowDimensions();
   const rowRefs = useRef<Record<string, View | null>>({});
   const [filter, setFilter] = useState<AssignmentFilter>(initialFilter ?? 'all');
@@ -308,6 +313,8 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
       <PrimaryTabHeader
         title="To Do"
         tone="light"
+        notificationCount={notificationCount}
+        onOpenNotifications={onOpenNotifications}
         leading={onBack ? (
             <Pressable
               accessibilityRole="button"
@@ -383,7 +390,7 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
               always shows every record the tapped count represented. */}
           {orderedGroupDefs.map(({ key, title, items }) => (
             items.length > 0 ? (
-              <View key={key} testID={`todo-group-${key}`} style={[styles.group, { backgroundColor: TASK_GROUP_VISUALS[key].section }]}>
+              <View key={key} testID={`todo-group-${key}`} style={styles.group}>
                 <AppText variant="section" style={{ color: TASK_GROUP_VISUALS[key].heading }}>{title}</AppText>
                 <View testID={`todo-${viewMode}-${key}`} style={viewMode === 'list' ? styles.listRows : styles.gridTiles}>
                   {items.map((record, index) => renderRow(record, key, index, items.length))}
@@ -409,7 +416,7 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
             </AppText>
           </Pressable>
           {showCompleted ? (
-            <View testID="todo-group-completed" style={[styles.group, { backgroundColor: TASK_GROUP_VISUALS.completed.section }]}>
+            <View testID="todo-group-completed" style={styles.group}>
               <AppText variant="section" style={{ color: TASK_GROUP_VISUALS.completed.heading }}>Completed</AppText>
               <View testID={`todo-${viewMode}-completed`} style={viewMode === 'list' ? styles.listRows : styles.gridTiles}>
                 {completedItems.map((record, index) => renderRow(record, 'completed', index, completedItems.length))}
@@ -519,7 +526,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   group: {
-    padding: spacing.xs,
+    paddingVertical: spacing.xs,
     borderRadius: radius.sm,
     gap: spacing.xxs,
   },

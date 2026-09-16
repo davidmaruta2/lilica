@@ -1,0 +1,71 @@
+PHASE 22A - COMPLETION REPORT
+
+Status: AUDIT COMPLETE. PHASE 22B NOT STARTED.
+
+1. Overall visual-quality assessment
+
+Lilica is recognisably cohesive, calm and commercially credible, with an estimated current visual quality of 6.9/10 after reconciling the source audit with all 14 screenshots in C:\Users\DavidPC\Downloads\visualPolish. Welcome is the strongest visually evidenced surface. The app is not uniformly premium because several secondary screens have visible clipping, occlusion, excessive chrome, generic cards and unfinished status states.
+
+2. Five biggest weaknesses
+
+- Care Circle's primary Invite CTA is visibly occluded by the persistent bottom navigation.
+- Search does not currently match the protected approved architecture described in the Phase 22 brief.
+- To Do is olive/sage despite the brief protecting blue, and its tiles visibly truncate category/date information.
+- The bright blue glowing in-app Settings cog visually dominates every main-tab header.
+- Drawer subsections stack Close, back and title chrome; loading, empty, error and success states remain inconsistent.
+
+3. Five highest-impact, lowest-risk improvements
+
+- Resolve and apply the approved To Do colour reference (P22-02, high impact / low risk).
+- Normalise the Settings cog through existing palette tokens (P22-03, high / low).
+- Add a restrained shared loading/empty/error state block (P22-06, high / low).
+- Add a compact Button size instead of local size overrides (P22-11, medium / low).
+- Consolidate matching chevrons into one small primitive (P22-12, medium / low).
+
+4. Lowest-scoring screens
+
+- Care Circle management: 4.8/10.
+- Subscription: 5.9/10.
+- Search and To Do: 6.0/10.
+- Invitations: 6.0/10.
+- Documents and Recent Activity: 6.1/10.
+
+5. Highest-scoring screens
+
+- Welcome carousel: 8.7/10.
+- Auth choice: 8.2/10.
+- Home, Calendar, relationship wheel, verification and date/time wheels: 8.0/10.
+- People and record detail: 7.8/10.
+- First Thing and Record Sheet remain 8.1/10 from source/previous physical evidence, but were not shown in this screenshot set.
+
+6. Proposed Phase 22B batches
+
+- Batch 1: Care Circle CTA/tab-bar clearance, approved-reference fidelity for Search/To Do, then Settings cog.
+- Batch 2: screen/drawer layout ownership and responsive grids.
+- Batch 3: shared states, compact buttons and chevrons.
+- Batch 4: Subscription mock plus Care Circle/Account trust surfaces.
+- Batch 5: Calendar, Documents, record forms and modal polish.
+- Batch 6: optional list-row, bottom-navigation and success-motion finishing.
+
+7. Physical screenshot review required
+
+Search and To Do still require approved-reference comparison; Care Circle CTA occlusion, To Do/Home/People truncation and subsection header stacking are now screenshot-confirmed. Remaining checks: dense Calendar, Invitations in the drawer, increased text, keyboard-open forms, sheets/wheels, modal focus and real-device contrast.
+
+Screenshot note: the second cog floating at the lower-left of every capture appears on Welcome and account creation even though those routes render no app settings control. It is treated as an external device/capture overlay, not an app duplication defect. The normal top-right cog remains an in-app visual finding.
+
+8. Files created/modified
+
+- Updated: docs/PHASE_22_VISUAL_AUDIT.md
+- Created: PHASE_22A_COMPLETION_REPORT.txt
+
+9. ZERO application code changed
+
+Confirmed. No .ts, .tsx, database, migration, RPC, navigation or product-logic file was changed.
+
+10. No commit/push
+
+Confirmed. No commit or push was performed.
+
+11. Phase 22B status
+
+Phase 22B has NOT started. Every recommendation remains subject to GPT and product-owner approval.

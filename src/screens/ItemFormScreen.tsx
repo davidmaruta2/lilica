@@ -26,7 +26,7 @@ const labels: Record<FirstItemType, { title: string; required: string; date?: st
     save: 'Save appointment',
   },
   task: {
-    title: 'Add something to do',
+    title: 'Add an errand or activity',
     required: 'What needs doing?',
     date: 'When is it due?',
     save: 'Save task',

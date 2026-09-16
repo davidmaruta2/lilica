@@ -78,7 +78,7 @@ type Props = {
   // immediately; on a brand-new draft it is staged locally and flushed
   // via `onLinkRecord` from inside save(), once the new record's id is
   // known. Symmetrically, `onCreateLinkedTask` is called immediately for
-  // an existing record's own separate "Add this task" action, or staged
+  // an existing record's own separate "Add this errand or activity" action, or staged
   // and flushed from inside save() for a brand-new draft.
   relatableRecords?: PickableRecord[];
   existingLinks?: LinkedRecordSummary[];
@@ -598,7 +598,7 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
               onPress={() => setWantsTask(true)}
               style={[styles.segment, wantsTask && styles.segmentSelected]}
             >
-              <AppText variant="secondary" tone={wantsTask ? 'primary' : 'soft'} centre>Yes - add something to do</AppText>
+              <AppText variant="secondary" tone={wantsTask ? 'primary' : 'soft'} centre>Yes - add an errand or activity</AppText>
             </Pressable>
           </View>
           {wantsTask ? (
@@ -623,7 +623,7 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
               </View>
               {record ? (
                 <Button
-                  label="Add this task"
+                  label="Add this errand or activity"
                   variant="secondary"
                   disabled={!taskTitle.trim()}
                   onPress={() => {

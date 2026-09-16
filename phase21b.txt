@@ -1,0 +1,1723 @@
+LILICA - PHASE 21B
+BILLING, SUBSCRIPTION & ENTITLEMENT IMPLEMENTATION
+
+IMPLEMENTATION AGENT: CLAUDE
+
+============================================================
+STATUS
+============================================================
+
+Phase 21A architecture proposal has been reviewed.
+
+The product owner has now made TWO final commercial changes which supersede
+all earlier wording:
+
+1. Annual price:
+   £8.99/year
+
+2. Free period:
+   60 DAYS completely free
+
+This replaces the earlier:
+
+- £9.99/year
+- one month / 30 days
+
+model everywhere.
+
+The commercial proposition is now:
+
+- Lilica is fully usable for the first 60 days.
+- No payment details are required to start.
+- After 60 days, continued active use costs £8.99 per year.
+- One subscription covers the user's Lilica account and all care spaces
+  commercially owned by that account.
+- Invited Care Circle collaborators do NOT each need a separate subscription
+  merely to participate in an entitled care space.
+- Expiry NEVER removes access to existing authorised care information.
+- Expiry moves the relevant care space into READ-ONLY / SAFETY ACCESS until
+  entitlement is restored.
+
+This task is the APPROVED implementation phase.
+
+Do not re-open product decisions already resolved below.
+
+
+============================================================
+0. FIRST - CORRECT THE COMMERCIAL MODEL EVERYWHERE
+============================================================
+
+Before implementation:
+
+search the entire repository/documentation for current/future references to:
+
+£9.99
+9.99
+GBP9.99
+GBP 9.99
+one month
+1 month
+30 days
+30-day
+30 × 24
+30x24
+
+Where these refer to the CURRENT/FUTURE Lilica commercial model, replace them
+with:
+
+£8.99/year
+60 days free
+
+Preserve genuinely historical wording only where useful, but clearly mark it
+as superseded.
+
+Re-run the Phase 21A cost sanity check at £8.99/year.
+
+Do not alter the commercial model otherwise.
+
+
+============================================================
+1. AUTHORITATIVE COMMERCIAL MODEL
+============================================================
+
+The final approved proposition is:
+
+USE ALL OF LILICA FREE FOR 60 DAYS.
+
+After that:
+
+£8.99 PER YEAR
+
+to continue actively managing care.
+
+There is:
+
+- no monthly tier;
+- no freemium tier;
+- no feature-tier ladder;
+- no advertising;
+- no per-record charge;
+- no per-supported-person charge;
+- no payment details required to begin the free period.
+
+The purpose is deliberately simple:
+
+Use the full product properly for 60 days.
+
+If it becomes useful, continue for £8.99/year.
+
+Do not redesign this pricing proposition.
+
+
+============================================================
+2. PHASE 21A OPEN DECISIONS - NOW RESOLVED
+============================================================
+
+Use the following decisions as authoritative.
+
+
+DECISION 1 - MULTIPLE ORGANISERS
+--------------------------------
+
+Commercial entitlement is tied to the specific:
+
+commercial_owner_id
+
+for the care space.
+
+Do NOT use:
+
+"any subscribed organiser automatically makes the care space active."
+
+If David is commercial owner and his subscription expires while Marion is
+also an organiser with her own active Lilica subscription:
+
+the space remains read-only UNTIL commercial ownership is explicitly
+transferred to Marion.
+
+Provide a safe explicit ownership-transfer path.
+
+No silent ownership changes.
+
+
+DECISION 2 - PROFILE/ACCOUNT IDENTITY EDITS WHILE EXPIRED
+---------------------------------------------------------
+
+Account/profile identity management remains available while commercially
+expired.
+
+A user may still:
+
+- edit their own display name;
+- manage their profile photo;
+- access Settings;
+- manage subscription;
+- restore purchases;
+- export;
+- leave care spaces;
+- delete their account.
+
+Commercial expiry gates CARE MANAGEMENT, not basic account control.
+
+
+DECISION 3 - OFFLINE GRACE
+--------------------------
+
+Use:
+
+72 HOURS
+
+from the last successfully server-verified entitled state.
+
+Within that period, the client may continue behaving as actively entitled
+offline.
+
+After 72 hours without verification:
+
+active mutation UI should enter:
+
+"Reconnect to confirm your subscription"
+
+rather than assuming continued entitlement.
+
+The server remains authoritative at all times.
+
+Any queued mutation reaching the server after entitlement expiry must be
+rejected safely and retained visibly for recovery after subscription is
+restored.
+
+Never silently discard user work.
+
+
+DECISION 4 - ENTITLEMENT DATA AFTER ACCOUNT DELETION
+----------------------------------------------------
+
+When a Lilica account is deleted:
+
+- remove/detach the user's active application entitlement linkage;
+- do not keep unnecessary personal billing metadata in normal application
+  tables;
+- retain only the minimum provider transaction/event evidence required for
+  billing integrity, reconciliation, fraud prevention, legal/accounting or
+  provider obligations;
+- do not store card/bank details;
+- do not make retained billing audit data available to ordinary app users.
+
+Document any provider-required retention separately.
+
+Do not claim legal retention periods unless supported by policy/specialist
+review.
+
+
+DECISION 5 - REVENUECAT
+-----------------------
+
+APPROVED.
+
+Use RevenueCat as the cross-platform subscription-management layer.
+
+RevenueCat is approved because the product has:
+
+- one simple annual product;
+- iOS + Android;
+- account-based entitlement;
+- cross-platform restore;
+- renewal/revocation lifecycle;
+- server webhook needs.
+
+Do not implement direct Apple/Google verification in parallel unless genuinely
+required.
+
+RevenueCat remains an implementation dependency, not the authority for Lilica
+Care Circle security.
+
+
+DECISION 6 - EXISTING/PRE-LAUNCH ACCOUNTS
+-----------------------------------------
+
+Lilica has not launched publicly.
+
+Therefore:
+
+DO NOT invent production grandfathering logic for users who do not yet exist.
+
+For development/test accounts:
+
+use explicit non-production test fixtures and RevenueCat sandbox state.
+
+Do not silently derive trial history from historical account creation dates.
+
+For future production:
+
+new accounts begin their free period at the approved server-authoritative
+trial-start event.
+
+
+DECISION 7 - DEVELOPMENT / TEST ENTITLEMENTS
+--------------------------------------------
+
+Use:
+
+- Apple sandbox;
+- Google Play test accounts/testing tracks;
+- RevenueCat sandbox/test configuration;
+- deterministic Supabase test fixtures where needed.
+
+Do NOT create:
+
+- special premium email addresses;
+- hidden production bypasses;
+- hard-coded user IDs;
+- client-only entitlement overrides.
+
+Any developer-only fixture mechanism must be impossible to invoke in
+production.
+
+
+DECISION 8 - GOOGLE WEB ACCOUNT-DELETION RESOURCE
+-------------------------------------------------
+
+This is a RELEASE DEPENDENCY but NOT part of the Phase 21B app implementation.
+
+Document it clearly.
+
+Do not build an unrelated website inside the mobile repository unless the
+existing project already contains the appropriate public web surface.
+
+Record exactly what Google requires and leave creation of the public deletion
+resource as an explicit launch action.
+
+
+============================================================
+3. TRIAL MODEL
+============================================================
+
+Implement an APP-MANAGED 60-DAY free period.
+
+The user should NOT be required to begin an App Store/Google Play
+subscription or enter payment details to start using Lilica.
+
+Trial starts on:
+
+the FIRST successful bootstrap_supported_people() for that account.
+
+This is the first point at which the person genuinely begins using Lilica for
+its intended purpose.
+
+It must be:
+
+- server-authoritative;
+- written once;
+- account-scoped;
+- unaffected by reinstall;
+- unaffected by new devices;
+- unaffected by sign-out/in;
+- unaffected by adding another supported person;
+- unaffected by clearing local storage.
+
+
+============================================================
+4. EXACT TRIAL LENGTH
+============================================================
+
+Use exactly:
+
+60 × 24 hours
+
+from trial_started_at.
+
+Store:
+
+trial_started_at
+trial_expires_at
+
+server-side.
+
+Do not use the device clock as authority.
+
+Do not use "two calendar months".
+
+Do not use "same calendar date two months later".
+
+The approved free period is:
+
+60 DAYS
+
+precisely.
+
+
+============================================================
+5. COMMERCIAL OWNERSHIP MODEL
+============================================================
+
+Implement the approved separate commercial ownership concept.
+
+Add:
+
+care_spaces.commercial_owner_id
+
+This must be distinct from:
+
+bootstrap_owner_id
+care_space_memberships.role
+membership identity
+
+commercial_owner_id means only:
+
+"which Lilica account's commercial entitlement currently supports active
+management of this care space?"
+
+It does NOT:
+
+- grant read permission;
+- make someone an organiser;
+- bypass RLS;
+- create membership;
+- grant domain access.
+
+
+============================================================
+6. INITIAL COMMERCIAL OWNER
+============================================================
+
+When a user creates a care space through the existing supported-person
+bootstrap:
+
+commercial_owner_id = auth.uid()
+
+for the new space.
+
+The same account may commercially own:
+
+Beauty
+Jackie
+Dad
+Mum
+etc.
+
+One active £8.99/year entitlement covers every care space for which that user
+is commercial owner.
+
+No per-person purchase.
+
+
+============================================================
+7. COLLABORATOR MODEL
+============================================================
+
+A collaborator does not require their own subscription to work inside another
+person's entitled care space.
+
+Example:
+
+David commercially owns Beauty.
+David is entitled.
+Marion is Contributor.
+
+Marion may mutate Beauty only if:
+
+A. Phase 15 security/permissions allow the action
+
+AND
+
+B. Beauty's commercial owner currently has active entitlement.
+
+Both must pass.
+
+Commercial entitlement NEVER replaces RLS/domain permissions.
+
+
+============================================================
+8. ENTITLEMENT DATA MODEL
+============================================================
+
+Implement a small explicit server-authoritative entitlement model.
+
+Use the Phase 21A proposal as the basis, including:
+
+public.entitlements
+
+one account-level row containing the minimum required state such as:
+
+- user_id
+- status
+- trial_started_at
+- trial_expires_at
+- provider
+- provider_app_user_id
+- entitlement_expires_at
+- last_verified_at
+- created_at
+- updated_at
+
+Use exact types/constraints appropriate to the current schema.
+
+Also create an append-only:
+
+public.entitlement_events
+
+audit/event table for meaningful commercial transitions.
+
+Do not store:
+
+- card number;
+- bank details;
+- CVV;
+- unnecessary billing address;
+- other raw payment data.
+
+
+============================================================
+9. ENTITLEMENT STATE MACHINE
+============================================================
+
+Implement a real explicit state machine.
+
+Support at least the semantic equivalents of:
+
+TRIAL_ACTIVE
+TRIAL_EXPIRED
+SUBSCRIPTION_ACTIVE
+GRACE_PERIOD
+BILLING_RETRY / ACCOUNT_HOLD
+SUBSCRIPTION_EXPIRED
+REVOKED / REFUNDED
+UNKNOWN / VERIFICATION_REQUIRED
+
+Use names that map cleanly to RevenueCat/store state.
+
+Do NOT collapse entitlement to:
+
+isPremium: boolean
+
+
+============================================================
+10. ACTIVE-WRITE ENTITLEMENT
+============================================================
+
+Create one shared server function equivalent to:
+
+care_space_has_active_entitlement(care_space_id)
+
+This function determines whether active care-management mutation is
+commercially permitted.
+
+It should treat appropriate states as active, for example:
+
+- TRIAL_ACTIVE
+- SUBSCRIPTION_ACTIVE
+- approved provider grace state
+
+and deny ordinary active care mutation for:
+
+- TRIAL_EXPIRED
+- SUBSCRIPTION_EXPIRED
+- REVOKED/REFUNDED
+- unresolved verification state after allowed offline handling
+
+Do not duplicate billing logic in every RPC.
+
+
+============================================================
+11. SERVER-SIDE ENFORCEMENT
+============================================================
+
+Every CARE MANAGEMENT mutation must enforce entitlement server-side.
+
+A modified client must not bypass expiry.
+
+Audit and protect every current relevant mutation path.
+
+At minimum:
+
+ENTITLEMENT REQUIRED
+
+- create record
+- edit record
+- ordinary record deletion
+- completion/reopen
+- mark paid/unpaid
+- assignment/reassignment
+- date changes
+- reminder changes
+- document upload
+- document replacement
+- record-link creation/removal where it mutates care state
+- invite member
+- revoke invitation
+- remove member
+- change role
+- change domain permissions
+- creation of additional supported people/care spaces after the first trial-
+  starting bootstrap
+
+Do not accidentally remove any existing Phase 15 permission check while
+redefining RPCs.
+
+This exact regression has happened before and must be guarded.
+
+
+============================================================
+12. ACTIONS THAT REMAIN AVAILABLE WHILE EXPIRED
+============================================================
+
+Commercial expiry must NOT block:
+
+- all normal reads;
+- Search;
+- Calendar viewing;
+- To Do viewing;
+- People viewing;
+- Care Summary;
+- Recent Activity;
+- RecordDetail viewing;
+- document viewing where already authorised;
+- export;
+- Settings;
+- Account;
+- subscription management;
+- restore purchases;
+- accepting/declining invitation where approved below;
+- leave care space;
+- account deletion;
+- account deletion precheck;
+- own profile editing.
+
+Do not gate privacy/safety/account-control actions.
+
+
+============================================================
+13. INVITATION DECISION
+============================================================
+
+An invited person may:
+
+ACCEPT
+or
+DECLINE
+
+an already-issued invitation even if the care space has become commercially
+read-only.
+
+Reason:
+
+accepting an already-issued relationship is account/collaboration lifecycle,
+not creation of new care information.
+
+However:
+
+creating NEW invitations requires active entitlement.
+
+Once accepted into an expired care space, the new member receives whatever
+READ access their Phase 15 permissions allow but cannot perform care
+mutations until the care space entitlement is restored.
+
+
+============================================================
+14. LEAVING / REMOVAL SAFETY
+============================================================
+
+A member must always be allowed to:
+
+leave a care space.
+
+An organiser must retain enough safety/account-control capability to remove a
+member where appropriate even if entitlement has expired.
+
+Do not trap users inside a data-sharing relationship because payment lapsed.
+
+Carefully distinguish this safety capability from ordinary collaborative
+management.
+
+
+============================================================
+15. COMMERCIAL OWNERSHIP TRANSFER
+============================================================
+
+Implement:
+
+transfer_care_space_commercial_ownership(...)
+
+or the smallest equivalent safe RPC.
+
+Allow:
+
+A. current commercial owner explicitly transfers to another ACTIVE organiser;
+
+OR
+
+B. commercial owner is no longer an active member / has deleted their account,
+   and another ACTIVE organiser explicitly assumes commercial ownership.
+
+Requirements:
+
+- explicit;
+- audited;
+- server-authorised;
+- target must be active organiser;
+- target account identity valid;
+- never silently changes;
+- does not change Care Circle roles;
+- does not transfer Apple/Google purchase ownership.
+
+If the new commercial owner is actively entitled:
+
+the care space becomes actively manageable.
+
+If they are not:
+
+the care space remains read-only.
+
+
+============================================================
+16. ACCOUNT DELETION
+============================================================
+
+Preserve Phase 18B.
+
+Account deletion is never entitlement-gated.
+
+Before deletion, the UI must clearly state:
+
+Deleting your Lilica account does NOT automatically cancel an Apple App Store
+or Google Play subscription.
+
+Provide the appropriate:
+
+Manage subscription
+
+route where platform permits.
+
+On successful account deletion:
+
+- entitlement application linkage removed/detached appropriately;
+- commercial_owner_id for affected spaces becomes NULL unless already
+  transferred;
+- surviving care data remains exactly as Phase 18B requires;
+- historical care attribution remains;
+- commercial audit retention follows the approved minimal-retention rule.
+
+Do not weaken sole-organiser safeguards.
+
+
+============================================================
+17. REVENUECAT INTEGRATION
+============================================================
+
+Implement the approved RevenueCat architecture.
+
+Use current supported React Native / Expo-compatible RevenueCat SDK versions.
+
+Do not guess package compatibility.
+
+Verify compatibility against the current Expo SDK/project first.
+
+Configure one logical entitlement, for example:
+
+lilica_active
+
+with annual store products underneath.
+
+Actual product identifiers should be stable and environment-aware.
+
+Document them.
+
+Do not put secrets in the client.
+
+
+============================================================
+18. APP STORE / PLAY STORE PRODUCTS
+============================================================
+
+Where store-side configuration cannot be created from this repository:
+
+document the exact steps the product owner must perform later.
+
+Target commercial product:
+
+Lilica Annual
+£8.99/year UK target price
+
+with store-localised equivalent pricing as configured by Apple/Google.
+
+Do not create fake success in the client while store products are absent.
+
+Development must use sandbox/test configuration.
+
+
+============================================================
+19. REVENUECAT APP USER ID
+============================================================
+
+RevenueCat identity must use a stable Lilica account identifier derived from:
+
+auth.uid()
+
+not email address.
+
+On login:
+
+RevenueCat must associate with the authenticated Lilica account.
+
+On logout:
+
+RevenueCat identity/session handling must prevent entitlement leakage to the
+next Lilica account using the device.
+
+Test account switching explicitly.
+
+
+============================================================
+20. WEBHOOK / SERVER UPDATE PATH
+============================================================
+
+Implement one secure Supabase Edge Function for RevenueCat entitlement
+events.
+
+Requirements:
+
+- authenticate/verify RevenueCat webhook;
+- never trust arbitrary public JSON;
+- idempotent provider_event_id handling;
+- map verified events to the correct auth user;
+- update entitlement state transactionally;
+- append entitlement_event;
+- update last_verified_at;
+- handle duplicates safely;
+- never weaken Care Circle RLS.
+
+Document required webhook secret/configuration.
+
+Do not commit secrets.
+
+
+============================================================
+21. PURCHASE FLOW
+============================================================
+
+Implement:
+
+Subscribe for £8.99/year
+
+using RevenueCat/native store purchase flow.
+
+After successful store purchase:
+
+- RevenueCat verifies;
+- server entitlement is updated;
+- app re-fetches authoritative entitlement;
+- active mutation capability returns;
+- any recoverable held offline mutations may retry safely.
+
+Do not unlock permanently from the client purchase callback alone.
+
+
+============================================================
+22. RESTORE PURCHASES
+============================================================
+
+Provide:
+
+Restore purchases
+
+in the subscription surface.
+
+Also restore/reconcile automatically as appropriate after authenticated login.
+
+Reinstall/new device should not require reconstructing state from local
+storage.
+
+Server account entitlement remains authoritative.
+
+
+============================================================
+23. CROSS-PLATFORM BEHAVIOUR
+============================================================
+
+An entitlement verified from an iOS purchase should activate the same Lilica
+account when that user signs in on Android.
+
+Likewise Android → iOS.
+
+Do not require a second purchase merely because the user changed phone
+platform.
+
+Where platform policy limits what purchase/manage actions can be presented,
+follow current store rules while preserving server account entitlement.
+
+
+============================================================
+24. APP-MANAGED 60-DAY FREE PERIOD UI
+============================================================
+
+Do not require payment during the free period.
+
+The user starts Lilica normally.
+
+Do NOT immediately present a purchase sheet.
+
+During the free period, show only restrained subscription information.
+
+Examples:
+
+Settings → Subscription
+
+Free period
+47 days remaining
+
+After your 60-day free period, Lilica is £8.99/year.
+
+No daily full-screen countdown.
+
+No dark patterns.
+
+
+============================================================
+25. FREE-PERIOD COMMUNICATION
+============================================================
+
+Avoid over-emphasising the countdown.
+
+The product is intended to become useful naturally over the 60-day period.
+
+A user should not feel constantly sold to.
+
+Recommended communication points:
+
+EARLY PERIOD
+- no intrusive prompts;
+- subscription status visible in Settings if wanted.
+
+APPROACHING EXPIRY
+- restrained reminder;
+- explain £8.99/year clearly.
+
+FINAL DAYS
+- clear but calm reminder that active management will become read-only.
+
+AFTER EXPIRY
+- simple explanation;
+- existing data remains safe and accessible.
+
+Do not use fake urgency, flashing banners or manipulative copy.
+
+
+============================================================
+26. TRIAL EXPIRY
+============================================================
+
+At exactly 60 days from trial_started_at, without active subscription:
+
+existing data remains visible.
+
+The user enters READ-ONLY CARE MODE.
+
+Use concise copy such as:
+
+Your free period has ended
+
+Everything you've added is still here.
+
+Subscribe for £8.99/year to continue adding and managing care.
+
+Do not suggest data has been removed.
+
+
+============================================================
+27. READ-ONLY UX ARCHITECTURE
+============================================================
+
+Implement one coherent entitlement-gating mechanism.
+
+Do not scatter inconsistent bespoke checks across every component.
+
+Mutation affordances may:
+
+- become visibly disabled with explanation;
+- or open the subscription surface when tapped.
+
+Choose the least disruptive pattern.
+
+Read-only screens should continue looking like Lilica, not like a giant
+paywall.
+
+
+============================================================
+28. MUTATION HOLDING AFTER OFFLINE EXPIRY
+============================================================
+
+If a user legitimately created/edited something offline while their cached
+entitlement was still within the 72-hour allowed window, but the server later
+rejects it because entitlement had expired:
+
+DO NOT delete the local work.
+
+Move it into an explicit recoverable failed/held state.
+
+Use plain-language messaging such as:
+
+Couldn't save this yet
+
+Your Lilica subscription needs to be renewed before this change can be synced.
+
+After entitlement restoration:
+
+allow retry through the existing outbox/reconciliation model.
+
+No duplicate writes.
+
+
+============================================================
+29. TRIAL SERVER AUTHORITY
+============================================================
+
+Extend the first bootstrap flow carefully.
+
+First successful care-space creation:
+
+- create entitlement row if needed;
+- trial_started_at = server time;
+- trial_expires_at = +60 days;
+- commercial_owner_id = auth.uid().
+
+Retries must be idempotent.
+
+The same bootstrap retry must not:
+
+- restart trial;
+- create another entitlement;
+- change commercial owner unexpectedly.
+
+
+============================================================
+30. SECOND SUPPORTED PERSON DURING FREE PERIOD
+============================================================
+
+Adding Beauty first starts David's free period.
+
+Adding Jackie later:
+
+does NOT create a new free period.
+
+does NOT extend the existing free period.
+
+does NOT require a second purchase.
+
+Jackie's care space receives:
+
+commercial_owner_id = David
+
+and uses the same account entitlement.
+
+
+============================================================
+31. SUBSCRIPTION EXPIRY / CANCELLATION
+============================================================
+
+Cancellation:
+
+does not immediately remove active entitlement if the paid period remains.
+
+The app remains actively usable through the entitlement expiry date supplied
+by the verified provider.
+
+At actual expiry:
+
+read-only care mode.
+
+Do not equate:
+
+cancelled auto-renewal
+
+with:
+
+immediately expired.
+
+
+============================================================
+32. GRACE / BILLING RETRY
+============================================================
+
+Respect RevenueCat/store-verified grace/billing-retry state.
+
+Where provider policy says access remains entitled during a billing grace
+period:
+
+continue active use.
+
+Where provider state becomes genuinely expired/revoked:
+
+read-only.
+
+Do not derive grace periods from client assumptions.
+
+
+============================================================
+33. REFUND / REVOCATION
+============================================================
+
+Verified refund/revocation moves entitlement to the appropriate non-active
+state.
+
+Existing care information remains readable.
+
+Do not erase records.
+
+Do not punish collaborators by deleting care spaces.
+
+
+============================================================
+34. SUBSCRIPTION SETTINGS
+============================================================
+
+Add a clear subscription area inside the EXISTING Settings drawer.
+
+Do NOT create a parallel Settings architecture.
+
+Show appropriate information:
+
+FREE PERIOD:
+60-day free period
+N days remaining
+£8.99/year afterwards
+
+ACTIVE:
+Lilica Annual
+£8.99/year
+Active
+Renews/expires [date where known]
+Manage subscription
+
+EXPIRED:
+Read-only
+Subscribe for £8.99/year
+
+Include:
+
+Restore purchases
+
+where appropriate.
+
+
+============================================================
+35. MANAGE SUBSCRIPTION
+============================================================
+
+Use platform-appropriate store subscription-management destination.
+
+Do not build a fake cancellation button that Lilica cannot fulfil.
+
+Make clear that store subscriptions are managed through Apple/Google.
+
+
+============================================================
+36. TERMS / PRIVACY
+============================================================
+
+Do not invent legal URLs.
+
+If Terms/Privacy resources are still absent:
+
+the subscription UI must not ship to production as though they exist.
+
+Use a clearly documented launch blocker/configuration requirement.
+
+Do not place fake links.
+
+
+============================================================
+37. GOOGLE WEB ACCOUNT DELETION
+============================================================
+
+Do not build the website in this task.
+
+Add to release documentation:
+
+GOOGLE PLAY LAUNCH DEPENDENCY:
+Public web-based account-deletion resource required.
+
+Keep existing in-app account deletion intact.
+
+
+============================================================
+38. DEVELOPMENT ENVIRONMENT
+============================================================
+
+Configure Phase 21 so development can exercise:
+
+- free period active;
+- free period expired;
+- subscription active;
+- grace period;
+- billing failure;
+- expired;
+- revoked;
+- restore.
+
+Use legitimate non-production fixtures/sandbox.
+
+Production builds must have no developer entitlement override.
+
+
+============================================================
+39. MIGRATION
+============================================================
+
+Create a new forward-only Phase 21 migration.
+
+Do not edit any deployed migration.
+
+Migration should include only the approved billing architecture.
+
+At minimum likely:
+
+- commercial_owner_id;
+- entitlements;
+- entitlement_events;
+- entitlement helper functions;
+- commercial ownership transfer;
+- required constraints/RLS;
+- 60-day trial bootstrap integration;
+- server mutation entitlement enforcement.
+
+The exact final shape must follow current repository conventions.
+
+
+============================================================
+40. EXISTING DEVELOPMENT ACCOUNTS
+============================================================
+
+Do not infer free-period history from historical account creation timestamps.
+
+For lilica-development existing accounts:
+
+use explicit deterministic test state.
+
+Do not silently start/expire free periods during migration.
+
+Document exactly how test accounts can be put into each entitlement state.
+
+
+============================================================
+41. RLS
+============================================================
+
+Entitlement data is sensitive account metadata.
+
+Define strict RLS.
+
+A user may read the commercial state necessary for their own account/use.
+
+They may NOT directly forge:
+
+status
+expiry
+provider
+provider verification
+entitlement events
+
+Provider/server updates occur through trusted server path only.
+
+Care Circle collaborators must not obtain private billing details of another
+person simply because that person's entitlement supports the care space.
+
+They only need to know the functional result:
+
+active
+or
+read-only
+
+where necessary.
+
+
+============================================================
+42. SECURITY TESTS
+============================================================
+
+Prove:
+
+- client cannot set itself subscribed;
+- client cannot extend free period;
+- device clock cannot extend free period;
+- free period cannot restart;
+- reinstall cannot restart free period;
+- second care space cannot restart free period;
+- collaborator cannot override care-space entitlement;
+- another user's RevenueCat identity cannot grant this account access;
+- expired owner blocks ordinary care mutations;
+- expired state does not block reads/export/account deletion;
+- transfer requires valid organiser;
+- transfer cannot target arbitrary outsider;
+- webhook replay idempotent;
+- spoofed webhook rejected;
+- former/deleted account cannot mutate.
+
+
+============================================================
+43. PGTAP
+============================================================
+
+Add comprehensive pgTAP coverage.
+
+Include:
+
+- first free-period start;
+- trial_expires_at exactly +60 days;
+- idempotent retry;
+- free-period expiry;
+- commercial owner creation;
+- multi-space same entitlement;
+- active entitlement write;
+- expired entitlement write denial;
+- collaborator active-space write;
+- collaborator expired-space denial;
+- reads still allowed;
+- export still allowed;
+- invitation acceptance while expired;
+- leaving while expired;
+- removal safety path;
+- transfer ownership;
+- invalid transfer;
+- former owner;
+- account deletion;
+- cross-space isolation;
+- entitlement immutability/client denial.
+
+
+============================================================
+44. CLIENT TESTS
+============================================================
+
+Add tests for:
+
+- 60-day free-period UI;
+- price £8.99/year;
+- days-remaining calculation;
+- exact 60-day expiry;
+- expired read-only presentation;
+- subscribe flow;
+- restore;
+- manage subscription;
+- active state;
+- grace state;
+- expired state;
+- mutation gate;
+- Search remains usable expired;
+- Care Summary remains usable expired;
+- documents remain viewable expired;
+- export available;
+- account deletion available;
+- profile edit available;
+- care-space switch;
+- multi-person;
+- collaborator inherited entitlement;
+- offline grace;
+- held mutation recovery;
+- account switching / RevenueCat logout/login isolation.
+
+
+============================================================
+45. PHASE 20 REGRESSION PROTECTION
+============================================================
+
+Do not regress:
+
+Recent Activity
+Search
+Care Summary
+
+Especially:
+
+expired/read-only users must still be able to use all three as authorised
+read-only projections.
+
+
+============================================================
+46. FULL PRODUCT REGRESSION
+============================================================
+
+Protect:
+
+- Welcome
+- auth
+- onboarding
+- person setup
+- Home
+- Calendar
+- To Do
+- People
+- Add
+- record editors
+- record detail
+- Care Circle
+- assignments
+- reminders
+- documents
+- Settings drawer
+- Account
+- Privacy & data
+- export
+- deletion
+- offline sync
+- profile avatar
+- Phase 20 features.
+
+
+============================================================
+47. PRICE / FREE-PERIOD CONSISTENCY TEST
+============================================================
+
+Search the entire repository before completion.
+
+There must be no CURRENT product reference saying:
+
+£9.99/year
+30 days
+one month
+
+The current approved commercial model is:
+
+60 days completely free
+then £8.99/year
+
+Any historical reference retained must explicitly identify itself as
+superseded historical information.
+
+
+============================================================
+48. COST SANITY CHECK
+============================================================
+
+Update Phase 21 documentation using:
+
+£8.99/year
+
+and:
+
+60-day free period.
+
+Do not repeat the old £9.99/30-day analysis.
+
+Record current known:
+
+- store commission implications;
+- RevenueCat cost implications;
+- backend implications.
+
+No change to the approved price or duration unless separately authorised.
+
+
+============================================================
+49. APPLE / GOOGLE RESEARCH
+============================================================
+
+Because billing policy changes over time:
+
+verify current Apple/Google requirements again where implementation depends on
+them.
+
+Use authoritative documentation.
+
+Do not rely exclusively on the Phase 21A research if an implementation detail
+requires a current API/policy check.
+
+
+============================================================
+50. REVENUECAT CONFIGURATION DOCUMENTATION
+============================================================
+
+Document clearly what the product owner must configure outside the repository:
+
+- RevenueCat project;
+- iOS app;
+- Android app;
+- entitlement;
+- offering;
+- annual products;
+- webhook secret;
+- App Store Connect product;
+- Google Play product;
+- sandbox testers;
+- environment variables.
+
+Do not claim external resources were created if they were not.
+
+
+============================================================
+51. DO NOT TOUCH PRODUCTION
+============================================================
+
+No production Supabase deployment.
+
+No real paid product launch.
+
+No App Store submission.
+
+No Google Play submission.
+
+No real user charging.
+
+Use:
+
+local
+lilica-development
+sandbox/test store infrastructure only.
+
+
+============================================================
+52. IMPLEMENTATION SEQUENCE
+============================================================
+
+Proceed in controlled order:
+
+1. price/free-period documentation correction
+2. data model migration
+3. 60-day trial bootstrap
+4. commercial ownership
+5. server entitlement function
+6. server mutation enforcement
+7. pgTAP security tests
+8. RevenueCat client identity/integration
+9. secure webhook/server update path
+10. entitlement client state
+11. offline cache/grace
+12. mutation holding/recovery
+13. subscription Settings surface
+14. expired/read-only mutation UX
+15. subscribe/restore/manage flows
+16. account deletion integration
+17. full client tests
+18. full regression validation
+19. physical QA checklist
+
+Do not jump directly into UI before server enforcement is proven.
+
+
+============================================================
+53. DOCUMENTATION
+============================================================
+
+Once architecture is implemented and validated:
+
+create:
+
+docs/PHASE_21_ARCHITECTURE.md
+docs/PHASE_21_QA.md
+
+Preserve:
+
+docs/PHASE_21_ARCHITECTURE_PROPOSAL.md
+
+as historical proposal evidence.
+
+Update:
+
+- AGENTS.md
+- CLAUDE.md
+- README.md where appropriate
+- docs/PROJECT_BRIEF.md
+- docs/LUMEN_HANDOFF.md
+- docs/REVISION_LOG.md
+- docs/SUPABASE_OPERATIONS.md
+
+Record explicitly that:
+
+- £8.99/year supersedes £9.99/year;
+- 60 days supersedes the previous 30-day/one-month proposal.
+
+
+============================================================
+54. VALIDATION
+============================================================
+
+Run:
+
+- TypeScript
+- all Jest
+- secret scan
+- Expo dependency/config
+- web export
+- local db reset
+- local pgTAP
+- local db lint
+- migration dry-run
+- linked migration apply to lilica-development only after local pass
+- linked pgTAP
+- linked db lint
+- linked migration parity
+- git diff --check
+
+If RevenueCat/native billing requires a development build, document that
+Expo Go cannot validate the native purchase path.
+
+
+============================================================
+55. PHYSICAL QA CHECKLIST
+============================================================
+
+Prepare exact real-device tests for:
+
+FREE PERIOD
+- first supported person starts 60-day period
+- restart does not reset
+- second person does not reset
+- correct days remaining shown
+
+ACTIVE PURCHASE
+- sandbox annual purchase
+- entitlement activates
+- mutations work
+
+EXPIRED
+- existing data visible
+- Search works
+- Care Summary works
+- Activity works
+- mutation prompts subscription
+
+COLLABORATOR
+- invited user does not need personal subscription
+- entitled owner enables collaborator mutation
+- expired owner blocks collaborator mutation
+
+TRANSFER
+- transfer commercial owner to another organiser
+- new owner's entitlement controls active use
+
+RESTORE
+- reinstall
+- restore
+- new device
+
+OFFLINE
+- active under 72 hours
+- reconnect required after grace
+- held mutation survives rejection
+
+ACCOUNT SWITCH
+- no entitlement leakage
+
+ACCOUNT DELETION
+- disclosure visible
+- deletion works
+- store subscription not falsely claimed cancelled
+
+
+============================================================
+56. GIT
+============================================================
+
+DO NOT COMMIT.
+
+DO NOT PUSH.
+
+Leave Phase 21B uncommitted for GPT/product-owner review and physical sandbox
+QA.
+
+
+============================================================
+57. COMPLETION REPORT
+============================================================
+
+Return:
+
+1. Starting HEAD/origin.
+2. Price/free-period corrections performed.
+3. Phase 20 closure/documentation state.
+4. Dependencies added.
+5. RevenueCat compatibility result.
+6. Data model.
+7. Migration.
+8. 60-day trial implementation.
+9. Commercial ownership implementation.
+10. Multi-person behaviour.
+11. Collaborator behaviour.
+12. Ownership transfer.
+13. Entitlement state machine.
+14. Server enforcement.
+15. Mutation inventory final result.
+16. Read-only behaviour.
+17. Profile/account actions while expired.
+18. Invitation behaviour while expired.
+19. Leave/remove behaviour.
+20. RevenueCat integration.
+21. RevenueCat user identity handling.
+22. Webhook implementation.
+23. Webhook authentication/idempotency.
+24. Purchase flow.
+25. Restore flow.
+26. Manage-subscription flow.
+27. Cross-platform behaviour.
+28. Offline grace behaviour.
+29. Offline mutation recovery.
+30. Refund/revocation behaviour.
+31. Account-deletion behaviour.
+32. RLS/security.
+33. pgTAP result.
+34. Jest result.
+35. Price/free-period consistency scan.
+36. Full validation result.
+37. lilica-development changes.
+38. External RevenueCat/App Store/Play configuration still required.
+39. Google web-deletion dependency.
+40. Terms/Privacy dependency.
+41. Physical QA required.
+42. Files changed.
+43. Complete diff audit.
+44. Git status.
+45. Confirmation no production deployment.
+46. Confirmation no real charge performed.
+47. Confirmation Phase 22 NOT started.
+
+Then STOP.
+
+
+============================================================
+PHASE 21B ACCEPTANCE STANDARD
+============================================================
+
+Remeber to produce your report when you finish this prompt (open in notepad).
+
+Phase 21B passes only if:
+
+A genuinely new user can use all of Lilica for 60 full days without entering
+payment details.
+
+The free period cannot be restarted by reinstalling, changing device, signing
+out, adding another person, clearing local storage or changing the device
+clock.
+
+After expiry, all existing authorised care information remains readable,
+searchable and exportable, but active care-management mutation is consistently
+blocked by BOTH client UX and authoritative server enforcement.
+
+One £8.99/year subscription covers all care spaces commercially owned by that
+Lilica account.
+
+Invited collaborators do not need separate subscriptions to participate in
+an actively entitled care space.
+
+Commercial entitlement never grants Care Circle security permission.
+
+RevenueCat/store state, not a client boolean, drives paid entitlement.
+
+Purchase/restore works across devices and the same Lilica account.
+
+Care-space commercial ownership can be explicitly transferred between valid
+organisers without transferring store purchase ownership.
+
+Offline use is humane but bounded.
+
+Expired offline mutations are retained, never silently lost.
+
+Account deletion remains available and never falsely claims to cancel an
+App Store/Google Play subscription.
+
+No production resource is changed and no real customer is charged.
+
+The approved commercial model everywhere is:
+
+60 DAYS COMPLETELY FREE
+THEN £8.99/YEAR.
+
+Phase 22 has not started.

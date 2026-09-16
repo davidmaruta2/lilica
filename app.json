@@ -5,34 +5,52 @@
     "scheme": "lilica",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/lilica-app-icon.png",
     "userInterfaceStyle": "light",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/13d12e42-4800-440f-9f38-9c93f5403c6f"
+    },
     "ios": {
       "bundleIdentifier": "com.luxfordinteractive.lilica",
       "supportsTablet": false,
-      "associatedDomains": ["applinks:lilica.co.uk"]
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "associatedDomains": [
+        "applinks:lilica.co.uk"
+      ]
     },
     "android": {
       "package": "com.luxfordinteractive.lilica",
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
-        "backgroundColor": "#F7F3EF",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#062B33",
+        "foregroundImage": "./assets/lilica-app-icon.png"
       },
       "predictiveBackGestureEnabled": false,
       "intentFilters": [
         {
           "action": "VIEW",
           "autoVerify": true,
-          "data": [{ "scheme": "https", "host": "lilica.co.uk", "pathPrefix": "/invite" }],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "data": [
+            {
+              "scheme": "https",
+              "host": "lilica.co.uk",
+              "pathPrefix": "/invite"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/lilica-app-icon.png"
     },
     "plugins": [
       "expo-font",
@@ -52,6 +70,12 @@
         }
       ],
       "expo-sharing"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "13d12e42-4800-440f-9f38-9c93f5403c6f"
+      }
+    },
+    "owner": "davidmaruta2"
   }
 }

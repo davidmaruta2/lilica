@@ -66,17 +66,17 @@ export function describeEntitlement(entitlement: MyEntitlement, now = new Date()
       return days === 1 ? '1 day left in your free period' : `${days} days left in your free period`;
     }
     case 'TRIAL_EXPIRED':
-      return 'Your free period has ended. Everything you’ve added is still here. Subscribe for £8.99/year to continue adding and managing care.';
+      return 'Your free period has ended. Everything you’ve added is still here. Subscribe annually to continue adding and managing care.';
     case 'SUBSCRIPTION_ACTIVE':
       return entitlement.entitlementExpiresAt
-        ? `Lilica Annual · £8.99/year · renews ${new Date(entitlement.entitlementExpiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
-        : 'Lilica Annual · £8.99/year · Active';
+        ? `Lilica Annual · renews ${new Date(entitlement.entitlementExpiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
+        : 'Lilica Annual · Active';
     case 'GRACE_PERIOD':
       return 'There was a problem with your last payment - we’ll try again shortly. You can keep using Lilica in the meantime.';
     case 'BILLING_RETRY':
       return 'We couldn’t confirm your subscription. Please check your payment method.';
     case 'SUBSCRIPTION_EXPIRED':
-      return 'Your subscription has ended. Everything you’ve added is still here. Subscribe for £8.99/year to continue.';
+      return 'Your subscription has ended. Everything you’ve added is still here. Subscribe annually to continue.';
     case 'REVOKED':
       return 'Your subscription is no longer active. Everything you’ve added is still here.';
     default:

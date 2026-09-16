@@ -16,8 +16,8 @@ describe('ReadOnlyGate: commercial owner variant', () => {
     );
     screen.getByText('Your free period has ended');
     screen.getByText(/your information is safe/i);
-    expect(screen.getAllByText(/£8\.99\/year/).length).toBeGreaterThan(0);
-    fireEvent.press(screen.getByText('Subscribe for £8.99/year'));
+    screen.getByText(/local store price/i);
+    fireEvent.press(screen.getByText('View annual subscription'));
     expect(onSubscribe).toHaveBeenCalledTimes(1);
     // No alarming/urgency language anywhere in this variant.
     expect(screen.queryByText(/act now/i)).toBeNull();

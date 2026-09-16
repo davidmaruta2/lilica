@@ -1,0 +1,271 @@
+LILICA - PHASE 18 COMPLETION REPORT
+Privacy, Settings, Export & Account Lifecycle
+12 September 2026
+
+============================================================
+STATUS: Implemented and validated. NOT committed or pushed,
+per the brief's own explicit instruction (section 58) to stop
+and wait for product-owner review and physical-device QA.
+============================================================
+
+1. Hard Start Gate: satisfied before work began. Phase 17 complete
+   (implemented, validated, committed f1baa0c, pushed to origin/master);
+   product owner confirmed physical QA passed ("push and yes 17 tested
+   and ok"); work was committed and pushed at that point.
+
+2. Baseline recorded before this phase (PRE_PHASE_18_BASELINE): HEAD
+   f1baa0c, in sync with origin/master, TypeScript clean, 39 Jest
+   suites / 395 tests passing, 228 pgTAP assertions across 7 files,
+   clean local database rebuild.
+
+3. Schema investigated FIRST, before any UI was written, specifically
+   for what account/data deletion would require (brief section 31's
+   own instruction).
+
+4. THE LOAD-BEARING FINDING: care_space_memberships.user_id references
+   auth.users(id) on delete restrict. Membership rows are themselves
+   permanently on delete restrict-referenced from records, occurrences,
+   assignments, record_links, record_attachments and every mutation-
+   receipt table, by deliberate design (historical attribution -
+   Phase 7/8's own stated goal).
+
+5. Consequence: auth.users cannot be deleted today without either (a)
+   a foreign-key violation, or (b) first destroying every membership
+   row that references it, which would cascade into destroying the
+   historical attribution on every record, occurrence, link and
+   attachment that membership ever touched. Both outcomes are
+   forbidden by this same brief.
+
+6. Per the brief's own explicit instruction ("STOP and report the
+   required lifecycle design rather than using destructive cascade"),
+   I did NOT implement real account/auth-identity deletion. This is
+   reported here as the single largest gap against the brief's
+   acceptance standard, deliberately, not as an oversight.
+
+7. What ships instead: a real, safe, read-only precheck
+   (account_deletion_precheck()) telling the user exactly which named
+   care space(s) would block deletion (being that space's sole active
+   organiser). Genuinely useful today regardless of how the identity-
+   deletion question is eventually resolved.
+
+8. The UI ("Delete account" in the new Privacy & data screen) is
+   honest that deletion itself isn't available yet in this version -
+   it never shows a fake success message (brief section 43's "must
+   not be fake" rule, honored).
+
+9. Real account deletion needs its own, separately-approved schema
+   change - likely decoupling care_space_memberships.user_id from a
+   hard FK (e.g. on delete set null plus a captured display-name/email
+   snapshot at membership-creation time) so history can outlive the
+   auth identity that created it. Not made here without explicit
+   sign-off; documented in docs/PHASE_18_ARCHITECTURE.md.
+
+10. New migration: supabase/migrations/20260912150000_phase18_privacy_
+    export.sql. Two functions only, both security definer, both
+    revoked from public/anon, both granted to authenticated only.
+
+11. account_deletion_precheck(): language sql stable. Returns one row
+    per care space the caller organises, with a blocking boolean (true
+    = sole active organiser there).
+
+12. export_my_data(): language plpgsql stable (read-only). Builds one
+    jsonb document: generatedAt, profile (the caller's own profiles
+    row), careSpaces (an array, one entry per active membership).
+
+13. Each care space entry includes careSpaceName, yourRole,
+    yourGrantedDomains, records, attachments (metadata only),
+    recordLinks - every array filtered through
+    membership_has_domain_access(), the EXACT SAME function every
+    ordinary read already goes through. No second permission system
+    was built.
+
+14. A record_links entry is included only when BOTH its source and
+    target individually pass that domain check for the caller's own
+    membership - proven by pgTAP - mirroring record_links' own read
+    RLS policy exactly, so a restricted target never leaks through
+    export.
+
+15. Attachments in export are metadata only: id, recordId,
+    displayName, mimeType, sizeBytes, uploadStatus, createdAt. Never
+    storageObjectPath, never a signed URL, never file bytes.
+
+16. Export delivery needs no cloud storage bucket at all: the client
+    calls the read-only RPC, writes the JSON straight to a local file
+    (expo-file-system), and hands it to the native share sheet
+    (expo-sharing). No server-generated file, no signed URL, no
+    durable server-side artifact ever exists to clean up.
+
+17. 17 new pgTAP assertions (245 total across 8 files, up from 228/7):
+    sole-organiser precheck blocking/unblocking as role changes, an
+    organiser-of-nothing gets an empty precheck, an organiser's export
+    covers every domain, a domain-restricted viewer's export shows only
+    her granted domain (no bill, no attachment, no link from an
+    inaccessible record), no auth-token field ever present, a pending
+    (unaccepted) invitee's export is empty.
+
+18. Two real test-writing bugs found and fixed during iteration (not
+    product bugs): a no-op profile UPDATE where no row existed yet
+    (fixed to an upsert, matching the Phase 15 test's own pattern);
+    a missing "set local role postgres" before a raw auth.users insert.
+    One test-ordering bug fixed: an "organises nothing" assertion was
+    checked after the test subject had already been promoted to
+    organiser - moved earlier.
+
+19. Closed a real, Phase-17-acknowledged gap: document delete/link/
+    attachment cleanup used to be a best-effort, fire-and-forget call
+    with no retry if it failed offline. New src/documentCleanupQueue.ts
+    is a small AsyncStorage-backed durable retry queue, mirroring
+    src/recordSync.ts's own established cache pattern.
+
+20. enqueueDocumentCleanup() is awaited as the literal first step of
+    App.tsx's removeRecord(), before any network attempt - a durable
+    write, so an app kill or offline delete can never forget a record
+    still owes cloud cleanup. Idempotent.
+
+21. retryPendingDocumentCleanup() is retried at the same two lifecycle
+    points App.tsx already uses for upload retry (app startup, and
+    every care-space-records reconciliation pass) - no new background
+    daemon. A queue entry clears only once genuinely successful; a
+    failure leaves it queued for the next attempt.
+
+22. All operations the queue retries go through the exact same RLS-
+    protected RPCs (remove_record_attachment, remove_record_link) that
+    already refuse unauthorised access - the queue holds no elevated
+    privilege, it is just a durable reminder.
+
+23. 8 new tests (tests/phase18-document-cleanup-queue.test.ts): no-op
+    for non-documents, durable-before-network-attempt, idempotent
+    double-enqueue, full success clears the queue, a failure leaves it
+    queued then succeeds on retry, empty-queue no-op, a never-uploaded
+    attachment skips Storage removal but still cleans metadata/links,
+    a fresh read (simulated restart) still finds a pending entry.
+
+24. Settings information architecture: no second settings system. The
+    existing shared SettingsMenu.tsx gained one new entry, "Privacy &
+    data", alongside the existing Account and Care Circle entries.
+
+25. Account (existing AccountScreen.tsx) now also lets the organiser
+    edit their own display name inline. This REUSES AuthProvider's
+    existing, already-working saveProfile() function - the exact same
+    one onboarding's About You step already calls - rather than
+    building a second write path to profiles.display_name. (An earlier
+    draft did duplicate this logic in accountLifecycle.ts; it was
+    found and removed during this same pass, before being shipped.)
+
+26. New src/screens/PrivacyDataScreen.tsx, five sections: What Lilica
+    stores (plain-language, static - no fabricated legal document,
+    since none exists in this repo); Export your data; Device & local
+    data; Care spaces (Leave); Delete account.
+
+27. Device & local data: new src/localData.ts. pendingLocalWork()
+    checks three real things before allowing a clear - the record
+    cache's outbox (pending mutations), unuploaded attachments, and the
+    new cleanup queue (pending cleanup). "Clear data from this device"
+    always requires confirmation, and if anything is genuinely pending,
+    the warning names exactly what before the user can proceed.
+
+28. clearLocalDataForOwner() removes only this owner's AsyncStorage
+    keys (onboarding state, record cache, cleanup queue) and this
+    device's local attachment/preview directories. Never touches
+    Supabase.
+
+29. After a confirmed clear, the app signs the user out immediately
+    (App.tsx's new handlePrivacyClearLocalData), rather than attempting
+    a risky live rebuild of in-memory state from a cache just wiped out
+    from under it. Next sign-in reconstructs everything cleanly from
+    the cloud - a deliberate, safety-first choice, named here rather
+    than left implicit.
+
+30. Sign out, Clear data from this device, and Delete account are kept
+    as three genuinely distinct actions, never conflated (brief
+    sections 17/45): sign out ends the session only; clear-data removes
+    local cache/files then signs out; delete-account is precheck-only
+    (see findings 4-9 above).
+
+31. Leave a care space: wires the existing, previously-unwired Phase 15
+    leave_care_space() RPC (src/careCircle.ts's leaveCareSpace) into
+    real UI for the first time. That RPC already has sole-organiser
+    safety built in server-side.
+
+32. Scoped in this pass to non-organiser roles only (contributor/
+    viewer) - an organiser's own departure is NOT offered from this
+    screen, a deliberate, documented scope reduction (Care Circle's own
+    role-change/removal flow is the correct route for that case).
+
+33. After a successful leave, App.tsx re-runs the exact same care-space
+    reconciliation (reconnectCareSpaces/integrateReconnectedCareSpaces)
+    already used after accepting an invitation - the left space simply
+    doesn't come back.
+
+34. Email change and in-app password change were both inspected and
+    NOT implemented this phase - both judged genuinely new auth-flow
+    surface (their own verification screens, their own error states),
+    not small additions. Reported here explicitly, per the brief's own
+    instruction, rather than faked or silently skipped.
+
+35. Care-space deletion was inspected and NOT implemented - no
+    lifecycle policy for deleting a care_spaces row exists anywhere in
+    this schema (every current cascade path is on delete restrict,
+    matching every other "preserve history" boundary already in this
+    codebase). Reported, not improvised.
+
+36. Billing: not implemented, not referenced in any code path.
+    Recorded in docs/PHASE_18_ARCHITECTURE.md as future approved
+    commercial direction only (one month free, then GBP 9.99/year) -
+    no subscription, paywall, purchase, entitlement or billing screen
+    exists anywhere in this change.
+
+37. New client tests: tests/phase18-account-lifecycle.test.ts (5),
+    tests/phase18-local-data.test.ts (9),
+    tests/phase18-privacy-data-screen.test.tsx (8). One Jest bug found
+    and fixed during writing: getByText('Export your data') matched
+    both a section title and its button - fixed with
+    getAllByText(...).slice(-1)[0].
+
+38. Two required-prop additions caused 7 TypeScript errors, all fixed
+    at every call site: SettingsMenu's new onOpenPrivacyData (6 usages
+    in tests/settings-cog.test.tsx) and AccountScreen's new
+    onSaveDisplayName (1 usage in tests/auth-flow.test.tsx).
+
+39. Full validation: npm run typecheck clean; npm test 43 suites / 425
+    tests passing (up from 39/395, zero regressions - every phase 5
+    through 17 test suite still passes unchanged); npm run
+    secrets:check clean (206 files); npx expo config --type public and
+    npx expo export --platform web both clean.
+
+40. Database validation: npx supabase db push --linked --dry-run
+    confirmed exactly one pending migration with no unrelated diff;
+    applied to lilica-development; migration histories verified
+    matching; npx supabase test db --linked passed all 245 assertions;
+    npx supabase db lint --linked clean.
+
+41. docs/SUPABASE_OPERATIONS.md updated with the Phase 18 hosted-
+    deployment record, and (found missing during this pass) a
+    retroactive record of the Phase 16 migration's own hosted
+    deployment, which happened during Phase 17 work but was never
+    logged there until now.
+
+42. New docs: docs/PHASE_18_ARCHITECTURE.md (full design, including the
+    load-bearing finding, every explicit scope reduction, and every
+    known limitation) and docs/PHASE_18_QA.md (physical-device
+    checklist - Settings entry point, name edit, export, local data,
+    leave, delete-account precheck, regression, layout).
+
+43. Updated: AGENTS.md, CLAUDE.md, docs/LUMEN_HANDOFF.md, docs/
+    REVISION_LOG.md - all now describe Phase 18 as implemented and
+    validated but not yet committed, name the account-deletion finding,
+    and point to the two new docs above.
+
+44. Diff audit - A (implementation): App.tsx, src/components/
+    SettingsMenu.tsx, src/screens/AccountScreen.tsx, src/
+    accountLifecycle.ts (new), src/documentCleanupQueue.ts (new), src/
+    localData.ts (new), src/screens/PrivacyDataScreen.tsx (new). B (DB):
+    one new migration, one new pgTAP test file. C (tests): tests/
+    settings-cog.test.tsx, tests/auth-flow.test.tsx, four new test
+    files. D (docs): this file plus the six named in items 42-43. E
+    (unexpected): empty - nothing changed outside this scope.
+
+45. NOT committed, NOT pushed. Per the brief's own explicit section 58
+    instruction, this stops here awaiting product-owner review and
+    physical-device QA (docs/PHASE_18_QA.md). Say the word and I will
+    commit (and push if instructed).

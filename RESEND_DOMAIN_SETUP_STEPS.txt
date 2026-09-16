@@ -1,0 +1,101 @@
+================================================================
+LILICA - RESEND + lilica.co.uk EMAIL SETUP - STEP BY STEP
+================================================================
+
+FIRST, ONE QUICK CHECK (could save you a step):
+What domain is Lilica's EXISTING verification/password-reset email
+currently sending FROM? (e.g. is it already @lilica.co.uk, or some
+other domain in that same Resend account?)
+
+If it's already lilica.co.uk, that domain is likely already verified in
+Resend and you can skip straight to STEP 5 below.
+
+Otherwise, follow all steps in order.
+
+
+----------------------------------------------------------------
+STEP 1 - LOG INTO RESEND
+----------------------------------------------------------------
+1. Go to https://resend.com/login
+2. Sign in with the account already used for Lilica's password-reset/
+   verification emails.
+
+
+----------------------------------------------------------------
+STEP 2 - ADD THE DOMAIN
+(skip this step if lilica.co.uk is already listed and shows "Verified")
+----------------------------------------------------------------
+3. In the left sidebar, click "Domains".
+4. Click "Add Domain".
+5. Type: lilica.co.uk
+   (exactly this, no www, no https://)
+6. Click "Add".
+7. Resend will show you a table of DNS records - typically:
+   - one TXT record (for domain verification/SPF)
+   - one or more CNAME records (for DKIM)
+   Leave this page open in your browser - you'll need to copy from it
+   in Step 3.
+
+
+----------------------------------------------------------------
+STEP 3 - ADD THOSE RECORDS AT GODADDY
+----------------------------------------------------------------
+8. Go to: https://dcc.godaddy.com/manage/lilica.co.uk/dns
+   (or: GoDaddy.com -> sign in -> My Products -> find "lilica.co.uk" ->
+   click the "DNS" button)
+9. For EACH row Resend showed you in Step 2, do the following in
+   GoDaddy:
+   a. Click "Add New Record" (or "Add" button in the DNS records table)
+   b. Type: choose the SAME type Resend showed (TXT or CNAME)
+   c. Name / Host: paste EXACTLY what Resend showed
+      (often something like "resend._domainkey" or "@")
+   d. Value: paste EXACTLY what Resend showed
+   e. TTL: leave on the default (usually "1 Hour") - this is fine
+   f. Click "Save"
+10. Repeat step 9 for every row Resend gave you (usually 2-3 records
+    total).
+
+
+----------------------------------------------------------------
+STEP 4 - WAIT FOR VERIFICATION
+----------------------------------------------------------------
+11. Go back to the Resend "Domains" page (the tab you left open).
+12. Click "Verify DNS Records" (or just wait - Resend checks
+    automatically every so often).
+13. This can take anywhere from a few minutes to a few hours,
+    depending on how fast GoDaddy's DNS propagates.
+14. Once the domain shows a green "Verified" status, it's ready to send
+    real email from.
+
+
+----------------------------------------------------------------
+STEP 5 - GET AN API KEY
+----------------------------------------------------------------
+15. In Resend's left sidebar, click "API Keys".
+16. Click "Create API Key".
+17. Name it something like: lilica-invitations
+18. If asked for a permission level, choose "Sending access" (not full
+    account access) - this key should only be able to send emails, not
+    manage your whole Resend account.
+19. Click "Create" / "Add".
+20. Resend will show you the key ONCE - it starts with "re_". Copy it
+    immediately (you can't view it again after leaving this page,
+    though you can always create a new one later).
+
+
+----------------------------------------------------------------
+STEP 6 - SEND IT TO CLAUDE
+----------------------------------------------------------------
+21. Paste that API key into the chat.
+22. Claude will set it as a private, server-side secret
+    (RESEND_API_KEY) on the lilica-development Supabase project via the
+    command line - it never goes into any file in the code repository
+    and is never logged or displayed anywhere after that.
+
+
+================================================================
+That's it. Once the domain shows "Verified" in Resend and you've sent
+the API key, real invitation emails can actually be sent. Physical
+testing (an email genuinely arriving at a real inbox) still needs to
+happen with you present.
+================================================================

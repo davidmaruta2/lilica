@@ -33,7 +33,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'Settings',
-    body: "Tap the cog on any tab. At the top, you'll find Care Summary and Recent Activity for the person you're currently viewing. Below that, your Account, Care Circle, Privacy & data, Subscription, and this FAQ.",
+    body: "Tap the bell on any main tab for reminders, overdue items and recent Care Circle activity. Tap the cog for Care Summary, Account, Care Circle, Privacy & data, Subscription, and this FAQ.",
   },
   {
     title: 'Recording something',
@@ -41,7 +41,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'Staying up to date',
-    body: "Recent Activity shows what's changed lately across everyone helping. Care Summary gives you a fast overview of what matters right now, without opening every record.",
+    body: "The notification bell shows what's changed lately across everyone helping, alongside reminders and overdue items. Care Summary gives you a fast overview of what matters right now, without opening every record.",
   },
   {
     title: 'Working offline',

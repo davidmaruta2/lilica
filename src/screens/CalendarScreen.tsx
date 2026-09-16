@@ -12,6 +12,7 @@ import { ScreenBackdrop } from '../components/ScreenBackdrop';
 import { FoundationIcon } from '../components/FoundationIcon';
 import { BackIcon, ForwardIcon } from '../components/foundationIcons';
 import { PrimaryTabHeader } from '../components/PrimaryTabHeader';
+import { NotificationAnchor } from '../components/NotificationBellButton';
 import { AppText } from '../components/Text';
 import { CategoryIcon, categoryLabel, StatusIcon, visualFor } from './HomeScreen';
 import { calendarDateForRecord, deriveRecordState } from '../records';
@@ -37,6 +38,8 @@ type Props = {
   // Corrective task 4: app-level Settings entry point, same component and
   // placement as Home/To Do/People. Omitted (no cog) when not supplied.
   onOpenSettings?: () => void;
+  notificationCount?: number;
+  onOpenNotifications?: (origin?: NotificationAnchor) => void;
 };
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -78,7 +81,7 @@ function agendaDetail(record: LilicaRecord): string | undefined {
   return undefined;
 }
 
-export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettings }: Props) {
+export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettings, notificationCount = 0, onOpenNotifications }: Props) {
   const today = useMemo(() => new Date(), []);
   const todayIso = useMemo(() => isoDate(today), [today]);
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(today));
@@ -156,7 +159,7 @@ export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettin
           ScreenBackdrop) -- title, wordmark and subtitle switch to their
           light-on-dark treatment. */}
       <View style={styles.header}>
-        <PrimaryTabHeader title="Calendar" tone="light" onOpenSettings={onOpenSettings} />
+        <PrimaryTabHeader title="Calendar" tone="light" notificationCount={notificationCount} onOpenNotifications={onOpenNotifications} onOpenSettings={onOpenSettings} />
         <AppText variant="body" style={styles.subtitle}>{personName ? `${personName}'s calendar` : 'Calendar'}</AppText>
         {!isCurrentMonth ? (
           <View style={styles.headerActionRow}>

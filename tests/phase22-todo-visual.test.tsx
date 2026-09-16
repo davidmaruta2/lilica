@@ -62,7 +62,8 @@ describe('Phase 22 Batch 5 correction: approved To Do contract', () => {
     expect(viewStyle(screen.getByTestId('todo-tile-overdue-mine')).borderRadius).toBe(10);
     expect(viewStyle(screen.getByTestId('todo-tile-overdue-mine')).shadowOpacity).toBe(0.07);
     expect(viewStyle(screen.getByTestId('todo-tile-overdue-mine')).elevation).toBe(2);
-    expect(viewStyle(screen.getByTestId('todo-group-overdue')).backgroundColor).toBe('#ECEFF2');
+    expect(viewStyle(screen.getByTestId('todo-group-overdue')).backgroundColor).toBeUndefined();
+    expect(viewStyle(screen.getByTestId('todo-group-overdue')).paddingHorizontal).toBeUndefined();
     expect(viewStyle(screen.getByTestId('todo-tile-overdue-mine')).backgroundColor).toBe('#FFFFFF');
     expect(viewStyle(screen.getByTestId('todo-icon-overdue-mine')).backgroundColor).toBe('#E46E77');
     expect(viewStyle(screen.getByLabelText('All')).backgroundColor).toBe('#C71742');
@@ -152,7 +153,9 @@ describe('Phase 22 Batch 5 correction: approved To Do contract', () => {
     expect(titleNode.props.numberOfLines).toBeUndefined();
     expect(textStyle(titleNode).fontSize).toBe(17);
     expect(todoGridLayout(390, 1).columns).toBe(2);
+    expect(todoGridLayout(390, 1).tileWidth).toBe(165);
     expect(todoGridLayout(320, 1).columns).toBe(1);
+    expect(todoGridLayout(320, 1).tileWidth).toBe(272);
     expect(todoGridLayout(390, 1.3).columns).toBe(1);
   });
 });

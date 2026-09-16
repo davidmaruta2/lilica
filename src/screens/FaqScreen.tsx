@@ -48,11 +48,19 @@ const FAQS: Faq[] = [
   },
   {
     question: 'How do I see what changed recently?',
-    answer: "Settings > Recent Activity (under the current person's care section) shows a plain-language feed of what's happened lately -- records added or completed, documents uploaded, people joining or leaving the Care Circle.",
+    answer: "Tap the notification bell on any main tab to see reminders, overdue items and a plain-language feed of recent Care Circle changes. Use View all recent activity for the full history.",
   },
   {
     question: 'What is Care Summary?',
     answer: "Care Summary (also under the current person's care section in Settings) gives you a fast overview of what matters right now for that person -- without opening every record one by one.",
+  },
+  {
+    question: 'How do I export a Care Summary?',
+    answer: "Open Exportable Care Summary from People, or Care Summary from the current person's section in Settings, then tap Export PDF. Lilica prepares a detailed report from all the care information you are allowed to see and opens your device's share or save options. The report contains sensitive personal information, so share and store it carefully.",
+  },
+  {
+    question: 'How do I suggest a feature?',
+    answer: 'Open Settings, choose Suggest a feature under Help, and email your idea to admin@luxfordinteractive.com.',
   },
   {
     question: 'Is my data exported anywhere, or shared without my knowledge?',

@@ -21,7 +21,7 @@ The repository currently contains the Phase 1 product foundation, Phase 5 authen
 - Minimal active-person switcher with add-person and incomplete-setup routes
 - Horizontal interest-selection carousel
 - `Let's get [Name] organised` vertical snapping record stack
-- Eight record types with compact bottom-sheet editors
+- Eight record types with compact bottom-sheet editors; the canonical `task` type is presented as **Errand or activity**
 - Upload and camera capture for important documents
 - Supabase-backed record persistence with an account-scoped local cache and durable offline outbox
 - Canonical, stable care-space-owned occurrences with explicit date-only/local-time semantics and recurrence history
@@ -32,6 +32,8 @@ The repository currently contains the Phase 1 product foundation, Phase 5 authen
 - To Do: open task/bill/home-or-car-matter records grouped into Overdue, Today and Upcoming, with All/Mine/Unassigned assignment filters, joined List/Grid presentation controls, and editing that reuses the same canonical record workflow
 - Person: the durable-knowledge tab for the selected person - contacts, care/health information, home information, documents and bills/renewals, grouped from the same records seen elsewhere, with no medical or legal inference and a "You" self-care voice where explicitly applicable
 - Reminders: an opt-in "Remind me" toggle on appointment/task/bill/home-or-car-matter records, delivered as local device notifications only (no server/push yet), with quiet hours and a master on/off switch in Account; notification delivery state never becomes record truth
+- In-app notification centre: a primary-tab bell and per-care-space unread badge combining reminders, overdue items and the existing permission-filtered Care Circle activity feed; this does not add remote push delivery
+- Exportable Care Summary: a detailed permission-respecting PDF generated locally and handed to the device share/save sheet, with no report upload
 
 The Welcome work should be preserved unless the product owner explicitly requests changes. The record-entry sheet may be dismissed by its Done action, backdrop, system back action or a downward swipe while the form is at the top. Unsaved drafts remain available while the onboarding screen remains mounted.
 

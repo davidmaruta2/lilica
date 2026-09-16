@@ -4,6 +4,7 @@ import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { MemberDetailPopup } from '../components/MemberDetailPopup';
 import { PersonSwitcher } from '../components/PersonSwitcher';
 import { PrimaryTabHeader } from '../components/PrimaryTabHeader';
+import { NotificationAnchor } from '../components/NotificationBellButton';
 import { ScreenBackdrop } from '../components/ScreenBackdrop';
 import { AppText } from '../components/Text';
 import { CareCircleMember, CareCircleRole } from '../careCircle';
@@ -38,6 +39,8 @@ type Props = {
   // has its own direct "Account" link; Account is one of the Settings
   // sheet's own entries now (see src/components/SettingsMenu.tsx).
   onOpenSettings: () => void;
+  notificationCount?: number;
+  onOpenNotifications?: (origin?: NotificationAnchor) => void;
   // Phase 15: omitted for a local-only care space (never synced, so there
   // is nothing to collaborate on yet) -- see App.tsx's showCareCircle wiring.
   onOpenCareCircle?: () => void;
@@ -72,6 +75,7 @@ type Props = {
 
 const CONTACT_PREVIEW_LIMIT = 4;
 const CARE_CIRCLE_PREVIEW_LIMIT = 3;
+const EMPTY_CARE_CIRCLE_MEMBERS: CareCircleMember[] = [];
 // Cycles through existing palette tones only -- no new colour introduced
 // for this. Deterministic by position, never per-name/random, so a given
 // member's avatar tint doesn't shift between renders.
@@ -107,10 +111,12 @@ export function PersonScreen({
   onOpenRecord,
   onAddType,
   onOpenSettings,
+  notificationCount = 0,
+  onOpenNotifications,
   onOpenCareCircle,
   pendingInvitationCount = 0,
   onOpenInvitations,
-  careCircleMembers = [],
+  careCircleMembers = EMPTY_CARE_CIRCLE_MEMBERS,
   onViewAllContacts,
   selfAvatarPath,
   onOpenCareSummary,
@@ -198,6 +204,8 @@ export function PersonScreen({
         title="People"
         tone="light"
         supporting="The people you support, and those who help."
+        notificationCount={notificationCount}
+        onOpenNotifications={onOpenNotifications}
         actions={onOpenInvitations && pendingInvitationCount > 0 ? (
             <Pressable accessibilityRole="button" accessibilityLabel={`Invitations (${pendingInvitationCount})`} onPress={onOpenInvitations} style={styles.headerActionLink}>
               <AppText variant="secondary" style={[styles.accountLink, styles.onDarkLink]}>Invitations ({pendingInvitationCount})</AppText>
@@ -233,11 +241,11 @@ export function PersonScreen({
         {onOpenCareSummary ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="View care summary"
+            accessibilityLabel="View exportable care summary"
             onPress={onOpenCareSummary}
             style={styles.careSummaryLink}
           >
-            <AppText variant="secondary" style={styles.onDarkLink}>Care summary</AppText>
+            <AppText variant="secondary" style={styles.onDarkLink}>Exportable Care Summary</AppText>
             <View style={styles.viewAllChevron} />
           </Pressable>
         ) : null}
@@ -249,17 +257,17 @@ export function PersonScreen({
           overview, never the whole directory -- at most four preview
           cards, with "View all (N)" replacing the plain "Add" link once
           there are more than that to see (Add is still reachable there). */}
-      <View style={styles.section}>
+      <View testID="key-contacts-card" style={styles.keyContactsCard}>
         <View style={styles.sectionHeader}>
-          <AppText variant="section" tone="white">Key contacts</AppText>
+          <AppText variant="section">Key contacts</AppText>
           {hasMoreContacts && onViewAllContacts ? (
             <Pressable accessibilityRole="button" accessibilityLabel={`View all contacts (${contacts.length})`} onPress={onViewAllContacts} hitSlop={8} style={styles.viewAllLink}>
-              <AppText variant="secondary" style={styles.onDarkLink}>View all ({contacts.length})</AppText>
-              <View style={styles.viewAllChevron} />
+              <AppText variant="secondary" tone="primary" style={styles.nestedActionLabel}>View all ({contacts.length})</AppText>
+              <View style={styles.manageChevron} />
             </Pressable>
           ) : (
             <Pressable accessibilityRole="button" accessibilityLabel="Add a contact" onPress={() => onAddType('contact')} hitSlop={8}>
-              <AppText variant="secondary" style={styles.onDarkLink}>Add</AppText>
+              <AppText variant="secondary" tone="primary" style={styles.nestedActionLabel}>Add</AppText>
             </Pressable>
           )}
         </View>
@@ -289,7 +297,7 @@ export function PersonScreen({
             })}
           </View>
         ) : (
-          <AppText variant="secondary" style={styles.onDarkSoft}>
+          <AppText variant="secondary" tone="soft">
             No key contacts saved for {isSelf ? 'you' : name} yet - GP, pharmacy, a neighbour or anyone else useful to have on hand.
           </AppText>
         )}
@@ -458,6 +466,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
+  keyContactsCard: {
+    backgroundColor: colors.blueSoft,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  nestedActionLabel: { fontWeight: '700' },
   personCard: {
     backgroundColor: colors.white,
     borderRadius: radius.md,

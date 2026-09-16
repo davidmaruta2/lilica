@@ -147,7 +147,7 @@ describe('RecordEditor: "Does anything need doing?"', () => {
       />,
     );
     await fireEvent.changeText(screen.getAllByDisplayValue('')[0], 'Hospital letter');
-    await fireEvent.press(screen.getByText('Yes - add something to do'));
+    await fireEvent.press(screen.getByText('Yes - add an errand or activity'));
     await fireEvent.changeText(screen.getAllByDisplayValue('')[0], 'Call hospital to confirm');
     expect(onCreateLinkedTask).not.toHaveBeenCalled();
     await fireEvent.press(screen.getByText('Add document'));
@@ -165,12 +165,12 @@ describe('RecordEditor: "Does anything need doing?"', () => {
       />,
     );
     await fireEvent.changeText(screen.getAllByDisplayValue('')[0], 'Hospital letter');
-    await fireEvent.press(screen.getByText('Yes - add something to do'));
+    await fireEvent.press(screen.getByText('Yes - add an errand or activity'));
     await fireEvent.press(screen.getByText('Add document'));
     expect(onCreateLinkedTask).not.toHaveBeenCalled();
   });
 
-  it('on an EXISTING document, "Add this task" fires immediately, separately from the record\'s own Save', async () => {
+  it('on an EXISTING document, "Add this errand or activity" fires immediately, separately from the record\'s own Save', async () => {
     const onCreateLinkedTask = jest.fn();
     const onSave = jest.fn();
     const screen = await render(
@@ -184,10 +184,10 @@ describe('RecordEditor: "Does anything need doing?"', () => {
         onSave={onSave}
       />,
     );
-    await fireEvent.press(screen.getByText('Yes - add something to do'));
+    await fireEvent.press(screen.getByText('Yes - add an errand or activity'));
     const titleField = screen.getAllByDisplayValue('').find((_, index) => index === 0)!;
     await fireEvent.changeText(titleField, 'Call hospital to confirm');
-    await fireEvent.press(screen.getByText('Add this task'));
+    await fireEvent.press(screen.getByText('Add this errand or activity'));
     expect(onCreateLinkedTask).toHaveBeenCalledWith('doc-1', expect.objectContaining({ title: 'Call hospital to confirm' }));
     expect(onSave).not.toHaveBeenCalled();
   });

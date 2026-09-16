@@ -101,7 +101,10 @@ export async function getAnnualPackage(): Promise<Result<PurchasesPackage | unde
   try {
     const offerings = await Purchases.getOfferings();
     const current: PurchasesOffering | null = offerings.current;
-    const annual = current?.availablePackages.find((pkg) => pkg.packageType === PACKAGE_TYPE.ANNUAL) ?? current?.availablePackages[0];
+    // Lilica has exactly one approved annual product. Never fall back to
+    // another duration: a dashboard mistake must fail closed rather than
+    // silently charging for a monthly or otherwise unintended package.
+    const annual = current?.availablePackages.find((pkg) => pkg.packageType === PACKAGE_TYPE.ANNUAL);
     return { ok: true, data: annual };
   } catch (error) {
     return { ok: false, message: friendlyBillingError(error) };

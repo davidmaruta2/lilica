@@ -35,7 +35,7 @@ export const firstItemOptions: Array<{
   },
   {
     id: 'task',
-    title: 'Something to do',
+    title: 'Errand or activity',
     description: 'A call, errand, collection or job',
   },
   {

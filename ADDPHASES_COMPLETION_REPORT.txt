@@ -1,0 +1,185 @@
+LILICA - ROADMAP EXTENSION DOCUMENTATION TASK - COMPLETION REPORT
+Task source: Downloads\addphases.txt
+Date: 13 September 2026
+
+1. FILES READ
+- AGENTS.md
+- CLAUDE.md
+- README.md
+- docs/PROJECT_BRIEF.md
+- docs/LUMEN_HANDOFF.md
+- docs/CORE_SYSTEM_CONTRACT.md (Phase 19 section and surrounding roadmap structure)
+- docs/REVISION_LOG.md
+Grepped for stale roadmap-ending/scope language across all of the above plus
+docs/SUPABASE_OPERATIONS.md ("final phase", "final canonical phase", "only
+phase 19", "roadmap ends", "billing is wholly out of scope", "subscriptions
+are not planned", "out of scope") and separately for
+billing|subscription|paywall|jointly|premium visual|ask lilica across
+docs/PROJECT_BRIEF.md and README.md.
+
+2. CURRENT ROADMAP INTERPRETATION FOUND
+docs/CORE_SYSTEM_CONTRACT.md's canonical roadmap ended at Phase 19 -
+Production Hardening And Release Readiness, with no Phase 20+ sections.
+AGENTS.md/CLAUDE.md/docs/LUMEN_HANDOFF.md/README.md all described Phase 19
+as the phase currently underway / not yet begun, with no forward-looking
+roadmap statement beyond it. docs/PROJECT_BRIEF.md's "Current Scope" section
+listed "subscriptions" among things not to build "without explicit approval"
+- a phrasing that, unqualified, could be read as indefinitely out of scope.
+No file falsely claimed Phase 19 was permanently final or that the roadmap
+could never be extended; the gap was omission (no forward roadmap recorded
+anywhere), not a false claim requiring correction/retraction.
+
+3. DOCUMENTS CHANGED (all documentation, no other files)
+- docs/CORE_SYSTEM_CONTRACT.md
+- docs/PROJECT_BRIEF.md
+- docs/LUMEN_HANDOFF.md
+- AGENTS.md
+- CLAUDE.md
+- README.md
+- docs/REVISION_LOG.md
+docs/SUPABASE_OPERATIONS.md was read (via the earlier grep) and needed no
+change - it does not reference roadmap status/phase-ending language.
+
+4. PHASE 20 WORDING ADDED
+Canonical section added to docs/CORE_SYSTEM_CONTRACT.md: "Phase 20 -
+Competitive Gap Review And Carer-Focused Enhancements", in the same
+Purpose/Dependencies/Deliverables/Acceptance/Regression protection/Explicit
+exclusions/Stop point style as every existing phase. Covers: the audit-first
+requirement, the A-F gap classification, the per-gap assessment criteria, the
+named (non-committed) review-candidate list, the explicit approval gate, and
+the design principle protecting Lilica's existing Home/Calendar/To
+Do/People/Add IA against becoming a competitor-driven feature directory.
+Concise pointers to Phase 20 (name + one-line purpose + "none started") were
+also added to AGENTS.md, CLAUDE.md, README.md, docs/LUMEN_HANDOFF.md,
+docs/PROJECT_BRIEF.md and docs/REVISION_LOG.md.
+
+5. PHASE 21 WORDING ADDED
+Canonical section added to docs/CORE_SYSTEM_CONTRACT.md: "Phase 21 - Billing,
+Subscription And Membership/Entitlement". Explicitly clarifies "membership"
+here means the commercial subscription/entitlement relationship, distinct
+from and never to be confused with care_space_memberships. Records the
+approved commercial model (one month free, then GBP 9.99/year, one
+subscription per user account) as a recorded decision, not implemented here.
+Lists the full eventual lifecycle scope (trial, purchase, restoration,
+renewal, cancellation, grace periods, reinstall, offline entitlement, account
+deletion while subscribed, etc.), the access-after-lapse question flagged as
+still requiring explicit product-owner approval (not treated as already
+decided), the collaborator/membership commercial questions still to resolve,
+the hard security principle that a subscription never grants
+membership/role/domain/visibility/assignment eligibility, and the explicit
+instruction not to scaffold billing during Phase 19 or 20. Concise pointers
+added to the same five other files as Phase 20, plus the subscription
+clarification specifically requested for docs/PROJECT_BRIEF.md's "Current
+Scope" section.
+
+6. PHASE 22 WORDING ADDED
+Canonical section added to docs/CORE_SYSTEM_CONTRACT.md: "Phase 22 - Premium
+Visual Optimisation And Experience Polish", marked as the final planned
+roadmap phase. States its purpose (premium/deliberate/cohesive/modern/calm/
+distinctive/professional/cross-platform-consistent feel) and, in bold
+non-negotiable terms, that it must begin with a complete visual/experience
+audit and report only - no code, theme, component or "quick fix" changes.
+Includes the full audit scope (every named screen/surface), the review
+checklist (typography through visual noise/generic-template detection), the
+required report format per recommendation (problem/evidence/proposal/
+benefit/regression risk/affected files/isolatability/shared-impact/before-
+after intent/CRITICAL-HIGH-MEDIUM-OPTIONAL priority), the required "DO NOT
+TOUCH" list, the GPT+product-owner approval gate, the regression-protected-
+areas list, and the explicit statement that completing Phase 22 never
+implies automatic production release. The Phase 19->22 sequence diagram from
+addphases.txt section 22 was reproduced verbatim in style at the end of the
+new Phase 20/21/22 block, ending on an explicit "FINAL RELEASE GATE" note.
+Concise pointers added to the same five other files.
+
+7. ORIGINAL PHASE 19 HISTORY PRESERVED
+docs/CORE_SYSTEM_CONTRACT.md's existing Phase 19 section (Purpose through
+Stop point) was not edited, reworded, reordered or removed - the new
+material was appended immediately after it as a clearly separated "Roadmap
+extension note (13 September 2026)" subsection, followed by the new Phase
+20/21/22 sections. No historical commit, revision-log entry or completed-
+phase description anywhere was rewritten.
+
+8. CURRENT PHASE 19 STATUS PRESERVED
+Every file's existing statement that Phase 19 is the current/in-progress
+phase, and every existing instruction not to begin Phase 19 without its own
+bounded prompt, was left exactly as found. The new material added a
+clarifying sentence in each file that Phase 19 remains current and is
+unchanged by the roadmap extension, and in docs/LUMEN_HANDOFF.md an explicit
+"Phase 19 is NOT the final remaining work" sentence per addphases.txt section
+25's own wording. No claim was added suggesting Phase 19's own scope,
+deliverables or acceptance criteria changed in any way.
+
+9. SUBSCRIPTION/PRICING DECISION RECORDED
+Recorded identically in docs/CORE_SYSTEM_CONTRACT.md (Phase 21 section),
+docs/PROJECT_BRIEF.md and docs/REVISION_LOG.md: Lilica fully usable for the
+first one month free; after that, continued paid use costs GBP 9.99 per
+year; intended as one subscription per user account rather than per
+supported person. Every mention is explicitly marked as an approved
+DIRECTION recorded for future implementation, not something built by this
+task, and not to be silently changed.
+
+10. PHASE 20 AUDIT/APPROVAL GATE RECORDED
+Recorded in docs/CORE_SYSTEM_CONTRACT.md's Phase 20 Deliverables/Acceptance/
+Stop point: audit and gap-classification must happen before any
+implementation; GPT and the product owner must explicitly approve the exact
+enhancement set; no competitor feature is added automatically. Also
+summarised in AGENTS.md's and CLAUDE.md's roadmap-pointer additions.
+
+11. PHASE 22 AUDIT/APPROVAL GATE RECORDED
+Recorded in docs/CORE_SYSTEM_CONTRACT.md's Phase 22 Deliverables/Acceptance/
+Stop point in non-negotiable terms (audit/report only, zero code/theme/
+component changes, explicit priority format, DO NOT TOUCH list, GPT+product-
+owner approval required before any implementation prompt). Also summarised
+in AGENTS.md's and CLAUDE.md's roadmap-pointer additions.
+
+12. STALE ROADMAP REFERENCES FOUND AND HOW CORRECTED
+None of the searched files contained a false "Phase 19 is the final phase /
+final canonical phase / only Phase 19 remains / roadmap ends at Phase 19 /
+billing is wholly out of scope / subscriptions are not planned" statement
+that needed retraction - only the absence of any forward-looking roadmap
+statement, and one line in docs/PROJECT_BRIEF.md ("...subscriptions...
+without explicit approval") that could be misread as indefinite exclusion.
+That line was corrected in place (not deleted) by adding, immediately after
+it, the Phase 21 clarification: subscriptions are explicitly scheduled for
+Phase 21, not implemented yet, with the approved pricing direction stated -
+preserving the original sentence's historical truth (nothing was built
+without approval) while removing the "indefinitely out of scope" implication.
+All other historical statements (Revision Log entries, past "not yet begun"
+language) were left untouched as accurate historical record.
+
+13. CONFIRMATION NO IMPLEMENTATION WAS STARTED
+No Phase 20, 21 or 22 code, screen, RPC, audit script, billing integration,
+or feature of any kind was implemented. No PHASE_20/21/22_ARCHITECTURE.md or
+_QA.md placeholder files were created, per addphases.txt section 30's
+explicit instruction.
+
+14. CONFIRMATION NO CODE CHANGED
+Confirmed via git status --short: the only modified files are AGENTS.md,
+CLAUDE.md, README.md, docs/CORE_SYSTEM_CONTRACT.md, docs/LUMEN_HANDOFF.md,
+docs/PROJECT_BRIEF.md, docs/REVISION_LOG.md - all Markdown documentation.
+Zero .ts/.tsx files touched. package.json/package-lock.json untouched.
+
+15. CONFIRMATION NO DATABASE/MIGRATION CHANGED
+No file under supabase/migrations/ or supabase/tests/ was created or
+modified. No Supabase CLI command was run against any environment during
+this task. No app.json/eas.json/app-config change was made.
+
+16. GIT DIFF --CHECK RESULT
+Clean (exit 0). Only benign "LF will be replaced by CRLF" advisory notices
+were printed for the seven changed files (a pre-existing repository
+line-ending convention note, not a whitespace error) - no trailing
+whitespace or conflict-marker errors were reported.
+
+17. GIT STATUS
+Modified (7, all documentation): AGENTS.md, CLAUDE.md, README.md,
+docs/CORE_SYSTEM_CONTRACT.md, docs/LUMEN_HANDOFF.md, docs/PROJECT_BRIEF.md,
+docs/REVISION_LOG.md.
+Untracked: the repository's existing standing scratch Notepad completion-
+report .txt files from prior phases (unrelated, pre-existing, never
+committed by convention), plus this report itself once saved.
+Nothing has been committed or pushed, per addphases.txt section 33's
+explicit instruction - left uncommitted for GPT/product-owner review. Phase
+19's own separately-executed work was not touched, overwritten or disturbed:
+zero files outside this documentation set appear in the diff.
+
+STOP - this task is complete. No further action taken per addphases.txt.

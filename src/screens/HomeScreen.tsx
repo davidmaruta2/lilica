@@ -13,6 +13,7 @@ import { colors, radius, shadow, spacing } from '../theme';
 import { CareSpaceSetupStatus, FirstItem, LilicaRecordType, LocalCareSpaceState, OnboardingState } from '../types';
 import { PersonSwitcher } from '../components/PersonSwitcher';
 import { PlusIcon } from '../components/PlusIcon';
+import { NotificationAnchor } from '../components/NotificationBellButton';
 import { useRef, useState } from 'react';
 
 type Props = {
@@ -49,6 +50,8 @@ type Props = {
   // dead button -- matches this app's existing "never a fake affordance"
   // discipline (see Assigned-to-you's own omit-not-fake-zero precedent).
   onOpenSettings?: () => void;
+  notificationCount?: number;
+  onOpenNotifications?: (origin?: NotificationAnchor) => void;
   // Phase 20B: the one, simple, unified search entry point for the
   // current supported person. Works identically for a synced or a
   // local-only care space -- it only ever reads `state.records`, exactly
@@ -267,6 +270,8 @@ export function HomeScreen({
   onOpenAssignedToYou,
   onOpenWellbeingUpdates,
   onOpenSettings,
+  notificationCount = 0,
+  onOpenNotifications,
   onOpenSearch,
 }: Props) {
   const { width: windowWidth } = useWindowDimensions();
@@ -410,6 +415,8 @@ export function HomeScreen({
       <PrimaryTabHeader
         title="Home"
         actions={<Button label="Add" icon={<PlusIcon />} onPress={onAddSomething} style={styles.addButton} />}
+        notificationCount={notificationCount}
+        onOpenNotifications={onOpenNotifications}
         onOpenSettings={onOpenSettings}
       />
 

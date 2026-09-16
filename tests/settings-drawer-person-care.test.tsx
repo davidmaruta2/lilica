@@ -1,6 +1,7 @@
 // Phase 20C (approved Option 2): the Settings drawer becomes a small
-// hybrid -- a person-scoped "[Name]'s care" group (Care Summary, Recent
-// Activity) above the existing, unchanged Account group. Both rows route
+// hybrid -- a person-scoped "[Name]'s care" group above the existing,
+// unchanged Account group. Recent Activity later moved to the notification
+// bell and is deliberately absent from this drawer.
 // to the SAME existing App.tsx state (showCareSummary/showRecentActivity)
 // People's own links already use -- no new screen, no new state. This
 // file proves the drawer's own new group; App.tsx's actual wiring is
@@ -24,28 +25,26 @@ const baseProps = {
 };
 
 describe('SettingsMenu: person-scoped "[Name]\'s care" group', () => {
-  it('shows the dynamic person-name heading and both rows when both are available', async () => {
+  it('shows Care Summary but removes Recent Activity now owned by the notification bell', async () => {
     const onOpenCareSummary = jest.fn();
-    const onOpenRecentActivity = jest.fn();
     const screen = await render(
-      <SettingsMenu {...baseProps} personName="Maggie" onOpenCareSummary={onOpenCareSummary} onOpenRecentActivity={onOpenRecentActivity} />,
+      <SettingsMenu {...baseProps} personName="Maggie" onOpenCareSummary={onOpenCareSummary} />,
     );
     screen.getByText("Maggie's care");
     await fireEvent.press(screen.getByLabelText('Care Summary'));
     expect(onOpenCareSummary).toHaveBeenCalledTimes(1);
-    await fireEvent.press(screen.getByLabelText('Recent Activity'));
-    expect(onOpenRecentActivity).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText('Recent Activity')).toBeNull();
   });
 
   it('the group label updates for a different supported person -- no hard-coded name, no stale label', async () => {
     const screen = await render(
-      <SettingsMenu {...baseProps} personName="Beauty" onOpenCareSummary={jest.fn()} onOpenRecentActivity={jest.fn()} />,
+      <SettingsMenu {...baseProps} personName="Beauty" onOpenCareSummary={jest.fn()} />,
     );
     screen.getByText("Beauty's care");
     expect(screen.queryByText("Maggie's care")).toBeNull();
 
     await screen.rerender(
-      <SettingsMenu {...baseProps} personName="Jackie" onOpenCareSummary={jest.fn()} onOpenRecentActivity={jest.fn()} />,
+      <SettingsMenu {...baseProps} personName="Jackie" onOpenCareSummary={jest.fn()} />,
     );
     screen.getByText("Jackie's care");
     expect(screen.queryByText("Beauty's care")).toBeNull();
@@ -61,7 +60,7 @@ describe('SettingsMenu: person-scoped "[Name]\'s care" group', () => {
   it('the existing Account group (Account, Privacy & data, Subscription, and Care Circle when available) is completely unaffected', async () => {
     const onOpenCareCircle = jest.fn();
     const screen = await render(
-      <SettingsMenu {...baseProps} personName="Maggie" onOpenCareSummary={jest.fn()} onOpenRecentActivity={jest.fn()} onOpenCareCircle={onOpenCareCircle} />,
+      <SettingsMenu {...baseProps} personName="Maggie" onOpenCareSummary={jest.fn()} onOpenCareCircle={onOpenCareCircle} />,
     );
     expect(screen.getAllByText('Account').length).toBeGreaterThan(0);
     screen.getByLabelText('Account');
@@ -72,7 +71,7 @@ describe('SettingsMenu: person-scoped "[Name]\'s care" group', () => {
 
   it('falls back to a generic label when no person name is available at all', async () => {
     const screen = await render(
-      <SettingsMenu {...baseProps} onOpenCareSummary={jest.fn()} onOpenRecentActivity={jest.fn()} />,
+      <SettingsMenu {...baseProps} onOpenCareSummary={jest.fn()} />,
     );
     screen.getByText('This care space');
   });

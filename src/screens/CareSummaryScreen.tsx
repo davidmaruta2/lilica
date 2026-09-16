@@ -1,5 +1,7 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
+import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
@@ -8,6 +10,7 @@ import { CalendarIcon, FileTextIcon, HeartHandshakeIcon, HistoryIcon, HomeIcon, 
 import { ActivityEvent, describeActivityEvent } from '../activity';
 import { CareCircleMember } from '../careCircle';
 import { buildCareSummary } from '../careSummary';
+import { exportCareSummaryPdf } from '../careSummaryPdf';
 import { colors, radius, spacing } from '../theme';
 import { LilicaRecord } from '../types';
 
@@ -37,6 +40,8 @@ function roleLabel(role: CareCircleMember['role']) {
 }
 
 export function CareSummaryScreen({ records, careCircleMembers, recentActivity, personName, onBack, onOpenRecord }: Props) {
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string>();
   const sections = buildCareSummary(records, careCircleMembers, recentActivity, describeActivityEvent);
   const sectionVisual = (key: string) => {
     if (key === 'needsAttention') return { icon: ToDoIcon, tone: 'rose' as const };
@@ -48,12 +53,36 @@ export function CareSummaryScreen({ records, careCircleMembers, recentActivity, 
     return { icon: HomeIcon, tone: 'green' as const };
   };
 
+  async function exportPdf() {
+    setExporting(true);
+    setExportMessage(undefined);
+    const result = await exportCareSummaryPdf({ records, careCircleMembers, recentActivity, personName });
+    setExporting(false);
+    if (!result.ok) setExportMessage(result.message);
+  }
+
   return (
     <Screen>
       <Header title="Care summary" onBack={onBack} />
       <SecondaryPageIntro>
         A concise picture of {personName || "this person"}'s care situation - useful if someone else needs to step in.
       </SecondaryPageIntro>
+      <View style={styles.exportPanel}>
+        <View style={styles.exportCopy}>
+          <AppText variant="bodyStrong">Detailed PDF report</AppText>
+          <AppText variant="secondary" tone="soft">
+            Includes all care information you are allowed to see. The file contains sensitive personal information.
+          </AppText>
+        </View>
+        <Button
+          label={exporting ? 'Preparing PDF...' : 'Export PDF'}
+          accessibilityLabel="Export Care Summary as PDF"
+          variant="secondary"
+          disabled={exporting}
+          onPress={() => void exportPdf()}
+        />
+        {exportMessage ? <AppText variant="secondary" tone="danger">{exportMessage}</AppText> : null}
+      </View>
       {sections.length === 0 ? (
         <AppText variant="secondary" tone="soft">
           Nothing to summarise yet - add a few records for {personName || 'this person'} and they'll appear here.
@@ -97,6 +126,13 @@ export function CareSummaryScreen({ records, careCircleMembers, recentActivity, 
 }
 
 const styles = StyleSheet.create({
+  exportPanel: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+  },
+  exportCopy: { gap: spacing.xxs },
   sections: {
     gap: spacing.md,
   },

@@ -94,9 +94,9 @@ describe('RecordQuickEditor: linked-task creation', () => {
       <RecordQuickEditor {...baseProps} onSaveRecord={onSaveRecord} records={[document]} recordId="doc-1" />,
     );
     await fireEvent.press(screen.getByLabelText('Edit Hospital appointment letter'));
-    await fireEvent.press(screen.getByText('Yes - add something to do'));
+    await fireEvent.press(screen.getByText('Yes - add an errand or activity'));
     await fireEvent.changeText(screen.getAllByDisplayValue('')[0], 'Call hospital to confirm');
-    await fireEvent.press(screen.getByText('Add this task'));
+    await fireEvent.press(screen.getByText('Add this errand or activity'));
 
     expect(onSaveRecord).toHaveBeenCalledWith(expect.objectContaining({ type: 'task', title: 'Call hospital to confirm' }));
     const taskId = onSaveRecord.mock.calls[0][0].id;

@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { spacing } from '../theme';
 import { AppText } from './Text';
+import { NotificationAnchor, NotificationBellButton } from './NotificationBellButton';
 import { SettingsCogButton } from './SettingsCogButton';
 import { Wordmark } from './Wordmark';
 
@@ -12,6 +13,8 @@ type Props = {
   supporting?: string;
   leading?: ReactNode;
   actions?: ReactNode;
+  notificationCount?: number;
+  onOpenNotifications?: (origin?: NotificationAnchor) => void;
   onOpenSettings?: () => void;
 };
 
@@ -21,6 +24,8 @@ export function PrimaryTabHeader({
   supporting,
   leading,
   actions,
+  notificationCount = 0,
+  onOpenNotifications,
   onOpenSettings,
 }: Props) {
   const isLight = tone === 'light';
@@ -41,9 +46,10 @@ export function PrimaryTabHeader({
           ) : null}
         </View>
       </View>
-      {(actions || onOpenSettings) ? (
+      {(actions || onOpenNotifications || onOpenSettings) ? (
         <View style={styles.actions}>
           {actions}
+          {onOpenNotifications ? <NotificationBellButton count={notificationCount} onPress={onOpenNotifications} tone={tone} /> : null}
           {onOpenSettings ? <SettingsCogButton onPress={onOpenSettings} tone={tone} /> : null}
         </View>
       ) : null}

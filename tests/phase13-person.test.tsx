@@ -10,6 +10,7 @@ import { HomeScreen } from '../src/screens/HomeScreen';
 import { PersonScreen } from '../src/screens/PersonScreen';
 import { initialOnboardingState } from '../src/storage';
 import { LilicaRecord } from '../src/types';
+import { colors } from '../src/theme';
 
 beforeEach(() => {
   mockResolveAvatarUrl.mockReset();
@@ -120,6 +121,13 @@ describe('Corrective task 10, section 1: supported people', () => {
 });
 
 describe('Corrective task 10, section 2: Key contacts', () => {
+  it('contains the whole Key contacts section on its own stable nested background', async () => {
+    const screen = await render(<PersonScreen {...baseProps} records={[gpSurgery]} />);
+    expect(screen.getByTestId('key-contacts-card').props.style).toEqual(expect.objectContaining({
+      backgroundColor: colors.blueSoft,
+    }));
+  });
+
   it('opening a Key contact calls back with the real underlying record ID', async () => {
     const onOpenRecord = jest.fn();
     const screen = await render(<PersonScreen {...baseProps} records={[gpSurgery]} onOpenRecord={onOpenRecord} />);
@@ -189,14 +197,14 @@ describe('Corrective task 10, section 3: Care circle -- real memberships, never 
 describe('Phase 20B: Care summary and Recent activity entry points', () => {
   it('"Care summary" is not shown for a local-only care space, exactly like "Manage"', async () => {
     const screen = await render(<PersonScreen {...baseProps} records={[]} />);
-    expect(screen.queryByLabelText('View care summary')).toBeNull();
+    expect(screen.queryByLabelText('View exportable care summary')).toBeNull();
     expect(screen.queryByLabelText('View recent activity')).toBeNull();
   });
 
   it('"Care summary" opens the new Care Summary screen', async () => {
     const onOpenCareSummary = jest.fn();
     const screen = await render(<PersonScreen {...baseProps} records={[]} onOpenCareSummary={onOpenCareSummary} />);
-    await fireEvent.press(screen.getByLabelText('View care summary'));
+    await fireEvent.press(screen.getByLabelText('View exportable care summary'));
     expect(onOpenCareSummary).toHaveBeenCalledTimes(1);
   });
 

@@ -158,7 +158,7 @@ describe('RecordQuickEditor: saving/dismissing a NEW record still closes back to
   it('saving a brand-new draft calls onSaveRecord then onDismiss', async () => {
     const onSaveRecord = jest.fn();
     const onDismiss = jest.fn();
-    // "Something to do" has no required date, so title alone is enough to
+    // "Errand or activity" has no required date, so title alone is enough to
     // save -- keeps this test about the create lifecycle, not the wheel
     // date picker.
     const screen = await render(

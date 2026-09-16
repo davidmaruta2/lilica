@@ -340,7 +340,7 @@ Every transition is a domain operation that validates permission and current ver
 | Entry point | Default model | Important exceptions |
 |---|---|---|
 | Appointment | Event record plus one scheduled occurrence | Regular visits use recurrence; transport/follow-up are linked actions. |
-| Something to do | Action record plus one open occurrence | May link to any other record. |
+| Errand or activity (`task`) | Action record plus one open occurrence | May link to any other record. |
 | Bill or renewal | Long-lived obligation record plus actionable due occurrence | A one-off bill still has one occurrence; policy document is linked/versioned, not embedded as status. |
 | Home or car matter | Ask whether it is information, an action, or a booked event | Boiler or vehicle details, arrange repair/service, and booked engineer/mechanic visits are related but distinct. |
 | Important document | Document record with immutable versions | Expiry is a milestone; renewal is a linked action when work is required. |
