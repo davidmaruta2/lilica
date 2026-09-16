@@ -147,14 +147,17 @@ export function JoinCareCircleScreen({ onResolveCode, onAccept, onClose, onJoine
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
-    padding: spacing.lg,
-    gap: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    borderRadius: 8,
+    padding: spacing.sm,
     gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.line,
   },
   domainList: { gap: 2 },
 });

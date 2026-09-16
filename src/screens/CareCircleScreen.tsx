@@ -23,6 +23,7 @@ import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
 import { TextField } from '../components/TextField';
+import { SecondaryPageIntro, SecondaryRolePill } from '../components/SecondaryPage';
 import { colors, radius, spacing } from '../theme';
 
 type Props = {
@@ -451,64 +452,48 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
     <Screen>
       <Header title="Care Circle" onBack={onBack} />
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <AppText variant="secondary" tone="soft">
+        <SecondaryPageIntro>
           Who can see and help with {personName?.trim() || 'this'}'s care -- and exactly what they can see.
-        </AppText>
+        </SecondaryPageIntro>
+
+        <View style={styles.personContext}>
+          <View style={styles.personAvatar}><AppText variant="bodyStrong" tone="primary">{(personName?.trim() || 'P').charAt(0).toUpperCase()}</AppText></View>
+          <View style={styles.cardCopy}>
+            <AppText variant="bodyStrong">{personName?.trim() || 'This person'}</AppText>
+            <AppText variant="secondary" tone="soft">People supporting their care</AppText>
+          </View>
+        </View>
 
         {error ? <AppText variant="secondary" tone="danger">{error}</AppText> : null}
 
-        {onJoinAnotherCareCircle ? (
-          // Care Circle invitation final closure (`\downloads\carecircle-
-          // final-closure.txt`, 15 September 2026): a direct product-owner
-          // report -- there was no obvious, persistent place for an
-          // already-logged-in user (organiser or contributor) to enter an
-          // invitation code. Previously a small text link buried at the
-          // bottom of the member list; now a clearly visible action right
-          // at the top of this screen, offered to every authenticated
-          // user regardless of role -- "Invite someone" (below) is what
-          // an organiser does FOR someone else; "Join a Care Circle" is
-          // what ANY user does with a code someone else gave them. Reuses
-          // the exact same JoinCareCircleScreen/acceptance path as the
-          // onboarding fork and automatic pending-invitation discovery --
-          // never a second join implementation, never "Request to join"
-          // (this app has no unsolicited-access-request concept).
-          <View style={styles.section}>
-            <Button label="Join a Care Circle" variant="secondary" onPress={onJoinAnotherCareCircle} />
-            <AppText variant="secondary" tone="soft">
-              Have an invitation code? Enter it to join a Care Circle.
-            </AppText>
-          </View>
-        ) : null}
-
         <View style={styles.section}>
-          <AppText variant="section" tone="primary">Members</AppText>
+          <View style={styles.sectionTitleRow}>
+            <AppText variant="section" tone="primary" style={styles.sectionTitle}>Members</AppText>
+            {onJoinAnotherCareCircle ? <Button label="Join a Care Circle" variant="text" onPress={onJoinAnotherCareCircle} style={styles.joinButton} /> : null}
+          </View>
+          {onJoinAnotherCareCircle ? <AppText variant="secondary" tone="soft">Have an invitation code? Enter it to join a Care Circle.</AppText> : null}
           {members.map((member) => (
             <View key={member.membershipId} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <AppText variant="body" tone="primary">{member.displayName}</AppText>
-                <AppText variant="secondary" tone="soft">
-                  {member.role === 'organiser' ? 'Organiser' : member.role === 'contributor' ? 'Contributor' : 'Viewer'}
-                </AppText>
+              <View style={styles.memberAvatar}><AppText variant="bodyStrong" tone="primary">{member.displayName.charAt(0).toUpperCase()}</AppText></View>
+              <View style={styles.cardCopy}>
+                <View style={styles.cardHeader}>
+                  <AppText variant="bodyStrong">{member.displayName}</AppText>
+                  <SecondaryRolePill tone={member.role === 'organiser' ? 'plum' : 'blue'}>
+                    {member.role === 'organiser' ? 'Organiser' : member.role === 'contributor' ? 'Contributor' : 'Viewer'}
+                  </SecondaryRolePill>
+                </View>
+                <AppText variant="secondary" tone="soft">{roleDescription(member.role)}</AppText>
+                {member.role !== 'organiser' ? (
+                  <AppText variant="secondary" tone="muted">
+                    Can see: {member.grantedDomains.length > 0
+                      ? member.grantedDomains.map((domain) => DOMAIN_OPTIONS.find((option) => option.value === domain)?.label ?? domain).join(', ')
+                      : 'Nothing shared yet'}
+                  </AppText>
+                ) : null}
+                {!member.isSelf && !(member.role === 'organiser' && organiserCount <= 1) ? (
+                  <Button label="Remove" variant="text" disabled={busy} onPress={() => handleRemove(member.membershipId, member.displayName)} style={styles.removeButton} />
+                ) : null}
               </View>
-              <AppText variant="secondary" tone="soft">
-                {roleDescription(member.role)}
-              </AppText>
-              {member.role !== 'organiser' ? (
-                <AppText variant="secondary" tone="muted">
-                  Can see: {member.grantedDomains.length > 0
-                    ? member.grantedDomains.map((domain) => DOMAIN_OPTIONS.find((option) => option.value === domain)?.label ?? domain).join(', ')
-                    : 'Nothing shared yet'}
-                </AppText>
-              ) : null}
-              {!member.isSelf && !(member.role === 'organiser' && organiserCount <= 1) ? (
-                <Button
-                  label="Remove"
-                  variant="text"
-                  disabled={busy}
-                  onPress={() => handleRemove(member.membershipId, member.displayName)}
-                  style={styles.removeButton}
-                />
-              ) : null}
             </View>
           ))}
         </View>
@@ -770,18 +755,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: spacing.lg,
-    gap: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
   },
   section: {
-    gap: spacing.sm,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.md,
     gap: spacing.xs,
   },
+  sectionTitleRow: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  sectionTitle: { fontSize: 17, lineHeight: 22 },
+  joinButton: { width: 'auto', minHeight: 40, paddingHorizontal: spacing.sm },
+  personContext: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  personAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    padding: spacing.sm,
+    gap: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#E8DFD6',
+  },
+  memberAvatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
+  cardCopy: { flex: 1, minWidth: 0, gap: 2 },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

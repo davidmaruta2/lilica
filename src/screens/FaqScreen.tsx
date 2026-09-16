@@ -75,10 +75,9 @@ const FAQS: Faq[] = [
 export function FaqScreen({ onBack }: { onBack: () => void }) {
   return (
     <Screen>
-      <Header onBack={onBack} />
+      <Header title="FAQ" onBack={onBack} />
       <View style={styles.content}>
-        <AppText variant="title" centre>FAQ</AppText>
-        <AppText variant="body" tone="soft" centre>
+        <AppText variant="secondary" tone="soft">
           Common questions about using Lilica.
         </AppText>
         {FAQS.map((faq) => (
@@ -113,9 +112,9 @@ function FaqItem({ faq }: { faq: Faq }) {
 }
 
 const styles = StyleSheet.create({
-  content: { gap: spacing.lg, paddingBottom: spacing.xl },
+  content: { gap: spacing.xs, paddingBottom: spacing.xl },
   item: {
-    borderRadius: radius.md,
+    borderRadius: 8,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,

@@ -21,6 +21,7 @@ type Props = {
   title: string;
   children: ReactNode;
   onDismiss: () => void;
+  origin?: RecordSheetOrigin;
   // Explicit product direction: closing the sheet -- by any of the three
   // routes below (Done, backdrop tap, swipe-down) -- should save pending
   // valid changes first, not just discard them back to an in-memory
@@ -31,39 +32,55 @@ type Props = {
   onBeforeDismiss?: () => void;
 };
 
+export type RecordSheetOrigin = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export type RecordSheetHandle = {
   dismiss: () => void;
 };
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const MAX_SHEET_WIDTH = 560;
 
 export const RecordSheet = forwardRef<RecordSheetHandle, Props>(function RecordSheet(
-  { title, children, onDismiss, onBeforeDismiss },
+  { title, children, onDismiss, onBeforeDismiss, origin },
   ref,
 ) {
-  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const translateY = useRef(new Animated.Value(origin ? 0 : SCREEN_HEIGHT)).current;
+  const expansion = useRef(new Animated.Value(origin ? 0 : 1)).current;
   const closing = useRef(false);
   const scrollOffset = useRef(0);
 
   function restore() {
-    Animated.spring(translateY, {
-      toValue: 0,
-      damping: 24,
-      stiffness: 220,
-      mass: 0.9,
-      useNativeDriver: true,
-    }).start();
+    const slide = Animated.spring(translateY, {
+      toValue: 0, damping: 24, stiffness: 220, mass: 0.9, useNativeDriver: !origin,
+    });
+    if (origin) {
+      Animated.parallel([
+        slide,
+        Animated.spring(expansion, {
+          toValue: 1, damping: 24, stiffness: 190, mass: 0.9, useNativeDriver: false,
+        }),
+      ]).start();
+    } else slide.start();
   }
 
   function dismiss() {
     if (closing.current) return;
     closing.current = true;
     onBeforeDismiss?.();
-    Animated.timing(translateY, {
-      toValue: SCREEN_HEIGHT,
-      duration: 220,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
+    const closingAnimation = origin
+      ? Animated.parallel([
+        Animated.timing(expansion, { toValue: 0, duration: 190, useNativeDriver: false }),
+        Animated.timing(translateY, { toValue: 0, duration: 190, useNativeDriver: false }),
+      ])
+      : Animated.timing(translateY, { toValue: SCREEN_HEIGHT, duration: 220, useNativeDriver: true });
+    closingAnimation.start(({ finished }) => {
       if (finished) onDismiss();
       closing.current = false;
     });
@@ -74,6 +91,18 @@ export const RecordSheet = forwardRef<RecordSheetHandle, Props>(function RecordS
   }, []);
 
   useImperativeHandle(ref, () => ({ dismiss }));
+
+  const finalWidth = Math.min(SCREEN_WIDTH, MAX_SHEET_WIDTH);
+  const anchoredStyle = origin ? {
+    position: 'absolute' as const,
+    left: expansion.interpolate({ inputRange: [0, 1], outputRange: [origin.x, (SCREEN_WIDTH - finalWidth) / 2] }),
+    top: expansion.interpolate({ inputRange: [0, 1], outputRange: [origin.y, SCREEN_HEIGHT * 0.12] }),
+    width: expansion.interpolate({ inputRange: [0, 1], outputRange: [origin.width, finalWidth] }),
+    height: expansion.interpolate({ inputRange: [0, 1], outputRange: [origin.height, SCREEN_HEIGHT * 0.88] }),
+    borderRadius: expansion.interpolate({ inputRange: [0, 1], outputRange: [radius.sm, radius.lg] }),
+    opacity: expansion.interpolate({ inputRange: [0, 0.18, 1], outputRange: [0.72, 0.94, 1] }),
+    overflow: 'hidden' as const,
+  } : undefined;
 
   // Bug fix: this used to sit on the whole sheet (handle+header AND the
   // scrollable content below), which meant it was competing with the
@@ -106,8 +135,9 @@ export const RecordSheet = forwardRef<RecordSheetHandle, Props>(function RecordS
       >
         <Pressable accessibilityRole="button" accessibilityLabel="Close editor" onPress={dismiss} style={styles.backdrop} />
         <Animated.View
+          testID="record-sheet"
           accessibilityViewIsModal
-          style={[styles.sheet, { transform: [{ translateY }] }]}
+          style={[styles.sheet, anchoredStyle, { transform: [{ translateY }] }]}
         >
           <View style={styles.sheetTop} {...panResponder.panHandlers}>
             <Pressable
@@ -149,7 +179,7 @@ const styles = StyleSheet.create({
   backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(36,29,28,0.28)' },
   sheet: {
     width: '100%',
-    maxWidth: 560,
+    maxWidth: MAX_SHEET_WIDTH,
     maxHeight: '88%',
     minHeight: '48%',
     borderTopLeftRadius: radius.lg,

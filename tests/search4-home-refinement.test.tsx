@@ -1,4 +1,5 @@
 import { fireEvent, render } from '@testing-library/react-native';
+import { StyleSheet, ViewStyle } from 'react-native';
 
 import { HomeScreen } from '../src/screens/HomeScreen';
 import { initialOnboardingState } from '../src/storage';
@@ -18,6 +19,19 @@ const withRecords = (records: LilicaRecord[], overrides: Partial<typeof initialO
   allSetDismissed: true,
   ...overrides,
 });
+
+function flattenedStyle(node: { props: { style?: unknown } }): ViewStyle {
+  return StyleSheet.flatten(node.props.style) as ViewStyle;
+}
+
+function hasAncestor(node: { parent: any }, ancestor: unknown): boolean {
+  let current = node.parent;
+  while (current) {
+    if (current === ancestor) return true;
+    current = current.parent;
+  }
+  return false;
+}
 
 describe('search4.txt items 1-4: avatar/name/search copy are dynamic, sourced from the same supported-person state', () => {
   it('shows the current supported person\'s first name directly beneath the avatar', async () => {
@@ -81,6 +95,16 @@ describe('search4.txt items 1-4: avatar/name/search copy are dynamic, sourced fr
     expect(screen.queryByText('Maggie')).toBeNull();
     expect(screen.queryByText('Everything for Maggie, in one place.')).toBeNull();
   });
+
+  it('keeps the supported-person name and Search in the same polished row without moving the name into Search', async () => {
+    const screen = await render(
+      <HomeScreen state={withRecords([], { supportedPersonName: 'Maggie' })} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} onOpenSearch={jest.fn()} />,
+    );
+    const row = screen.getByTestId('home-person-search');
+    expect(hasAncestor(screen.getByText('Maggie'), row)).toBe(true);
+    expect(hasAncestor(screen.getByLabelText('Search'), row)).toBe(true);
+    expect(hasAncestor(screen.getByText('Maggie'), screen.getByLabelText('Search'))).toBe(false);
+  });
 });
 
 describe('search4.txt item 7: tapping the Home search box opens the dedicated Search screen', () => {
@@ -141,6 +165,31 @@ describe('search4.txt items 10-14: dashboard strip scroll chevrons', () => {
     // action, not a decorative no-op.
   });
 
+  it('disables the right chevron truthfully at the end of the strip', async () => {
+    const screen = await render(
+      <HomeScreen state={withRecords(records)} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
+    );
+    const scrollView = screen.getByTestId('dashboard-strip-scroll');
+    await fireEvent(scrollView, 'layout', { nativeEvent: { layout: { width: 300, height: 100 } } });
+    await fireEvent(scrollView, 'contentSizeChange', 900, 100);
+    await fireEvent(scrollView, 'scroll', { nativeEvent: { contentOffset: { x: 600 } } });
+    expect(screen.getByLabelText('Scroll dashboard right').props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('keeps both carousel controls outside the clipped viewport with 44px targets', async () => {
+    const screen = await render(
+      <HomeScreen state={withRecords(records)} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
+    );
+    const viewport = screen.getByTestId('dashboard-strip-viewport');
+    expect(flattenedStyle(viewport).overflow).toBe('hidden');
+    for (const label of ['Scroll dashboard left', 'Scroll dashboard right']) {
+      const style = flattenedStyle(screen.getByLabelText(label));
+      expect(style.width).toBe(44);
+      expect(style.height).toBe(44);
+      expect(style.position).not.toBe('absolute');
+    }
+  });
+
   it('the left chevron becomes enabled once the strip has been scrolled away from its start, and disables again at the start', async () => {
     const screen = await render(
       <HomeScreen state={withRecords(records)} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
@@ -163,6 +212,24 @@ describe('search4.txt items 10-14: dashboard strip scroll chevrons', () => {
     const scrollView = screen.getByTestId('dashboard-strip-scroll');
     expect(scrollView.props.scrollEnabled).not.toBe(false);
     expect(scrollView.props.horizontal).toBe(true);
+  });
+});
+
+describe('Phase 22 Batch 3: Home record grid polish', () => {
+  it('keeps two equal-priority record cards with truncated category labels and higher-priority titles', async () => {
+    const records: LilicaRecord[] = [
+      { id: 'appointment', type: 'appointment', title: 'Orthopaedic review with a longer title', status: 'scheduled', eventDate: '2020-01-01', createdAt: '2020-01-01T00:00:00.000Z' },
+      { id: 'home', type: 'homeMatter', title: 'Service the boiler', status: 'unresolved', dueDate: '2020-01-01', createdAt: '2020-01-01T00:00:00.000Z' },
+    ];
+    const screen = await render(
+      <HomeScreen state={withRecords(records)} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
+    );
+    const first = screen.getByTestId('home-record-card-appointment');
+    const second = screen.getByTestId('home-record-card-home');
+    expect(flattenedStyle(first).width).toBe(flattenedStyle(second).width);
+    expect(screen.getByText('Appointment').props.numberOfLines).toBe(1);
+    expect(screen.getByText('Orthopaedic review with a longer title').props.numberOfLines).toBe(2);
+    expect(screen.getByTestId('home-record-grid')).toBeOnTheScreen();
   });
 });
 

@@ -64,9 +64,10 @@ const styles = StyleSheet.create({
   },
   textCompact: {
     fontFamily: 'Fraunces_800ExtraBold',
+    fontWeight: '800',
     fontSize: 12,
     lineHeight: 15,
-    letterSpacing: 0.2,
+    letterSpacing: 0,
   },
   leaf: {
     width: 16,

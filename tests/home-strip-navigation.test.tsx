@@ -215,7 +215,7 @@ describe('To Do: focused entry from the Home strip', () => {
     screen.getByText('Overdue task');
     screen.getByText('Today bill');
     screen.getByText('Overdue');
-    screen.getByText('Today / Needs doing');
+    screen.getByText('Today');
   });
 
   it('initialFilter=mine preselects the Mine tab', async () => {

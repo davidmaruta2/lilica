@@ -130,10 +130,10 @@ export function RecentActivityScreen({ careSpaceId, personName, onBack, onOpenRe
 
 const styles = StyleSheet.create({
   groups: {
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   dayGroup: {
-    gap: spacing.xs,
+    gap: spacing.xxs,
   },
   dayLabel: {
     textTransform: 'uppercase',
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.sm,
     padding: spacing.sm,
-    borderRadius: radius.md,
+    borderRadius: 8,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,

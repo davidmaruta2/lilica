@@ -107,9 +107,8 @@ export function AccountScreen({
 
   return (
     <Screen>
-      {onBack ? <Header onBack={onBack} /> : null}
+      {onBack ? <Header title="Account" onBack={onBack} /> : null}
       <View style={styles.content}>
-        <AppText variant="section" centre>Your account</AppText>
         <Pressable accessibilityRole="button" accessibilityLabel="Change your photo" onPress={() => void changePhoto()} disabled={photoBusy}>
           <View style={styles.avatar}>
             {avatarUrl ? (
@@ -183,15 +182,15 @@ export function AccountScreen({
 }
 
 const styles = StyleSheet.create({
-  content: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', gap: spacing.sm, paddingTop: spacing.xxl, paddingBottom: spacing.xl },
-  avatar: { width: 72, height: 72, borderRadius: radius.pill, backgroundColor: colors.oliveSoft, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, overflow: 'hidden' },
+  content: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', gap: spacing.sm, paddingBottom: spacing.xl },
+  avatar: { width: 60, height: 60, borderRadius: radius.pill, backgroundColor: colors.oliveSoft, alignItems: 'center', justifyContent: 'center', marginTop: spacing.xs, overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%' },
   changePhotoLabel: { marginBottom: spacing.xs },
   nameEdit: { width: '100%', gap: spacing.sm },
   nameEditActions: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'flex-end' },
   nameEditButton: { width: 'auto', minHeight: 44, paddingHorizontal: spacing.md },
   button: { width: '100%', marginTop: spacing.xl },
-  section: { width: '100%', marginTop: spacing.xl, gap: spacing.sm },
+  section: { width: '100%', marginTop: spacing.md, gap: spacing.xs },
   row: {
     minHeight: 54,
     flexDirection: 'row',
@@ -199,7 +198,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.sm,
     padding: spacing.sm,
-    borderRadius: radius.md,
+    borderRadius: 8,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,

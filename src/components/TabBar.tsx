@@ -1,7 +1,10 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { colors, radius, spacing } from '../theme';
+import { phase22Foundation } from '../visualFoundation';
 import { AppTab } from '../types';
+import { FoundationIcon, FoundationIconComponent } from './FoundationIcon';
+import { CalendarIcon, HomeIcon, PeopleIcon, ToDoIcon } from './foundationIcons';
 import { AppText } from './Text';
 
 type Props = {
@@ -13,16 +16,16 @@ type Props = {
 // in care" (supported people, key contacts, care circle), not a second
 // Home dashboard and not only Care Circle management (that stays reachable
 // from inside this tab, and from Settings, as its own destination).
-const tabs: Array<{ id: AppTab; label: string }> = [
-  { id: 'home', label: 'Home' },
-  { id: 'calendar', label: 'Calendar' },
-  { id: 'todo', label: 'To Do' },
-  { id: 'person', label: 'People' },
+const tabs: Array<{ id: AppTab; label: string; icon: FoundationIconComponent }> = [
+  { id: 'home', label: 'Home', icon: HomeIcon },
+  { id: 'calendar', label: 'Calendar', icon: CalendarIcon },
+  { id: 'todo', label: 'To Do', icon: ToDoIcon },
+  { id: 'person', label: 'People', icon: PeopleIcon },
 ];
 
 export function TabBar({ active, onChange }: Props) {
   return (
-    <View style={styles.wrap}>
+    <View accessibilityRole="tablist" style={styles.wrap}>
       {tabs.map((tab) => {
         const selected = active === tab.id;
         return (
@@ -34,7 +37,11 @@ export function TabBar({ active, onChange }: Props) {
             onPress={() => onChange(tab.id)}
             style={[styles.tab, selected && styles.active]}
           >
-            <View style={[styles.dot, selected && styles.activeDot]} />
+            <FoundationIcon
+              icon={tab.icon}
+              role="bottomNavigation"
+              color={selected ? colors.primary : colors.muted}
+            />
             <AppText variant="secondary" tone={selected ? 'primary' : 'muted'} numberOfLines={1} centre style={styles.label}>
               {tab.label}
             </AppText>
@@ -57,7 +64,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    minHeight: 56,
+    minHeight: 64,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.md,
@@ -71,18 +78,13 @@ const styles = StyleSheet.create({
   label: {
     width: '100%',
     textAlign: 'center',
+    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
+    fontSize: 13,
+    lineHeight: 18,
+    letterSpacing: 0,
   },
   active: {
     backgroundColor: colors.primarySoft,
-  },
-  dot: {
-    width: 5,
-    height: 5,
-    borderRadius: radius.pill,
-    backgroundColor: colors.line,
-  },
-  activeDot: {
-    width: 18,
-    backgroundColor: colors.primary,
   },
 });

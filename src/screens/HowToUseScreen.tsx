@@ -52,10 +52,9 @@ const STEPS: Step[] = [
 export function HowToUseScreen({ onBack }: { onBack: () => void }) {
   return (
     <Screen>
-      <Header onBack={onBack} />
+      <Header title="How to use Lilica" onBack={onBack} />
       <View style={styles.content}>
-        <AppText variant="title" centre>How to use Lilica</AppText>
-        <AppText variant="body" tone="soft" centre>
+        <AppText variant="secondary" tone="soft">
           A quick tour of what's where.
         </AppText>
         {STEPS.map((step, index) => (
@@ -75,13 +74,13 @@ export function HowToUseScreen({ onBack }: { onBack: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  content: { gap: spacing.lg, paddingBottom: spacing.xl },
+  content: { gap: spacing.sm, paddingBottom: spacing.xl },
   step: {
-    borderRadius: radius.md,
+    borderRadius: 8,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: spacing.md,
+    padding: spacing.sm,
     gap: spacing.sm,
   },
   stepHeader: {

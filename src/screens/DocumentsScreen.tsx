@@ -103,13 +103,13 @@ export function DocumentsScreen({ careSpaceId, personName, onBack, onOpenRecord 
 }
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.sm, paddingBottom: spacing.xl },
+  list: { gap: spacing.xxs, paddingBottom: spacing.xl },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     padding: spacing.sm,
-    borderRadius: radius.md,
+    borderRadius: 8,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,

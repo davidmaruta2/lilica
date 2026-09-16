@@ -3,10 +3,9 @@ import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { MemberDetailPopup } from '../components/MemberDetailPopup';
 import { PersonSwitcher } from '../components/PersonSwitcher';
+import { PrimaryTabHeader } from '../components/PrimaryTabHeader';
 import { ScreenBackdrop } from '../components/ScreenBackdrop';
-import { SettingsCogButton } from '../components/SettingsCogButton';
 import { AppText } from '../components/Text';
-import { Wordmark } from '../components/Wordmark';
 import { CareCircleMember, CareCircleRole } from '../careCircle';
 import { resolveAvatarUrl } from '../profileAvatar';
 import { CategoryIcon, visualFor } from './HomeScreen';
@@ -179,27 +178,33 @@ export function PersonScreen({
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-    <ScreenBackdrop deep={tabAccent.people.deep} tint={tabAccent.people.tint} gap={spacing.lg}>
+    <ScreenBackdrop
+      deep={tabAccent.people.deep}
+      tint={tabAccent.people.tint}
+      gap={spacing.lg}
+      stretch
+      stops={[
+        { color: tabAccent.people.deep, location: 0 },
+        { color: '#3E837E', location: 0.28 },
+        { color: '#72AAA5', location: 0.55 },
+        { color: '#A6CBC7', location: 0.78 },
+        { color: tabAccent.people.tint, location: 1 },
+      ]}
+    >
       {/* Visual pass: header sits on the shared deep/tint backdrop (see
           ScreenBackdrop) -- title, wordmark and the Invitations link
           switch to light-on-dark. */}
-      <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Wordmark size="compact" tone="light" />
-          <AppText variant="title" tone="white">People</AppText>
-          <AppText variant="body" tone="white" style={styles.headerSubtitle}>
-            The people you support, and those who help.
-          </AppText>
-        </View>
-        <View style={styles.headerLinks}>
-          {onOpenInvitations && pendingInvitationCount > 0 ? (
-            <Pressable accessibilityRole="button" accessibilityLabel={`Invitations (${pendingInvitationCount})`} onPress={onOpenInvitations} hitSlop={8}>
+      <PrimaryTabHeader
+        title="People"
+        tone="light"
+        supporting="The people you support, and those who help."
+        actions={onOpenInvitations && pendingInvitationCount > 0 ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={`Invitations (${pendingInvitationCount})`} onPress={onOpenInvitations} style={styles.headerActionLink}>
               <AppText variant="secondary" style={[styles.accountLink, styles.onDarkLink]}>Invitations ({pendingInvitationCount})</AppText>
             </Pressable>
-          ) : null}
-          <SettingsCogButton onPress={onOpenSettings} />
-        </View>
-      </View>
+          ) : undefined}
+        onOpenSettings={onOpenSettings}
+      />
 
       {/* Section 1: SUPPORTED PEOPLE -- who this account organises care
           for. Tapping opens the existing PersonSwitcher, unchanged --
@@ -383,6 +388,7 @@ export function PersonScreen({
           <AppText variant="bodyStrong" tone="white">?</AppText>
         </View>
       </View>
+      <View testID="people-bottom-clearance" style={styles.bottomClearance} />
 
       <PersonSwitcher
         visible={switcherOpen}
@@ -410,29 +416,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingBottom: spacing.xxl,
-  },
-  header: {
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  headerCopy: {
-    flex: 1,
-    paddingRight: spacing.sm,
-  },
-  headerSubtitle: {
-    marginTop: spacing.xxs,
-    opacity: 0.9,
-  },
-  headerLinks: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+    flexGrow: 1,
   },
   accountLink: {
     fontWeight: '700',
+  },
+  headerActionLink: {
+    minHeight: 44,
+    justifyContent: 'center',
   },
   onDarkLink: {
     color: colors.white,
@@ -462,8 +453,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  // Product direction: Key contacts/Care circle render as a 2-up grid of
-  // tiles rather than one full-width row per person.
   sectionList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -511,7 +500,6 @@ const styles = StyleSheet.create({
   recentActivityLabel: {
     fontWeight: '700',
   },
-  // Same drawn-chevron-down technique as Home's own switcher card.
   personChevron: {
     width: 10,
     height: 10,
@@ -661,5 +649,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  bottomClearance: {
+    height: spacing.xxxl,
   },
 });

@@ -4,6 +4,8 @@
   "main": "index.ts",
   "dependencies": {
     "@expo-google-fonts/fraunces": "^0.4.1",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/inter-tight": "^0.4.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.116.0",
     "expo": "~57.0.21",
@@ -16,11 +18,13 @@
     "expo-notifications": "~57.0.17",
     "expo-sharing": "~57.0.19",
     "expo-status-bar": "~57.0.1",
+    "lucide-react-native": "^1.46.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-native": "^0.86.3",
     "react-native-purchases": "^10.9.1",
     "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4",
     "react-native-url-polyfill": "^4.0.0",
     "react-native-web": "^0.21.0"
   },
@@ -58,7 +62,10 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/dist/"
-    ]
+    ],
+    "moduleNameMapper": {
+      "^lucide-react-native/icons/(.*)$": "<rootDir>/node_modules/lucide-react-native/dist/cjs/icons/$1.js"
+    }
   },
   "private": true
 }

@@ -1,4 +1,5 @@
 import { fireEvent, render } from '@testing-library/react-native';
+import { StyleSheet, ViewStyle } from 'react-native';
 
 import { CalendarScreen } from '../src/screens/CalendarScreen';
 import { LilicaRecord } from '../src/types';
@@ -34,11 +35,16 @@ const undatedContact: LilicaRecord = {
   id: 'contact-1', type: 'contact', title: 'GP surgery', createdAt: '2026-09-01T00:00:00.000Z',
 };
 
+function flattenedStyle(node: { props: { style?: unknown } }): ViewStyle {
+  return StyleSheet.flatten(node.props.style) as ViewStyle;
+}
+
 describe('Phase 10: Calendar month/date rendering', () => {
   it('shows the current month and today selected by default', async () => {
     const screen = await render(<CalendarScreen records={[apptToday]} personName="Maggie" onOpenRecord={jest.fn()} />);
     screen.getByText('September 2026');
     screen.getByText('Today');
+    expect(screen.getByLabelText(/^Wednesday 9 September/).props.accessibilityState).toEqual({ selected: true });
   });
 
   it('selecting a date shows exactly the occurrences due/scheduled that day, including multiple', async () => {
@@ -155,6 +161,8 @@ describe('Phase 10: Calendar month/date rendering', () => {
       <CalendarScreen records={[apptToday, billToday]} personName="Maggie" onOpenRecord={jest.fn()} />,
     );
     screen.getByText('+1');
+    screen.getByTestId('calendar-marker-2026-09-09');
+    expect(screen.getByLabelText(/^Wednesday 9 September/).props.accessibilityLabel).toContain('2 events');
   });
 
   it('moving between months does not mutate records and updates the visible month', async () => {
@@ -163,6 +171,41 @@ describe('Phase 10: Calendar month/date rendering', () => {
     screen.getByText('October 2026');
     await fireEvent.press(screen.getByLabelText('Previous month'));
     screen.getByText('September 2026');
+  });
+});
+
+describe('Phase 22 Batch 4: Calendar visual interaction contract', () => {
+  it('keeps the legend swipeable with truthful controls at both boundaries', async () => {
+    const screen = await render(<CalendarScreen records={[]} personName="Maggie" onOpenRecord={jest.fn()} />);
+    const legend = screen.getByTestId('calendar-legend-scroll');
+    expect(screen.getByLabelText('Scroll calendar key left').props.accessibilityState).toEqual({ disabled: true });
+
+    await fireEvent(legend, 'layout', { nativeEvent: { layout: { width: 240, height: 44 } } });
+    await fireEvent(legend, 'contentSizeChange', 800, 44);
+    expect(screen.getByLabelText('Scroll calendar key right').props.accessibilityState).toEqual({ disabled: false });
+
+    await fireEvent(legend, 'scroll', { nativeEvent: { contentOffset: { x: 560 } } });
+    expect(screen.getByLabelText('Scroll calendar key left').props.accessibilityState).toEqual({ disabled: false });
+    expect(screen.getByLabelText('Scroll calendar key right').props.accessibilityState).toEqual({ disabled: true });
+  });
+
+  it('keeps legend and month controls accessible without overlaying content', async () => {
+    const screen = await render(<CalendarScreen records={[]} personName="Maggie" onOpenRecord={jest.fn()} />);
+    expect(flattenedStyle(screen.getByTestId('calendar-legend-viewport')).overflow).toBe('hidden');
+    for (const label of ['Scroll calendar key left', 'Scroll calendar key right', 'Previous month', 'Next month']) {
+      const style = flattenedStyle(screen.getByLabelText(label));
+      expect(style.width).toBe(44);
+      expect(style.height).toBe(44);
+      expect(style.position).not.toBe('absolute');
+    }
+  });
+
+  it('keeps enough scrollable bottom space for the final agenda event to clear navigation', async () => {
+    const screen = await render(<CalendarScreen records={[apptToday]} personName="Maggie" onOpenRecord={jest.fn()} />);
+    expect(flattenedStyle({ props: { style: screen.getByTestId('calendar-scroll').props.contentContainerStyle } }).flexGrow).toBe(1);
+    expect(flattenedStyle(screen.getByTestId('calendar-bottom-clearance')).height).toBe(64);
+    screen.getByText('Today');
+    screen.getByLabelText('Open GP appointment');
   });
 });
 

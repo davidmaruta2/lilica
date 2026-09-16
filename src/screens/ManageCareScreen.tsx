@@ -229,10 +229,10 @@ export function ManageCareScreen({
 }
 
 const styles = StyleSheet.create({
-  content: { gap: spacing.lg, paddingBottom: spacing.xl },
+  content: { gap: spacing.md, paddingBottom: spacing.xl },
   section: {
     gap: spacing.sm,
-    borderRadius: radius.md,
+    borderRadius: 8,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,

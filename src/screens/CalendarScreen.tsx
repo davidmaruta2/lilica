@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 // Approved calendar layout correction (visual hierarchy only): the
@@ -9,12 +9,13 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 // styles.
 
 import { ScreenBackdrop } from '../components/ScreenBackdrop';
-import { SettingsCogButton } from '../components/SettingsCogButton';
+import { FoundationIcon } from '../components/FoundationIcon';
+import { BackIcon, ForwardIcon } from '../components/foundationIcons';
+import { PrimaryTabHeader } from '../components/PrimaryTabHeader';
 import { AppText } from '../components/Text';
-import { Wordmark } from '../components/Wordmark';
 import { CategoryIcon, categoryLabel, StatusIcon, visualFor } from './HomeScreen';
 import { calendarDateForRecord, deriveRecordState } from '../records';
-import { colors, radius, shadow, spacing, tabAccent } from '../theme';
+import { colors, radius, spacing, tabAccent } from '../theme';
 import { LilicaRecord, LilicaRecordType } from '../types';
 
 // The categories that can genuinely appear in Calendar (calendarDateForRecord
@@ -82,6 +83,12 @@ export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettin
   const todayIso = useMemo(() => isoDate(today), [today]);
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(today));
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
+  const legendScrollRef = useRef<ScrollView>(null);
+  const legendScrollX = useRef(0);
+  const legendViewportWidth = useRef(0);
+  const legendContentWidth = useRef(0);
+  const [canScrollLegendLeft, setCanScrollLegendLeft] = useState(false);
+  const [canScrollLegendRight, setCanScrollLegendRight] = useState(false);
 
   const recordsByDate = useMemo(() => {
     const map = new Map<string, LilicaRecord[]>();
@@ -100,6 +107,22 @@ export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettin
   const selectedRecords = selectedDate ? recordsByDate.get(selectedDate) ?? [] : [];
   const isCurrentMonth = visibleMonth.getFullYear() === today.getFullYear() && visibleMonth.getMonth() === today.getMonth();
 
+  function updateLegendControls() {
+    const epsilon = 4;
+    setCanScrollLegendLeft(legendScrollX.current > epsilon);
+    setCanScrollLegendRight(
+      legendScrollX.current < legendContentWidth.current - legendViewportWidth.current - epsilon,
+    );
+  }
+
+  function scrollLegendBy(delta: number) {
+    const next = Math.max(
+      0,
+      Math.min(legendScrollX.current + delta, Math.max(legendContentWidth.current - legendViewportWidth.current, 0)),
+    );
+    legendScrollRef.current?.scrollTo({ x: next, animated: true });
+  }
+
   function changeMonth(delta: number) {
     const next = addMonths(visibleMonth, delta);
     setVisibleMonth(next);
@@ -115,19 +138,26 @@ export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettin
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-    <ScreenBackdrop deep={tabAccent.calendar.deep} tint={tabAccent.calendar.tint} gap={spacing.md}>
+    <ScrollView testID="calendar-scroll" style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScreenBackdrop
+      deep={tabAccent.calendar.deep}
+      tint={tabAccent.calendar.tint}
+      gap={spacing.md}
+      stretch
+      stops={[
+        { color: tabAccent.calendar.deep, location: 0 },
+        { color: '#C97B62', location: 0.28 },
+        { color: '#D99A80', location: 0.55 },
+        { color: '#E5BDA7', location: 0.78 },
+        { color: tabAccent.calendar.tint, location: 1 },
+      ]}
+    >
       {/* Visual pass: header sits on the shared deep/tint backdrop (see
           ScreenBackdrop) -- title, wordmark and subtitle switch to their
           light-on-dark treatment. */}
       <View style={styles.header}>
-        <View style={styles.headerTopRow}>
-          <View>
-            <Wordmark size="compact" tone="light" />
-            <AppText variant="title" tone="white">Calendar</AppText>
-          </View>
-          {onOpenSettings ? <SettingsCogButton onPress={onOpenSettings} /> : null}
-        </View>
+        <PrimaryTabHeader title="Calendar" tone="light" onOpenSettings={onOpenSettings} />
+        <AppText variant="body" style={styles.subtitle}>{personName ? `${personName}'s calendar` : 'Calendar'}</AppText>
         {!isCurrentMonth ? (
           <View style={styles.headerActionRow}>
             <Pressable
@@ -145,52 +175,85 @@ export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettin
         ) : null}
       </View>
 
-      <AppText variant="body" style={styles.subtitle}>{personName ? `${personName}'s calendar` : 'Calendar'}</AppText>
-
       {/* Approved layout: the category key is now a slim, single-row,
           horizontally scrollable white strip directly under the title --
           replacing the old multi-row wrapping legend that used to sit
           under the calendar. Same categories, same colours/icons/labels,
           same order; only the container and layout changed. */}
-      <View style={styles.legendCard}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.legendRow}
+      <View style={styles.legendWrap}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Scroll calendar key left"
+          accessibilityState={{ disabled: !canScrollLegendLeft }}
+          disabled={!canScrollLegendLeft}
+          onPress={() => scrollLegendBy(-164)}
+          style={[styles.legendControl, !canScrollLegendLeft && styles.legendControlDisabled]}
         >
-          {CALENDAR_TYPE_PRIORITY.map((type) => {
-            const visual = visualFor(type);
-            return (
-              <View key={type} style={styles.legendItem}>
-                <View style={[styles.legendIcon, { backgroundColor: visual.tint }]}>
-                  <CategoryIcon type={type} color={visual.accent} />
+          <FoundationIcon icon={BackIcon} role="navigation" color={canScrollLegendLeft ? colors.white : 'rgba(255,255,255,0.4)'} />
+        </Pressable>
+        <View testID="calendar-legend-viewport" style={styles.legendCard}>
+          <ScrollView
+            ref={legendScrollRef}
+            testID="calendar-legend-scroll"
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.legendRow}
+            onLayout={(event) => {
+              legendViewportWidth.current = event.nativeEvent.layout.width;
+              updateLegendControls();
+            }}
+            onContentSizeChange={(width) => {
+              legendContentWidth.current = width;
+              updateLegendControls();
+            }}
+            onScroll={(event) => {
+              legendScrollX.current = event.nativeEvent.contentOffset.x;
+              updateLegendControls();
+            }}
+            scrollEventThrottle={16}
+          >
+            {CALENDAR_TYPE_PRIORITY.map((type) => {
+              const visual = visualFor(type);
+              return (
+                <View key={type} style={styles.legendItem}>
+                  <View style={[styles.legendIcon, { backgroundColor: visual.tint }]}>
+                    <CategoryIcon type={type} color={visual.accent} />
+                  </View>
+                  <AppText variant="secondary" tone="soft" numberOfLines={1} style={styles.legendLabel}>{categoryLabel(type)}</AppText>
                 </View>
-                <AppText variant="secondary" tone="soft" numberOfLines={1}>{categoryLabel(type)}</AppText>
+              );
+            })}
+            <View style={styles.legendItem}>
+              <View style={[styles.legendIcon, { backgroundColor: colors.dangerSoft }]}>
+                <StatusIcon icon="alert" color={colors.danger} />
               </View>
-            );
-          })}
-          <View style={styles.legendItem}>
-            <View style={[styles.legendIcon, { backgroundColor: colors.dangerSoft }]}>
-              <StatusIcon icon="alert" color={colors.danger} />
+              <AppText variant="secondary" tone="soft" numberOfLines={1} style={styles.legendLabel}>Needs attention</AppText>
             </View>
-            <AppText variant="secondary" tone="soft" numberOfLines={1}>Needs attention</AppText>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Scroll calendar key right"
+          accessibilityState={{ disabled: !canScrollLegendRight }}
+          disabled={!canScrollLegendRight}
+          onPress={() => scrollLegendBy(164)}
+          style={[styles.legendControl, !canScrollLegendRight && styles.legendControlDisabled]}
+        >
+          <FoundationIcon icon={ForwardIcon} role="navigation" color={canScrollLegendRight ? colors.white : 'rgba(255,255,255,0.4)'} />
+        </Pressable>
       </View>
 
-      {/* Approved layout: the whole month grid now sits on its own pure-
-          white card, visually separated from the warm page background
-          behind it -- everything inside (navigation, heading, weekday
-          row, grid, indicators/counts) is exactly the same markup and
-          logic as before, just moved inside this wrapper. */}
+      {/* The approved month grid remains on its own pure-white card.
+          Calendar calculations and selection behaviour are unchanged;
+          only the internal presentation is refined below. */}
       <View style={styles.calendarCard}>
         <View style={styles.monthBar}>
           <Pressable accessibilityRole="button" accessibilityLabel="Previous month" onPress={() => changeMonth(-1)} style={styles.monthArrow}>
-            <View style={[styles.chevron, styles.chevronLeft]} />
+            <FoundationIcon icon={BackIcon} role="navigation" color={colors.inkSoft} />
           </Pressable>
-          <AppText variant="section">{monthLabel}</AppText>
+          <AppText variant="section" style={styles.monthTitle}>{monthLabel}</AppText>
           <Pressable accessibilityRole="button" accessibilityLabel="Next month" onPress={() => changeMonth(1)} style={styles.monthArrow}>
-            <View style={[styles.chevron, styles.chevronRight]} />
+            <FoundationIcon icon={ForwardIcon} role="navigation" color={colors.inkSoft} />
           </Pressable>
         </View>
 
@@ -211,32 +274,37 @@ export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettin
             const visual = primaryType ? visualFor(primaryType) : undefined;
             const needsAttention = dayRecords.some((record) => deriveRecordState(record).overdue);
             const extra = dayRecords.length - 1;
+            const dateLabel = cell.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+            const occurrenceLabel = dayRecords.length === 1 ? '1 event' : `${dayRecords.length} events`;
             return (
               <Pressable
                 key={cell.iso}
                 accessibilityRole="button"
-                accessibilityLabel={cell.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+                accessibilityLabel={`${dateLabel}${dayRecords.length ? `. ${occurrenceLabel}` : ''}${needsAttention ? '. Needs attention' : ''}`}
                 accessibilityState={{ selected: isSelected }}
                 onPress={() => setSelectedDate(cell.iso)}
                 style={styles.dayCell}
               >
                 <View style={[styles.dayMark, isSelected && styles.dayMarkSelected, !isSelected && isToday && styles.dayMarkToday]}>
                   <AppText
-                    variant="bodyStrong"
+                    variant="body"
                     tone={isSelected ? 'white' : isToday ? 'primary' : 'default'}
+                    style={styles.dayNumber}
                   >
                     {cell.date.getDate()}
                   </AppText>
                 </View>
-                {primaryType && visual ? (
-                  <View style={[styles.dayBadge, { backgroundColor: visual.tint }]}>
-                    <CategoryIcon type={primaryType} color={visual.accent} />
-                    {needsAttention ? <View style={styles.dayBadgeAttention} /> : null}
-                  </View>
-                ) : (
-                  <View style={styles.dayBadgeSpacer} />
-                )}
-                {extra > 0 ? <AppText variant="meta" tone="muted" style={styles.dayMore}>+{extra}</AppText> : null}
+                <View style={styles.dayMetaRow}>
+                  {primaryType && visual ? (
+                    <View testID={`calendar-marker-${cell.iso}`} style={[styles.dayBadge, { backgroundColor: visual.tint }]}>
+                      <CategoryIcon type={primaryType} color={visual.accent} />
+                      {needsAttention ? <View style={styles.dayBadgeAttention} /> : null}
+                    </View>
+                  ) : (
+                    <View style={styles.dayBadgeSpacer} />
+                  )}
+                  {extra > 0 ? <AppText variant="meta" tone="muted" style={styles.dayMore}>+{extra}</AppText> : null}
+                </View>
               </Pressable>
             );
           })}
@@ -261,22 +329,22 @@ export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettin
                   accessibilityRole="button"
                   accessibilityLabel={`Open ${record.title}`}
                   onPress={() => onOpenRecord(record.id)}
-                  style={styles.agendaRow}
+                  style={({ pressed }) => [styles.agendaRow, pressed && styles.agendaRowPressed]}
                 >
                   <View style={[styles.agendaIconChip, { backgroundColor: visual.tint }]}>
                     <CategoryIcon type={record.type} color={visual.accent} />
                   </View>
                   <View style={styles.agendaCopy}>
-                    <AppText variant="meta" tone="muted" numberOfLines={1}>{categoryLabel(record.type)}</AppText>
-                    <AppText variant="bodyStrong" numberOfLines={2}>{record.title}</AppText>
-                    {detail ? <AppText variant="secondary" tone="soft">{detail}</AppText> : null}
+                    <AppText variant="meta" tone="muted" numberOfLines={1} style={styles.agendaCategory}>{categoryLabel(record.type)}</AppText>
+                    <AppText variant="bodyStrong" numberOfLines={2} style={styles.agendaTitle}>{record.title}</AppText>
+                    {detail ? <AppText variant="secondary" tone="soft" style={styles.agendaDetail}>{detail}</AppText> : null}
                   </View>
                   {overdue ? (
                     <View style={styles.overduePill}>
                       <AppText variant="secondary" style={styles.overduePillText}>Overdue</AppText>
                     </View>
                   ) : (
-                    <AppText variant="section" tone="primary">&gt;</AppText>
+                    <FoundationIcon icon={ForwardIcon} role="navigation" color={colors.primary} />
                   )}
                 </Pressable>
               );
@@ -284,6 +352,7 @@ export function CalendarScreen({ records, personName, onOpenRecord, onOpenSettin
           </View>
         )}
       </View>
+      <View testID="calendar-bottom-clearance" style={styles.bottomClearance} />
     </ScreenBackdrop>
     </ScrollView>
   );
@@ -297,24 +366,17 @@ const styles = StyleSheet.create({
   // component) -- it needs to own that space so its gradient can bleed
   // past it to the true screen edges.
   content: {
-    paddingBottom: spacing.xxl,
+    flexGrow: 1,
   },
   header: {
-    marginTop: spacing.md,
-    gap: spacing.sm,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
+    gap: spacing.xs,
   },
   headerActionRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
   },
   todayButton: {
-    minHeight: 36,
+    minHeight: 44,
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     backgroundColor: colors.primarySoft,
@@ -327,51 +389,40 @@ const styles = StyleSheet.create({
   subtitle: {
     color: 'rgba(255,255,255,0.82)',
   },
+  bottomClearance: {
+    height: spacing.xxxl,
+  },
   // Approved layout: the whole month grid (nav/heading, weekday row,
   // dates, indicators) sits on its own pure-white card, separated from
-  // the warm page background. Kept deliberately plain -- a thin border
-  // plus the app's own existing subtle shadow token, nothing more.
+  // the warm page background. Kept deliberately plain: proportion and a
+  // thin border create separation without unnecessary elevation.
   calendarCard: {
     backgroundColor: colors.white,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: spacing.md,
-    gap: spacing.sm,
-    ...shadow.soft,
+    padding: 14,
+    gap: spacing.xs,
   },
   monthBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    minHeight: 44,
   },
   monthArrow: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.pill,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
   },
-  chevron: {
-    width: 8,
-    height: 8,
-    borderLeftWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: colors.inkSoft,
-  },
-  chevronLeft: {
-    transform: [{ rotate: '45deg' }],
-    marginLeft: 2,
-  },
-  chevronRight: {
-    transform: [{ rotate: '225deg' }],
-    marginRight: 2,
+  monthTitle: {
+    flex: 1,
+    textAlign: 'center',
   },
   weekdayRow: {
     flexDirection: 'row',
+    paddingTop: spacing.xxs,
+    paddingBottom: 2,
   },
   weekdayLabel: {
     flex: 1,
@@ -383,14 +434,14 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: '14.2857%',
-    minHeight: 60,
+    minHeight: 56,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingTop: spacing.xxs,
+    paddingTop: 2,
   },
   dayMark: {
-    width: 34,
-    height: 34,
+    width: 32,
+    height: 32,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -401,38 +452,63 @@ const styles = StyleSheet.create({
   dayMarkToday: {
     backgroundColor: colors.primarySoft,
   },
+  dayNumber: {
+    lineHeight: 21,
+  },
+  dayMetaRow: {
+    minHeight: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    marginTop: 2,
+  },
   dayBadge: {
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
   },
   dayBadgeSpacer: {
-    width: 22,
-    height: 22,
-    marginTop: 2,
+    width: 20,
+    height: 20,
   },
   dayBadgeAttention: {
     position: 'absolute',
     top: -2,
     right: -2,
-    width: 7,
-    height: 7,
+    width: 6,
+    height: 6,
     borderRadius: radius.pill,
     backgroundColor: colors.danger,
     borderWidth: 1.5,
     borderColor: colors.surface,
   },
   dayMore: {
-    fontSize: 9,
-    marginTop: 1,
+    fontSize: 10,
+    lineHeight: 14,
   },
   // Approved layout: a slim, pure-white rounded strip -- single row,
   // horizontally scrollable, compact spacing. Replaces the old wrapping
   // multi-row legend that lived under the calendar grid.
+  legendWrap: {
+    marginHorizontal: -spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  legendControl: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  legendControlDisabled: {
+    opacity: 0.7,
+  },
   legendCard: {
+    flex: 1,
+    overflow: 'hidden',
     backgroundColor: colors.white,
     borderRadius: radius.pill,
     borderWidth: 1,
@@ -442,7 +518,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: 9,
     paddingHorizontal: spacing.sm,
   },
   legendItem: {
@@ -451,14 +527,18 @@ const styles = StyleSheet.create({
     gap: spacing.xxs,
   },
   legendIcon: {
-    width: 22,
-    height: 22,
+    width: 24,
+    height: 24,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  legendLabel: {
+    maxWidth: 124,
+    lineHeight: 18,
+  },
   agenda: {
-    marginTop: spacing.md,
+    marginTop: spacing.xs,
     gap: spacing.sm,
   },
   emptyState: {
@@ -473,11 +553,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    padding: spacing.sm,
+    minHeight: 68,
+    padding: 14,
     borderRadius: radius.md,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.line,
+  },
+  agendaRowPressed: {
+    transform: [{ scale: 0.99 }],
+    opacity: 0.9,
   },
   agendaIconChip: {
     width: 40,
@@ -490,14 +575,29 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  agendaCategory: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  agendaTitle: {
+    lineHeight: 21,
+  },
+  agendaDetail: {
+    lineHeight: 19,
+  },
   overduePill: {
     backgroundColor: 'rgba(154,62,66,0.12)',
     borderRadius: radius.pill,
     paddingHorizontal: spacing.xs,
-    paddingVertical: 3,
+    minHeight: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   overduePillText: {
     color: colors.danger,
-    fontWeight: '700',
+    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
+    fontSize: 12,
+    lineHeight: 16,
   },
 });

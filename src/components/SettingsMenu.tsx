@@ -5,6 +5,10 @@ import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 const ZERO_INSETS = { top: 0, bottom: 0, left: 0, right: 0 };
 
 import { colors, radius, shadow, spacing } from '../theme';
+import { FoundationIcon, FoundationIconComponent } from './FoundationIcon';
+import { ArchiveIcon, BookOpenIcon, CircleHelpIcon, ClipboardListIcon, CreditCardIcon, FileTextIcon, ForwardIcon, HeartHandshakeIcon, HistoryIcon, LockIcon, MailIcon, UserIcon, UsersRoundIcon, XIcon } from './foundationIcons';
+import { SecondaryIconCircle } from './SecondaryPage';
+import { SecondaryPageCloseProvider } from './Header';
 import { AppText } from './Text';
 import { Wordmark } from './Wordmark';
 
@@ -172,23 +176,23 @@ export function SettingsMenu({
 
   const personCareEntries = [
     ...(onOpenCareSummary
-      ? [{ key: 'careSummary', label: 'Care Summary', description: 'A quick view of what matters right now', onPress: onOpenCareSummary }]
+      ? [{ key: 'careSummary', label: 'Care Summary', description: 'A quick view of what matters right now', icon: ClipboardListIcon, onPress: onOpenCareSummary }]
       : []),
     ...(onOpenRecentActivity
-      ? [{ key: 'recentActivity', label: 'Recent Activity', description: 'What has changed recently', onPress: onOpenRecentActivity }]
+      ? [{ key: 'recentActivity', label: 'Recent Activity', description: 'What has changed recently', icon: HistoryIcon, onPress: onOpenRecentActivity }]
       : []),
     ...(onOpenDocuments
-      ? [{ key: 'documents', label: 'Documents', description: 'Every document saved for them', onPress: onOpenDocuments }]
+      ? [{ key: 'documents', label: 'Documents', description: 'Every document saved for them', icon: FileTextIcon, onPress: onOpenDocuments }]
       : []),
     ...(onOpenManageCare
-      ? [{ key: 'manageCare', label: personName ? `Manage ${personName}'s care` : 'Manage their care', description: 'Archive, handoff and permanent removal', onPress: onOpenManageCare }]
+      ? [{ key: 'manageCare', label: personName ? `Manage ${personName}'s care` : 'Manage their care', description: 'Archive, handoff and permanent removal', icon: HeartHandshakeIcon, onPress: onOpenManageCare }]
       : []),
   ];
 
   const accountEntries = [
-    { key: 'account', label: 'Account', description: 'Your profile, reminders and sign out', onPress: onOpenAccount },
+    { key: 'account', label: 'Account', description: 'Your profile, reminders and sign out', icon: UserIcon, onPress: onOpenAccount },
     ...(onOpenCareCircle
-      ? [{ key: 'careCircle', label: 'Care Circle', description: 'Who can help, and what they can see', onPress: onOpenCareCircle }]
+      ? [{ key: 'careCircle', label: 'Care Circle', description: 'Who can help, and what they can see', icon: UsersRoundIcon, onPress: onOpenCareCircle }]
       : []),
     // Real gap reported directly (15 September 2026): the manual
     // invitation-code entry point (JoinCareCircleScreen) was only ever
@@ -200,19 +204,19 @@ export function SettingsMenu({
     // here (App.tsx always supplies onOpenJoinCareCircle), regardless of
     // onOpenCareCircle/careCircleAvailable, for that reason.
     ...(onOpenJoinCareCircle
-      ? [{ key: 'joinCareCircle', label: 'Join a Care Circle', description: 'Enter an invitation code you\'ve been sent', onPress: onOpenJoinCareCircle }]
+      ? [{ key: 'joinCareCircle', label: 'Join a Care Circle', description: 'Enter an invitation code you\'ve been sent', icon: HeartHandshakeIcon, onPress: onOpenJoinCareCircle }]
       : []),
     ...(onOpenArchivedCare
-      ? [{ key: 'archivedCare', label: 'Archived care', description: 'Care spaces you\'ve paused', onPress: onOpenArchivedCare }]
+      ? [{ key: 'archivedCare', label: 'Archived care', description: 'Care spaces you\'ve paused', icon: ArchiveIcon, onPress: onOpenArchivedCare }]
       : []),
-    { key: 'privacyData', label: 'Privacy & data', description: 'What Lilica stores, export, and device data', onPress: onOpenPrivacyData },
-    { key: 'subscription', label: 'Subscription', description: subscriptionSummary ?? 'Your Lilica subscription', onPress: onOpenSubscription },
+    { key: 'privacyData', label: 'Privacy & data', description: 'What Lilica stores, export, and device data', icon: LockIcon, onPress: onOpenPrivacyData },
+    { key: 'subscription', label: 'Subscription', description: subscriptionSummary ?? 'Your Lilica subscription', icon: CreditCardIcon, onPress: onOpenSubscription },
   ];
 
   const helpEntries = [
-    { key: 'howTo', label: 'How to use Lilica', description: 'A quick tour of what\'s where', onPress: onOpenHowTo },
-    { key: 'faq', label: 'FAQ', description: 'Common questions, answered', onPress: onOpenFaq },
-    { key: 'contact', label: 'Contact', description: 'Get in touch with us', onPress: onOpenContact },
+    { key: 'howTo', label: 'How to use Lilica', description: 'Guides and tips', icon: BookOpenIcon, onPress: onOpenHowTo },
+    { key: 'faq', label: 'FAQ', description: 'Common questions', icon: CircleHelpIcon, onPress: onOpenFaq },
+    { key: 'contact', label: 'Contact', description: 'Get in touch', icon: MailIcon, onPress: onOpenContact },
   ];
 
   return (
@@ -221,53 +225,59 @@ export function SettingsMenu({
         <Pressable accessibilityLabel="Dismiss settings" style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
           <View style={[styles.drawerSafe, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-            <View style={styles.topBar}>
-              <AppText variant="section" tone="primary" style={styles.topBarTitle}>
-                {section === 'menu' ? 'Settings' : ' '}
-              </AppText>
-              <Pressable accessibilityRole="button" accessibilityLabel="Close settings" onPress={onClose} hitSlop={8} style={styles.closeButton}>
-                <AppText variant="secondary" tone="primary" style={styles.closeLabel}>Close</AppText>
-              </Pressable>
-            </View>
             {section === 'menu' ? (
-              // Real bug found by direct product-owner report: as more
-              // rows were added (Documents, Manage [Name]'s care, Archived
-              // care, Contact) the menu list overflowed the screen with no
-              // way to reach the rows below the fold -- this was a plain,
-              // non-scrolling View. Now a genuine ScrollView; the footer
-              // wordmark scrolls into view with the rest of the content
-              // rather than fighting for fixed space at the bottom.
-              <ScrollView style={styles.listWrap} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+              <>
+                <View style={styles.topBar}>
+                  <Wordmark size="compact" tone="dark" />
+                  <Pressable accessibilityRole="button" accessibilityLabel="Close settings" onPress={onClose} hitSlop={8} style={styles.closeButton}>
+                    <FoundationIcon icon={XIcon} role="navigation" color={colors.primary} />
+                  </Pressable>
+                </View>
+                {/* Real bug found by direct product-owner report: as more
+                    rows were added the menu needed to remain scrollable. */}
+                <ScrollView style={styles.listWrap} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.list}>
+                  {personName ? (
+                    <View style={styles.personRow}>
+                      <View style={styles.personAvatar}><AppText variant="bodyStrong" tone="primary">{personName.charAt(0).toUpperCase()}</AppText></View>
+                      <View style={styles.copy}>
+                        <AppText variant="bodyStrong">{personName}</AppText>
+                        <AppText variant="secondary" tone="soft">View and manage their care</AppText>
+                      </View>
+                    </View>
+                  ) : null}
                   {personCareEntries.length > 0 ? (
                     <View style={styles.group}>
                       <AppText variant="meta" tone="muted" style={styles.groupLabel}>
                         {personName ? `${personName}'s care` : 'This care space'}
                       </AppText>
                       {personCareEntries.map((entry) => (
-                        <SettingsRow key={entry.key} label={entry.label} description={entry.description} onPress={entry.onPress} />
+                        <SettingsRow key={entry.key} icon={entry.icon} label={entry.label} description={entry.description} onPress={entry.onPress} />
                       ))}
                     </View>
                   ) : null}
                   <View style={styles.group}>
                     <AppText variant="meta" tone="muted" style={styles.groupLabel}>Account</AppText>
                     {accountEntries.map((entry) => (
-                      <SettingsRow key={entry.key} label={entry.label} description={entry.description} onPress={entry.onPress} />
+                      <SettingsRow key={entry.key} icon={entry.icon} label={entry.label} description={entry.description} onPress={entry.onPress} />
                     ))}
                   </View>
                   <View style={styles.group}>
                     <AppText variant="meta" tone="muted" style={styles.groupLabel}>Help</AppText>
                     {helpEntries.map((entry) => (
-                      <SettingsRow key={entry.key} label={entry.label} description={entry.description} onPress={entry.onPress} />
+                      <SettingsRow key={entry.key} icon={entry.icon} label={entry.label} description={entry.description} onPress={entry.onPress} />
                     ))}
                   </View>
                 </View>
                 <View style={styles.footer}>
                   <Wordmark size="compact" tone="dark" />
                 </View>
-              </ScrollView>
+                </ScrollView>
+              </>
             ) : (
-              <View style={styles.sectionBody}>{children}</View>
+              <SecondaryPageCloseProvider onClose={onClose}>
+                <View style={styles.sectionBody}>{children}</View>
+              </SecondaryPageCloseProvider>
             )}
           </View>
         </Animated.View>
@@ -280,7 +290,7 @@ export function SettingsMenu({
 // -- the row's own visual language (elevated card, accent mark, chevron)
 // is completely unchanged from before this task, just reused for a
 // second group heading above it.
-function SettingsRow({ label, description, onPress }: { label: string; description: string; onPress: () => void }) {
+function SettingsRow({ icon, label, description, onPress }: { icon: FoundationIconComponent; label: string; description: string; onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -288,12 +298,12 @@ function SettingsRow({ label, description, onPress }: { label: string; descripti
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
-      <View style={styles.rowMark} />
+      <SecondaryIconCircle icon={icon} tone="plum" />
       <View style={styles.copy}>
         <AppText variant="bodyStrong" style={styles.rowLabel}>{label}</AppText>
         <AppText variant="secondary" tone="soft" style={styles.rowDescription}>{description}</AppText>
       </View>
-      <View style={styles.chevron} />
+      <FoundationIcon icon={ForwardIcon} role="navigation" color={colors.primary} />
     </Pressable>
   );
 }
@@ -320,28 +330,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
+    backgroundColor: colors.canvas,
   },
   topBarTitle: { fontSize: 22 },
   closeButton: {
-    minHeight: 36,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
+    borderRadius: 22,
     backgroundColor: colors.primarySoft,
   },
   closeLabel: { fontWeight: '700' },
   listWrap: { flex: 1 },
   listContent: { flexGrow: 1, justifyContent: 'space-between' },
-  list: { padding: spacing.lg, gap: spacing.lg },
+  list: { padding: spacing.md, gap: spacing.md },
   // Phase 20C: the smallest coherent visual addition -- the existing
   // uppercase, letter-spaced "meta" caption style (already used
   // throughout the app for category eyebrow labels) as a plain, static
   // group heading. No new typography token, no new colour.
-  group: { gap: spacing.sm },
-  groupLabel: { paddingHorizontal: spacing.xs },
+  group: { gap: spacing.xxs },
+  groupLabel: { paddingHorizontal: spacing.xs, fontSize: 11, lineHeight: 15 },
+  personRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  personAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft },
   // The active screen renders full-bleed inside the drawer -- it supplies
   // its own scroll/safe-area handling (Screen/Header), same as when it
   // was a top-level screen, just hosted here instead.
@@ -354,26 +364,21 @@ const styles = StyleSheet.create({
   // primary-toned chevron, so a row visibly invites a tap rather than
   // reading as a static list item.
   row: {
-    minHeight: 64,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.lg,
+    minHeight: 54,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
     gap: spacing.sm,
-    ...shadow.soft,
+    borderWidth: 1,
+    borderColor: '#E8DFD6',
   },
   rowPressed: { opacity: 0.85 },
-  rowMark: {
-    width: 6,
-    height: 36,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary,
-  },
   copy: { flex: 1, gap: 2 },
-  rowLabel: { fontSize: 16 },
-  rowDescription: { fontSize: 13, lineHeight: 17 },
+  rowLabel: { fontSize: 14, lineHeight: 18 },
+  rowDescription: { fontSize: 11, lineHeight: 15 },
   // Same drawn-chevron technique as Header.tsx's back chevron, pointing
   // right here (top+right border) to read as "opens something further".
   chevron: {

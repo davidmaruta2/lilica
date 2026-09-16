@@ -1,5 +1,5 @@
 // To Do background visual-regression correction (12 September 2026):
-// physical QA found the olive background ending well above the bottom
+// physical QA found the former background ending well above the bottom
 // tab bar on a short/empty To Do list, exposing a large plain cream
 // rectangle beneath it, and found the gradient itself reading as "a
 // large flat dark block, then a late fade". Both are layout/distribution
@@ -56,11 +56,11 @@ describe('ScreenBackdrop: To Do background correction (opt-in only)', () => {
 
   it('with `stops`, a custom multi-stop distribution renders exactly as given, and the flat fill below it matches the LAST stop (no seam)', async () => {
     const stops = [
-      { color: '#62764F', location: 0 },
-      { color: '#62764F', location: 0.08 },
-      { color: '#8D9660', location: 0.45 },
-      { color: '#DCE2C8', location: 0.75 },
-      { color: '#EDF0DC', location: 1 },
+      { color: '#4B6285', location: 0 },
+      { color: '#617898', location: 0.28 },
+      { color: '#7E93AE', location: 0.58 },
+      { color: '#A6B7CA', location: 0.8 },
+      { color: '#D6E0E9', location: 1 },
     ];
     const screen = await render(
       <ScreenBackdrop deep="#62764F" tint="#DCE2C8" gap={8} stops={stops}>
@@ -73,6 +73,6 @@ describe('ScreenBackdrop: To Do background correction (opt-in only)', () => {
 
     const wrapper = screen.getByTestId('child').parent;
     const flattened = [wrapper?.props.style].flat(Infinity);
-    expect(flattened).toEqual(expect.arrayContaining([expect.objectContaining({ backgroundColor: '#EDF0DC' })]));
+    expect(flattened).toEqual(expect.arrayContaining([expect.objectContaining({ backgroundColor: '#D6E0E9' })]));
   });
 });

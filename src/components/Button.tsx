@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { Pressable, StyleSheet, ViewStyle } from 'react-native';
 
-import { colors, radius, spacing, typography } from '../theme';
+import { colors, radius, spacing } from '../theme';
 import { AppText } from './Text';
 
 type ButtonProps = {
@@ -43,11 +43,11 @@ export function Button({
     >
       {icon}
       <AppText
+        variant="button"
         adjustsFontSizeToFit
         minimumFontScale={0.82}
         numberOfLines={1}
         style={[
-          typography.button,
           styles.label,
           variant === 'primary' && styles.primaryLabel,
           variant === 'light' && styles.lightLabel,

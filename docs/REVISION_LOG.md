@@ -1,5 +1,11 @@
 # Revision Log
 
+## 16 September 2026 - Phase 22 implementation checkpoint and final To Do tile separation
+
+The product-owner-approved Phase 22 visual direction has now been migrated in controlled batches across the typography/icon foundation, shared production foundation, Home, Calendar, To Do, People and secondary pages. Secondary pages use the agreed warm-neutral visual system without changing their product behavior; a physical-review correction places Back, centred title and Close on one coherent header row while preserving the Settings root header. The People Ask Lilica placeholder remains present.
+
+The final To Do review found that record tiles lacked the breathing room and subtle lift already used by Home. List rows now use an 8px gap instead of 4px, and both List and Grid tiles use the existing shared `shadow.soft` elevation. Approved section panels, tile colours, icon colours, matte steel-blue gradient, filters, joined List/Grid control and tile-origin editor animation are unchanged. `npm run typecheck` and 22 focused To Do tests pass. No database, Supabase, authentication, billing, care-space or record-domain behavior changed.
+
 ## 15 September 2026 - Phase 22 visual direction approved, implementation not started
 
 Following the source/screenshot audit in `docs/PHASE_22_VISUAL_AUDIT.md`, the product owner and Codex worked through the visual direction iteratively rather than accepting a one-shot redesign. The review covered the BBC-inspired premium hierarchy, To Do's matte mineral-blue gradient and surfaced status groups, the pale smoked-rose Overdue treatment, Home and To Do list/grid controls, the relationship between all four tabs, a warm-neutral secondary-page system, a compact single-header Settings drawer, compact humanist-sans typography with Fraunces reserved for the Lilica wordmark, and a coherent icon-led bottom navigation. Rejected iterations and the exact accepted constraints are recorded in `docs/PHASE_22_APPROVED_VISUAL_DIRECTION.md` alongside the visual references.

@@ -1,4 +1,4 @@
-import { Fraunces_800ExtraBold, useFonts } from '@expo-google-fonts/fraunces';
+import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Pressable, StyleSheet, View } from 'react-native';
@@ -6,6 +6,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from './src/auth/AuthProvider';
 import { RecordQuickEditor } from './src/components/RecordQuickEditor';
+import type { RecordSheetOrigin } from './src/components/RecordSheet';
 import { SettingsMenu } from './src/components/SettingsMenu';
 import { TabBar } from './src/components/TabBar';
 import { AppText } from './src/components/Text';
@@ -137,6 +138,7 @@ import {
   saveNotificationSettings,
 } from './src/notifications';
 import { colors, radius, spacing } from './src/theme';
+import { appFontAssets } from './src/fontAssets';
 import {
   AppTab,
   FirstItem,
@@ -236,6 +238,7 @@ function LilicaApp() {
   // renderShell -- see openRecordFromProjection and RecordQuickEditor.tsx
   // for why this is an overlay and not a screen/stage switch.
   const [calendarOpenRecordId, setCalendarOpenRecordId] = useState<string>();
+  const [recordOpenOrigin, setRecordOpenOrigin] = useState<RecordSheetOrigin>();
   // "Open a NEW draft of this category" request from Person's per-section
   // Add links -- same overlay, only one of these two is ever set at once.
   const [projectionOpenType, setProjectionOpenType] = useState<LilicaRecordType>();
@@ -330,9 +333,7 @@ function LilicaApp() {
   const recordRetryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const activeStorageOwnerId = useRef<string | null>(storageOwnerId);
   activeStorageOwnerId.current = storageOwnerId;
-  const [fontsLoaded] = useFonts({
-    Fraunces_800ExtraBold,
-  });
+  const [fontsLoaded] = useFonts(appFontAssets);
   const currentSpace = activeCareSpace(state);
   // Phase 20D: the ordinary active-person switcher must never surface an
   // archived care space (brief section 6) -- archivedCareSpaces() below
@@ -1422,7 +1423,8 @@ function LilicaApp() {
   // here (rendered by the RecordQuickEditor overlay in renderShell, below)
   // opens the sheet directly on top of whichever screen is already
   // showing, which never unmounts.
-  function openRecordFromProjection(recordId: string) {
+  function openRecordFromProjection(recordId: string, origin?: RecordSheetOrigin) {
+    setRecordOpenOrigin(origin);
     setCalendarOpenRecordId(recordId);
   }
 
@@ -1672,6 +1674,7 @@ function LilicaApp() {
             key={calendarOpenRecordId ?? projectionOpenType}
             records={state.records}
             recordId={calendarOpenRecordId}
+            origin={calendarOpenRecordId ? recordOpenOrigin : undefined}
             newType={calendarOpenRecordId ? undefined : projectionOpenType}
             supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
             careSpaceId={currentSpace?.careSpaceId ?? ''}
@@ -1682,6 +1685,7 @@ function LilicaApp() {
             onRemoveRecord={removeRecord}
             onDismiss={() => {
               setCalendarOpenRecordId(undefined);
+              setRecordOpenOrigin(undefined);
               setProjectionOpenType(undefined);
             }}
             isReadOnly={isReadOnly || isArchived}

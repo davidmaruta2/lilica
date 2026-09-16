@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.line,
     paddingHorizontal: spacing.md,
@@ -126,10 +126,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   groups: {
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   group: {
-    gap: spacing.sm,
+    gap: spacing.xxs,
   },
   groupList: {
     gap: spacing.sm,
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     padding: spacing.sm,
-    borderRadius: radius.md,
+    borderRadius: 8,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,

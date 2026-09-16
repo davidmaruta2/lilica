@@ -1,6 +1,10 @@
+import { createContext, ReactNode, useContext } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { colors, radius, spacing } from '../theme';
+import { phase22Foundation } from '../visualFoundation';
+import { FoundationIcon } from './FoundationIcon';
+import { BackIcon, XIcon } from './foundationIcons';
 import { AppText } from './Text';
 
 type HeaderProps = {
@@ -9,7 +13,14 @@ type HeaderProps = {
   right?: React.ReactNode;
 };
 
+const SecondaryPageCloseContext = createContext<(() => void) | undefined>(undefined);
+
+export function SecondaryPageCloseProvider({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  return <SecondaryPageCloseContext.Provider value={onClose}>{children}</SecondaryPageCloseContext.Provider>;
+}
+
 export function Header({ title, onBack, right }: HeaderProps) {
+  const contextualClose = useContext(SecondaryPageCloseContext);
   return (
     <View style={styles.header}>
       <View style={styles.side}>
@@ -17,10 +28,11 @@ export function Header({ title, onBack, right }: HeaderProps) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Go back"
+            testID="secondary-header-back"
             onPress={onBack}
             style={styles.back}
           >
-            <View style={styles.chevron} />
+            <FoundationIcon icon={BackIcon} role="navigation" />
           </Pressable>
         ) : null}
       </View>
@@ -31,7 +43,18 @@ export function Header({ title, onBack, right }: HeaderProps) {
       ) : (
         <View style={styles.title} />
       )}
-      <View style={[styles.side, styles.right]}>{right}</View>
+      <View style={[styles.side, styles.right]}>
+        {right ?? (contextualClose ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close settings"
+            onPress={contextualClose}
+            style={styles.close}
+          >
+            <FoundationIcon icon={XIcon} role="navigation" color={colors.primary} />
+          </Pressable>
+        ) : null)}
+      </View>
     </View>
   );
 }
@@ -53,20 +76,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   back: {
-    width: 44,
-    height: 44,
+    width: phase22Foundation.control.minimumTouchTarget,
+    height: phase22Foundation.control.minimumTouchTarget,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chevron: {
-    width: 15,
-    height: 15,
-    borderLeftWidth: 3,
-    borderBottomWidth: 3,
-    borderColor: colors.ink,
-    transform: [{ rotate: '45deg' }],
-    marginLeft: 5,
+  close: {
+    width: phase22Foundation.control.minimumTouchTarget,
+    height: phase22Foundation.control.minimumTouchTarget,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

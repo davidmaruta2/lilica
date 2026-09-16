@@ -1,16 +1,18 @@
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { activeCareSpace } from '../careSpaceState';
 import { Button } from '../components/Button';
+import { FoundationIcon } from '../components/FoundationIcon';
+import { BackIcon, DownIcon, ForwardIcon, GridIcon, ListIcon, SearchIcon } from '../components/foundationIcons';
+import { PrimaryTabHeader } from '../components/PrimaryTabHeader';
+import { ScreenBackdrop } from '../components/ScreenBackdrop';
 import { AppText } from '../components/Text';
-import { Wordmark } from '../components/Wordmark';
 import { firstItemOptions } from '../data/options';
 import { deriveRecordState, formatDateForDisplay } from '../records';
 import { colors, radius, shadow, spacing } from '../theme';
 import { CareSpaceSetupStatus, FirstItem, LilicaRecordType, LocalCareSpaceState, OnboardingState } from '../types';
 import { PersonSwitcher } from '../components/PersonSwitcher';
 import { PlusIcon } from '../components/PlusIcon';
-import { SettingsCogButton } from '../components/SettingsCogButton';
 import { useRef, useState } from 'react';
 
 type Props = {
@@ -54,6 +56,8 @@ type Props = {
   // once there is anything to search.
   onOpenSearch?: () => void;
 };
+
+type HomeViewMode = 'list' | 'grid';
 
 function itemTiming(item: FirstItem) {
   const eventDate = formatDateForDisplay(item.eventDate ?? item.date);
@@ -265,7 +269,9 @@ export function HomeScreen({
   onOpenSettings,
   onOpenSearch,
 }: Props) {
+  const { width: windowWidth } = useWindowDimensions();
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<HomeViewMode>('grid');
   const records = state.records.length > 0 ? state.records : state.firstItem ? [state.firstItem] : [];
   const personName = state.supportedPersonName?.trim() || 'Them';
   const sections = ['Today', 'Upcoming', 'Recently added']
@@ -300,8 +306,11 @@ export function HomeScreen({
   const stripContentWidth = useRef(0);
   const [canScrollStripLeft, setCanScrollStripLeft] = useState(false);
   const [canScrollStripRight, setCanScrollStripRight] = useState(false);
-  const STRIP_SCROLL_AMOUNT = 220;
   const STRIP_SCROLL_EPSILON = 4;
+  const stripViewportWidth = Math.max(windowWidth - 88, 0);
+  const statusChipWidth = Math.max(108, Math.min(150, (stripViewportWidth - spacing.sm) / 2));
+  const STRIP_SCROLL_AMOUNT = statusChipWidth + spacing.sm;
+  const recordCardWidth = Math.min(220, Math.max(124, (windowWidth - (spacing.lg * 2) - spacing.sm) / 2));
 
   function updateStripChevronState() {
     setCanScrollStripLeft(stripScrollX.current > STRIP_SCROLL_EPSILON);
@@ -385,20 +394,24 @@ export function HomeScreen({
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Corrective task 4: Settings shares the top row with the wordmark
-          -- a fixed-size icon button that never grows with accessibility
-          text size, so it can never collide with anything. Add and the
-          cog sit together, small, in the same row as the title. */}
-      <View style={styles.header}>
-        <View>
-          <Wordmark size="compact" />
-          <AppText variant="title">Home</AppText>
-        </View>
-        <View style={styles.headerActions}>
-          <Button label="Add" icon={<PlusIcon />} onPress={onAddSomething} style={styles.addButton} />
-          {onOpenSettings ? <SettingsCogButton onPress={onOpenSettings} /> : null}
-        </View>
-      </View>
+      <ScreenBackdrop
+        deep={colors.canvas}
+        tint="#EFE7DE"
+        gap={20}
+        stretch
+        stops={[
+          { color: colors.canvas, location: 0 },
+          { color: '#F6F1EA', location: 0.3 },
+          { color: '#F4EEE6', location: 0.58 },
+          { color: '#F2EBE3', location: 0.8 },
+          { color: '#EFE7DE', location: 1 },
+        ]}
+      >
+      <PrimaryTabHeader
+        title="Home"
+        actions={<Button label="Add" icon={<PlusIcon />} onPress={onAddSomething} style={styles.addButton} />}
+        onOpenSettings={onOpenSettings}
+      />
 
       {/* Search4 UI refinement: the person-switcher and the search
           affordance are now two separate, side-by-side elements, matching
@@ -409,7 +422,7 @@ export function HomeScreen({
           tests rely on): only its own visual presentation moved -- a
           larger initial, a chevron alongside it, and the person's first
           name shown directly beneath. */}
-      <View style={styles.topRow}>
+      <View testID="home-person-search" style={styles.topRow}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Switch person, currently ${personName}`}
@@ -420,7 +433,7 @@ export function HomeScreen({
             <View style={styles.avatarCircle}>
               <AppText variant="title" tone="primary" style={styles.avatarInitial}>{personName.charAt(0).toUpperCase()}</AppText>
             </View>
-            <View style={styles.avatarChevron} />
+            <FoundationIcon icon={DownIcon} role="navigation" color={colors.primary} />
           </View>
           <AppText variant="bodyStrong" numberOfLines={1} style={styles.avatarName}>{personName}</AppText>
         </Pressable>
@@ -442,7 +455,7 @@ export function HomeScreen({
                 -- at this size, against this background, the drawn
                 version read as a stray mark next to the text rather than
                 a recognisable search icon. */}
-            <AppText style={styles.searchGlassGlyph}>🔍</AppText>
+            <FoundationIcon icon={SearchIcon} role="utility" color={colors.primary} />
             <AppText variant="body" tone="soft" numberOfLines={1} style={styles.searchCopy}>
               Everything for {personName}, in one place.
             </AppText>
@@ -460,79 +473,74 @@ export function HomeScreen({
         <>
           {records.length > 0 ? (
             <View style={styles.stripWrap}>
-              <ScrollView
-                ref={stripScrollRef}
-                testID="dashboard-strip-scroll"
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.snapshotRow}
-                onLayout={(event) => {
-                  stripContainerWidth.current = event.nativeEvent.layout.width;
-                  updateStripChevronState();
-                }}
-                onContentSizeChange={(width) => {
-                  stripContentWidth.current = width;
-                  updateStripChevronState();
-                }}
-                onScroll={(event) => {
-                  stripScrollX.current = event.nativeEvent.contentOffset.x;
-                  updateStripChevronState();
-                }}
-                scrollEventThrottle={16}
-              >
-              {statusChips.map((chip) => {
-                // Corrective task 2: the whole tile is one Pressable
-                // (requirement 1), not just its icon/text -- and it only
-                // becomes a button at all when there is somewhere genuine
-                // to send the user (zero count, or "Updates this week"'s
-                // deliberate no-destination case, leave it informational).
-                const interactive = Boolean(chip.onPress);
-                return (
-                  <Pressable
-                    key={chip.key}
-                    accessibilityRole={interactive ? 'button' : undefined}
-                    accessibilityLabel={interactive ? `${chip.count} ${chip.label.toLowerCase()}. ${chip.actionHint}.` : `${chip.count} ${chip.label.toLowerCase()}`}
-                    disabled={!interactive}
-                    onPress={chip.onPress}
-                    style={({ pressed }) => [
-                      styles.statusChip,
-                      { backgroundColor: chip.tint },
-                      pressed && interactive && styles.statusChipPressed,
-                    ]}
-                  >
-                    <View style={styles.statusTopRow}>
-                      <View style={styles.statusIconChip}>
-                        <StatusIcon icon={chip.icon} color={chip.accent} />
-                      </View>
-                      <AppText variant="title" style={styles.statusCount}>{chip.count}</AppText>
-                    </View>
-                    <AppText variant="secondary" tone="soft" numberOfLines={1}>{chip.label}</AppText>
-                  </Pressable>
-                );
-              })}
-              </ScrollView>
-
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Scroll dashboard left"
                 accessibilityState={{ disabled: !canScrollStripLeft }}
                 disabled={!canScrollStripLeft}
                 onPress={() => scrollStripBy(-STRIP_SCROLL_AMOUNT)}
-                hitSlop={8}
-                style={[styles.stripChevron, styles.stripChevronLeft, !canScrollStripLeft && styles.stripChevronDisabled]}
+                style={[styles.stripChevron, !canScrollStripLeft && styles.stripChevronDisabled]}
               >
-                <View style={[styles.stripChevronArrow, styles.stripChevronArrowLeft]} />
+                <FoundationIcon icon={BackIcon} role="navigation" color={canScrollStripLeft ? colors.primary : colors.line} />
               </Pressable>
+              <View testID="dashboard-strip-viewport" style={styles.stripViewport}>
+                <ScrollView
+                  ref={stripScrollRef}
+                  testID="dashboard-strip-scroll"
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.snapshotRow}
+                  onLayout={(event) => {
+                    stripContainerWidth.current = event.nativeEvent.layout.width;
+                    updateStripChevronState();
+                  }}
+                  onContentSizeChange={(width) => {
+                    stripContentWidth.current = width;
+                    updateStripChevronState();
+                  }}
+                  onScroll={(event) => {
+                    stripScrollX.current = event.nativeEvent.contentOffset.x;
+                    updateStripChevronState();
+                  }}
+                  scrollEventThrottle={16}
+                >
+                  {statusChips.map((chip) => {
+                    const interactive = Boolean(chip.onPress);
+                    return (
+                      <Pressable
+                        key={chip.key}
+                        testID={`status-chip-${chip.key}`}
+                        accessibilityRole={interactive ? 'button' : undefined}
+                        accessibilityLabel={interactive ? `${chip.count} ${chip.label.toLowerCase()}. ${chip.actionHint}.` : `${chip.count} ${chip.label.toLowerCase()}`}
+                        disabled={!interactive}
+                        onPress={chip.onPress}
+                        style={({ pressed }) => [
+                          styles.statusChip,
+                          { width: statusChipWidth, backgroundColor: chip.tint },
+                          pressed && interactive && styles.statusChipPressed,
+                        ]}
+                      >
+                        <View style={styles.statusTopRow}>
+                          <View style={styles.statusIconChip}>
+                            <StatusIcon icon={chip.icon} color={chip.accent} />
+                          </View>
+                          <AppText variant="title" style={styles.statusCount}>{chip.count}</AppText>
+                        </View>
+                        <AppText variant="secondary" tone="soft" numberOfLines={1} style={styles.statusLabel}>{chip.label}</AppText>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Scroll dashboard right"
                 accessibilityState={{ disabled: !canScrollStripRight }}
                 disabled={!canScrollStripRight}
                 onPress={() => scrollStripBy(STRIP_SCROLL_AMOUNT)}
-                hitSlop={8}
-                style={[styles.stripChevron, styles.stripChevronRight, !canScrollStripRight && styles.stripChevronDisabled]}
+                style={[styles.stripChevron, !canScrollStripRight && styles.stripChevronDisabled]}
               >
-                <View style={[styles.stripChevronArrow, styles.stripChevronArrowRight]} />
+                <FoundationIcon icon={ForwardIcon} role="navigation" color={canScrollStripRight ? colors.primary : colors.line} />
               </Pressable>
             </View>
           ) : null}
@@ -554,8 +562,36 @@ export function HomeScreen({
                 >
                   <View style={styles.sectionHeader}>
                     <AppText variant="section">{section.title}</AppText>
+                    {section.title === 'Today' ? (
+                      <View accessibilityRole="toolbar" accessibilityLabel="Home Today view" style={styles.viewControls}>
+                        {(['list', 'grid'] as HomeViewMode[]).map((mode) => {
+                          const selected = viewMode === mode;
+                          return (
+                            <Pressable
+                              key={mode}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Show as ${mode}`}
+                              accessibilityState={{ selected }}
+                              onPress={() => setViewMode(mode)}
+                              style={({ pressed }) => [
+                                styles.viewButton,
+                                selected && styles.viewButtonSelected,
+                                pressed && styles.viewButtonPressed,
+                              ]}
+                            >
+                              <FoundationIcon
+                                icon={mode === 'list' ? ListIcon : GridIcon}
+                                role="navigation"
+                                color={selected ? colors.white : colors.primary}
+                              />
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ) : null}
                   </View>
-                  <View style={styles.grid}>
+                  {viewMode === 'grid' ? (
+                  <View testID="home-record-grid" style={styles.grid}>
                     {section.records.map((item) => {
                       const visual = visualFor(item.type);
                       const overdue = deriveRecordState(item).overdue;
@@ -568,11 +604,12 @@ export function HomeScreen({
                       return (
                         <Pressable
                           key={item.id}
+                          testID={`home-record-card-${item.id}`}
                           accessibilityRole={onOpenRecord ? 'button' : undefined}
                           accessibilityLabel={`Open ${item.title}`}
                           disabled={!onOpenRecord}
                           onPress={() => onOpenRecord?.(item.id)}
-                          style={({ pressed }) => [styles.card, pressed && onOpenRecord && styles.cardPressed]}
+                          style={({ pressed }) => [styles.card, { width: recordCardWidth }, pressed && onOpenRecord && styles.cardPressed]}
                         >
                           <View style={styles.cardTop}>
                             <View style={[styles.cardIconChip, { backgroundColor: visual.tint }]}>
@@ -584,13 +621,46 @@ export function HomeScreen({
                               </View>
                             ) : null}
                           </View>
-                          <AppText variant="meta" tone="muted" numberOfLines={1}>{categoryLabel(item.type)}</AppText>
-                          <AppText variant="bodyStrong" numberOfLines={2}>{item.title}</AppText>
-                          <AppText variant="secondary" tone="soft" numberOfLines={2}>{itemMeta(item)}</AppText>
+                          <AppText variant="meta" tone="muted" numberOfLines={1} style={styles.cardCategory}>{categoryLabel(item.type)}</AppText>
+                          <AppText variant="bodyStrong" numberOfLines={2} style={styles.cardTitle}>{item.title}</AppText>
+                          <AppText variant="secondary" tone="soft" numberOfLines={2} style={styles.cardMetadata}>{itemMeta(item)}</AppText>
                         </Pressable>
                       );
                     })}
                   </View>
+                  ) : (
+                    <View testID={`home-record-list-${section.title.toLowerCase().replace(/\s+/g, '-')}`} style={styles.list}>
+                      {section.records.map((item) => {
+                        const visual = visualFor(item.type);
+                        const overdue = deriveRecordState(item).overdue;
+                        return (
+                          <Pressable
+                            key={item.id}
+                            testID={`home-record-list-row-${item.id}`}
+                            accessibilityRole={onOpenRecord ? 'button' : undefined}
+                            accessibilityLabel={`Open ${item.title}`}
+                            disabled={!onOpenRecord}
+                            onPress={() => onOpenRecord?.(item.id)}
+                            style={({ pressed }) => [styles.listRow, pressed && onOpenRecord && styles.cardPressed]}
+                          >
+                            <View style={[styles.listIconChip, { backgroundColor: visual.tint }]}>
+                              <CategoryIcon type={item.type} color={visual.accent} />
+                            </View>
+                            <View style={styles.listCopy}>
+                              <AppText variant="meta" tone="muted" numberOfLines={1} style={styles.cardCategory}>{categoryLabel(item.type)}</AppText>
+                              <AppText variant="bodyStrong" style={styles.cardTitle}>{item.title}</AppText>
+                              <AppText variant="secondary" tone={overdue ? 'danger' : 'soft'} style={styles.listMetadata}>
+                                {overdue ? `Overdue · ${itemMeta(item)}` : itemMeta(item)}
+                              </AppText>
+                            </View>
+                            <View style={styles.listDisclosure}>
+                              <FoundationIcon icon={ForwardIcon} role="navigation" color={colors.primary} />
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
@@ -611,7 +681,8 @@ export function HomeScreen({
         onSelect={onSwitchPerson}
         onAdd={onAddPerson}
       />
-
+      <View testID="home-bottom-clearance" style={styles.bottomClearance} />
+      </ScreenBackdrop>
     </ScrollView>
   );
 }
@@ -621,25 +692,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-    gap: spacing.lg,
-  },
-  header: {
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+    flexGrow: 1,
   },
   addButton: {
     width: 'auto',
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: spacing.md,
     gap: spacing.xxs,
   },
@@ -653,9 +710,11 @@ const styles = StyleSheet.create({
     // Deliberate breathing room before the dashboard strip beneath (brief
     // requirement 5) -- more than the ScrollView's own default `gap`
     // between every other pair of sections, but not excessive dead space.
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   avatarButton: {
+    width: 72,
+    minHeight: 76,
     alignItems: 'center',
     gap: spacing.xxs,
   },
@@ -663,9 +722,11 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   avatarRow: {
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xxs,
+    justifyContent: 'center',
+    gap: 2,
   },
   // Larger than the previous 34px/16px pairing (brief requirement 3: "make
   // the initial larger... do not make the avatar disproportionately
@@ -680,20 +741,12 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     fontSize: 26,
-  },
-  // Same border+rotate technique as Header.tsx's back chevron and the
-  // switcher's own previous down-chevron, just pointing down here too --
-  // no new icon dependency, no new visual language.
-  avatarChevron: {
-    width: 9,
-    height: 9,
-    borderLeftWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: colors.primary,
-    transform: [{ rotate: '-45deg' }],
+    lineHeight: 31,
+    textAlign: 'center',
   },
   avatarName: {
-    maxWidth: 84,
+    width: '100%',
+    textAlign: 'center',
   },
   // The real search-bar look the brief asks for (brief requirement 6),
   // filling the remaining row width next to the avatar column.
@@ -707,6 +760,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     paddingHorizontal: spacing.md,
+    gap: spacing.sm,
     ...shadow.soft,
   },
   searchBarPressed: {
@@ -714,67 +768,41 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     borderColor: colors.primary,
   },
-  searchGlassGlyph: {
-    fontSize: 18,
-  },
   searchCopy: {
     flex: 1,
   },
   setupCard: { marginTop: spacing.xl, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.oliveSoft, gap: spacing.sm },
   stripWrap: {
-    position: 'relative',
-    justifyContent: 'center',
+    marginHorizontal: -spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stripViewport: {
+    flex: 1,
+    overflow: 'hidden',
   },
   snapshotRow: {
     gap: spacing.sm,
-    paddingRight: spacing.lg,
   },
   // Restrained, premium discoverability aid for the horizontally
   // scrollable strip (brief requirements 13/17) -- small, sitting just
   // outside the strip's own edge, never a giant or loud floating control,
   // and never a substitute for ordinary swipe/drag (unchanged above).
   stripChevron: {
-    position: 'absolute',
-    top: '50%',
-    marginTop: -16,
-    width: 32,
-    height: 32,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1,
-    ...shadow.soft,
-  },
-  stripChevronLeft: {
-    left: -6,
-  },
-  stripChevronRight: {
-    right: -6,
   },
   stripChevronDisabled: {
-    opacity: 0.35,
-  },
-  stripChevronArrow: {
-    width: 8,
-    height: 8,
-    borderLeftWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: colors.primary,
-  },
-  stripChevronArrowLeft: {
-    transform: [{ rotate: '45deg' }],
-    marginLeft: 2,
-  },
-  stripChevronArrowRight: {
-    transform: [{ rotate: '225deg' }],
-    marginRight: 2,
+    opacity: 0.55,
   },
   statusChip: {
-    width: 150,
-    borderRadius: radius.lg,
-    padding: spacing.md,
+    minHeight: 104,
+    borderRadius: radius.md,
+    padding: spacing.sm,
     gap: spacing.xs,
+    justifyContent: 'center',
   },
   // Corrective task 2: same scale+opacity feedback Button.tsx already
   // uses elsewhere in the app, so this reads as native/premium and
@@ -786,11 +814,11 @@ const styles = StyleSheet.create({
   statusTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   statusIconChip: {
-    width: 34,
-    height: 34,
+    width: 40,
+    height: 40,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
     alignItems: 'center',
@@ -798,6 +826,10 @@ const styles = StyleSheet.create({
   },
   statusCount: {
     fontSize: 26,
+    lineHeight: 30,
+  },
+  statusLabel: {
+    lineHeight: 18,
   },
   sections: {
     gap: spacing.xl,
@@ -811,18 +843,38 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
+  viewControls: {
+    flexDirection: 'row',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  viewButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewButtonSelected: {
+    backgroundColor: colors.primary,
+  },
+  viewButtonPressed: {
+    opacity: 0.76,
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+    alignItems: 'stretch',
   },
   card: {
-    flexBasis: '47%',
-    flexGrow: 1,
+    minHeight: 166,
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.xxs,
+    borderRadius: radius.md,
+    padding: 14,
+    gap: 3,
     ...shadow.soft,
   },
   cardPressed: {
@@ -833,11 +885,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.xxs,
   },
   cardIconChip: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -846,11 +898,65 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(154,62,66,0.12)',
     borderRadius: radius.pill,
     paddingHorizontal: spacing.xs,
-    paddingVertical: 3,
+    minHeight: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   overduePillText: {
     color: colors.danger,
-    fontWeight: '700',
+    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  cardCategory: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  cardTitle: {
+    fontSize: 17,
+    lineHeight: 21,
+  },
+  cardMetadata: {
+    lineHeight: 19,
+  },
+  list: {
+    gap: spacing.xs,
+  },
+  listRow: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.white,
+    ...shadow.soft,
+  },
+  listIconChip: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listCopy: {
+    minWidth: 0,
+    flex: 1,
+    gap: 1,
+  },
+  listMetadata: {
+    lineHeight: 19,
+  },
+  listDisclosure: {
+    width: 28,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomClearance: {
+    height: spacing.xxxl,
   },
   empty: {
     backgroundColor: colors.surface,

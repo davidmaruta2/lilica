@@ -7,6 +7,9 @@ import { Header } from '../components/Header';
 import { RemoveCareSpaceConfirm } from '../components/RemoveCareSpaceConfirm';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
+import { FoundationIcon, FoundationIconComponent } from '../components/FoundationIcon';
+import { DownloadIcon, FileTextIcon, ForwardIcon, HeartHandshakeIcon, LockIcon, SmartphoneIcon, TrashIcon } from '../components/foundationIcons';
+import { SecondaryIconCircle, SecondaryPageIntro } from '../components/SecondaryPage';
 import { leaveCareSpace } from '../careCircle';
 import { pendingLocalWork } from '../localData';
 import { colors, radius, spacing } from '../theme';
@@ -248,17 +251,17 @@ export function PrivacyDataScreen({
 
   return (
     <Screen>
-      <Header onBack={onBack} />
+      <Header title="Privacy & data" onBack={onBack} />
       <View style={styles.content}>
-        <AppText variant="title" centre>Privacy &amp; data</AppText>
+        <SecondaryPageIntro>Manage your data and understand how Lilica keeps it safe and private.</SecondaryPageIntro>
 
-        <Section title="What Lilica stores">
+        <Section title="What Lilica stores" description="A clear guide to the information we store" icon={FileTextIcon}>
           <AppText variant="body" tone="soft">
             For each person you support, Lilica keeps their appointments, tasks, bills, home or car matters, documents, contacts, care information and updates -- plus who else can see them, any reminders you've set, and a record of who added or changed what.
           </AppText>
         </Section>
 
-        <Section title="Export your data">
+        <Section title="Export your data" description="Download a copy of your information" icon={DownloadIcon}>
           <AppText variant="body" tone="soft">
             Get a copy of everything you're currently able to see across every care space you belong to -- including the actual document files, not just their details -- plus how records relate to each other.
           </AppText>
@@ -278,7 +281,7 @@ export function PrivacyDataScreen({
           ))}
         </Section>
 
-        <Section title="Device &amp; local data">
+        <Section title="Device &amp; local data" description="What's stored on your device" icon={SmartphoneIcon}>
           <AppText variant="body" tone="soft">
             Lilica keeps a local copy of your records and documents on this device so it works offline, plus anything not yet finished uploading. Clearing it only affects this device -- your care spaces' own data stays safe in the cloud.
           </AppText>
@@ -289,7 +292,7 @@ export function PrivacyDataScreen({
         </Section>
 
         {canLeaveCurrentCareSpace && currentCareSpaceId ? (
-          <Section title="Care spaces">
+          <Section title="Care spaces" description="Data for the people you care for" icon={LockIcon}>
             <AppText variant="body" tone="soft">
               You currently have access to {currentCareSpaceName ?? 'this care space'}.
             </AppText>
@@ -301,7 +304,7 @@ export function PrivacyDataScreen({
         ) : null}
 
         {removableCareSpaces.length > 0 ? (
-          <Section title="Remove a supported person">
+          <Section title="Remove a supported person" description="Permanently remove a care space" icon={HeartHandshakeIcon} destructive>
             <AppText variant="body" tone="soft">
               If someone you support no longer needs support, you can remove them from Lilica -- this permanently deletes everything saved for them. You organise {removableCareSpaces.length === 1 ? '1 person' : `${removableCareSpaces.length} people`}.
             </AppText>
@@ -321,7 +324,7 @@ export function PrivacyDataScreen({
           </Section>
         ) : null}
 
-        <Section title="Delete account">
+        <Section title="Delete account" description="Permanently delete your Lilica account" icon={TrashIcon} destructive>
           <AppText variant="body" tone="soft">
             Permanently removes your Lilica account and sign-in. Shared care records, documents and their relationships stay intact for anyone else who still has access to them, and your work stays truthfully attributed to you.
           </AppText>
@@ -353,7 +356,7 @@ export function PrivacyDataScreen({
 // cluttered. Each section is now a collapsible accordion -- collapsed by
 // default, tap the header (title + a drawn chevron) to open. Purely
 // presentational; no section's own behaviour changed.
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, description, icon, destructive, children }: { title: string; description: string; icon: FoundationIconComponent; destructive?: boolean; children: React.ReactNode }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <View style={styles.section}>
@@ -362,10 +365,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         accessibilityState={{ expanded }}
         accessibilityLabel={`${title} section`}
         onPress={() => setExpanded((current) => !current)}
-        style={styles.sectionHeader}
+        style={[styles.sectionHeader, destructive && styles.sectionHeaderDanger]}
       >
-        <AppText variant="section" style={styles.sectionTitle}>{title}</AppText>
-        <View style={[styles.sectionChevron, expanded && styles.sectionChevronExpanded]} />
+        <SecondaryIconCircle icon={icon} tone={destructive ? 'danger' : 'plum'} />
+        <View style={styles.sectionHeaderCopy}>
+          <AppText variant="bodyStrong" tone={destructive ? 'danger' : 'default'} style={styles.sectionTitle}>{title}</AppText>
+          <AppText variant="secondary" tone={destructive ? 'danger' : 'soft'} style={styles.sectionDescription}>{description}</AppText>
+        </View>
+        <View style={[styles.sectionChevron, expanded && styles.sectionChevronExpanded]}><FoundationIcon icon={ForwardIcon} role="navigation" color={destructive ? colors.danger : colors.primary} /></View>
       </Pressable>
       {expanded ? <View style={styles.sectionBody}>{children}</View> : null}
     </View>
@@ -373,36 +380,38 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 const styles = StyleSheet.create({
-  content: { gap: spacing.lg, paddingBottom: spacing.xl },
+  content: { gap: spacing.xs, paddingBottom: spacing.xl },
   section: {
-    borderRadius: radius.md,
+    borderRadius: 8,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     overflow: 'hidden',
   },
   sectionHeader: {
-    minHeight: 52,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
+    gap: spacing.sm,
   },
-  sectionTitle: { flex: 1 },
+  sectionHeaderDanger: { backgroundColor: '#FDECEC' },
+  sectionHeaderCopy: { flex: 1 },
+  sectionTitle: { fontSize: 15, lineHeight: 19 },
+  sectionDescription: { fontSize: 12, lineHeight: 16 },
   // Same drawn-chevron technique used throughout the app (Header's back
   // chevron, Home's avatar chevron) -- pointing down, rotating to point
   // up when this section is expanded.
   sectionChevron: {
-    width: 10,
-    height: 10,
-    borderLeftWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: colors.primary,
-    transform: [{ rotate: '-45deg' }],
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionChevronExpanded: {
-    transform: [{ rotate: '135deg' }],
+    transform: [{ rotate: '90deg' }],
   },
   sectionBody: {
     gap: spacing.sm,

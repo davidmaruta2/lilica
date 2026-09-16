@@ -60,7 +60,7 @@ describe('Phase 12: fixed test scenario', () => {
 
     screen.getByText('Overdue');
     screen.getByText('Electricity bill');
-    screen.getByText('Today / Needs doing');
+    screen.getByText('Today');
     screen.getByText('Order repeat prescription');
     screen.getByText('Upcoming');
     screen.getByText('Arrange hospital transport');

@@ -10,7 +10,7 @@ import { isLinkableRecordType, linkPickerSummary } from '../records';
 import { LilicaRecord, LilicaRecordType } from '../types';
 import { canEditRecord, RecordDetail, RelatedRecordEntry } from './RecordDetail';
 import { createRecordDraft, RecordDraft, RecordEditor, RecordEditorHandle } from './RecordEditor';
-import { RecordSheet } from './RecordSheet';
+import { RecordSheet, RecordSheetOrigin } from './RecordSheet';
 
 // Bug fix: opening a record from Home/Calendar/To Do/Care Circle/Wellbeing
 // updates used to route through FirstThingScreen -- a completely different
@@ -46,6 +46,7 @@ type Props = {
   onSaveRecord: (record: LilicaRecord) => void;
   onRemoveRecord: (recordId: string) => void;
   onDismiss: () => void;
+  origin?: RecordSheetOrigin;
   // Phase 21C: when the active care space is read-only, the Edit
   // affordance on an existing record's view stays VISIBLE (never silently
   // disabled -- brief's explicit requirement) but tapping it calls
@@ -68,6 +69,7 @@ export function RecordQuickEditor({
   onSaveRecord,
   onRemoveRecord,
   onDismiss,
+  origin,
   isReadOnly,
   onBlockedEdit,
 }: Props) {
@@ -140,6 +142,7 @@ export function RecordQuickEditor({
   return (
     <RecordSheet
       title={option?.title ?? 'Record'}
+      origin={origin}
       onDismiss={onDismiss}
       onBeforeDismiss={mode === 'edit' ? () => {
         closingViaSheet.current = true;

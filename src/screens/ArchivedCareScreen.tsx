@@ -62,14 +62,14 @@ export function ArchivedCareScreen({ archivedSpaces, onBack, onRestore }: Props)
 }
 
 const styles = StyleSheet.create({
-  content: { gap: spacing.sm, paddingBottom: spacing.xl },
+  content: { gap: spacing.xs, paddingBottom: spacing.xl },
   row: {
     minHeight: 52,
     paddingHorizontal: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: radius.md,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.surface,

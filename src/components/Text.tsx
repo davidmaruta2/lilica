@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { StyleSheet, Text as RNText, TextProps } from 'react-native';
+import { StyleSheet, Text as RNText, TextProps, TextStyle } from 'react-native';
 
 import { colors, typography } from '../theme';
 
@@ -10,6 +10,23 @@ type AppTextProps = TextProps & {
   variant?: Variant;
   tone?: 'default' | 'soft' | 'muted' | 'primary' | 'white' | 'success' | 'danger';
   centre?: boolean;
+};
+
+// Phase 22 Batch 2: preserve the established role sizes and line heights,
+// while giving every shared role its approved family, weight and zero
+// tracking. This keeps the migration central and prevents screen-by-screen
+// font overrides from drifting apart.
+const foundationTypeByVariant: Record<Variant, TextStyle> = {
+  wordmark: { fontFamily: 'Fraunces_800ExtraBold', fontWeight: '800', letterSpacing: 0 },
+  hero: { fontFamily: 'InterTight_700Bold', fontWeight: '700', letterSpacing: 0 },
+  display: { fontFamily: 'InterTight_700Bold', fontWeight: '700', letterSpacing: 0 },
+  title: { fontFamily: 'InterTight_700Bold', fontWeight: '700', letterSpacing: 0 },
+  section: { fontFamily: 'InterTight_700Bold', fontWeight: '700', letterSpacing: 0 },
+  body: { fontFamily: 'Inter_400Regular', fontWeight: '400', letterSpacing: 0 },
+  bodyStrong: { fontFamily: 'InterTight_600SemiBold', fontWeight: '600', letterSpacing: 0 },
+  secondary: { fontFamily: 'Inter_400Regular', fontWeight: '400', letterSpacing: 0 },
+  button: { fontFamily: 'Inter_600SemiBold', fontWeight: '600', letterSpacing: 0 },
+  meta: { fontFamily: 'Inter_500Medium', fontWeight: '500', letterSpacing: 0 },
 };
 
 export function AppText({
@@ -25,6 +42,7 @@ export function AppText({
       allowFontScaling
       style={[
         typography[variant],
+        foundationTypeByVariant[variant],
         styles.base,
         tone === 'soft' && styles.soft,
         tone === 'muted' && styles.muted,

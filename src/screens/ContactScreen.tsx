@@ -19,10 +19,9 @@ function emailSupport() {
 export function ContactScreen({ onBack }: { onBack: () => void }) {
   return (
     <Screen>
-      <Header onBack={onBack} />
+      <Header title="Contact" onBack={onBack} />
       <View style={styles.content}>
-        <AppText variant="title" centre>Contact</AppText>
-        <AppText variant="body" tone="soft" centre>
+        <AppText variant="secondary" tone="soft">
           Can't find what you're looking for in the FAQ? Get in touch and we'll help.
         </AppText>
         <View style={styles.card}>
@@ -36,9 +35,9 @@ export function ContactScreen({ onBack }: { onBack: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  content: { gap: spacing.lg, paddingBottom: spacing.xl },
+  content: { gap: spacing.md, paddingBottom: spacing.xl },
   card: {
-    borderRadius: radius.md,
+    borderRadius: 8,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,

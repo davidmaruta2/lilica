@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { Button } from '../components/Button';
+import { FoundationIcon } from '../components/FoundationIcon';
+import { BackIcon, ForwardIcon, GridIcon, ListIcon } from '../components/foundationIcons';
 import { PlusIcon } from '../components/PlusIcon';
+import { PrimaryTabHeader } from '../components/PrimaryTabHeader';
 import { ScreenBackdrop } from '../components/ScreenBackdrop';
-import { SettingsCogButton } from '../components/SettingsCogButton';
+import type { RecordSheetOrigin } from '../components/RecordSheet';
 import { AppText } from '../components/Text';
-import { Wordmark } from '../components/Wordmark';
 import { CareCircleMember } from '../careCircle';
 import { CategoryIcon, categoryLabel, visualFor } from './HomeScreen';
 import { DerivedRecordState, deriveRecordState, formatDateForDisplay, isActionableRecord } from '../records';
@@ -21,7 +22,7 @@ type Props = {
   // "Mine" and the You/Unassigned badge are derived from this, never from
   // a display name.
   activeMembershipId?: string;
-  onOpenRecord: (recordId: string) => void;
+  onOpenRecord: (recordId: string, origin?: RecordSheetOrigin) => void;
   // Revised on explicit product instruction: completing/reopening a
   // record now happens inside the opened editor (RecordEditor's own
   // "Already sorted" checkbox), not from a control on this row itself --
@@ -64,6 +65,43 @@ type Props = {
 };
 
 type AssignmentFilter = 'all' | 'mine' | 'unassigned';
+type ViewMode = 'list' | 'grid';
+type TaskGroupKey = 'overdue' | 'today' | 'upcoming' | 'completed';
+
+const TASK_GROUP_VISUALS: Record<TaskGroupKey, { section: string; tile: string; heading: string; metadata: string }> = {
+  overdue: { section: '#ECEFF2', tile: '#FFFFFF', heading: colors.primary, metadata: colors.danger },
+  today: { section: '#F5F1E7', tile: '#FBF8F4', heading: colors.primary, metadata: colors.inkSoft },
+  upcoming: { section: '#D8F2FD', tile: '#E6F7FE', heading: '#155E8A', metadata: '#356F88' },
+  completed: { section: '#E3E8EA', tile: '#F1F4F5', heading: colors.inkSoft, metadata: colors.inkSoft },
+};
+
+const TODO_ICON_COLORS: Partial<Record<LilicaRecord['type'], string>> = {
+  task: '#9B71CA',
+  bill: '#E46E77',
+  homeMatter: '#8A935D',
+  appointment: '#258AC3',
+};
+
+export function todoGridLayout(windowWidth: number, fontScale: number) {
+  const availableWidth = Math.max(windowWidth - (spacing.lg * 2) - (spacing.sm * 2), 0);
+  const singleColumn = availableWidth < 300 || fontScale >= 1.3;
+  return {
+    columns: singleColumn ? 1 : 2,
+    tileWidth: singleColumn ? availableWidth : (availableWidth - spacing.sm) / 2,
+  };
+}
+
+export function openRecordFromMeasuredRow(
+  row: Pick<View, 'measureInWindow'> | null,
+  recordId: string,
+  onOpenRecord: (recordId: string, origin?: RecordSheetOrigin) => void,
+) {
+  if (!row || typeof row.measureInWindow !== 'function' || row.measureInWindow.length === 0) {
+    onOpenRecord(recordId);
+    return;
+  }
+  row.measureInWindow((x, y, width, height) => onOpenRecord(recordId, { x, y, width, height }));
+}
 
 // Same bounded horizon Home's own Coming Up section already uses (see
 // docs/CORE_SYSTEM_CONTRACT.md section 9.2), so Upcoming does not fill with
@@ -110,7 +148,10 @@ function dueMetaText(record: LilicaRecord, derived: DerivedRecordState): string 
 }
 
 export function ToDoScreen({ records, personName, activeMembershipId, onOpenRecord, onAddSomething, initialFilter, initialFocusGroup, onOpenSettings, onBack, careCircleMembers }: Props) {
+  const { width: windowWidth, fontScale } = useWindowDimensions();
+  const rowRefs = useRef<Record<string, View | null>>({});
   const [filter, setFilter] = useState<AssignmentFilter>(initialFilter ?? 'all');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [showCompleted, setShowCompleted] = useState(false);
 
   const actionable = useMemo(() => records.filter(isActionableRecord), [records]);
@@ -165,19 +206,15 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
   // Corrective task 2: promotes the focused group to the top -- the same
   // three groups always render (any non-empty one), just reordered, so
   // the record set never differs from the unfocused view.
-  const groupDefs = [
+  const groupDefs: { key: Exclude<TaskGroupKey, 'completed'>; title: string; items: LilicaRecord[] }[] = [
     { key: 'overdue', title: 'Overdue', items: grouped.overdue },
-    { key: 'today', title: 'Today / Needs doing', items: grouped.today },
+    { key: 'today', title: 'Today', items: grouped.today },
     { key: 'upcoming', title: 'Upcoming', items: grouped.upcoming },
   ];
   const orderedGroupDefs = initialFocusGroup
     ? [...groupDefs.filter((group) => group.key === initialFocusGroup), ...groupDefs.filter((group) => group.key !== initialFocusGroup)]
     : groupDefs;
-  // Visual pass: identifies whichever group actually renders FIRST (the
-  // first one with items, not just array position 0 -- Overdue can be
-  // empty while Today/Upcoming aren't), since only that one heading sits
-  // reliably within the backdrop's deep zone.
-  const firstVisibleGroupKey = orderedGroupDefs.find((group) => group.items.length > 0)?.key;
+  const { tileWidth: taskTileWidth } = todoGridLayout(windowWidth, fontScale);
 
   // Revised on explicit product instruction: the row is now ONE tap
   // target (the whole card opens the record), with a plain ">" chevron
@@ -190,8 +227,9 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
   // same bill-vs-task/homeMatter paid-vs-complete distinction, same
   // domain logic, just reached one tap further in rather than as a
   // second control on the card itself.
-  function renderRow(record: LilicaRecord) {
+  function renderRow(record: LilicaRecord, groupKey: TaskGroupKey, index: number, total: number) {
     const visual = visualFor(record.type);
+    const groupVisual = TASK_GROUP_VISUALS[groupKey];
     const derived = deriveRecordState(record);
     const assignee = assignmentLabel(record, activeMembershipId, careCircleMembers);
     const dueText = dueMetaText(record, derived);
@@ -199,26 +237,38 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
 
     return (
       <Pressable
+        ref={(node) => { rowRefs.current[record.id] = node; }}
         key={record.id}
         accessibilityRole="button"
         accessibilityLabel={`Open ${record.title}`}
-        onPress={() => onOpenRecord(record.id)}
-        style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+        onPress={() => openRecordFromMeasuredRow(rowRefs.current[record.id], record.id, onOpenRecord)}
+        testID={`todo-tile-${record.id}`}
+        style={({ pressed }) => [
+          viewMode === 'list' ? styles.listRow : styles.gridTile,
+          viewMode === 'grid' && { width: taskTileWidth, backgroundColor: groupVisual.tile },
+          viewMode === 'list' && { backgroundColor: groupVisual.tile },
+          viewMode === 'list' && index < total - 1 && styles.listRowDivider,
+          groupKey === 'completed' && styles.rowCompleted,
+          pressed && styles.rowPressed,
+        ]}
       >
-        <View style={[styles.iconChip, { backgroundColor: visual.tint }]}>
-          <CategoryIcon type={record.type} color={visual.accent} />
+        <View testID={`todo-icon-${record.id}`} style={[styles.iconChip, { backgroundColor: TODO_ICON_COLORS[record.type] ?? visual.accent }]}>
+          <CategoryIcon type={record.type} color={colors.white} />
         </View>
-        <View style={styles.rowCopy}>
-          <AppText variant="meta" tone="muted" numberOfLines={1}>{categoryLabel(record.type)}</AppText>
-          <AppText variant="bodyStrong" numberOfLines={2}>{record.title}</AppText>
+        <View style={[styles.rowCopy, viewMode === 'grid' && styles.gridCopy]}>
+          <AppText variant="meta" numberOfLines={1} style={[styles.rowCategory, { color: groupVisual.metadata }]}>{categoryLabel(record.type)}</AppText>
+          <AppText variant="bodyStrong" style={[styles.rowTitle, { color: groupVisual.heading }]}>{record.title}</AppText>
           {metaLine ? (
             // "Overdue" keeps a restrained warning tone; everything else
             // (including Unassigned/You/a real name) is ordinary quiet
             // metadata text, never a filled capsule/button.
-            <AppText variant="secondary" tone={derived.overdue ? 'danger' : 'soft'} numberOfLines={1}>
+            <AppText variant="secondary" numberOfLines={2} style={[styles.rowMetadata, { color: derived.overdue ? colors.danger : groupVisual.metadata }]}>
               {metaLine}
             </AppText>
           ) : null}
+        </View>
+        <View style={[styles.rowDisclosure, viewMode === 'grid' && styles.gridDisclosure]}>
+          <FoundationIcon icon={ForwardIcon} role="navigation" color={groupVisual.heading} />
         </View>
       </Pressable>
     );
@@ -229,39 +279,36 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
     <ScreenBackdrop
       deep={tabAccent.todo.deep}
       tint={tabAccent.todo.tint}
-      gap={spacing.md}
+      gap={spacing.xs}
       stretch
       // Background correction (12 September 2026, revised after physical
       // QA twice): `stretch` makes the gradient itself span the full
       // rendered height of the screen (not a fixed 620px block), so the
       // fade continues smoothly all the way to wherever the screen
       // actually ends -- never reaching a flat colour partway down and
-      // reading as a seam/cut-off. `stops` holds deep olive solid through
-      // roughly the top third-plus (location 0.38, confidently deep
-      // through the header/subtitle/filter region), then eases through a
-      // softer olive/sage by two-thirds down, reaching the existing pale
-      // tint only in the final stretch and the lightest near-cream tone
-      // right at the very bottom -- a later-starting, more gradual
-      // distribution than the first attempt, over the SAME colours
-      // already approved for To Do (no new colour introduced). Home/
+      // reading as a seam/cut-off. `stops` holds the approved matte
+      // steel blue through the header/subtitle/filter region, then eases
+      // through restrained lighter derivatives lower down, reaching a
+      // pale blue-grey only in the final stretch. Home/
       // Calendar/People are untouched; they pass neither `stretch` nor
       // `stops`, so ScreenBackdrop's default fixed-height, two-stop fade
       // still renders for them exactly as before.
       stops={[
         { color: tabAccent.todo.deep, location: 0 },
-        { color: tabAccent.todo.deep, location: 0.38 },
-        { color: colors.olive, location: 0.65 },
-        { color: tabAccent.todo.tint, location: 0.88 },
-        { color: colors.oliveSoft, location: 1 },
+        { color: '#617898', location: 0.28 },
+        { color: '#7E93AE', location: 0.58 },
+        { color: '#A6B7CA', location: 0.8 },
+        { color: tabAccent.todo.tint, location: 1 },
       ]}
     >
       {/* Visual pass: header sits on the shared deep/tint backdrop (see
           ScreenBackdrop) -- title, wordmark, subtitle and the back
           chevron (only shown arriving via a Home strip tap, always
           within the header's own deep region) switch to light-on-dark. */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          {onBack ? (
+      <PrimaryTabHeader
+        title="To Do"
+        tone="light"
+        leading={onBack ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Back to Home"
@@ -269,21 +316,43 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
               hitSlop={8}
               style={styles.backButton}
             >
-              <View style={styles.backChevron} />
+              <FoundationIcon icon={BackIcon} role="navigation" color={colors.white} />
             </Pressable>
-          ) : null}
-          <View>
-            <Wordmark size="compact" tone="light" />
-            <AppText variant="title" tone="white">To Do</AppText>
-          </View>
-        </View>
-        <View style={styles.headerActions}>
-          <Button label="Add" variant="light" icon={<PlusIcon color={colors.primary} />} onPress={onAddSomething} style={styles.addButton} />
-          {onOpenSettings ? <SettingsCogButton onPress={onOpenSettings} /> : null}
+          ) : undefined}
+        actions={(
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add"
+            onPress={onAddSomething}
+            style={({ pressed }) => [styles.addButton, pressed && styles.viewButtonPressed]}
+          >
+            <PlusIcon color={colors.white} />
+            <AppText variant="button" tone="white">Add</AppText>
+          </Pressable>
+        )}
+        onOpenSettings={onOpenSettings}
+      />
+
+      <View style={styles.contextRow}>
+        <AppText variant="body" style={styles.subtitle}>{personName ? `${personName}'s to do list` : 'To do'}</AppText>
+        <View accessibilityRole="toolbar" accessibilityLabel="To Do view" style={styles.viewControls}>
+          {(['list', 'grid'] as ViewMode[]).map((mode) => {
+            const selected = viewMode === mode;
+            return (
+              <Pressable
+                key={mode}
+                accessibilityRole="button"
+                accessibilityLabel={`${mode === 'list' ? 'List' : 'Grid'} view`}
+                accessibilityState={{ selected }}
+                onPress={() => setViewMode(mode)}
+                style={({ pressed }) => [styles.viewButton, selected && styles.viewButtonSelected, pressed && styles.viewButtonPressed]}
+              >
+                <FoundationIcon icon={mode === 'list' ? ListIcon : GridIcon} role="navigation" color={selected ? tabAccent.todo.deep : colors.white} />
+              </Pressable>
+            );
+          })}
         </View>
       </View>
-
-      <AppText variant="body" style={styles.subtitle}>{personName ? `${personName}'s to do list` : 'To do'}</AppText>
 
       <View style={styles.filterRow}>
         {(['all', 'mine', 'unassigned'] as AssignmentFilter[]).map((option) => {
@@ -293,11 +362,12 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
             <Pressable
               key={option}
               accessibilityRole="button"
+              accessibilityLabel={label}
               accessibilityState={{ selected }}
               onPress={() => setFilter(option)}
               style={[styles.filterChip, selected && styles.filterChipSelected]}
             >
-              <AppText variant="secondary" tone={selected ? 'white' : 'soft'} style={selected ? styles.filterLabelSelected : undefined}>
+              <AppText variant="secondary" tone="white" style={selected ? styles.filterLabelSelected : styles.filterLabel}>
                 {label}
               </AppText>
             </Pressable>
@@ -313,13 +383,11 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
               always shows every record the tapped count represented. */}
           {orderedGroupDefs.map(({ key, title, items }) => (
             items.length > 0 ? (
-              <View key={key} style={styles.group}>
-                {/* Explicit product direction: "Today / Needs doing"
-                    is always white, regardless of whether Overdue
-                    renders above it -- not just whichever group happens
-                    to render first. */}
-                <AppText variant="section" tone={key === 'today' || key === firstVisibleGroupKey ? 'white' : 'default'}>{title}</AppText>
-                <View style={styles.groupList}>{items.map((record) => renderRow(record))}</View>
+              <View key={key} testID={`todo-group-${key}`} style={[styles.group, { backgroundColor: TASK_GROUP_VISUALS[key].section }]}>
+                <AppText variant="section" style={{ color: TASK_GROUP_VISUALS[key].heading }}>{title}</AppText>
+                <View testID={`todo-${viewMode}-${key}`} style={viewMode === 'list' ? styles.listRows : styles.gridTiles}>
+                  {items.map((record, index) => renderRow(record, key, index, items.length))}
+                </View>
               </View>
             ) : null
           ))}
@@ -341,12 +409,16 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
             </AppText>
           </Pressable>
           {showCompleted ? (
-            <View style={styles.group}>
-              <View style={styles.groupList}>{completedItems.map((record) => renderRow(record))}</View>
+            <View testID="todo-group-completed" style={[styles.group, { backgroundColor: TASK_GROUP_VISUALS.completed.section }]}>
+              <AppText variant="section" style={{ color: TASK_GROUP_VISUALS.completed.heading }}>Completed</AppText>
+              <View testID={`todo-${viewMode}-completed`} style={viewMode === 'list' ? styles.listRows : styles.gridTiles}>
+                {completedItems.map((record, index) => renderRow(record, 'completed', index, completedItems.length))}
+              </View>
             </View>
           ) : null}
         </View>
       ) : null}
+      <View testID="todo-bottom-clearance" style={styles.bottomClearance} />
     </ScreenBackdrop>
     </ScrollView>
   );
@@ -367,81 +439,94 @@ const styles = StyleSheet.create({
     // scrolls exactly as before (flexGrow never shrinks content already
     // taller than the viewport).
     flexGrow: 1,
-    paddingBottom: spacing.xxl,
-  },
-  header: {
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
   },
   backButton: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Same drawn-chevron technique as Header.tsx's own back chevron. Always
-  // white -- this only ever appears inside the header, which always sits
-  // on the backdrop's deep zone.
-  backChevron: {
-    width: 12,
-    height: 12,
-    borderLeftWidth: 2.5,
-    borderBottomWidth: 2.5,
-    borderColor: colors.white,
-    transform: [{ rotate: '45deg' }],
-  },
   subtitle: {
     color: 'rgba(255,255,255,0.82)',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+    flexShrink: 1,
   },
   addButton: {
-    width: 'auto',
-    minHeight: 40,
-    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
     gap: spacing.xxs,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.68)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  contextRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  viewControls: {
+    flexDirection: 'row',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.68)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+  },
+  viewButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewButtonSelected: {
+    backgroundColor: colors.white,
+  },
+  viewButtonPressed: {
+    opacity: 0.76,
   },
   filterRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.xs,
   },
   filterChip: {
-    minHeight: 36,
+    minHeight: 44,
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: 'rgba(255,255,255,0.72)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   filterChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#C71742',
+    borderColor: '#C71742',
   },
   filterLabelSelected: {
-    fontWeight: '700',
+    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
+  },
+  filterLabel: {
+    color: colors.white,
   },
   groups: {
-    gap: spacing.lg,
-  },
-  group: {
     gap: spacing.sm,
   },
-  // Product direction: To Do's cards now lay out as a 2-up grid of tiles,
-  // in line with People's own Key contacts/Care circle tiles.
-  groupList: {
+  group: {
+    padding: spacing.xs,
+    borderRadius: radius.sm,
+    gap: spacing.xxs,
+  },
+  listRows: {
+    gap: spacing.xs,
+  },
+  gridTiles: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
@@ -449,28 +534,27 @@ const styles = StyleSheet.create({
   emptyState: {
     marginTop: spacing.xxs,
   },
-  // Corrective task 8: radius.lg + shadow.soft matches the "elevated
-  // card" language Home's own record cards already use elsewhere in the
-  // app -- more breathing room (padding bumped from spacing.sm to
-  // spacing.md) and a more premium feel, not a new visual language.
-  // Visual pass: pure white (not colors.surface) so every row matches
-  // the "white cards on a coloured backdrop" treatment now used across
-  // Home/Calendar/People too.
-  // Product direction: as a 2-up tile rather than a full-width row, the
-  // icon now sits above the text (not squeezed beside it) so the title/
-  // meta text can spread out across the tile's own full width instead of
-  // being crushed into half a row's worth of space.
-  row: {
-    width: '48%',
+  listRow: {
+    ...shadow.soft,
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+  },
+  listRowDivider: {
+    borderBottomWidth: 0,
+  },
+  gridTile: {
+    ...shadow.soft,
     flexDirection: 'column',
     alignItems: 'flex-start',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.line,
-    ...shadow.soft,
+    minHeight: 150,
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radius.sm,
   },
   // Revised on explicit product instruction: the row is now ONE
   // Pressable (no separate completion control on the outside of the
@@ -478,6 +562,9 @@ const styles = StyleSheet.create({
   rowPressed: {
     transform: [{ scale: 0.99 }],
     opacity: 0.9,
+  },
+  rowCompleted: {
+    opacity: 0.82,
   },
   iconChip: {
     width: 40,
@@ -487,18 +574,51 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rowCopy: {
+    minWidth: 0,
+    flex: 1,
+    gap: 0,
+  },
+  gridCopy: {
     width: '100%',
-    gap: 2,
+    flexGrow: 0,
+  },
+  rowCategory: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  rowTitle: {
+    fontSize: 17,
+    lineHeight: 21,
+  },
+  rowMetadata: {
+    lineHeight: 19,
+  },
+  rowDisclosure: {
+    width: 28,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridDisclosure: {
+    minHeight: 24,
+    marginTop: 'auto',
+    alignSelf: 'flex-end',
   },
   completedSection: {
     gap: spacing.sm,
   },
   showCompletedButton: {
     alignSelf: 'flex-start',
-    minHeight: 36,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.88)',
     justifyContent: 'center',
   },
   showCompletedLabel: {
     fontWeight: '700',
+  },
+  bottomClearance: {
+    height: spacing.xxxl,
   },
 });

@@ -38,7 +38,7 @@ export const colors = {
 export const tabAccent = {
   home: { deep: colors.stageDeep, tint: '#E3CCD3' },
   calendar: { deep: '#B9674C', tint: '#EBD3C0' },
-  todo: { deep: '#62764F', tint: '#DCE2C8' },
+  todo: { deep: '#4B6285', tint: '#D6E0E9' },
   people: { deep: colors.teal, tint: '#CFE2DE' },
 };
 

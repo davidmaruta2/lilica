@@ -3,6 +3,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
+import { SecondaryDisclosureRow, SecondaryPageIntro, SecondaryRolePill, SecondarySection } from '../components/SecondaryPage';
+import { CalendarIcon, FileTextIcon, HeartHandshakeIcon, HistoryIcon, HomeIcon, PhoneIcon, ToDoIcon } from '../components/foundationIcons';
 import { ActivityEvent, describeActivityEvent } from '../activity';
 import { CareCircleMember } from '../careCircle';
 import { buildCareSummary } from '../careSummary';
@@ -36,13 +38,22 @@ function roleLabel(role: CareCircleMember['role']) {
 
 export function CareSummaryScreen({ records, careCircleMembers, recentActivity, personName, onBack, onOpenRecord }: Props) {
   const sections = buildCareSummary(records, careCircleMembers, recentActivity, describeActivityEvent);
+  const sectionVisual = (key: string) => {
+    if (key === 'needsAttention') return { icon: ToDoIcon, tone: 'rose' as const };
+    if (key === 'comingUp') return { icon: CalendarIcon, tone: 'plum' as const };
+    if (key === 'keyContacts') return { icon: PhoneIcon, tone: 'blue' as const };
+    if (key === 'careCircle') return { icon: HeartHandshakeIcon, tone: 'green' as const };
+    if (key === 'documents') return { icon: FileTextIcon, tone: 'plum' as const };
+    if (key === 'recentActivity') return { icon: HistoryIcon, tone: 'neutral' as const };
+    return { icon: HomeIcon, tone: 'green' as const };
+  };
 
   return (
     <Screen>
       <Header title="Care summary" onBack={onBack} />
-      <AppText variant="secondary" tone="soft" style={styles.intro}>
+      <SecondaryPageIntro>
         A concise picture of {personName || "this person"}'s care situation - useful if someone else needs to step in.
-      </AppText>
+      </SecondaryPageIntro>
       {sections.length === 0 ? (
         <AppText variant="secondary" tone="soft">
           Nothing to summarise yet - add a few records for {personName || 'this person'} and they'll appear here.
@@ -50,36 +61,34 @@ export function CareSummaryScreen({ records, careCircleMembers, recentActivity, 
       ) : (
         <View style={styles.sections}>
           {sections.map((section) => (
-            <View key={section.key} style={styles.section}>
-              <AppText variant="section">{section.title}</AppText>
+            <SecondarySection key={section.key} title={section.title} tone={sectionVisual(section.key).tone} style={styles.section}>
               {section.key === 'careCircle' ? (
-                <View style={styles.chipRow}>
+                <View>
                   {section.members.map((member) => (
-                    <View key={member.membershipId} style={styles.chip}>
-                      <AppText variant="secondary">{member.isSelf ? 'You' : member.displayName}</AppText>
-                      <AppText variant="meta" tone="soft">{roleLabel(member.role)}</AppText>
-                    </View>
+                    <SecondaryDisclosureRow
+                      key={member.membershipId}
+                      icon={HeartHandshakeIcon}
+                      iconTone="green"
+                      title={member.isSelf ? 'You' : member.displayName}
+                      right={<SecondaryRolePill tone={member.role === 'organiser' ? 'plum' : 'blue'}>{roleLabel(member.role)}</SecondaryRolePill>}
+                    />
                   ))}
                 </View>
               ) : (
-                <View style={styles.itemList}>
+                <View>
                   {section.items.map((item) => (
-                    <Pressable
+                    <SecondaryDisclosureRow
                       key={item.id}
-                      accessibilityRole={section.key === 'recentActivity' ? undefined : 'button'}
-                      accessibilityLabel={item.title}
+                      icon={sectionVisual(section.key).icon}
+                      iconTone={sectionVisual(section.key).tone}
+                      title={item.title}
+                      description={item.subtitle}
                       onPress={section.key === 'recentActivity' ? undefined : () => onOpenRecord(item.id)}
-                      style={styles.row}
-                    >
-                      <View style={styles.rowCopy}>
-                        <AppText variant="body" numberOfLines={2}>{item.title}</AppText>
-                        {item.subtitle ? <AppText variant="secondary" tone="soft" numberOfLines={1}>{item.subtitle}</AppText> : null}
-                      </View>
-                    </Pressable>
+                    />
                   ))}
                 </View>
               )}
-            </View>
+            </SecondarySection>
           ))}
         </View>
       )}
@@ -88,14 +97,11 @@ export function CareSummaryScreen({ records, careCircleMembers, recentActivity, 
 }
 
 const styles = StyleSheet.create({
-  intro: {
-    marginBottom: spacing.md,
-  },
   sections: {
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   section: {
-    gap: spacing.sm,
+    gap: spacing.xxs,
   },
   itemList: {
     gap: spacing.xs,

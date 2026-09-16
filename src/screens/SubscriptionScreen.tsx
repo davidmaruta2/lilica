@@ -117,18 +117,18 @@ export function SubscriptionScreen({ entitlement, loading, error, onBack, onSubs
 
 const styles = StyleSheet.create({
   content: {
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   priceCard: {
     gap: spacing.xxs,
     padding: spacing.md,
-    borderRadius: radius.lg,
+    borderRadius: 8,
     backgroundColor: colors.primarySoft,
   },
   statusCard: {
     gap: spacing.xs,
     padding: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: 8,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
