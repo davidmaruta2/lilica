@@ -1,7 +1,7 @@
 # Lilica RevenueCat and Store Billing Implementation Report
 
 **Report date:** 16 September 2026
-**Scope:** RevenueCat catalogue, Apple and Google subscription configuration, signed entitlement webhook, EAS store builds, and test-store submission readiness.
+**Scope:** RevenueCat catalogue, Apple and Google subscription configuration, signed entitlement webhook, EAS store builds, test-store submissions, and current next steps.
 
 ## Executive status
 
@@ -16,7 +16,7 @@ Lilica's annual subscription foundation is now configured across RevenueCat, App
 - The iOS build was successfully submitted for TestFlight delivery.
 - The Android build was successfully submitted to Google Play's internal testing track.
 
-No public production release was performed. No commit or push was performed during this implementation.
+No public production release was performed. The billing implementation was subsequently included in repository checkpoint `2942a25`; later handoff documentation sits on top of that checkpoint.
 
 ## Commercial and RevenueCat contract
 
@@ -119,7 +119,9 @@ Apple Server Notifications V2 and Google Real-time Developer Notifications still
 
 ### OTA status
 
-EAS Update/OTA is **not enabled** in this build. The project currently has no `expo-updates` dependency, update URL, or runtime-version policy. Store-test builds are valid native builds, but app changes require a new build until OTA is separately designed and configured. No OTA configuration was added silently as part of billing work.
+EAS Update/OTA is **not enabled in the existing iOS build 3 or Android build 2**. After those builds completed, the repository added `expo-updates@~57.0.22`, the EAS update URL, `runtimeVersion.policy: appVersion`, and explicit `preview`, `store-test`, and `production` channels. The next expressly approved native builds must retain that configuration and will be the first OTA-capable binaries. No OTA has been published.
+
+The exact post-build delta also includes the returning-account duplicate-person prevention fix and the approved Lilica app icon. See `docs/NEXT_NATIVE_BUILD_MANIFEST.md`.
 
 ## Validation completed
 
@@ -135,14 +137,17 @@ EAS Update/OTA is **not enabled** in this build. The project currently has no `e
 
 ## Remaining launch gates
 
-1. Supply Apple's subscription review screenshot and final subscription review metadata.
-2. Add TestFlight testers and run physical iPhone purchase/restore/expiry checks.
-3. Add licensed Google Play testers and run physical Android purchase/restore/cancellation/expiry checks from the internal-track build.
-4. Configure a durable EAS-managed Google Play submission credential before the next automated Android release.
-5. Configure/verify Apple Server Notifications V2 and Google RTDN through RevenueCat.
-6. Confirm each store event reaches RevenueCat, passes the signed webhook, updates Supabase entitlement state, and changes Lilica's access gates correctly.
-7. Create production Supabase/EAS environment values before any production build.
-8. Complete store listings, privacy/policy declarations, review assets, and explicit release approval.
+1. Obtain express product-owner approval before starting any new iOS or Android build.
+2. Build/install new `store-test` binaries containing the approved icon, duplicate-person fix, and OTA foundation only after that approval.
+3. Supply Apple's subscription review screenshot and final subscription review metadata.
+4. Run physical iPhone sandbox purchase, restore, renewal, cancellation, expiry, and refund/revocation checks.
+5. Add/confirm licensed Google Play testers and run equivalent Android internal-track checks.
+6. Configure a durable EAS-managed Google Play submission credential before the next automated Android submission.
+7. Configure/verify Apple Server Notifications V2 and Google RTDN through RevenueCat.
+8. Confirm a real store event reaches RevenueCat, passes the signed webhook, updates Supabase entitlement state, and changes Lilica's access gates correctly.
+9. Verify purchase on one platform and login on the other for the same Lilica account.
+10. Create production Supabase/EAS environment values before any production build.
+11. Complete store listings, privacy/policy declarations, review assets, and explicit production release approval.
 
 Expo Go cannot test RevenueCat native purchases. Real billing QA must use the TestFlight and Play-distributed builds.
 
@@ -153,4 +158,5 @@ Expo Go cannot test RevenueCat native purchases. Real billing QA must use the Te
 - Ignored `.env.local`: added the iOS RevenueCat public SDK key alongside the Android key and Supabase public values.
 - EAS preview environment: added both RevenueCat public SDK keys and development Supabase public values.
 - This report was updated to reflect actual implementation and build state.
+- `docs/NEXT_NATIVE_BUILD_MANIFEST.md`: records the exact binary delta and protected pre/post-build checks.
 - No application UX, domain behavior, database schema, or Phase 22 visual work was changed by this billing deployment setup.

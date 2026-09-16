@@ -1,242 +1,241 @@
-# Lilica Current Handoff
-
-**Current uncommitted checkpoint (16 September 2026): notification centre plus product-owner follow-ups.** A bell on every primary tab replaces Recent Activity in the Settings drawer and shows a care-space-scoped unread count for permission-filtered Care Circle activity, reminders and overdue items; the existing full Recent Activity screen remains reachable from the centre. Care Summary now exports a detailed, locally generated/shareable PDF; People's entry is named "Exportable Care Summary"; the task presentation label is "Errand or activity" without changing stored `task` records; Key contacts has its own stable nested background; Help includes Suggest a feature (`admin@luxfordinteractive.com`); FAQ covers both export and feature requests. `expo-print` is the only new dependency. No backend/schema/security rule changed. See the newest `docs/REVISION_LOG.md` entry for behavior, limitations and focused validation. These changes sit alongside the earlier uncommitted Settings-cog/To Do visual refinements; do not separate or overwrite them casually.
-
-Date: 16 September 2026
-Branch: `prephase22-remove-supported-person-faq-help` (**NOT** `master` - see "Branch state" below)
-Remote: `origin` (`https://github.com/davidmaruta2/lilica`)
+# Lilica Current Session Handoff
 
 Despite its legacy filename, this is the canonical current handoff for every incoming agent.
 
-## READ THIS FIRST - state as of 16 September 2026
+Last updated: 16 September 2026
 
-**Phase 22 checkpoint.** The mandatory audit/review gate described later in this historical handoff has now been satisfied. The product owner and Codex iterated through and approved the direction, then implemented the typography/icon foundation, production foundation, Home, Calendar, To Do, People and secondary-page visual migrations in bounded batches. The approved source remains `docs/PHASE_22_APPROVED_VISUAL_DIRECTION.md`; implementation evidence is in the Phase 22 completion reports. Final physical-review corrections on 16 September align each drawer secondary page's Close control with its Back/title header and give To Do list rows Home's 8px separation plus the shared `shadow.soft` elevation in List and Grid. Ask Lilica remains on People. Product/domain/database behavior was preserved. Physical device QA of the cumulative checkpoint remains required before declaring Phase 22 fully closed.
+## Read this first
 
-**A new agent should read this file, `AGENTS.md`, `docs/REVISION_LOG.md`'s top entry, `docs/PHASE_22_APPROVED_VISUAL_DIRECTION.md`, and the Phase 22 completion reports before touching visual code. Do not begin another visual batch or broaden the approved system without a separate product-owner instruction.**
+Lilica is a calm personal and family care organiser built with Expo SDK 57, React Native, TypeScript, Supabase, RevenueCat, EAS, App Store Connect, and Google Play. It is not a clinical system, emergency monitor, surveillance product, or generic family calendar.
 
-**1. Branch state.** All work through 15 September 2026 lives on `prephase22-remove-supported-person-faq-help`, pushed to `origin`. This branch is well ahead of `origin/master` (merge-base `a67c40f`) and `master` has nothing this branch lacks - `master` is simply stale/behind. Do not assume `master` reflects current work; do not merge to `master` without explicit product-owner instruction (no one has asked for that yet). Continue committing to this same branch unless told otherwise. Latest commits: run `git log --oneline -5` for the exact current head - this handoff/doc pass sits on top of `cb9f696` (see the concurrent-session note below), which itself sits on `f6285fc` (scratch-file cleanup, "Send invitation" -> "Continue" copy fix, doc updates), `938241a` (the full multi-person Care Circle invitation pass), and `2c4af08` (the invitation code/delivery/join-flow pass before that).
+The current source includes all separately approved implementation work through Phase 22, subsequent product-owner corrections, RevenueCat/store setup, returning-account duplicate prevention, the approved Lilica app icon, and the EAS Update foundation.
 
-**Concurrent-session note.** While this handoff was being written on 15 September 2026, a commit (`cb9f696`, authored `Codex <codex@local>`, message "Implement Phase 8 occurrence engine") landed on this exact branch from what appears to be a different, concurrently-running agent process sharing this same working directory - its actual diff was unrelated to its stated message (it picked up an in-progress edit to this very file). Nothing was corrupted or lost, but this proves another agent/process can write to this repo/branch without warning, mid-session. Always re-run `git log --oneline -10` and `git status --short` fresh at the start of any session before trusting this file's or any prior session's account of "current" state.
+An incoming agent must not assume a new phase or release action is authorised. Read this file, `AGENTS.md`, `docs/NEXT_NATIVE_BUILD_MANIFEST.md`, `docs/BUILD_RELEASE_CONTROL.md`, and `docs/REVENUECAT_BILLING_SETUP_REPORT.md` before acting.
 
-**2. Working tree.** Clean. The only files present beyond tracked content are known, intentional, untracked local scratch files (loose completion-report `.txt` files, `expo-dev-server.log`, `expo-qr.png`, loose brief `.txt` files copied from Downloads) - these are deliberately NOT tracked (removed from git in `f6285fc` per explicit product-owner instruction) and can be ignored or deleted freely; nothing of record depends on them.
+## Repository state
 
-**3. Care Circle invitation system: COMPLETE. Physical QA PASSED on 15 September 2026** by the product owner, on a real device, with two genuine Supabase accounts (davidmaruta2@gmail.com organising Maggie and Ben; dtm35@cam.ac.uk as invitee). Confirmed working end to end: organiser sees and can select multiple supported people ("Who can they help with?"); a multi-person invitation correctly represents every selected person through creation, confirmation, email/Share/code, and acceptance; "Join a Care Circle" is discoverable and works; the invitee's person switcher correctly shows exactly the authorised people. This closes out the entire invitation/collaboration workstream that ran across 14-15 September 2026 (see `docs/REVISION_LOG.md`'s 15 September entry and every `docs/PHASE_15_ARCHITECTURE.md` addendum for full technical detail). **Nothing further is expected or outstanding on this system** - do not re-open it without a new, explicit product-owner report of a real defect.
+- Repository: `https://github.com/davidmaruta2/lilica`
+- Active branch: `prephase22-remove-supported-person-faq-help`
+- `master` is stale and behind. Do not merge to or restart from `master` without explicit product-owner instruction.
+- Implementation checkpoint before this handoff documentation: `2942a25`.
+- Run `git log -1`, `git status --short`, and compare local HEAD with the remote branch at the beginning of every session. Shared-machine/concurrent-agent changes have occurred before.
+- The handoff task is complete only when local HEAD equals the remote branch and the working tree is empty.
 
-**4. Build/OTA status - read this carefully, it is easy to misread as "something is waiting."** No EAS project and no `eas.json` exist for Lilica, at all, ever. There has been NO native build of any kind - every phase of this app, including everything through the Care Circle closure above, has only ever run in Expo Go / a live Metro dev server. Consequences, stated plainly:
-   - Nothing is "queued for the next build" in the sense of code sitting unshipped - there is no build pipeline yet for anything to queue into. All committed JS/TS/asset changes are already "live" the moment the dev server reloads.
-   - Nothing is "awaiting OTA" - OTA (`expo-updates`) is not configured (no `updates`/`runtimeVersion` key in `app.json`) and cannot be, meaningfully, before a first native build exists to update. There is no OTA backlog.
-   - The one real standing requirement, unchanged since 14 September 2026 (`docs/PHASE_19_ARCHITECTURE.md`'s matching addendum, restated in `AGENTS.md`/this file): when the product owner is ready for the FIRST real EAS build, (a) it must not be run without their explicit, express consent for that specific build; (b) `app.json`'s `ios.supportsTablet` must stay `false` (phone-only, already set); (c) OTA must be enabled as part of THAT first build, not bolted on afterward. No one has asked for a first build yet. Do not run `eas build` or create `eas.json` speculatively.
+## Critical release authority
 
-**5. Immediate next step: cumulative Phase 22 physical QA and product-owner review.** The audit and approval gate was completed before implementation, and the approved batches are now implemented. The next agent must preserve this checkpoint and address only specifically reported physical-QA findings. Do not invent another visual pass, reinterpret the approved mock, or begin unrelated product work.
+No EAS/native build may ever be started without David Maruta's express approval for that specific build.
 
-**6. Stale "not yet committed" corrections.** Everything through 2c4af08 (the point immediately before this session's own Care Circle work) is real git history, already pushed - the body text below this point was written progressively across many earlier sessions and several paragraphs still say "not yet committed" about work that has SINCE been committed. Corrected here rather than rewritten paragraph-by-paragraph: Phase 19 (docs: `33b4b3e`; app.json/EAS-requirements: `a67c40f`), Phase 20D structural closure (`87a427e`), Phase 21B/21C billing+read-only-UX (`57c8b30`), and the Care Circle invitation & joining flow completion referenced throughout (`2c4af08`) are ALL committed and pushed. Take any "not yet committed" sentence below as historical narrative of that pass's own moment in time, not current fact - the true current state is sections 1-5 above and `git log --oneline` on this branch.
+This is absolute. A phase prompt, implementation request, request to validate, request to prepare a build, previous build approval, or general instruction to continue is not authority to run a build.
 
-## What Lilica Is
+Before any `eas build`, the agent must state:
 
-Lilica is a calm personal and family care organiser. An organiser keeps appointments, tasks, bills, home or car matters, documents, contacts, care information and updates separately for each person they support. It is not a clinical system, surveillance product, emergency monitor or generic family calendar.
+- platform;
+- EAS profile and environment;
+- purpose;
+- exact commit;
+- included delta since the last native binary;
+- validation completed;
+- known limitations;
+- whether submission/distribution is included.
 
-Read `docs/PROJECT_BRIEF.md`, `AGENTS.md`, `docs/SUPABASE_OPERATIONS.md` and `docs/CORE_SYSTEM_CONTRACT.md` before implementation.
+Then stop and wait for David's direct approval.
 
-**Current:** Phase 19 - Production Hardening & Release Readiness is implemented and validated (13 September 2026) - see `docs/PHASE_19_ARCHITECTURE.md`/`docs/PHASE_19_QA.md`. A real, committed, fully-cleaned-up two-account collaboration and account-deletion rehearsal against `lilica-development` closed out Phase 18B's own outstanding server-side two-account QA item; RLS/permission, dependency/security, accessibility (static) and store/release-config reviews found no release-blocking defect. Physical-hardware-only items (offline/restart, screen-reader, device matrix, reminders on a dev build, performance feel) are honestly marked NOT RUN, not fabricated. Not yet committed. **Production release remains a separate, explicit product-owner go/no-go, not implied by Phase 19's completion.** Phase 19 is NOT the final remaining work.
+`eas submit`, TestFlight/Play distribution, and `eas update` are also protected release operations. Obtain express approval for the exact operation; do not infer it from build approval.
 
-**Future approved roadmap (added 13 September 2026, documentation only, none started):** Phase 20 - Competitive Gap Review & Carer-Focused Enhancements; Phase 21 - Billing, Subscription & Membership/Entitlement; Phase 22 - Premium Visual Optimisation & Experience Polish. See `docs/CORE_SYSTEM_CONTRACT.md` for the canonical wording of each, including Phase 20's and Phase 22's mandatory audit/approval gates before any implementation. Do not begin any of these without their own separately approved implementation prompt.
+Authoritative policy: `docs/BUILD_RELEASE_CONTROL.md`.
 
-**Phase 20 update (13 September 2026): COMPLETE, physically tested and approved by the product owner ("tested and it works"), committed and pushed (`1bcbf2a`).** Phase 20A's audit (`docs/PHASE_20_GAP_AUDIT.md`) identified several genuine gaps against Jointly/Carers UK; Phase 20B then implemented exactly the three approved candidates - Recent Activity/Care History, Unified Current-Person Search, and Care/Handover Summary - see `docs/PHASE_20_ARCHITECTURE.md`/`docs/PHASE_20_QA.md`. Every other Phase 20A candidate remains explicitly not implemented.
+## Existing native binaries
 
-**Phase 21 update (14 September 2026): Phase 21A (architecture proposal) reviewed; Phase 21B (server/client billing implementation) and Phase 21C (proactive read-only UX + closure) are both complete. Phase 21 is engineering-complete.** Final approved commercial model: 60 days completely free, then £8.99/year, one subscription per account covering every care space it commercially owns - unchanged by Phase 21C. See `docs/PHASE_21_ARCHITECTURE.md` (section 23 for Phase 21C specifically)/`docs/PHASE_21_QA.md`. Server enforcement is fully implemented and proven by 341 pgTAP assertions (local and on `lilica-development`, unchanged by Phase 21C - no schema change); client-side entitlement display, RevenueCat integration, and the Subscription Settings surface are implemented and unit-tested. Phase 21C closed the one gap Phase 21B's own completion report named: a user could previously begin a mutation flow while expired and discover only at Save time that it couldn't be saved - a centralised `isReadOnly`/`guardMutation` mechanism now proactively blocks exactly the entry points the server itself gates, with a genuine owner/collaborator copy distinction and no exposure of another account's billing detail. **Purchases still cannot be exercised in this environment** (Expo Go cannot run native purchases; no RevenueCat project/store products/development build exist yet) - an incoming agent should not claim physical purchase/webhook QA, or this read-only UX's own on-device QA, has happened; both checklists are prepared but NOT RUN in `docs/PHASE_21_QA.md`.
+The latest native binaries are:
 
-**Home/Search interaction refinement (`search4.txt`), 14 September 2026: implemented, validated, committed and pushed.** A bounded UI/interaction refinement, not a redesign, matching an approved mock: Home's avatar grew to 56px with the supported person's first name shown directly beneath it, and the search affordance moved out of the header into its own real search-bar-styled element (magnifying-glass glyph immediately followed by "Everything for [Name], in one place.", no gap between them per product-owner correction) that still opens the same existing dedicated Search screen. The dashboard strip gained left/right scroll chevrons with real measured enable/disable state, without replacing swipe. `SearchScreen.tsx` needed no code change - it already met every requirement; only tests were added. No Home/Search domain logic changed. See `tests/search4-home-refinement.test.tsx`.
+| Platform | Version | EAS build ID | State |
+| --- | --- | --- | --- |
+| iOS | `1.0.0 (3)` | `ea54ffa7-f4c3-4386-b5d1-7d2060cfeb17` | Submitted to TestFlight and installed on a physical iPhone |
+| Android | `1.0.0 (2)` | `f0f85941-405b-4f24-a457-6ce6660f5077` | Submitted to Google Play internal testing |
 
-**Standing rule, 14 September 2026: no em-dashes or en-dashes anywhere in this repository** (UI copy, code, docs, commit messages) - use a plain hyphen instead. A full repository sweep removed every existing instance; do not reintroduce one.
+Both were produced from the then-current working tree before commit `2942a25`; they are not tied reproducibly to a clean git commit. The EAS IDs and native versions are the authoritative binary baseline.
 
-**Standing requirements before the first real EAS build, 14 September 2026 (none actioned yet - no `eas.json`/EAS project exists for Lilica):** no `eas build` without the product owner's explicit, express consent for that specific build; iOS is phone-only (`app.json`'s `ios.supportsTablet` is now `false`, so TestFlight never asks for iPad screenshots); OTA (`expo-updates`) must be enabled starting with the very first build, not added later. Full detail: `docs/PHASE_19_ARCHITECTURE.md`'s matching addendum.
+Both existing binaries contain the native RevenueCat integration and store products. They do not contain:
 
-**Remove-supported-person, Phase 20C drawer navigation, FAQ/How to use Lilica/Contact, 14 September 2026: implemented, validated, not yet committed (as of that entry).** A genuinely missing organiser capability (`delete_care_space()`) was built; the approved Phase 20C Option 2 drawer change ("[Name]'s care" above Account) was implemented, corrected once after live testing to render Care Summary/Recent Activity IN-DRAWER rather than as a full-screen overlay; a Help group (How to use Lilica, FAQ, Contact) was added. See `docs/REVISION_LOG.md`'s matching entries for full detail.
+1. the returning-account duplicate-person/care-space prevention fix;
+2. the approved Lilica app icon;
+3. `expo-updates` and the EAS Update runtime/channel foundation.
 
-**Phase 20D structural closure (`\downloads\20-22.txt`), 15 September 2026: implemented, validated, not yet committed.** The approved final pre-Phase-22 architecture pass: an explicit reversible ARCHIVED care-space state (server-enforced via the one shared `can_access_care_space_records()` write-gate, plus a dedicated `ArchivedGate.tsx`); permanent deletion tightened so multiple active organisers must all agree (a new request/approve/decline/cancel consent flow) while a sole organiser's existing checkbox-confirmed flow is unchanged; organiser handoff (`promote_to_organiser()`); a Documents collection (`DocumentsScreen.tsx`, a pure projection over the existing `record_attachments` table, no new schema); and a consolidated `ManageCareScreen.tsx` ("Manage [Name]'s care") with an explicit dangerous-action hierarchy. The Settings drawer's final person-scoped structure is now Care Summary/Recent Activity/Documents/Manage [Name]'s care. Full detail, exact diff classification and validation results: `docs/REVISION_LOG.md`'s matching entry. **Phase 22 has still not started** - this pass was explicitly the structural work meant to settle the surfaces Phase 22 will subsequently polish.
+Those three items are awaiting the next expressly approved iOS and Android builds. Full manifest: `docs/NEXT_NATIVE_BUILD_MANIFEST.md`.
 
-## Implemented Product State
+## OTA state
 
-The working app now includes:
+The source is now configured for OTA, but the installed binaries are not OTA-capable.
 
-- Protected three-slide Welcome / How Lilica Works introduction.
-- Supabase email/password account creation and login.
-- Six-digit signup verification with resend.
-- Password recovery through Check your email, six-digit code entry and new-password screens.
-- Required organiser `About you` profile, separate from supported people.
-- Multi-person relationship selection, naming, review and first-person choice.
-- One cloud care space, supported person and organiser membership per reviewed person.
-- Separate device-local privacy, interests, attachment bytes and setup status per care space.
-- Care-space-scoped Supabase records with a durable local cache, semantic outbox, safe migration and server-enforced RLS.
-- Canonical care-space-owned occurrences, versioned recurrence rules/history and a server-side assignment/contact identity foundation.
-- Active-person switching, add-person and resume-incomplete-setup flows.
-- Eight real record categories with category lists, multiple stable record IDs and compact editors.
-- Wheel-based date/time selection, local document upload/camera capture and real-record-only Home sections.
-- Everyday record management from Home (the same category-gateway screen as onboarding) with a stable-identity `Assigned to: Unassigned/You` control alongside the unchanged legacy responsibility text.
-- Calendar: a month grid plus selected-day list, projecting the same records Home reads (canonical roadmap Phase 11 - see the roadmap numbering note below).
-- To Do (Phase 12): open task/bill/home-or-car-matter records grouped into Overdue/Today/Upcoming, with All/Mine/Unassigned assignment filters and completion sharing the record editor's own canonical transition.
-- Person (Phase 13): a durable-knowledge projection of contacts, care/health information, home information, documents and bills/renewals, with no medical/legal inference and explicit (never name-matched) self-care wording.
-- Reminders (Phase 14): a local-only "Remind me" toggle on appointment/task/bill/homeMatter records, quiet hours and a master switch in Account. Notification-delivery state (scheduled, sent, dismissed, snoozed) is strictly separate from record truth. Server/push delivery is not implemented.
-- Care Circle (Phase 15): real invitations to Contributor/Viewer roles with explicit per-domain (general/health/financial/home/documents) permission grants, reviewed before sending; an invitee-facing Invitations screen that auto-surfaces once per app session with Accept/Decline; a real Assigned-to selector populated from active eligible members; server-enforced assignment-visibility (a record can never be assigned to someone without read access to its domain, checked on every mutation including offline replays); immediate-effect removal/leaving reusing the existing membership_status lifecycle; sole-organiser safety. No push/email delivery of the invitation itself yet (discovery is in-app only) - see `docs/PHASE_15_ARCHITECTURE.md`'s "What Is Deliberately Not Built Yet". Its server-side enforcement (organiser-unconditional, contributor/viewer by explicit domain grant, revoked-membership-never) has since been re-verified end-to-end against the deployed database and its own pgTAP tests - see that same doc's 12 September 2026 addendum.
-- Record-open architecture (11 September 2026): a genuine "flash" bug (the wrong screen briefly visible behind the record sheet) was root-caused to `openRecordFromProjection` navigating the whole app to `FirstThingScreen` just to host the editor, and fixed with `src/components/RecordQuickEditor.tsx` - the same `RecordSheet`+`RecordEditor`/`RecordDetail` pairing, mounted as an overlay over whichever screen already shows, so nothing behind the sheet ever changes. An existing record now opens a shared, read-only `RecordDetail` first (view/edit separation, gated by the real Phase 15 capability check); a brand-new draft still goes straight to the editor as before.
-- People tab (Corrective Task 10, 11 September 2026): the fourth tab, renamed from Person/Care Circle to **People**, now centres on Supported people / Key contacts / the real Care circle (Phase 15 membership list) / an Ask Lilica placeholder - no longer a duplicate of Home's own bills/home/documents/care-note listing. Record types are untouched in storage.
-- Visual pass (11 September 2026): Calendar/To Do/People carry a shared gradient backdrop (`tabAccent` in `src/theme.ts`, `src/components/ScreenBackdrop.tsx`) and refreshed heading/wordmark/settings-cog treatment; Home's background was subsequently reverted to its original plain state per explicit product-owner direction and no longer uses the backdrop.
-- Record editor (11 September 2026): dismissing the record sheet by Done, backdrop tap, or swipe-down now saves pending valid content through the exact same validated save path the visible Save/Add button uses (`RecordEditorHandle`/`RecordSheet.onBeforeDismiss`), rather than discarding it - see the Revision Log entry for the full mechanism.
-- Document Maturity (Phase 16) and Document Experience & Integration (Phase 17), 12 September 2026: real persisted typed record links and cloud-side attachment metadata/storage (Phase 16), wired into RecordEditor's "Related to"/"Does anything need doing?", RecordDetail's bidirectional presentation, "View document", upload/retry and deletion cleanup (Phase 17). Committed and pushed (`f1baa0c`), physical QA confirmed by the product owner.
-- Privacy, Settings, Export & Account Lifecycle (Phase 18A), 12 September 2026: a new "Privacy & data" Settings entry - real display-name editing, a real data-export RPC written to a local file and shared via the OS share sheet (never stored server-side), "Clear data from this device" (warns of pending work, then signs out), "Leave [care space]" for non-organiser roles. Also closed a real Phase 17-acknowledged gap with a durable document-cleanup retry queue. **Committed and pushed (`e3dc819`).**
-- Settings navigation correction, 12 September 2026: Settings rebuilt as a genuine right-hand sliding drawer with its own internal navigation (Account/Care Circle/Privacy & data render inside it, never as separate top-level screens) after physical QA rejected two earlier iterations. **Committed and pushed (`74b1a61`), physically confirmed working.**
-- Account Deletion & Complete Data Export (Phase 18B), 12 September 2026: resolves Phase 18A's own reported account-deletion blocker. `care_space_memberships.user_id` (and a second, previously-missed `care_spaces.bootstrap_owner_id` reference) become nullable, with a `former_display_name` snapshot and a new `membership_status = 'former'` value - a membership is detached, never deleted, so shared records/occurrences/assignments/links/attachments/documents all survive unmodified, and a former membership is denied access everywhere automatically (no new RLS). `delete_my_account()` performs the real, secure, idempotent, self-only deletion (blocked while sole organiser of any care space); `resolve_membership_identities()` lets the client show truthful historical attribution. Export now includes actual authorised document files, downloaded fresh from the current cloud copy, shared as `data.json` plus individual files (no `.zip`, per product-owner decision). **Committed and pushed (`e3dc819`)**; physical QA (two-account deletion/export scenarios) remains outstanding. See `docs/PHASE_18_ARCHITECTURE.md`/`docs/PHASE_18_QA.md`.
-- People screen final visual implementation, 12 September 2026: Key contacts became a bounded overview (max four, "View all (N)" for the rest); Care circle became a summary card with one "Manage" action and a bounded member preview. Presentation only, purpose unchanged from Corrective Task 10. **Committed and pushed (`1c1c682`), physically confirmed matching the approved mock.**
-- To Do background QA correction, 13 September 2026: fixed a real defect (background ending above the tab bar on a short list; a too-early/abrupt gradient fade) found during physical QA of the Phase 18B build - unrelated to Phase 18B's own scope. `ScreenBackdrop.tsx` gained an opt-in `stretch` mode and `ToDoScreen.tsx` a wider `stops` distribution; Home/Calendar/People untouched. **Committed and pushed (`e3dc819`), physically inspected and approved.**
-- Settings drawer visual/safe-area fix, profile pictures, Care Circle avatar details, 13 September 2026: fixed a real Modal safe-area bug (header colliding with the status bar) and raised the drawer's visual quality; added real profile pictures (new private `profile-avatars` Storage bucket, shown in Account and for the user's own "You" tile in People's Care circle preview - closing a gap reported right after shipping); added a soft Care Circle avatar detail popup showing a member's real name/role/relationship/granted domains. **Committed and pushed (`d79b62d`).**
+Current source includes:
 
-Phase 9, Calendar, Phase 12, Phase 13, Phase 14, Phase 15, Phase 18A/18B (two-account/device scenarios) physical-device QA are outstanding; Phase 16/17, the Settings drawer correction, the People screen final visual implementation, and the To Do background correction are confirmed passed.
+- `expo-updates@~57.0.22`;
+- update URL `https://u.expo.dev/13d12e42-4800-440f-9f38-9c93f5403c6f`;
+- `runtimeVersion.policy: appVersion`;
+- `preview`, `store-test`, and `production` channels in `eas.json`.
 
-Phase 7 record persistence, cache, sync and safe migration, Phase 8's core Record -> Occurrence engine, and Phase 9's everyday add/record management are implemented, validated and physically approved through Phase 8 (product-owner QA passed 10 September 2026 - see `docs/PHASE_8_QA.md`); Phase 9, Calendar, Phase 12, Phase 13, Phase 14 and Phase 15 physical QA are outstanding (`docs/PHASE_9_QA.md`, `docs/PHASE_10_QA.md`, `docs/PHASE_12_QA.md`, `docs/PHASE_13_QA.md`, `docs/PHASE_14_QA.md`, `docs/PHASE_15_QA.md` - Phase 14 requires a development build, not Expo Go; Phase 15 requires two genuine Supabase accounts, not one account pretending to be two). Push notification delivery, cloud attachment bytes and production infrastructure are not implemented.
+No OTA update has ever been published. OTA cannot be retrofitted into iOS build 3 or Android build 2. The next expressly approved native builds must keep this configuration and will be the first OTA-capable binaries.
 
-**Roadmap numbering note:** the Calendar work was implemented and committed under the working label "Phase 10", but `docs/CORE_SYSTEM_CONTRACT.md`'s canonical roadmap defines it as **Phase 11 - Calendar Projection** (its Phase 10, Home Projection, was effectively already delivered by the earlier Home redesign work). Historical commits and doc entries that say "Phase 10" for Calendar are not renamed or rewritten; numbering simply resumes canonically from Phase 12 (To Do) onward.
+Publishing an update with `eas update` requires separate express product-owner approval for the exact channel, environment, commit/change set, and message.
 
-## Current Flow
+## iOS device-family rule
 
-1. Welcome introduction.
-2. Create account or Log in.
-3. New account: enter email/password, then the six-digit email code.
-4. New profile: enter organiser display name.
-5. Select one or more people/relationships, name each person, review, then choose whom to set up first.
-6. Complete that person's privacy declaration, interests and optional initial records.
-7. Enter Home, switch people, resume another person's setup or add a person.
-8. Recovery: request code, see Check your email, enter six-digit code, then choose a new password.
+Lilica is iPhone-only. `app.json` must retain `ios.supportsTablet: false`. Check the resolved Expo public config before every future build. Do not enable iPad support without a separate product-owner decision.
 
-A logged-out fresh Expo Go session must land on Welcome. Authenticated storage is namespaced by Supabase user ID so one account cannot inherit another account's local care data. A restored token is checked against Supabase; a server-rejected deleted identity is cleared, while an ordinary network failure does not erase a cached session.
+## Post-build changes awaiting new binaries
 
-## Critical Layout Rules
+### Returning-account reconciliation
 
-- `react-native-safe-area-context` owns top/bottom insets. Welcome header content must remain below Android/iOS system status areas.
-- Text-entry screens use `Screen`, whose content and footer share one scroll region. The CTA is never a fixed overlay over required fields.
-- `KeyboardAwareScrollView` reveals a focused native input by measuring the field and the ScrollView's own current on-screen rect together, in the same window coordinate space, via chained `UIManager.measureInWindow` calls (on focus, again after `keyboardDidShow`, and once more shortly after to catch a still-animating keyboard). It also pulls the screen's footer/CTA into the same visible region alongside the focused field whenever there is room for both, without ever scrolling the field itself off-screen to do so.
-- `app.json` declares `android.softwareKeyboardLayoutMode: resize`, but that native config only applies in a custom dev client or a standalone/production build - Expo Go's own host app has a fixed native manifest and never honours it, so the window never actually resizes there. `keyboardAvoidingBehavior()` in `src/keyboard.ts` detects Expo Go via `expo-constants`'s `executionEnvironment` and gives Android the same JS-driven `KeyboardAvoidingView` behaviour (`'height'`) iOS already uses, only inside Expo Go; a real dev-client/standalone build keeps Android's behaviour `undefined` so the native resize isn't double-compensated.
-- iOS uses `KeyboardAvoidingView` padding. Both platforms use platform-appropriate keyboard dismissal.
-- Record editors use the same focus-aware scrolling through `RecordSheet`.
-- Do not replace this with hard-coded keyboard margins or device-specific offsets.
+A physical TestFlight sign-in exposed duplicate Maggie and Ben entries. The current source waits for the signed-in account's server care spaces before resolving onboarding, reconciles setup state against that server state, and performs another server check before provisioning a roster.
 
-These rules cover Login, Create account, About You, names, signup/recovery code entry, recovery request/new password, item forms and record editing. Confirmed on physical Android and iOS devices in Expo Go on 10 September 2026: focused field and footer CTA both become visible without a manual scroll, and Android now visibly resizes/pads as the keyboard opens instead of staying static.
+The empty duplicate care spaces created during the test were inspected and removed through the authenticated deletion RPC. The original populated Maggie and Ben spaces remain.
 
-## Backend Boundary
+Files: `App.tsx`, `src/careSpaceState.ts`, `tests/returning-account-reconnect.test.ts`.
 
-Only `lilica-development` (`ldocquqbcabdbscghojc`) exists for Lilica. No production project exists or was touched.
+### Approved app icon
 
-Cloud-backed now:
+The product owner approved `assets/lilica-app-icon.png`: a rounded deep-terracotta `L`, separate muted-olive leaf, and near-ink deep blue-teal field. `app.json` points shared icon, Android adaptive foreground, and web favicon to it; Android adaptive background is `#062B33`.
 
-- Supabase Auth account/session.
-- `public.profiles` organiser identity.
-- `care_spaces`, `supported_people` and `care_space_memberships`.
-- Transactional/idempotent `bootstrap_supported_people(jsonb)` provisioning.
-- `records` plus idempotent `record_mutation_receipts`, server-generated domain/sensitivity metadata and version/change sequencing.
-- `apply_record_mutation(...)` for membership-checked create/import/update/tombstone operations.
-- `occurrences`, immutable `occurrence_versions`, recurrence series/rules and idempotent occurrence mutation receipts.
-- `assignments` and `care_space_contacts` as server-only stable-identity foundations; neither grants access.
+The TestFlight app still shows the Expo placeholder because icon changes require a new native binary. Do not replace the approved asset with any earlier mock variant.
 
-Device-local now:
+### OTA native foundation
 
-- Privacy acknowledgement, interests, setup progress, record cache/outbox/conflicts and attachment files/full local references.
-- These are partitioned by authenticated user and care space and survive sign-out on that device.
+`expo-updates`, update URL, app-version runtime policy, and profile-specific channels are configured and committed. This is native configuration and requires a new binary before OTA can function.
 
-Read `docs/PHASE_7_ARCHITECTURE.md` for identity, migration, cache, retry, conflict and attachment rules. As of Phase 15, record participants also include real, invited Contributor/Viewer memberships with explicit per-domain grants (`care_space_domain_grants`) - see `docs/PHASE_15_ARCHITECTURE.md`. An organiser's access remains unconditional and unchanged.
-
-Hosted development Auth uses mandatory confirmation, minimum eight-character passwords, custom Resend SMTP from `Lilica <auth@luxfordinteractive.com>`, and six-digit confirmation and recovery templates. Credentials are secret hosted configuration and must never enter Git or the mobile bundle.
-
-Never run a blind full `supabase config push`; the base local config intentionally differs from remote operational settings. Use `config diff` and a narrowly scoped temporary config. Never use another Luxford project and never create/touch production without explicit approval.
-
-## Validation Baseline
-
-The Phase 9 implementation passes `npm run validate:all`: TypeScript, 13 Jest suites/143 tests (12 suites/135 tests pre-Phase-9, plus 1 new suite/8 new tests), secret scanning, Expo dependency/config checks, web export, clean migration replay, and the same 152 pgTAP assertions and warning-level database lint as Phase 8 - Phase 9 needed no migration, since its one new field rides inside the existing generic `record_data` JSONB.
-
-The Phase 8 implementation passes `npm run validate:all`: TypeScript, 12 Jest suites/135 tests, secret scanning, Expo dependency/config checks, web export, clean migration replay, 152 pgTAP assertions and warning-level database lint. The linked Phase 8 dry run listed exactly `20260910170000_phase8_occurrence_engine.sql`; it was applied only to `lilica-development`, where the same 152 assertions and clean lint pass. Local and linked histories match through `20260910170000`.
-
-The Phase 7 implementation passed:
-
-- `npm run validate:all`: TypeScript, 11 Jest suites/123 tests, secret scanning, Expo dependency/config checks, Android `resize` config and web export.
-- Clean local database rebuild, 89 pgTAP assertions and database lint with no errors.
-- Linked `lilica-development` deployment of migration `20260910150000_phase7_records.sql` after an exact one-migration dry run.
-- Linked database tests: all 89 pgTAP assertions pass; linked database lint reports no schema errors; local and remote migration histories match.
-
-The product owner completed and approved the Phase 7 physical-device checklist on Android and iOS on 10 September 2026.
-
-Automated tests prove structure and code paths, not physical rendering.
-
-Known test-harness note: the passing responsive suite can emit a React `VirtualizedList` update-not-wrapped-in-`act(...)` warning. It is not a Phase 7 failure and was not changed in this phase.
-
-### Keyboard-avoidance corrective task (10 September 2026)
-
-Physical-device testing found Password/the CTA still hidden behind the keyboard on both platforms after the original Phase 5 layout correction. Root-caused and fixed in two layers - see `docs/REVISION_LOG.md` for the full writeup - and confirmed working on physical Android and iOS devices in Expo Go by the product owner. This is now part of the protected baseline, not outstanding work.
-
-## Immediate Next Steps
-
-On 10 September 2026, the product owner confirmed the corrected keyboard behavior and the password, verification-code, check-email and password-reset paths working on physical devices. The same day, the product owner also confirmed the Phase 8 physical-device QA checklist (`docs/PHASE_8_QA.md`) passed on Android and iPhone. Codex is offline for approximately a week from this date; Claude is the sole active implementation agent on this repository until Codex returns, and committed/pushed Codex's completed Phase 8 work on explicit product-owner instruction before taking over Phase 9.
-
-Phase 8 is implemented, committed and physically approved. Phase 9 (everyday add/record management, and a stable-identity Assigned to: Unassigned/You control) is implemented and validated; its physical-device checklist (`docs/PHASE_9_QA.md`) is outstanding. Preserve the Phase 7 ownership/sync contracts, the Phase 8 Record -> Occurrence/history boundaries, and the Phase 9 Assigned-to control's Unassigned/You-only scope.
-
-**Phase 16 (Document Maturity - foundation) and Phase 17 (Document Experience & Integration) are both implemented and validated as of 12 September 2026** (see the Revision Log entries, `docs/PHASE_16_ARCHITECTURE.md` and `docs/PHASE_17_ARCHITECTURE.md` for full detail). Phase 16: real persisted, RLS-protected typed record links (`record_links`) and durable cloud-side attachment metadata plus a private Storage bucket (`record_attachments`), both gated by the exact same domain-grant decision every record read/write already uses; its migration is now **applied to `lilica-development`** (verified via matching migration histories, 228 passing linked pgTAP assertions and clean linked lint). A real pre-existing bug was fixed along the way: synced attachment metadata never reached a pulled record on a second device (`src/recordSync.ts`'s `localRecordFromRow()`). Phase 17 wires that foundation into the real app: RecordEditor's document-only "Related to" picker and "Does anything need doing?" task-creation flow; RecordDetail's bidirectional, context-aware related-record presentation ("Related to"/"Documents"/"Action"/"Related document") and "View document"; in-sheet link navigation; upload queuing on save plus an app-wide retry effect covering restart-resume and pre-Phase-16 legacy documents; deletion/cloud cleanup (best-effort only, not yet retried if it fails offline - a named, accepted limitation). Both phases are **committed and pushed (`f1baa0c`), physical QA confirmed by the product owner** (`docs/PHASE_16_QA.md`, the live Phase 17 checklist). Phase 18/18B, the Settings drawer correction, the People screen final visual implementation, the To Do background correction, and the Settings drawer visual/safe-area fix + profile pictures + Care Circle avatar details are all likewise implemented, validated, committed and pushed since - see the "Implemented Product State" bullets above for each. **Do not begin Phase 19 without its own separate, explicit, bounded implementation prompt.**
-
-## Approved Future Assignment Boundary
-
-The `responsiblePerson?: string` field is preserved exactly, unchanged, alongside the new Phase 9 control below - not replaced by it. Do not build a cosmetic care-circle selector.
-
-The authoritative sequence is:
-
-1. Phase 7 preserves legacy responsibility text and provenance exactly, creates no assignment by name/email matching, and gives cloud records stable care-space identity. This is implemented and approved.
-2. Phase 8 introduces the stable membership/external-contact assignment entity foundation and display snapshots. It is implemented server-side; assignment controls and full activity remain deferred.
-3. Phase 9 adds a data-driven `Assigned to: Unassigned/You` control (`assignedMembershipId` on the record, stored inside existing `record_data`, no migration) alongside the unchanged legacy responsibility text, kept restrained while only Unassigned/You exist. This is implemented and validated.
-4. Phase 12 projects Assigned to me, Assigned to others and Unassigned using stable membership IDs.
-5. Phase 15 supplies invitations, active care-circle members, role/capability/domain permissions, selector population and immediate revocation behavior. **This is now implemented and validated**: the Assigned-to control lists every active member with visibility into the record's domain (`careCircleMembers` in `App.tsx`/`src/careCircle.ts`), and `apply_record_mutation()` rejects server-side any assignment to a membership without that domain's read access - see `docs/PHASE_15_ARCHITECTURE.md`.
-
-Responsibility never grants visibility. Permission is enforced independently by server-side RLS/capability/domain checks. Pending or inactive memberships are not assignable; external contacts have zero application access. See sections 8, 11, 12, 17 and 18.6 of `docs/CORE_SYSTEM_CONTRACT.md`.
-
-## Self/Someone-Else Onboarding Fork (10 September 2026)
-
-The onboarding now opens person setup with `Whose wellbeing are you looking to support with Lilica?` (`CareForkScreen`) before the first-ever relationship wheel - see `docs/REVISION_LOG.md` for the full writeup. This governs only the initial setup path, not a permanent account mode; `startAddPerson()` (adding someone later) always goes straight to the existing wheel unchanged. `Myself` is one new value in the existing `Relationship` type and the database's `care_space_memberships_relationship_type` CHECK constraint - no parallel identity system. A new partial unique index enforces at most one `Myself` membership per user at the database level. Deployed to `lilica-development`: migration `20260910160000_myself_relationship_type.sql` applied via dry-run then push; all 95 pgTAP assertions (89 prior + 6 new) pass against both local and linked databases; linked lint clean.
-
-Interests copy now adapts for a Myself care space (`InterestsScreen`'s `isSelf` prop, driven by the existing `relationshipType === 'Myself'` semantic): `What would you like help staying on top of?` instead of `What do you help [Name] with?`. The privacy declaration's third-person wording was deliberately left unchanged - protected, versioned legal copy (`privacy-basis-v2`); still parses correctly for a Myself space, and editing it is a legal/product decision outside this task.
-
-## Home Redesign (10 September 2026)
-
-Home's presentation was reorganised - see `docs/REVISION_LOG.md` for the full writeup. Wordmark-led header, a persistent person-switcher card (replacing the old dismissible tip banner and small text trigger), a horizontal category snapshot row, and category-tonal icon cards. Entirely contained to `src/screens/HomeScreen.tsx`: `sectionFor()` classification, `PersonSwitcher.tsx`, `Wordmark.tsx`, `records.ts`, and the `colors.canvas` theme token are all unchanged. Snapshot counts remain computed locally from already-loaded records; Phase 8 deliberately did not replace this protected presentation with a later canonical Home projection.
-
-## Phase 9 Everyday Add And Record Management (10 September 2026)
-
-Full writeup in `docs/PHASE_9_ARCHITECTURE.md`. A line-by-line trace before writing any code found that the category-gateway/list/add/edit architecture Phase 9's brief describes was already fully implemented (the 10 September 2026 "Structured Category And Wheel-Picker Correction") and already reachable from Home's everyday `Add` action - Phase 9 did not need to build or redesign it. What was actually added: an `everyday` copy variant on `FirstThingScreen` (heading/footer text only, same screen/architecture either way), and a stable-identity `Assigned to: Unassigned/You` control on `RecordEditor` for appointment/task/bill/home-or-car-matter records, storing the organiser's own `care_space_membership.id` - never a name or email - alongside the unchanged legacy `responsiblePerson` free text. No migration was needed; `assignedMembershipId` rides inside the existing `record_data` JSONB. No client code calls the separate Phase 8 `assignments` table's `create_assignment(...)` RPC yet - that remains available for a later phase once real multi-member collaboration exists to exercise it.
-
-Not changed: `bootstrap_supported_people`, `apply_record_mutation`/`apply_occurrence_mutation`, `PersonSwitcher.tsx`, `Wordmark.tsx`, `Screen.tsx`, `HomeScreen.tsx`, `records.ts`, `CareForkScreen.tsx`, any theme token, any migration, any RLS policy.
-
-## Calendar Projection (10 September 2026, canonical roadmap Phase 11)
-
-Full writeup in `docs/PHASE_10_ARCHITECTURE.md` (filename kept from the original working label; see the roadmap numbering note above). Calendar reads `state.records` - the same active-care-space projection Home reads - and resolves each record's calendar date via a new `calendarDateForRecord()` in `records.ts`, mirroring `domain/recordOccurrence.ts`'s existing date-field priority. Opening an item reuses the established record editor via a new one-shot `initialOpenRecordId` prop on `FirstThingScreen`. `CategoryIcon`/`categoryLabel`/`visualFor`/`StatusIcon` were exported from `HomeScreen.tsx` (previously private) so Calendar and To Do share the same icon language.
-
-## Phase 12 To Do Projection (10 September 2026)
-
-Full writeup in `docs/PHASE_12_ARCHITECTURE.md`. To Do projects genuinely actionable work - open task/bill/home-or-car-matter records, per `docs/CORE_SYSTEM_CONTRACT.md` section 9.3 - into Overdue/Today-Needs-doing/Upcoming (30-day horizon, matching Home's own Coming Up window). Appointments, documents, contacts, care information and updates never appear. A new `isActionableRecord()` in `records.ts` and a new `completionUpdate()` in `RecordEditor.tsx` (the exact status/completed/completedAt/confirmationHistory transition `RecordEditor.save()` already applies inline, factored out so both produce byte-identical results) are the only new domain logic. Assignment filters (All/Mine/Unassigned) use Phase 9's stable `assignedMembershipId`; legacy `responsiblePerson` text is never treated as assignment. No migration, no RLS change, no new assignment representation.
-
-## Phase 13 Person Projection (11 September 2026)
-
-Full writeup in `docs/PHASE_13_ARCHITECTURE.md`. New `PersonScreen.tsx` groups `state.records` into five durable-knowledge sections (contacts/care/home/documents/bills), each backed by an existing record type, omitted when empty. Appointments/tasks/updates never appear. A small structural discovery drove one necessary cross-cutting change: the tab labelled with the supported person's name previously rendered `AccountScreen` (the organiser's own account settings) under copy promising a person knowledge space it never delivered - `AccountScreen` is now reached via a new "Account" link in Person's header (its own content otherwise unchanged, minus that stale copy) so sign-out remains reachable. `FirstThingScreen` gained a sibling `initialOpenType` prop (alongside Phase 10's `initialOpenRecordId`) so Person's per-section Add links open a new draft of the right category directly, through the same established creation architecture.
-
-## Phase 14 Reminder And Notification Engine (11 September 2026)
-
-Full writeup in `docs/PHASE_14_ARCHITECTURE.md`. Local-only (no server/push): new `src/reminders.ts` (pure domain logic -- eligibility, default offsets, quiet-hours policy, idempotent identifiers) and `src/notifications.ts` (the thin `expo-notifications` boundary, platform-guarded for web). Two new optional fields on `LilicaRecord` -- `remindersEnabled`, `reminderScheduleVersion` -- ride inside the existing `record_data` shape exactly like Phase 9's `assignedMembershipId`; no migration needed. `RecordEditor` gained a "Remind me" toggle (appointment/task/bill/homeMatter only) gated behind an explicit permission request; `AccountScreen` gained a minimal Reminders section (master switch, quiet hours). `App.tsx`'s `saveRecord`/`removeRecord` call the one reconciliation entry point after every mutation. New `expo-notifications` dependency; `app.json` gained its config plugin. Server/push delivery, device registration and Phase 15 collaboration notifications are explicitly deferred and documented, not faked.
-
-## Phase 15 Care-Circle Invitations And Collaboration (11 September 2026)
-
-Full writeup in `docs/PHASE_15_ARCHITECTURE.md`. Extends, rather than duplicates, the Phase 6/7 membership/RLS skeleton: `care_space_memberships.role` gains `contributor`/`viewer` alongside `organiser`; new `care_space_domain_grants` (one row per membership per domain, explicit `can_read`/`can_write`, default-deny for anything not granted); new `care_space_invitations` (pending/accepted/declined/expired/revoked lifecycle, organiser-only to send/revoke, invitee-scoped-by-email to accept/decline via `list_my_invitations()`/`accept_invitation()`). `can_access_care_space_records()` (the Phase 7-anticipated extension point) and a new `membership_has_domain_access()` now decide access by role-or-grant rather than hardcoded organiser-only. `apply_record_mutation()` is redefined (same signature) to check write access against a record's real domain (was hardcoded to `'general'`) and to reject any `assignedMembershipId` whose membership lacks active status or domain read-access - closing the gap where assignment could previously grant de facto visibility, and ensuring a replayed offline mutation can never recreate access for a removed member. `remove_member()`/`leave_care_space()`/`change_member_role()` all carry sole-organiser safety. Client: `src/careCircle.ts` (typed RPC wrapper), `src/screens/CareCircleScreen.tsx` (reachable from Person's header), and `RecordEditor`'s Assigned-to control now offers every domain-eligible active member (`recordDomainForType()` in `src/records.ts` mirrors the server's domain mapping exactly) rather than only Unassigned/You. 31 new pgTAP assertions (`supabase/tests/database/phase15_care_circle.test.sql`, 183 total with zero regressions). A same-day follow-up added `src/screens/InvitationsScreen.tsx` (the invitee-facing "you've been invited" screen: lists this account's own pending invitations by authenticated email, Accept/Decline, auto-surfaces once per app session ahead of the normal onboarding/Home flow, reachable again afterward via an "Invitations (N)" link on Person's header; Accept reuses the existing, unmodified `reconnectCareSpaces()` flow to surface the new membership with no further plumbing, since `list_my_supported_people()` was never role-filtered). 16 new Jest tests in total (263 total). Not yet built, documented rather than faked: push/email delivery of the invitation itself, an "assignee no longer has access" UI treatment, and a role-change/organiser-handoff UI (their underlying functions exist and are tested).
-
-## Protected And Deferred
-
-Preserve Welcome, privacy gating/version/timestamp, organiser/supported-person separation, local account isolation, multi-person care-space separation, category/multi-record behavior, wheel selectors, record-sheet gestures, real-record-only Home, the current Home presentation, Calendar, To Do, People (renamed from Person by Corrective Task 10), the view/edit separation (`RecordDetail`/`RecordQuickEditor`), the Done/backdrop/swipe-saves-pending-content behaviour, the Calendar/To Do/People visual pass (Home deliberately excluded, reverted to plain), the Phase 16/17 document link/attachment/task architecture described above, and the Phase 9/Phase 12/Phase 13/Phase 14/Phase 15 everyday-copy/Assigned-to/To-Do/Person/reminder/care-circle scope described above.
-
-**Care Circle invitation & joining flow completion (14 September 2026)**: real email delivery (Resend), native Share, a human-friendly invitation CODE (a pure locator for the same invitation, resolved via `resolve_invitation_by_code()`, never a second security model), and a "Join a Care Circle" manual-code route (reachable from both a new user's onboarding fork and an existing user's Care Circle screen) are all now implemented, converging on the SAME unmodified `accept_invitation()` authority every other route already used. Also fixed a real physically-found UX bug (a just-created invitation used to show twice at once) with genuinely distinct CREATED/DELIVERED states. See `docs/PHASE_15_ARCHITECTURE.md`'s matching addenda.
-
-Deferred: push notification delivery of invitations (email/Share/code now cover delivery - only OS-level push remains undone), an "assignee no longer has access" UI treatment, in-app role-change/organiser-handoff controls, server/push notification delivery and device registration, search/history, production Ask Lilica, production infrastructure, backup guarantees, account/care-space deletion policy, a durable retried cleanup queue for offline document/attachment deletes (best-effort only today), and lightweight "Expiring soon"/"Recently added" document-gateway groupings (a threshold is a product decision, not yet made).
-# CRITICAL BUILD AUTHORITY - 16 SEPTEMBER 2026
-
-No EAS/native build, submission, distribution, rebuild, or OTA publication may be started without David's express approval for that specific operation. General implementation approval is never build approval. See `docs/BUILD_RELEASE_CONTROL.md` before running any EAS release command.
-
-Lilica is iPhone-only (`ios.supportsTablet: false`). Every future approved build must preserve that resolved native configuration. EAS Update is configured for future builds, but TestFlight build 3 predates `expo-updates` and cannot receive OTA retroactively. The next expressly approved build will be the first OTA-capable binary.
+## RevenueCat, Apple, Google, and Supabase
+
+### Commercial contract
+
+- 60 days fully free, controlled by Lilica's backend entitlement state.
+- GBP 8.99/year afterward.
+- No Apple/Google introductory free trial or duplicate store trial.
+- One subscription per Lilica account covers every care space that account commercially owns.
+- Care Circle role/permissions remain separate from commercial ownership and entitlement.
+
+### RevenueCat
+
+- Project: `Lilica` (`projf734d172`).
+- Entitlement: `lilica_active` (`entl0fc7f87e90`).
+- Current offering: `default` (`ofrng20b64f2958`).
+- Annual package: `$rc_annual` (`pkgeaf002a6e28`).
+- iOS app: `appe58361f9ab`.
+- Android app: `app7b15628a27`.
+- Apple product: `com.luxfordinteractive.lilica.annual`.
+- Google product/base plan: `com.luxfordinteractive.lilica.annual:annual-autorenewing`.
+
+The app uses RevenueCat's native store-formatted `priceString`. A US Apple storefront showing USD 9.99 is expected localisation, not a code defect; UK remains GBP 8.99. Do not hard-code GBP in place of the store value.
+
+### Webhook
+
+- Supabase project: `lilica-development` (`ldocquqbcabdbscghojc`).
+- Function: `entitlement-webhook`.
+- RevenueCat integration: `Lilica entitlement sync` (`whintgr4d880b6211`).
+- HMAC secret is stored as Supabase secret `REVENUECAT_WEBHOOK_SECRET`, never in Git.
+- A correctly signed no-op event returned HTTP 200.
+- An invalid signature returned HTTP 401.
+
+### Store state
+
+- App Store Connect app: **Lilica: Care & Support**, ID `6812822327`.
+- Apple annual subscription resource ID: `6812831899`; UK anchor GBP 8.99; 175 storefront equivalents.
+- Google Play package: `com.luxfordinteractive.lilica`; developer account `8290450229567893119`.
+- Google Cloud project: `lilica-6gy115`.
+- Google product/base plan is READY and UK price is GBP 8.99.
+- EAS preview environment contains development Supabase public configuration and both RevenueCat public SDK keys.
+- No production Supabase project/EAS production environment is configured.
+
+### RevenueCat/store work still outstanding
+
+1. Build and install new store-test binaries only after explicit approval, so logo, duplicate fix, and OTA foundation are present.
+2. Complete physical iPhone sandbox purchase/restore/renewal/cancellation/expiry/refund tests.
+3. Complete equivalent Google Play internal-track tests on Android.
+4. Verify one real store event traverses store -> RevenueCat -> signed Supabase webhook -> entitlement row -> app read-only gate.
+5. Verify cross-platform entitlement by purchasing on one platform and signing into the same Lilica account on the other.
+6. Supply Apple's subscription review screenshot and final review metadata.
+7. Configure a durable EAS-managed Google Play submission credential.
+8. Finalise/verify Apple Server Notifications V2 and Google RTDN through RevenueCat.
+9. Create production Supabase and EAS environment configuration before any production build.
+10. Complete store listings, policy/privacy declarations, review assets, and a separate production release go/no-go.
+
+Full details: `docs/REVENUECAT_BILLING_SETUP_REPORT.md` and `docs/PHASE_21_QA.md`.
+
+## Product state
+
+The current app includes:
+
+- protected Welcome/onboarding introduction;
+- Supabase account creation/login, six-digit signup verification, password recovery, organiser profile, and session restoration;
+- multi-person supported-person onboarding and one care space per supported person;
+- server-backed care spaces, memberships, records, occurrences, recurrence/history, assignments, contacts, links, attachments, cache/outbox, and reconciliation;
+- Home, Calendar, To Do, and People projections over shared data;
+- list/grid controls on Home and To Do;
+- local reminder scheduling and notification settings;
+- Care Circle invitations, codes, email/share delivery, multi-person scope, roles, domain permissions, acceptance, removal, leaving, organiser handoff, archive/restore, and deletion consent;
+- Documents collection, record linking, cloud attachment metadata/storage, upload retry, and cleanup queue;
+- Search, Recent Activity, Exportable Care Summary PDF, notification centre, feature request, FAQ/how-to/contact, privacy/export/device-data/account-deletion flows;
+- Phase 21 entitlement/read-only gates and RevenueCat subscription screen;
+- Phase 22 typography, Lucide icon foundation, approved primary-tab themes, neutral secondary pages, Settings drawer, gradients, and responsive layout corrections;
+- approved Lilica app icon configured in source.
+
+Ask Lilica remains a placeholder. Do not remove it or implement AI without explicit approval.
+
+## Protected visual state
+
+The product owner approved the Phase 22 direction through iterative mock review. Preserve:
+
+- Fraunces only for the Lilica wordmark;
+- Inter Tight for headings;
+- Inter for body/control text;
+- zero tracking;
+- Lucide for common UI icons;
+- Home's warm light canvas;
+- Calendar's terracotta gradient;
+- To Do's matte blue-teal gradient, section-specific tiles, spacing/shadow separation, and joined list/grid control;
+- People's teal gradient, Key contacts panel, Care Circle panel, and Ask Lilica placeholder;
+- the warm-neutral secondary-page system and coherent drawer;
+- responsive safe-area/keyboard behaviour and bottom navigation override.
+
+Authority: `docs/PHASE_22_APPROVED_VISUAL_DIRECTION.md` and completion reports. Do not reinterpret the approved mock or launch an unsolicited visual pass.
+
+## Protected system contracts
+
+- Organiser, supported person, care space, membership, and commercial owner are distinct identities.
+- Record facts are stored once and projected deterministically. Due/overdue is derived, not duplicated state.
+- Occurrence history is immutable/versioned and recurrence changes do not rewrite history.
+- Assignment never grants permission; permissions and assignment eligibility remain server-enforced.
+- Every mutation is idempotent and scoped by care space.
+- Sign-out stops sync but does not discard pending work.
+- Entitlement is server-authoritative and separate from Care Circle access.
+- Expired care spaces remain readable; only approved mutation paths are gated.
+- Account deletion preserves minimum historical attribution while removing live account identity under the implemented contract.
+- All text-entry screens must remain keyboard-aware and safe-area-correct.
+- Never infer medical, legal, emergency, or monitoring conclusions.
+
+## Validation status at handoff
+
+Latest checkpoint validation:
+
+- `npm run typecheck`: passed.
+- Jest: 100 suites, 880 tests passed.
+- `npm run secrets:check`: passed.
+- `npx expo config --type public`: passed and reports approved icon, iPhone-only support, update URL/runtime, and Android adaptive config.
+- `npx expo export --platform web`: passed.
+- `git diff --check`: passed after documentation cleanup.
+- `npx expo install --check`: reports known SDK 57 patch-level drift. No dependency upgrade was authorised.
+- Local backend validation was blocked because Docker Desktop was off. No post-build schema/backend change requires deployment, and the hosted backend was not modified during the icon/OTA/reconnect checkpoint.
+
+Do not convert a blocked backend check into a pass. Do not start Docker merely to tidy a report unless the task genuinely requires backend validation.
+
+## Immediate continuation instructions
+
+There is no automatically authorised next phase. On a new instruction:
+
+1. re-read current git status/log and this handoff;
+2. identify whether the request is code, store metadata, QA, build preparation, build execution, submission, or OTA;
+3. preserve all protected product and visual behaviour;
+4. for build/release work, follow the explicit authority gate and `docs/NEXT_NATIVE_BUILD_MANIFEST.md`;
+5. for RevenueCat work, resume from the remaining steps above, not from the obsolete pre-configuration assumptions in older Phase 21 narrative;
+6. update docs to actual behaviour, validate, inspect the full diff, and report limitations honestly;
+7. commit/push only when requested and verify the working tree is clean.
+
+An incoming agent should be able to begin immediately from this file and its four linked release/billing documents without asking David to reconstruct prior context.

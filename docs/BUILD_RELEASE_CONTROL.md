@@ -49,11 +49,15 @@ Native dependency/configuration changes remain incompatible with OTA and require
 
 ## Current-build limitation
 
-The existing TestFlight build 3 was produced before `expo-updates` was configured. OTA cannot be retrofitted into an installed native binary. The next expressly approved native build will be the first OTA-capable Lilica binary.
+The existing TestFlight build 3 and Google Play internal build 2 were produced before `expo-updates` was configured. OTA cannot be retrofitted into an installed native binary. The next expressly approved iOS and Android builds must retain the checked-in OTA configuration and will be the first OTA-capable Lilica binaries.
 
-## Current blockers before build approval
+## Current readiness and approval boundary
 
-- The checked-in application icon assets are still Expo placeholder artwork and must be replaced with approved Lilica artwork.
-- The returning-account duplicate-person prevention change has focused test coverage, but the full validation run was stopped at David's instruction and must be completed before requesting build approval.
+- The approved icon is checked in at `assets/lilica-app-icon.png` and active in `app.json`.
+- The returning-account duplicate-person prevention change is implemented and covered by focused tests.
+- Full TypeScript and Jest validation passes (100 suites, 880 tests), as do secret scan, resolved Expo config, web export, and diff checks.
+- Expo's compatibility check still reports known SDK 57 patch-level drift. Do not upgrade dependencies incidentally; review that as a separate task.
+- Local backend validation most recently could not run because Docker Desktop was off. The post-build icon/OTA/reconnect changes do not include a schema migration.
+- Production Supabase/EAS environment values are not configured, so production builds are not ready.
 
-Neither blocker authorizes a build once resolved; the absolute approval rule still applies.
+Technical preparation never authorizes a build. The absolute approval rule still applies. The exact current binary delta and checklist are in `docs/NEXT_NATIVE_BUILD_MANIFEST.md`.

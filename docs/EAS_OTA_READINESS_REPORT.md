@@ -28,16 +28,20 @@ David's instruction is now recorded as an absolute release gate: **no EAS/native
 
 ## Important limitation
 
-TestFlight build 3 cannot receive EAS OTA updates because it was built before `expo-updates` existed in Lilica's native binary. OTA cannot be added to an already-installed build. The next build, if and only if David explicitly approves it, will be the first OTA-capable binary.
+TestFlight build 3 and Google Play internal build 2 cannot receive EAS OTA updates because they were built before `expo-updates` existed in Lilica's native binaries. OTA cannot be added to an already-installed build. The next iOS and Android builds, if and only if David explicitly approves them, must retain the checked-in OTA configuration and will be the first OTA-capable binaries.
 
 OTA is suitable for compatible JavaScript and bundled-asset changes. Native dependency or native configuration changes still require a newly approved native build. Publishing an OTA update also requires David's separate explicit approval.
 
-## Build readiness blockers
+## Build readiness update
 
-No build should currently be approved:
+- The product owner approved a Lilica icon and it is checked in as `assets/lilica-app-icon.png`; active Expo icon/adaptive-icon/favicon references no longer use the Expo placeholder.
+- The returning-account duplicate-person prevention fix now has focused coverage and the repository-wide Jest run passes: 100 suites, 880 tests.
+- TypeScript, secret scan, Expo public config, web export, and diff checks pass.
+- `npx expo install --check` reports known Expo SDK 57 patch-level drift. No upgrade has been authorised.
+- Local backend validation was blocked because Docker Desktop was off. No schema/backend change was made by the icon/OTA/reconnect checkpoint.
+- Production Supabase/EAS configuration still does not exist; a production build is not ready.
 
-1. Lilica's checked-in iOS/Android icon assets are Expo placeholders and need approved Lilica artwork.
-2. The duplicate-person prevention fix passed its focused tests, but the full validation command was stopped at David's instruction and remains incomplete.
+This readiness evidence is not build approval. See `docs/NEXT_NATIVE_BUILD_MANIFEST.md` and obtain express approval before any build command.
 
 ## Files changed for this task
 
@@ -54,3 +58,7 @@ No build should currently be approved:
 - No `eas update` command was run.
 - No TestFlight or Google Play build was created or distributed.
 - No commit or push was performed.
+
+## Subsequent repository checkpoint
+
+The configuration described above, the approved icon, and the reconnect fix were later committed and pushed. This report's action statement remains accurate for the OTA configuration task itself: it did not run a build or publish an update. Use git history and `docs/LUMEN_HANDOFF.md` for the final handoff commit.
