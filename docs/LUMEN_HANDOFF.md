@@ -8,7 +8,7 @@ Last updated: 17 September 2026
 
 Lilica is a calm personal and family care organiser built with Expo SDK 57, React Native, TypeScript, Supabase, RevenueCat, EAS, App Store Connect, and Google Play. It is not a clinical system, emergency monitor, surveillance product, or generic family calendar.
 
-The current source includes all separately approved implementation work through Phase 22, subsequent product-owner corrections, RevenueCat/store setup, returning-account duplicate prevention, the approved Lilica app icon, the EAS Update foundation, and (17 September 2026, uncommitted) a post-build batch adding intro copy correction, opt-in biometric app lock, and a structured Medical Log -- see `docs/REVISION_LOG.md`'s 17 September entry, `docs/NEXT_NATIVE_BUILD_MANIFEST.md` section 5, and `LILBATCH_COMPLETION_REPORT.txt` (repository root, untracked) for full detail. The biometric lock's native dependency means a new native build is required before either of these two features reaches a real device; the Medical Log migration is not yet applied to `lilica-development`.
+The current source includes all separately approved implementation work through Phase 22, subsequent product-owner corrections, RevenueCat/store setup, returning-account duplicate prevention, the approved Lilica app icon, the EAS Update foundation, and (17 September 2026, committed and pushed as `55d4fc1`) a post-build batch adding intro copy correction, opt-in biometric app lock, and a structured Medical Log -- see `docs/REVISION_LOG.md`'s 17 September entry, `docs/NEXT_NATIVE_BUILD_MANIFEST.md` section 5, and `LILBATCH_COMPLETION_REPORT.txt` (repository root, untracked) for full detail. The biometric lock's native dependency means a new native build is required before either of these two features reaches a real device; the Medical Log migration is not yet applied to `lilica-development`.
 
 An incoming agent must not assume a new phase or release action is authorised. Read this file, `AGENTS.md`, `docs/NEXT_NATIVE_BUILD_MANIFEST.md`, `docs/BUILD_RELEASE_CONTROL.md`, and `docs/REVENUECAT_BILLING_SETUP_REPORT.md` before acting.
 
@@ -17,7 +17,7 @@ An incoming agent must not assume a new phase or release action is authorised. R
 - Repository: `https://github.com/davidmaruta2/lilica`
 - Active branch: `prephase22-remove-supported-person-faq-help`
 - `master` is stale and behind. Do not merge to or restart from `master` without explicit product-owner instruction.
-- Implementation checkpoint before this handoff documentation: `2942a25`.
+- Last pushed implementation checkpoint: `55d4fc1` (17 September 2026, the lilbatch.txt post-build batch). Do not trust this line alone -- confirm with a fresh `git log -1`/`git status --short` per the line below.
 - Run `git log -1`, `git status --short`, and compare local HEAD with the remote branch at the beginning of every session. Shared-machine/concurrent-agent changes have occurred before.
 - The handoff task is complete only when local HEAD equals the remote branch and the working tree is empty.
 

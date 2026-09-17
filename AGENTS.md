@@ -40,7 +40,7 @@ The full binary delta and pre/post-build checklists are authoritative in `docs/N
 
 ## Post-build implementation batch (17 September 2026)
 
-Intro copy correction, opt-in biometric app lock (new native dependency, `expo-local-authentication`), and a structured Medical Log (new `condition`/`medicine` record types, health-domain) are implemented and validated. Not committed. The Medical Log migration is not applied to `lilica-development` (Docker was off). Biometric protection requires a new native build to reach any real device -- Expo Go cannot load it. See `docs/REVISION_LOG.md`, `docs/NEXT_NATIVE_BUILD_MANIFEST.md` section 5, and `LILBATCH_COMPLETION_REPORT.txt` (repository root).
+Intro copy correction, opt-in biometric app lock (new native dependency, `expo-local-authentication`), and a structured Medical Log (new `condition`/`medicine` record types, health-domain) are implemented and validated. Committed and pushed (`55d4fc1`), on David's explicit instruction. The Medical Log migration is not applied to `lilica-development` (Docker was off). Biometric protection requires a new native build to reach any real device -- Expo Go cannot load it. See `docs/REVISION_LOG.md`, `docs/NEXT_NATIVE_BUILD_MANIFEST.md` section 5, and `LILBATCH_COMPLETION_REPORT.txt` (repository root, untracked).
 
 ## Current product and roadmap state
 
@@ -111,4 +111,4 @@ Physical-device claims require real physical testing. Automated tests are not ph
 
 ## Current checkpoint
 
-The last pushed implementation checkpoint before this handoff documentation is `2942a25`. Run git commands for the final handoff commit that follows it. The final handoff must leave local HEAD equal to the remote branch and `git status --short` empty.
+The last pushed implementation checkpoint is `55d4fc1` (17 September 2026, the lilbatch.txt post-build batch). Always run `git log -1`/`git status --short` fresh rather than trusting this line -- it is updated by hand and can lag a real push. The working tree should be empty except `LILBATCH_COMPLETION_REPORT.txt`, an intentionally untracked loose report file.

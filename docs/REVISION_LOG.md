@@ -2,7 +2,7 @@
 
 ## 17 September 2026 - Post-build implementation batch: intro copy, biometric app lock, structured Medical Log
 
-Three approved, scope-bounded product changes (`\downloads\lilbatch.txt`), implemented and validated on top of checkpoint `240708c`, not committed by the implementation agent (no separate commit/push authorisation exists in the documentation yet).
+Three approved, scope-bounded product changes (`\downloads\lilbatch.txt`), implemented and validated on top of checkpoint `240708c`, committed and pushed as `55d4fc1` on David's explicit instruction.
 
 **Intro copy.** The third Welcome intro screen's heading now reads exactly "Share and organise care, with clarity" (`src/screens/WelcomeScreen.tsx`). No other intro copy, layout, imagery, animation, navigation or timing changed.
 

@@ -2,7 +2,7 @@
 
 Status: ready for review, but not authorised to build
 
-Date: 16 September 2026
+Date: 17 September 2026
 
 ## Absolute authority rule
 
@@ -83,7 +83,7 @@ The release-control, billing, handoff, roadmap, and QA documents have been corre
 
 ### 5. Post-build implementation batch (`\downloads\lilbatch.txt`), 17 September 2026: intro copy, biometric app lock, structured Medical Log
 
-Implemented and validated in this batch; not committed by the implementation agent (per the batch's own explicit "commit/push only if the current documentation says David has separately authorised it" instruction -- no such authorisation exists yet). See `git status --short` for the exact uncommitted file list until David decides whether/when to commit.
+Implemented, validated, and committed and pushed (`55d4fc1`) on David's explicit instruction given after the batch itself was implemented -- the batch's own default ("do not commit/push without separate documented authorisation") was superseded by that direct instruction, exactly as the batch's own rule anticipates.
 
 **Intro copy correction (no build required, but bundled with this batch since it touches the same working tree):** the third Welcome intro screen's heading now reads exactly "Share and organise care, with clarity" (`src/screens/WelcomeScreen.tsx`). This is JS-only and does not by itself require a new native build.
 
