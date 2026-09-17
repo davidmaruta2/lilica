@@ -117,7 +117,8 @@ Before requesting build approval:
 4. Confirm the selected profile has the correct EAS Update channel.
 5. Confirm the selected EAS environment contains the intended Supabase public values and both RevenueCat public SDK keys. Never print secret values into logs or documentation.
 6. Decide whether the build is `store-test` against development/preview services or a true production build. Production EAS/Supabase values are not currently configured, so a production build is not ready.
-7. State the build request to David in the format required by `docs/BUILD_RELEASE_CONTROL.md` and wait for explicit approval.
+7. **Apply and prove the Medical Log migration first** (`supabase/migrations/20260917130000_medical_log.sql`, added 17 September 2026): start Docker Desktop, run the local pgTAP/lint path (or a linked dry-run + push against `lilica-development`), and confirm `supabase/tests/database/medical_log.test.sql` passes. A build must never ship the app-side `condition`/`medicine` record types before the backend actually accepts them -- do not skip this because the migration was reviewed by hand; hand-review is not database proof. See "Current limitations" below.
+8. State the build request to David in the format required by `docs/BUILD_RELEASE_CONTROL.md` and wait for explicit approval.
 
 ## Mandatory checks after a future approved build
 
