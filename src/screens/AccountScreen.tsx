@@ -34,6 +34,11 @@ export function AccountScreen({
   quietHoursLabel,
   onToggleReminders,
   onToggleQuietHours,
+  biometricSupported,
+  biometricEnrolled,
+  biometricLabel,
+  biometricEnabled,
+  onToggleBiometric,
   onSaveDisplayName,
   onChangePhoto,
   onBack,
@@ -53,6 +58,21 @@ export function AccountScreen({
   quietHoursLabel: string;
   onToggleReminders: (enabled: boolean) => void;
   onToggleQuietHours: (enabled: boolean) => void;
+  // Post-build implementation batch (lilbatch.txt, 17 September 2026):
+  // secure biometric app unlock. `biometricSupported` is false on a
+  // device with no biometric hardware at all -- the whole section is
+  // then omitted rather than shown as a dead toggle. `biometricLabel` is
+  // the real platform-specific term ("Face ID"/"Touch ID"/"Fingerprint
+  // unlock"/"Biometric unlock") -- never hard-coded here.
+  biometricSupported: boolean;
+  biometricEnrolled: boolean;
+  biometricLabel: string;
+  biometricEnabled: boolean;
+  // Resolves {ok:true} once genuinely confirmed by a real biometric
+  // check (turning on) or immediately (turning off); {ok:false} with an
+  // optional message on failure/cancellation -- App.tsx owns the actual
+  // native call, this screen only reflects the outcome.
+  onToggleBiometric: (enabled: boolean) => Promise<{ ok: boolean; message?: string }>;
   // Phase 18: reuses AuthProvider's own existing saveProfile() -- the
   // exact same function onboarding's "About you" step already calls --
   // so there is only ever one place that writes profiles.display_name.
@@ -76,6 +96,16 @@ export function AccountScreen({
   const [avatarUrl, setAvatarUrl] = useState<string>();
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string>();
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const [biometricError, setBiometricError] = useState<string>();
+
+  async function toggleBiometric() {
+    setBiometricBusy(true);
+    setBiometricError(undefined);
+    const result = await onToggleBiometric(!biometricEnabled);
+    setBiometricBusy(false);
+    if (!result.ok && result.message) setBiometricError(result.message);
+  }
 
   useEffect(() => {
     let active = true;
@@ -172,6 +202,32 @@ export function AccountScreen({
                 <View style={[styles.checkbox, quietHoursEnabled && styles.checkboxSelected]}>{quietHoursEnabled ? <View style={styles.tick} /> : null}</View>
               </Pressable>
             ) : null}
+          </View>
+        ) : null}
+
+        {biometricSupported ? (
+          <View style={styles.section}>
+            <AppText variant="section">Security</AppText>
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityState={{ checked: biometricEnabled, disabled: biometricBusy }}
+              onPress={() => void toggleBiometric()}
+              disabled={biometricBusy}
+              style={styles.row}
+            >
+              <View style={styles.rowCopy}>
+                <AppText variant="bodyStrong">Use {biometricLabel} to unlock Lilica</AppText>
+                {!biometricEnrolled ? (
+                  <AppText variant="secondary" tone="soft">Set up {biometricLabel} in your device settings to turn this on.</AppText>
+                ) : (
+                  <AppText variant="secondary" tone="soft">
+                    Ask for {biometricLabel} whenever you open Lilica or return to it after a while.
+                  </AppText>
+                )}
+              </View>
+              <View style={[styles.checkbox, biometricEnabled && styles.checkboxSelected]}>{biometricEnabled ? <View style={styles.tick} /> : null}</View>
+            </Pressable>
+            {biometricError ? <AppText variant="secondary" tone="danger">{biometricError}</AppText> : null}
           </View>
         ) : null}
 

@@ -21,6 +21,11 @@ const baseProps = {
   quietHoursLabel: '9pm-8am',
   onToggleReminders: jest.fn(),
   onToggleQuietHours: jest.fn(),
+  biometricSupported: false,
+  biometricEnrolled: false,
+  biometricLabel: 'Face ID',
+  biometricEnabled: false,
+  onToggleBiometric: jest.fn(),
   onSaveDisplayName: jest.fn(),
   onSignOut: jest.fn(),
 };

@@ -38,6 +38,10 @@ Do not run `eas build`, `eas submit`, or `eas update` merely because configurati
 
 The full binary delta and pre/post-build checklists are authoritative in `docs/NEXT_NATIVE_BUILD_MANIFEST.md`.
 
+## Post-build implementation batch (17 September 2026)
+
+Intro copy correction, opt-in biometric app lock (new native dependency, `expo-local-authentication`), and a structured Medical Log (new `condition`/`medicine` record types, health-domain) are implemented and validated. Not committed. The Medical Log migration is not applied to `lilica-development` (Docker was off). Biometric protection requires a new native build to reach any real device -- Expo Go cannot load it. See `docs/REVISION_LOG.md`, `docs/NEXT_NATIVE_BUILD_MANIFEST.md` section 5, and `LILBATCH_COMPLETION_REPORT.txt` (repository root).
+
 ## Current product and roadmap state
 
 - Phases 1 through 22 have been implemented in separately approved passes. Phase 20's carer-focused features, Phase 21's subscription/entitlement architecture, and Phase 22's approved visual migration are in the current source.

@@ -7,6 +7,7 @@ import { firstItemOptions } from '../data/options';
 import { createUuid } from '../identifiers';
 import { createRecordLink, LinkedRecordSummary, listRecordLinks, removeRecordLink } from '../recordLinks';
 import { isLinkableRecordType, linkPickerSummary } from '../records';
+import { categoryLabel } from '../screens/HomeScreen';
 import { LilicaRecord, LilicaRecordType } from '../types';
 import { canEditRecord, RecordDetail, RelatedRecordEntry } from './RecordDetail';
 import { createRecordDraft, RecordDraft, RecordEditor, RecordEditorHandle } from './RecordEditor';
@@ -141,7 +142,7 @@ export function RecordQuickEditor({
 
   return (
     <RecordSheet
-      title={option?.title ?? 'Record'}
+      title={option?.title ?? categoryLabel(type)}
       origin={origin}
       onDismiss={onDismiss}
       onBeforeDismiss={mode === 'edit' ? () => {

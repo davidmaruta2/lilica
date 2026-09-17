@@ -6,7 +6,7 @@ const ZERO_INSETS = { top: 0, bottom: 0, left: 0, right: 0 };
 
 import { colors, radius, shadow, spacing } from '../theme';
 import { FoundationIcon, FoundationIconComponent } from './FoundationIcon';
-import { ArchiveIcon, BookOpenIcon, CircleHelpIcon, ClipboardListIcon, CreditCardIcon, FileTextIcon, ForwardIcon, HeartHandshakeIcon, LightbulbIcon, LockIcon, MailIcon, UserIcon, UsersRoundIcon, XIcon } from './foundationIcons';
+import { ArchiveIcon, BookOpenIcon, CircleHelpIcon, ClipboardListIcon, CreditCardIcon, FileTextIcon, ForwardIcon, HeartHandshakeIcon, LightbulbIcon, LockIcon, MailIcon, PillIcon, UserIcon, UsersRoundIcon, XIcon } from './foundationIcons';
 import { SecondaryIconCircle } from './SecondaryPage';
 import { SecondaryPageCloseProvider } from './Header';
 import { AppText } from './Text';
@@ -46,7 +46,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // wide screens/tablets so it doesn't stretch edge-to-edge there.
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.88, 480);
 
-type Section = 'menu' | 'careSummary' | 'documents' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'joinCareCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'featureRequest' | 'contact';
+type Section = 'menu' | 'careSummary' | 'documents' | 'medicalLog' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'joinCareCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'featureRequest' | 'contact';
 
 // Phase 20C (approved Option 2): the drawer becomes a small hybrid --
 // person-scoped navigation ABOVE the existing account/app settings group,
@@ -60,6 +60,7 @@ export function SettingsMenu({
   personName,
   onOpenCareSummary,
   onOpenDocuments,
+  onOpenMedicalLog,
   onOpenManageCare,
   onOpenAccount,
   onOpenCareCircle,
@@ -95,6 +96,9 @@ export function SettingsMenu({
   // contributor/viewer is never shown a destination full of controls they
   // cannot use (this app's established "never a fake affordance" rule).
   onOpenDocuments?: () => void;
+  // Post-build implementation batch (lilbatch.txt, 17 September 2026):
+  // same care-space availability guard as Care Summary/Documents.
+  onOpenMedicalLog?: () => void;
   onOpenManageCare?: () => void;
   onOpenAccount: () => void;
   onOpenCareCircle?: () => void;
@@ -175,6 +179,9 @@ export function SettingsMenu({
       : []),
     ...(onOpenDocuments
       ? [{ key: 'documents', label: 'Documents', description: 'Every document saved for them', icon: FileTextIcon, onPress: onOpenDocuments }]
+      : []),
+    ...(onOpenMedicalLog
+      ? [{ key: 'medicalLog', label: 'Medical Log', description: 'Care needs, conditions and medicines', icon: PillIcon, onPress: onOpenMedicalLog }]
       : []),
     ...(onOpenManageCare
       ? [{ key: 'manageCare', label: personName ? `Manage ${personName}'s care` : 'Manage their care', description: 'Archive, handoff and permanent removal', icon: HeartHandshakeIcon, onPress: onOpenManageCare }]

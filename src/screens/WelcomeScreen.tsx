@@ -59,7 +59,7 @@ const pages: IntroPage[] = [
   },
   {
     key: 'ahead',
-    heading: 'Share care, with clarity',
+    heading: 'Share and organise care, with clarity',
     body: "Bring in family or other helpers, share updates and responsibilities, and see clearly who's doing what.",
     color: '#62764F',
     visual: 'ahead',

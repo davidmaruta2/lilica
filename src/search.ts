@@ -42,9 +42,14 @@ export const SEARCH_GROUP_LABELS: Record<SearchGroupKey, string> = {
   contact: 'Contacts',
   careNote: 'Care information',
   update: 'Updates',
+  // Medical Log (lilbatch.txt, 17 September 2026): searchable exactly like
+  // every other record type, through the same existing generic search --
+  // no new search logic of its own.
+  condition: 'Diagnosed conditions',
+  medicine: 'Prescribed medicines',
 };
 
-const GROUP_ORDER: SearchGroupKey[] = ['appointment', 'task', 'bill', 'homeMatter', 'document', 'contact', 'careNote', 'update'];
+const GROUP_ORDER: SearchGroupKey[] = ['appointment', 'task', 'bill', 'homeMatter', 'document', 'contact', 'careNote', 'condition', 'medicine', 'update'];
 
 // Punctuation-insensitive, case-insensitive partial match -- deliberately
 // simple (brief section 16: prefer the simplest architecture that works at

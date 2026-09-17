@@ -83,6 +83,12 @@ const categoryTerms: Record<LilicaRecordType, { heading: string; singular: strin
   contact: { heading: 'Contacts', singular: 'contact', plural: 'contacts', add: 'Add contact' },
   careNote: { heading: 'Care information', singular: 'care item', plural: 'care items', add: 'Add care information' },
   update: { heading: 'Wellbeing updates', singular: 'wellbeing update', plural: 'wellbeing updates', add: 'Add wellbeing update' },
+  // Medical Log (lilbatch.txt, 17 September 2026): required only to keep
+  // this map exhaustive over LilicaRecordType -- condition/medicine are
+  // never offered as an interest/category here, only through the
+  // dedicated MedicalLogScreen.tsx (see App.tsx's settingsSection).
+  condition: { heading: 'Diagnosed conditions', singular: 'condition', plural: 'conditions', add: 'Add a condition' },
+  medicine: { heading: 'Prescribed medicines', singular: 'medicine', plural: 'medicines', add: 'Add a medicine' },
 };
 
 export function FirstThingScreen({

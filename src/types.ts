@@ -63,7 +63,17 @@ export type LilicaRecordType =
   | FirstItemType
   | 'homeMatter'
   | 'contact'
-  | 'update';
+  | 'update'
+  // Post-build implementation batch (lilbatch.txt, 17 September 2026):
+  // structured Medical Log entries. 'careNote' already covers Care needs
+  // (viewable/editable/attributable/persisted/permissioned exactly as
+  // required -- reused rather than duplicated). Conditions and medicines
+  // are genuinely new, since they need their own active/closed lifecycle
+  // (see closedAt below), which no existing type has. Both map to the
+  // 'health' domain -- see records.ts's recordDomainForType() and
+  // supabase/migrations/20260917130000_medical_log.sql.
+  | 'condition'
+  | 'medicine';
 
 export type RecordStatus = 'scheduled' | 'unresolved' | 'completed' | 'saved' | 'cancelled';
 
@@ -151,6 +161,24 @@ export type FirstItem = {
   completedAt?: string;
   confirmationHistory?: RecordConfirmation[];
   attachments?: RecordAttachment[];
+  // Medical Log (lilbatch.txt, 17 September 2026). Diagnosed-condition-only:
+  // when the diagnosis date is genuinely unknown, this stays undefined --
+  // never fabricated (brief section 13, "unknown remains unknown").
+  diagnosedDate?: string;
+  // Medicine-only: whether this medicine repeats/is ongoing, or runs for a
+  // specific duration. Undefined only ever means "not yet chosen" on an
+  // in-progress draft -- save() always fills it in for type === 'medicine'.
+  medicineSchedule?: 'repeat' | 'duration';
+  // Medicine-only, and only meaningful when medicineSchedule === 'duration'.
+  // A proper date field (DateTimeWheelField), never free text (brief
+  // section 15).
+  medicineEndDate?: string;
+  // Condition/medicine only: undefined means ACTIVE; a timestamp means the
+  // user has recorded it as CLOSED/resolved/no-longer-applicable. Closing
+  // is never deletion -- the record (and this field) survive exactly like
+  // any other historical record, and can be cleared again to reopen it.
+  // See docs/CORE_SYSTEM_CONTRACT.md and RecordEditor.tsx's own handling.
+  closedAt?: string;
   createdAt: string;
   updatedAt?: string;
 };

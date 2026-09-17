@@ -42,6 +42,14 @@ export type RecordDraft = {
   attachments: RecordAttachment[];
   // Phase 14: per-record reminder opt-in. See docs/PHASE_14_ARCHITECTURE.md.
   remindersEnabled: boolean;
+  // Medical Log (lilbatch.txt, 17 September 2026): condition/medicine only.
+  // `date` above doubles as the diagnosed date for a condition (the same
+  // per-type reuse convention this draft already uses for every other
+  // type's own date field -- see createRecordDraft below); `closed`
+  // reflects whether record.closedAt is set (undefined until Save is
+  // pressed while this is true). `medicineSchedule` is medicine-only.
+  closed: boolean;
+  medicineSchedule?: 'repeat' | 'duration';
 };
 
 type Props = {
@@ -96,6 +104,8 @@ const titleLabels: Record<LilicaRecordType, string> = {
   contact: 'Name',
   careNote: 'What is useful to know?',
   update: 'What happened?',
+  condition: 'Condition name',
+  medicine: 'Medicine name',
 };
 
 function inputDate(date = new Date()) {
@@ -119,10 +129,10 @@ async function keepAttachment(uri: string, name: string, uniqueId: string) {
 export function createRecordDraft(type: LilicaRecordType, record?: LilicaRecord): RecordDraft {
   return {
     title: record?.title ?? '',
-    date: formatDateForInput(record?.eventDate ?? record?.dueDate ?? record?.date)
+    date: formatDateForInput(record?.eventDate ?? record?.dueDate ?? record?.diagnosedDate ?? record?.date)
       || (type === 'update' ? inputDate() : ''),
     time: record?.eventTime ?? record?.time ?? (type === 'update' ? inputTime() : ''),
-    expiryDate: formatDateForInput(record?.expiryDate),
+    expiryDate: formatDateForInput(record?.expiryDate ?? record?.medicineEndDate),
     location: record?.location ?? '',
     responsiblePerson: record?.responsiblePerson ?? '',
     assignedMembershipId: record?.assignedMembershipId,
@@ -137,6 +147,8 @@ export function createRecordDraft(type: LilicaRecordType, record?: LilicaRecord)
     recurrence: record?.recurrence,
     attachments: record?.attachments ?? [],
     remindersEnabled: record?.remindersEnabled ?? false,
+    closed: Boolean(record?.closedAt),
+    medicineSchedule: record?.medicineSchedule ?? 'repeat',
   };
 }
 
@@ -223,6 +235,10 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
   }));
   const usesDueDate = type === 'task' || type === 'bill' || type === 'homeMatter';
   const usesEventDate = type === 'appointment' || type === 'document' || type === 'careNote' || type === 'update';
+  // Medical Log (lilbatch.txt, 17 September 2026).
+  const isCondition = type === 'condition';
+  const isMedicine = type === 'medicine';
+  const supportsClosedLifecycle = isCondition || isMedicine;
   const supportsCompletion = type === 'task' || type === 'bill' || type === 'homeMatter';
   const supportsRecurrence = type === 'bill' || type === 'homeMatter';
   const supportsAssignment = (type === 'appointment' || type === 'task' || type === 'bill' || type === 'homeMatter') && Boolean(activeMembershipId);
@@ -243,7 +259,15 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
   // Phase 14: only genuinely time/action-relevant types can meaningfully
   // remind -- matches isReminderEligible() in src/reminders.ts exactly.
   const supportsReminder = type === 'appointment' || type === 'task' || type === 'bill' || type === 'homeMatter';
-  const itemName = type === 'careNote' ? 'care information' : type === 'homeMatter' ? 'home or car matter' : type;
+  const itemName = type === 'careNote'
+    ? 'care information'
+    : type === 'homeMatter'
+      ? 'home or car matter'
+      : type === 'condition'
+        ? 'condition'
+        : type === 'medicine'
+          ? 'medicine'
+          : type;
 
   function change(patch: Partial<RecordDraft>) {
     onChange({ ...draft, ...patch });
@@ -272,6 +296,17 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
     const finalEventDate = usesEventDate ? parsedDate : undefined;
     const finalEventTime = type === 'appointment' || type === 'update' ? draft.time.trim() || undefined : undefined;
     const finalDueDate = usesDueDate ? parsedDate : undefined;
+    const finalDiagnosedDate = isCondition ? parsedDate : undefined;
+    const finalMedicineSchedule = isMedicine ? (draft.medicineSchedule ?? 'repeat') : undefined;
+    const finalMedicineEndDate = isMedicine && finalMedicineSchedule === 'duration' ? parsedExpiry : undefined;
+    // Closing is a one-way timestamp captured the moment the toggle turns
+    // on, then preserved across further edits -- reopening (draft.closed
+    // -> false) clears it entirely rather than leaving a stale value that
+    // contradicts "currently active", per section 19's Edit/Close/Delete
+    // separation.
+    const finalClosedAt = supportsClosedLifecycle
+      ? (draft.closed ? (record?.closedAt ?? now) : undefined)
+      : undefined;
     // Phase 14: the schedule version is a pure fingerprint of the fields a
     // reminder occasion is computed from. It bumps whenever they change,
     // regardless of whether reminders are currently on, so re-enabling
@@ -293,6 +328,10 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
       remindersEnabled: supportsReminder ? draft.remindersEnabled : undefined,
       reminderScheduleVersion: supportsReminder ? reminderScheduleVersion : undefined,
       expiryDate: type === 'document' ? parsedExpiry : undefined,
+      diagnosedDate: finalDiagnosedDate,
+      medicineSchedule: finalMedicineSchedule,
+      medicineEndDate: finalMedicineEndDate,
+      closedAt: finalClosedAt,
       location: type === 'appointment' ? draft.location.trim() || undefined : undefined,
       responsiblePerson: supportsCompletion || type === 'appointment'
         ? draft.responsiblePerson.trim() || undefined
@@ -450,13 +489,57 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
         </View>
       ) : null}
 
-      {type !== 'contact' ? (
+      {type !== 'contact' && !isCondition && !isMedicine ? (
         <DateTimeWheelField
           label={usesDueDate ? (type === 'bill' ? 'Due or renewal date' : 'Date or due date') : 'Date'}
           mode="date"
           value={draft.date}
           onChange={(date) => change({ date })}
           optional={!dateRequired}
+        />
+      ) : null}
+
+      {isCondition ? (
+        <DateTimeWheelField
+          label="Date diagnosed"
+          mode="date"
+          value={draft.date}
+          onChange={(date) => change({ date })}
+          optional
+        />
+      ) : null}
+
+      {isMedicine ? (
+        <View style={styles.fieldGroup}>
+          <AppText variant="secondary" tone="soft">How long is this for?</AppText>
+          <View style={styles.segmented}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: draft.medicineSchedule !== 'duration' }}
+              onPress={() => change({ medicineSchedule: 'repeat' })}
+              style={[styles.segment, draft.medicineSchedule !== 'duration' && styles.segmentSelected]}
+            >
+              <AppText variant="secondary" tone={draft.medicineSchedule !== 'duration' ? 'primary' : 'soft'} centre>Repeat / ongoing</AppText>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: draft.medicineSchedule === 'duration' }}
+              onPress={() => change({ medicineSchedule: 'duration' })}
+              style={[styles.segment, draft.medicineSchedule === 'duration' && styles.segmentSelected]}
+            >
+              <AppText variant="secondary" tone={draft.medicineSchedule === 'duration' ? 'primary' : 'soft'} centre>For a specific duration</AppText>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
+      {isMedicine && draft.medicineSchedule === 'duration' ? (
+        <DateTimeWheelField
+          label="Until"
+          mode="date"
+          value={draft.expiryDate}
+          onChange={(expiryDate) => change({ expiryDate })}
+          optional
         />
       ) : null}
 
@@ -689,6 +772,25 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
             </AppText>
           </View>
           <View style={[styles.checkbox, draft.remindersEnabled && styles.checkboxSelected]}>{draft.remindersEnabled ? <View style={styles.tick} /> : null}</View>
+        </Pressable>
+      ) : null}
+
+      {supportsClosedLifecycle ? (
+        <Pressable
+          accessibilityRole="switch"
+          accessibilityState={{ checked: !draft.closed }}
+          onPress={() => change({ closed: !draft.closed })}
+          style={styles.completion}
+        >
+          <View style={[styles.checkbox, !draft.closed && styles.checkboxSelected]}>{!draft.closed ? <View style={styles.tick} /> : null}</View>
+          <View style={styles.reminderCopy}>
+            <AppText variant="bodyStrong">{draft.closed ? `Closed - no longer ${isCondition ? 'applies' : 'taken'}` : 'Currently active'}</AppText>
+            <AppText variant="secondary" tone="soft">
+              {draft.closed
+                ? `Mark active again if this ${itemName} applies once more.`
+                : 'Close this when it no longer applies - it stays in their history, it is never deleted.'}
+            </AppText>
+          </View>
         </Pressable>
       ) : null}
 

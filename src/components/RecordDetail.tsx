@@ -102,6 +102,10 @@ function dateTimeLine(record: LilicaRecord): string | undefined {
     return date ?? time;
   }
   if (record.type === 'careNote') return formatDateForDisplay(record.eventDate ?? record.date);
+  if (record.type === 'condition') {
+    const date = formatDateForDisplay(record.diagnosedDate);
+    return date ? `Diagnosed ${date}` : undefined;
+  }
   return undefined;
 }
 
@@ -168,6 +172,9 @@ export function RecordDetail({ record, activeMembershipId, careCircleMembers, on
   const responsibleLabel = dueLabels[record.type];
   const recurrenceKey = record.recurrence ? `${record.recurrence.interval}-${record.recurrence.unit}` : undefined;
   const attachments = record.attachments ?? [];
+  // Medical Log (lilbatch.txt, 17 September 2026).
+  const isClosableLifecycle = record.type === 'condition' || record.type === 'medicine';
+  const isClosed = Boolean(record.closedAt);
 
   return (
     <View style={styles.card}>
@@ -181,7 +188,7 @@ export function RecordDetail({ record, activeMembershipId, careCircleMembers, on
         </View>
       </View>
 
-      {(dateLine || isOverdue || completed) ? (
+      {(dateLine || isOverdue || completed || isClosableLifecycle) ? (
         <View style={styles.statusRow}>
           {dateLine ? (
             <AppText variant="bodyStrong" tone={isOverdue ? 'danger' : 'default'}>{dateLine}</AppText>
@@ -189,6 +196,13 @@ export function RecordDetail({ record, activeMembershipId, careCircleMembers, on
           {supportsCompletion && completed ? (
             <View style={styles.sortedPill}>
               <AppText variant="secondary" tone="success" style={styles.sortedPillText}>Sorted</AppText>
+            </View>
+          ) : null}
+          {isClosableLifecycle ? (
+            <View style={isClosed ? styles.closedPill : styles.sortedPill}>
+              <AppText variant="secondary" tone={isClosed ? 'muted' : 'success'} style={styles.sortedPillText}>
+                {isClosed ? 'Closed' : 'Active'}
+              </AppText>
             </View>
           ) : null}
         </View>
@@ -218,6 +232,14 @@ export function RecordDetail({ record, activeMembershipId, careCircleMembers, on
         ) : null}
         {record.type === 'contact' && record.email ? (
           <DetailRow label="Email" value={record.email} />
+        ) : null}
+        {record.type === 'medicine' ? (
+          <DetailRow
+            label="Duration"
+            value={record.medicineSchedule === 'duration'
+              ? (record.medicineEndDate ? `Until ${formatDateForDisplay(record.medicineEndDate)}` : 'For a specific duration')
+              : 'Repeat / ongoing'}
+          />
         ) : null}
         {recurrenceKey ? (
           <DetailRow label="Repeats" value={recurrenceLabels[recurrenceKey] ?? 'Repeats'} />
@@ -321,6 +343,12 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   sortedPillText: { fontWeight: '700' },
+  closedPill: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 3,
+  },
   fields: { gap: spacing.md },
   field: { gap: 2 },
   related: { gap: spacing.md },

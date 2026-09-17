@@ -8,6 +8,12 @@ import { LilicaRecord, LilicaRecordType, RecordRecurrence } from './types';
 export function recordDomainForType(type: LilicaRecordType): 'general' | 'health' | 'financial' | 'home' | 'documents' {
   switch (type) {
     case 'careNote':
+    // Medical Log (lilbatch.txt, 17 September 2026): conditions and
+    // medicines are health information exactly like care notes -- see
+    // supabase/migrations/20260917130000_medical_log.sql's matching
+    // record_domain_for_type() case, which this must stay in sync with.
+    case 'condition':
+    case 'medicine':
       return 'health';
     case 'bill':
       return 'financial';

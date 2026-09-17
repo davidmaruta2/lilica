@@ -82,8 +82,21 @@ function itemMeta(item: FirstItem) {
 // Presentation-only: the app's own existing category names, looked up from
 // the same firstItemOptions list the onboarding record stack uses, so this
 // never drifts out of sync with the real category naming.
+// Medical Log (lilbatch.txt, 17 September 2026): condition/medicine are
+// deliberately NOT added to firstItemOptions -- that array also drives
+// FirstThingScreen's protected everyday category stack (the "Add"
+// gateway from Home), and this batch's scope explicitly excludes
+// touching that surface. A friendly label is still needed everywhere
+// this function is already called (RecordDetail's header, Search's
+// result grouping fallback, PDF export) -- handled here directly rather
+// than expanding firstItemOptions.
+const MEDICAL_LOG_LABELS: Partial<Record<LilicaRecordType, string>> = {
+  condition: 'Diagnosed condition',
+  medicine: 'Prescribed medicine',
+};
+
 export function categoryLabel(type: LilicaRecordType) {
-  return firstItemOptions.find((option) => option.id === type)?.title ?? type;
+  return MEDICAL_LOG_LABELS[type] ?? firstItemOptions.find((option) => option.id === type)?.title ?? type;
 }
 
 function sectionFor(item: FirstItem) {
@@ -123,6 +136,12 @@ const CATEGORY_VISUALS: Record<LilicaRecordType, CategoryVisual> = {
   contact: { tint: colors.tealSoft, accent: colors.teal },
   careNote: { tint: colors.oliveSoft, accent: colors.olive },
   update: { tint: colors.primarySoft, accent: colors.primary },
+  // Medical Log (lilbatch.txt, 17 September 2026): reuses the same two
+  // existing tonal pairs as careNote/document rather than adding a new
+  // one -- these types never appear in Home's own category grid, only in
+  // MedicalLogScreen.tsx, so a shared pair is never ambiguous on-screen.
+  condition: { tint: colors.oliveSoft, accent: colors.olive },
+  medicine: { tint: colors.tealSoft, accent: colors.teal },
 };
 
 export function visualFor(type: LilicaRecordType): CategoryVisual {

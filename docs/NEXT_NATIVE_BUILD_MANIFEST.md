@@ -81,6 +81,27 @@ Publishing an OTA remains a separate protected release operation and requires Da
 
 The release-control, billing, handoff, roadmap, and QA documents have been corrected to reflect real builds and the current external-service state. These files do not change runtime behaviour, but they are part of the next clean source checkpoint.
 
+### 5. Post-build implementation batch (`\downloads\lilbatch.txt`), 17 September 2026: intro copy, biometric app lock, structured Medical Log
+
+Implemented and validated in this batch; not committed by the implementation agent (per the batch's own explicit "commit/push only if the current documentation says David has separately authorised it" instruction -- no such authorisation exists yet). See `git status --short` for the exact uncommitted file list until David decides whether/when to commit.
+
+**Intro copy correction (no build required, but bundled with this batch since it touches the same working tree):** the third Welcome intro screen's heading now reads exactly "Share and organise care, with clarity" (`src/screens/WelcomeScreen.tsx`). This is JS-only and does not by itself require a new native build.
+
+**Biometric app lock (REQUIRES a new native build -- cannot work in Expo Go or in the existing iOS build 3/Android build 2 at all):**
+- New native dependency: `expo-local-authentication@~57.0.3` (added via `npx expo install`, SDK 57-compatible).
+- `app.json` gained `ios.infoPlist.NSFaceIDUsageDescription` (Face ID permission copy). No Android permission/config addition was needed -- the module autolinks its own manifest permissions.
+- New `src/biometricLock.ts` (native boundary + the `useBiometricLock()` hook), `src/components/BiometricLockScreen.tsx` (the full-screen lock cover), a new "Security" section in `src/screens/AccountScreen.tsx`, and wiring in `App.tsx` (the hook, the toggle handler, and the final-render lock gate).
+- Layered on top of the existing Supabase session, never a replacement for it or a second Lilica identity; opt-in; account-isolated per device (a per-account AsyncStorage key, exactly like `src/storage.ts`'s own convention); disables the OS device-passcode fallback (`disableDeviceFallback: true`) so it stays a genuine biometric check; falls back to the existing Lilica sign-out/login route, never a new PIN.
+- **This is a native dependency change. It cannot be delivered by OTA to the existing iOS build 3/Android build 2, or to any future build that predates it.** The next approved native build is the first one that can contain it.
+
+**Structured Medical Log (REQUIRES a new native build only because it ships in the same source tree as the biometric native dependency above -- the Medical Log feature itself is pure JS/SQL and would be OTA-eligible on its own once a build containing it exists):**
+- Two new record types, `condition` and `medicine`, both mapped to the existing `health` permission domain (`src/types.ts`, `src/records.ts`).
+- New migration `supabase/migrations/20260917130000_medical_log.sql`: widens the `records_type` CHECK constraint and `record_domain_for_type()`, and redefines `apply_record_mutation()` to accept the two new types in its own separate whitelist (a second, earlier structural defence found and documented by `supabase/tests/database/record_domain_fail_closed.test.sql`). **Not yet applied to `lilica-development`** -- Docker Desktop was off for the whole of this batch, so no local pgTAP/lint run was possible either; see Current limitations below.
+- `src/components/RecordEditor.tsx` gained condition/medicine fields: an optional diagnosed date, an optional repeat-vs-duration medicine schedule with its own optional end date, and a shared active/closed lifecycle toggle (closing sets `closedAt`, reopening clears it -- never deletion).
+- New `src/screens/MedicalLogScreen.tsx` (Care needs / Diagnosed conditions / Prescribed medicines, each with a Current + Past/closed grouping) reachable only from the Settings drawer's person-scoped group (`SettingsMenu.tsx`/`App.tsx`) -- deliberately NOT added to `FirstThingScreen.tsx`'s protected everyday category stack.
+- Care needs reuse the existing `careNote` type and its established editor/permission/sync path exactly as-is -- no schema change for that part.
+- Full detail, scope boundaries, and everything explicitly deferred: see the completion report `LILBATCH_COMPLETION_REPORT.txt` (repository root, an untracked loose report file per this repo's established convention -- see `docs/LUMEN_HANDOFF.md`'s "Working tree" note).
+
 ## Mandatory pre-build checks
 
 Before requesting build approval:
@@ -123,3 +144,5 @@ An OTA smoke test may be designed only after the new binary is installed and onl
 - Store purchase, renewal, cancellation, refund/revocation, expiry, restore, and iOS-to-Android cross-login flows are not yet physically signed off.
 - Expo's compatibility check reports several SDK 57 packages a few patch versions behind. Do not upgrade them incidentally; handle them as a separately reviewed dependency task.
 - Local backend validation requires Docker Desktop. The latest checkpoint could not run local pgTAP because Docker was off; hosted backend state was not modified by the post-build changes above.
+- The `lilbatch.txt` batch's Medical Log migration (`20260917130000_medical_log.sql`) has NOT been applied to `lilica-development` and its own pgTAP test (`supabase/tests/database/medical_log.test.sql`) has NOT been run anywhere -- Docker Desktop was off for this entire batch too. It was reviewed carefully by hand against the existing `apply_record_mutation()`/`record_domain_for_type()` definitions it redefines, but is genuinely unvalidated against a real database. Do not treat it as applied or proven until the local pgTAP suite (or a linked dry-run + push) actually runs against it.
+- Biometric app lock has real automated test coverage (`tests/biometric-lock.test.ts`, mocked at the `expo-local-authentication` boundary) but has NEVER been exercised against real device biometrics -- Expo Go cannot load a new native module at all, so this is entirely unverified on a physical device until a new native build exists.

@@ -17,7 +17,8 @@
       "bundleIdentifier": "com.luxfordinteractive.lilica",
       "supportsTablet": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFaceIDUsageDescription": "Lilica can use Face ID to keep your care information locked when you're not using the app."
       },
       "associatedDomains": [
         "applinks:lilica.co.uk"

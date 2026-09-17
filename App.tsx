@@ -5,6 +5,15 @@ import { ActivityIndicator, AppState, Pressable, StyleSheet, View } from 'react-
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from './src/auth/AuthProvider';
+import {
+  authenticate as authenticateBiometric,
+  biometricLabel,
+  getBiometricAvailability,
+  setBiometricLockEnabled,
+  useBiometricLock,
+  BiometricAvailability,
+} from './src/biometricLock';
+import { BiometricLockScreen } from './src/components/BiometricLockScreen';
 import { RecordQuickEditor } from './src/components/RecordQuickEditor';
 import type { RecordSheetOrigin } from './src/components/RecordSheet';
 import { SettingsMenu } from './src/components/SettingsMenu';
@@ -121,6 +130,7 @@ import { CareSummaryScreen } from './src/screens/CareSummaryScreen';
 import { ArchivedCareScreen } from './src/screens/ArchivedCareScreen';
 import { ContactScreen } from './src/screens/ContactScreen';
 import { DocumentsScreen } from './src/screens/DocumentsScreen';
+import { MedicalLogScreen } from './src/screens/MedicalLogScreen';
 import { FaqScreen } from './src/screens/FaqScreen';
 import { HowToUseScreen } from './src/screens/HowToUseScreen';
 import { FeatureRequestScreen } from './src/screens/FeatureRequestScreen';
@@ -234,6 +244,18 @@ function LilicaApp() {
   const [pendingEmail, setPendingEmail] = useState('');
   const [signOutError, setSignOutError] = useState<string>();
   const [signingOut, setSigningOut] = useState(false);
+  // Post-build implementation batch (lilbatch.txt, 17 September 2026):
+  // biometric app lock. See src/biometricLock.ts's own header comment --
+  // this hook re-reads the per-account preference fresh whenever the
+  // signed-in user changes, which is what keeps two accounts on the same
+  // device correctly isolated.
+  const biometricLock = useBiometricLock(auth.session?.user.id);
+  const [biometricAvailability, setBiometricAvailability] = useState<BiometricAvailability>({ supported: false });
+  useEffect(() => {
+    let active = true;
+    getBiometricAvailability().then((result) => { if (active) setBiometricAvailability(result); });
+    return () => { active = false; };
+  }, []);
   const [addingRelationship, setAddingRelationship] = useState(false);
   const [pendingRelationship, setPendingRelationship] = useState<Relationship>();
   const [provisioning, setProvisioning] = useState(false);
@@ -270,7 +292,7 @@ function LilicaApp() {
   // Care Circle keeps a second, separate direct entry point from People's
   // own "Manage care circle" link -- see showCareCircle below -- which is
   // deliberately unchanged (full-screen, not the drawer).
-  const [settingsSection, setSettingsSection] = useState<'menu' | 'careSummary' | 'documents' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'joinCareCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'featureRequest' | 'contact'>('menu');
+  const [settingsSection, setSettingsSection] = useState<'menu' | 'careSummary' | 'documents' | 'medicalLog' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'joinCareCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'featureRequest' | 'contact'>('menu');
   // Care Circle invitation final closure (`\downloads\carecircle-final-
   // closure.txt`, 15 September 2026): "Join a Care Circle" inside the
   // Settings drawer is reachable from two different places -- the main
@@ -1514,6 +1536,44 @@ function LilicaApp() {
     else setActiveTab('home');
   }
 
+  // Post-build implementation batch (lilbatch.txt, 17 September 2026):
+  // the ONE place biometric protection is turned on/off. Turning it ON
+  // requires a real, successful biometric confirmation first (brief
+  // section 6: "only mark biometric protection enabled after successful
+  // confirmation") -- never just a UI toggle flip. Turning it off does
+  // not require re-authentication; the account is already signed in and
+  // this only removes an additional local device-unlock layer.
+  async function handleToggleBiometric(enabled: boolean): Promise<{ ok: boolean; message?: string }> {
+    const userId = auth.session?.user.id;
+    if (!userId) return { ok: false, message: 'Please log in again to change this setting.' };
+
+    if (!enabled) {
+      await setBiometricLockEnabled(userId, false);
+      biometricLock.setEnabled(false);
+      return { ok: true };
+    }
+
+    const availability = await getBiometricAvailability();
+    setBiometricAvailability(availability);
+    if (!availability.supported) {
+      return { ok: false, message: "This device doesn't support biometric unlock." };
+    }
+    if (!availability.enrolled) {
+      return { ok: false, message: `Set up ${biometricLabel(availability.kind)} in your device settings first, then try again.` };
+    }
+
+    const label = biometricLabel(availability.kind);
+    const result = await authenticateBiometric(`Confirm to turn on ${label} for Lilica`);
+    if (result === 'success') {
+      await setBiometricLockEnabled(userId, true);
+      biometricLock.setEnabled(true);
+      biometricLock.markUnlocked();
+      return { ok: true };
+    }
+    if (result === 'cancelled') return { ok: false };
+    return { ok: false, message: "That didn't work. Please try again." };
+  }
+
   // Shared by Home, Calendar, To Do, Person and Wellbeing updates: all open
   // a tapped item through the same established record editor, never a
   // projection-specific one. Bug fix: this used to also switch stage to
@@ -1833,6 +1893,7 @@ function LilicaApp() {
           personName={currentSpace?.displayName}
           onOpenCareSummary={careCircleAvailable ? () => setSettingsSection('careSummary') : undefined}
           onOpenDocuments={careCircleAvailable ? () => setSettingsSection('documents') : undefined}
+          onOpenMedicalLog={careCircleAvailable ? () => setSettingsSection('medicalLog') : undefined}
           onOpenManageCare={careCircleAvailable && currentSpace?.role === 'organiser' ? () => setSettingsSection('manageCare') : undefined}
           onOpenAccount={() => setSettingsSection('account')}
           onOpenPrivacyData={() => setSettingsSection('privacyData')}
@@ -1861,6 +1922,15 @@ function LilicaApp() {
               personName={currentSpace?.displayName}
               onBack={() => setSettingsSection('menu')}
               onOpenRecord={openRecordFromProjection}
+            />
+          ) : settingsSection === 'medicalLog' ? (
+            <MedicalLogScreen
+              personName={currentSpace?.displayName}
+              isSelf={currentSpace?.relationshipType === 'Myself'}
+              records={state.records}
+              onBack={() => setSettingsSection('menu')}
+              onOpenRecord={openRecordFromProjection}
+              onAddType={(type) => guardMutation(() => openNewFromProjection(type))}
             />
           ) : settingsSection === 'manageCare' && currentSpace ? (
             <ManageCareScreen
@@ -1903,6 +1973,11 @@ function LilicaApp() {
               onToggleQuietHours={toggleQuietHours}
               onSaveDisplayName={auth.saveProfile}
               onChangePhoto={handlePickProfilePhoto}
+              biometricSupported={biometricAvailability.supported}
+              biometricEnrolled={biometricAvailability.supported && biometricAvailability.enrolled}
+              biometricLabel={biometricAvailability.supported ? biometricLabel(biometricAvailability.kind) : 'biometric unlock'}
+              biometricEnabled={Boolean(biometricLock.enabled)}
+              onToggleBiometric={handleToggleBiometric}
               onBack={() => setSettingsSection('menu')}
               onSignOut={() => void signOut()}
             />
@@ -2395,6 +2470,13 @@ function LilicaApp() {
     content = renderAuthenticatedOnboarding();
   }
 
+  // Post-build implementation batch (lilbatch.txt, 17 September 2026): the
+  // lock screen renders INSTEAD OF `content` -- never layered on top of
+  // it -- so no protected care information is ever mounted underneath
+  // while locked (brief section 5/7). Only reachable once genuinely
+  // signed in with biometric protection turned on for this account.
+  const showBiometricLock = Boolean(auth.session) && Boolean(biometricLock.enabled) && biometricLock.locked;
+
   return (
       <View style={styles.app}>
         <StatusBar style={!auth.session && (state.stage === 'welcome' || state.stage === 'how') ? 'light' : 'dark'} />
@@ -2405,7 +2487,15 @@ function LilicaApp() {
             </AppText>
           </View>
         ) : null}
-        {content}
+        {showBiometricLock ? (
+          <BiometricLockScreen
+            biometricLabel={biometricAvailability.supported ? biometricLabel(biometricAvailability.kind) : 'biometric unlock'}
+            onAttemptUnlock={() => authenticateBiometric('Unlock Lilica')}
+            onUnlocked={biometricLock.markUnlocked}
+            onSignOut={() => void signOut()}
+            signingOut={signingOut}
+          />
+        ) : content}
       </View>
   );
 }

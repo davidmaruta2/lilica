@@ -2,13 +2,13 @@
 
 Despite its legacy filename, this is the canonical current handoff for every incoming agent.
 
-Last updated: 16 September 2026
+Last updated: 17 September 2026
 
 ## Read this first
 
 Lilica is a calm personal and family care organiser built with Expo SDK 57, React Native, TypeScript, Supabase, RevenueCat, EAS, App Store Connect, and Google Play. It is not a clinical system, emergency monitor, surveillance product, or generic family calendar.
 
-The current source includes all separately approved implementation work through Phase 22, subsequent product-owner corrections, RevenueCat/store setup, returning-account duplicate prevention, the approved Lilica app icon, and the EAS Update foundation.
+The current source includes all separately approved implementation work through Phase 22, subsequent product-owner corrections, RevenueCat/store setup, returning-account duplicate prevention, the approved Lilica app icon, the EAS Update foundation, and (17 September 2026, uncommitted) a post-build batch adding intro copy correction, opt-in biometric app lock, and a structured Medical Log -- see `docs/REVISION_LOG.md`'s 17 September entry, `docs/NEXT_NATIVE_BUILD_MANIFEST.md` section 5, and `LILBATCH_COMPLETION_REPORT.txt` (repository root, untracked) for full detail. The biometric lock's native dependency means a new native build is required before either of these two features reaches a real device; the Medical Log migration is not yet applied to `lilica-development`.
 
 An incoming agent must not assume a new phase or release action is authorised. Read this file, `AGENTS.md`, `docs/NEXT_NATIVE_BUILD_MANIFEST.md`, `docs/BUILD_RELEASE_CONTROL.md`, and `docs/REVENUECAT_BILLING_SETUP_REPORT.md` before acting.
 
