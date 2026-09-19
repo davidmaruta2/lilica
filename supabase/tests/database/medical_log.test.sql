@@ -62,7 +62,7 @@ select extensions.is((select count(*) from public.records where record_type = 'm
 -- the same permission model every other health record already enforces.
 select extensions.lives_ok(
   format(
-    $$select public.invite_member(%L::uuid, 'medlog-viewer-general@example.test', 'viewer', array['general'], 'Other relative', null, gen_random_uuid()) $$,
+    $$select public.invite_member(%L::uuid, 'medlog-viewer-general@example.test', 'viewer', array['general'], 'Other relative', 'Friend', gen_random_uuid()) $$,
     :'rosa_id'
   ),
   'organiser can invite a general-only viewer'
