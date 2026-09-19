@@ -32,7 +32,7 @@ export const DOMAIN_LABELS: Record<CareCircleDomain, string> = {
 // that real mapping exactly, not a guess at it.
 export const DOMAIN_DESCRIPTIONS: Record<CareCircleDomain, string> = {
   general: 'Appointments, tasks, contacts and everyday updates.',
-  health: 'Care notes and health-related information.',
+  health: 'Medical Log (conditions and medicines), care notes and health-related information.',
   financial: 'Bills and financial information.',
   home: 'Home and car matters, like repairs and maintenance.',
   documents: 'Standalone documents, and any files attached to them.',

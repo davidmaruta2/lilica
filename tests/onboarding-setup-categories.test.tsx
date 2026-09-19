@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { firstItemOptions } from '../src/data/options';
 import { loadOnboardingState } from '../src/storage';
-import { LilicaRecordType } from '../src/types';
+import { CategoryOptionId } from '../src/types';
 
 // Corrective task: "What do you help X with?" now offers the real
 // canonical record categories -- never a second, competing taxonomy
@@ -23,7 +23,7 @@ const getItem = AsyncStorage.getItem as jest.MockedFunction<typeof AsyncStorage.
 
 describe('Corrective task: setup categories align with the canonical record system', () => {
   it('every initial-setup-eligible option is a real canonical record category, with no invented category', () => {
-    const canonicalTypes: LilicaRecordType[] = firstItemOptions.map((option) => option.id);
+    const canonicalTypes: CategoryOptionId[] = firstItemOptions.map((option) => option.id);
     const setupEligible = firstItemOptions.filter((option) => option.onboardingEligible !== false);
     for (const option of setupEligible) {
       expect(canonicalTypes).toContain(option.id);

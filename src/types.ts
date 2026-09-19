@@ -75,6 +75,14 @@ export type LilicaRecordType =
   | 'condition'
   | 'medicine';
 
+// The Add flow's "Medical Log" tile represents all three Medical Log
+// sections (care needs/conditions/medicines) as one gateway, not a real
+// record type of its own -- so it needs a wider id than LilicaRecordType
+// wherever a category-picker option's id is used (firstItemOptions,
+// FirstThingScreen, InterestsScreen's "What do you help X with?"
+// carousel, and the interests[] selection state that flows between them).
+export type CategoryOptionId = LilicaRecordType | 'medicalLog';
+
 export type RecordStatus = 'scheduled' | 'unresolved' | 'completed' | 'saved' | 'cancelled';
 
 export type RecordRecurrence = {
@@ -222,7 +230,7 @@ export type LocalCareSpaceState = {
   // can never drift out of sync with the real record categories. Has no
   // bearing on what the user can do once setupStatus reaches 'ready' --
   // see FirstThingScreen's `everyday` handling.
-  interests: LilicaRecordType[];
+  interests: CategoryOptionId[];
   records: LilicaRecord[];
   setupStatus: CareSpaceSetupStatus;
   allSetDismissed: boolean;
@@ -235,7 +243,7 @@ export type OnboardingState = {
   relationship?: Relationship;
   supportedPersonName?: string;
   supportedPersonId?: string;
-  interests: LilicaRecordType[];
+  interests: CategoryOptionId[];
   selectedFirstItemType?: FirstItemType;
   firstItem?: FirstItem;
   records: LilicaRecord[];

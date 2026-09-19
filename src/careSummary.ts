@@ -35,6 +35,7 @@ export type CareSummarySection =
   | { key: 'keyContacts'; title: string; items: SummaryItem[] }
   | { key: 'careCircle'; title: string; members: CareCircleMember[] }
   | { key: 'careInformation'; title: string; items: SummaryItem[] }
+  | { key: 'medical'; title: string; items: SummaryItem[] }
   | { key: 'documents'; title: string; items: SummaryItem[] }
   | { key: 'bills'; title: string; items: SummaryItem[] }
   | { key: 'homeCar'; title: string; items: SummaryItem[] }
@@ -50,6 +51,22 @@ function toItem(record: LilicaRecord, subtitle?: string): SummaryItem {
 function dateSubtitle(record: LilicaRecord): string | undefined {
   const date = calendarDateForRecord(record) ?? record.dueDate ?? record.date;
   return formatDateForDisplay(date);
+}
+
+// Medical Log (17 September 2026 batch): condition/medicine, matching the
+// dedicated MedicalLogScreen's own "current" grouping -- only active
+// (never closed/resolved) entries, since a quick handover summary should
+// show what currently applies, not full history.
+function medicalSubtitle(record: LilicaRecord): string | undefined {
+  if (record.type === 'condition') {
+    return record.diagnosedDate ? `Diagnosed ${formatDateForDisplay(record.diagnosedDate)}` : undefined;
+  }
+  if (record.type === 'medicine') {
+    return record.medicineSchedule === 'duration' && record.medicineEndDate
+      ? `Until ${formatDateForDisplay(record.medicineEndDate)}`
+      : 'Ongoing';
+  }
+  return undefined;
 }
 
 export function buildCareSummary(
@@ -83,6 +100,11 @@ export function buildCareSummary(
     .slice(0, SECTION_ITEM_LIMIT)
     .map((record) => toItem(record, record.notes?.slice(0, 80)));
 
+  const medical = active
+    .filter((record) => (record.type === 'condition' || record.type === 'medicine') && !record.closedAt)
+    .slice(0, SECTION_ITEM_LIMIT)
+    .map((record) => toItem(record, medicalSubtitle(record)));
+
   const documents = active
     .filter((record) => record.type === 'document')
     .slice(0, SECTION_ITEM_LIMIT)
@@ -108,6 +130,7 @@ export function buildCareSummary(
   if (keyContacts.length > 0) sections.push({ key: 'keyContacts', title: 'Key contacts', items: keyContacts });
   if (careCircleMembers.length > 0) sections.push({ key: 'careCircle', title: 'Care Circle', members: careCircleMembers });
   if (careInformation.length > 0) sections.push({ key: 'careInformation', title: 'Important care information', items: careInformation });
+  if (medical.length > 0) sections.push({ key: 'medical', title: 'Conditions & medicines', items: medical });
   if (documents.length > 0) sections.push({ key: 'documents', title: 'Important documents', items: documents });
   if (bills.length > 0) sections.push({ key: 'bills', title: 'Bills & renewals', items: bills });
   if (homeCar.length > 0) sections.push({ key: 'homeCar', title: 'Home & Car', items: homeCar });

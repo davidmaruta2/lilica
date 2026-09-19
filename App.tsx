@@ -162,6 +162,7 @@ import { colors, radius, spacing } from './src/theme';
 import { appFontAssets } from './src/fontAssets';
 import {
   AppTab,
+  CategoryOptionId,
   FirstItem,
   LilicaRecord,
   LilicaRecordType,
@@ -293,6 +294,11 @@ function LilicaApp() {
   // own "Manage care circle" link -- see showCareCircle below -- which is
   // deliberately unchanged (full-screen, not the drawer).
   const [settingsSection, setSettingsSection] = useState<'menu' | 'careSummary' | 'documents' | 'medicalLog' | 'manageCare' | 'archivedCare' | 'account' | 'careCircle' | 'joinCareCircle' | 'privacyData' | 'subscription' | 'faq' | 'howTo' | 'featureRequest' | 'contact'>('menu');
+  // Add flow's Medical Log card (see FirstThingScreen's onOpenMedicalLog):
+  // swaps MedicalLogScreen in for FirstThingScreen at the same stage,
+  // returning to it on back -- deliberately separate from `settingsSection`
+  // above, which only covers the Settings-drawer entry point.
+  const [firstThingMedicalLogOpen, setFirstThingMedicalLogOpen] = useState(false);
   // Care Circle invitation final closure (`\downloads\carecircle-final-
   // closure.txt`, 15 September 2026): "Join a Care Circle" inside the
   // Settings drawer is reachable from two different places -- the main
@@ -1258,7 +1264,7 @@ function LilicaApp() {
     if (target) go(target);
   }
 
-  function toggleInterest(type: LilicaRecordType) {
+  function toggleInterest(type: CategoryOptionId) {
     if (!currentSpace) return;
     setState((current) => projectActiveCareSpace(replaceCareSpace(current, currentSpace.careSpaceId, (space) => {
       const exists = space.interests.includes(type);
@@ -2362,33 +2368,14 @@ function LilicaApp() {
           />
         );
       case 'firstThing':
-        return (
-          <FirstThingScreen
-            interests={currentSpace?.interests ?? []}
+        return firstThingMedicalLogOpen ? (
+          <MedicalLogScreen
             personName={currentSpace?.displayName}
-            supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
-            careSpaceId={currentSpace?.careSpaceId ?? ''}
+            isSelf={currentSpace?.relationshipType === 'Myself'}
             records={currentSpace?.records ?? []}
-            activeMembershipId={currentSpace?.membershipId}
-            careCircleMembers={careCircleMembers}
-            onRequestReminderPermission={requestReminderPermission}
-            everyday={currentSpace?.setupStatus === 'ready'}
-            onBack={goBack}
-            onSaveRecord={saveRecord}
-            onRemoveRecord={removeRecord}
-            onFinish={() => completeOnboarding()}
-            onSkip={() => completeOnboarding()}
-            isReadOnly={isReadOnly || isArchived}
-            onBlockedMutation={() => showBlockedGate()}
-          />
-        );
-      case 'itemForm':
-        return state.selectedFirstItemType ? (
-          <ItemFormScreen
-            type={state.selectedFirstItemType}
-            personName={currentSpace?.displayName}
-            onBack={goBack}
-            onSave={completeOnboarding}
+            onBack={() => setFirstThingMedicalLogOpen(false)}
+            onOpenRecord={openRecordFromProjection}
+            onAddType={(type) => guardMutation(() => openNewFromProjection(type))}
           />
         ) : (
           <FirstThingScreen
@@ -2406,6 +2393,45 @@ function LilicaApp() {
             onRemoveRecord={removeRecord}
             onFinish={() => completeOnboarding()}
             onSkip={() => completeOnboarding()}
+            isReadOnly={isReadOnly || isArchived}
+            onBlockedMutation={() => showBlockedGate()}
+            onOpenMedicalLog={() => setFirstThingMedicalLogOpen(true)}
+          />
+        );
+      case 'itemForm':
+        return state.selectedFirstItemType ? (
+          <ItemFormScreen
+            type={state.selectedFirstItemType}
+            personName={currentSpace?.displayName}
+            onBack={goBack}
+            onSave={completeOnboarding}
+          />
+        ) : firstThingMedicalLogOpen ? (
+          <MedicalLogScreen
+            personName={currentSpace?.displayName}
+            isSelf={currentSpace?.relationshipType === 'Myself'}
+            records={currentSpace?.records ?? []}
+            onBack={() => setFirstThingMedicalLogOpen(false)}
+            onOpenRecord={openRecordFromProjection}
+            onAddType={(type) => guardMutation(() => openNewFromProjection(type))}
+          />
+        ) : (
+          <FirstThingScreen
+            interests={currentSpace?.interests ?? []}
+            personName={currentSpace?.displayName}
+            supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
+            careSpaceId={currentSpace?.careSpaceId ?? ''}
+            records={currentSpace?.records ?? []}
+            activeMembershipId={currentSpace?.membershipId}
+            careCircleMembers={careCircleMembers}
+            onRequestReminderPermission={requestReminderPermission}
+            everyday={currentSpace?.setupStatus === 'ready'}
+            onBack={goBack}
+            onSaveRecord={saveRecord}
+            onRemoveRecord={removeRecord}
+            onFinish={() => completeOnboarding()}
+            onSkip={() => completeOnboarding()}
+            onOpenMedicalLog={() => setFirstThingMedicalLogOpen(true)}
             isReadOnly={isReadOnly || isArchived}
             onBlockedMutation={() => showBlockedGate()}
           />

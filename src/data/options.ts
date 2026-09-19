@@ -1,4 +1,4 @@
-import { LilicaRecordType, Relationship } from '../types';
+import { CategoryOptionId, Relationship } from '../types';
 
 export const relationships: Relationship[] = [
   'Myself',
@@ -20,7 +20,7 @@ export const relationships: Relationship[] = [
 // didn't line up 1:1 with these 8 categories, e.g. one bucket covering
 // both bill and homeMatter) is retired.
 export const firstItemOptions: Array<{
-  id: LilicaRecordType;
+  id: CategoryOptionId;
   title: string;
   description: string;
   // False only for a category that doesn't belong in the initial-setup
@@ -62,6 +62,16 @@ export const firstItemOptions: Array<{
     id: 'careNote',
     title: 'Care information',
     description: 'Medication, visits, routines or useful notes',
+  },
+  // Represents the dedicated Medical Log screen (care needs, diagnosed
+  // conditions and prescribed medicines together) as one Add-flow/setup
+  // gateway -- not a single record type of its own, so 'medicalLog' is
+  // handled as a special case wherever this id is consumed for record
+  // creation (see FirstThingScreen.tsx's openCategory).
+  {
+    id: 'medicalLog',
+    title: 'Medical Log',
+    description: 'Diagnosed conditions, medicines and care needs',
   },
   {
     id: 'update',

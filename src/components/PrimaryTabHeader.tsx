@@ -49,8 +49,18 @@ export function PrimaryTabHeader({
       {(actions || onOpenNotifications || onOpenSettings) ? (
         <View style={styles.actions}>
           {actions}
-          {onOpenNotifications ? <NotificationBellButton count={notificationCount} onPress={onOpenNotifications} tone={tone} /> : null}
-          {onOpenSettings ? <SettingsCogButton onPress={onOpenSettings} tone={tone} /> : null}
+          {(onOpenNotifications || onOpenSettings) ? (
+            // Bell and cog are both 44px touch targets with a small icon
+            // centred inside, so the standard actions gap (spacing.xs)
+            // between them reads as an oversized, uneven gap between the
+            // two icon *graphics* themselves -- this pair sits closer
+            // together as its own group, while the touch targets stay the
+            // full protected minimumTouchTarget size.
+            <View style={styles.iconGroup}>
+              {onOpenNotifications ? <NotificationBellButton count={notificationCount} onPress={onOpenNotifications} tone={tone} /> : null}
+              {onOpenSettings ? <SettingsCogButton onPress={onOpenSettings} tone={tone} /> : null}
+            </View>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -85,5 +95,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  iconGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });

@@ -6,7 +6,7 @@ import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
 import { SecondaryDisclosureRow, SecondaryPageIntro, SecondaryRolePill, SecondarySection } from '../components/SecondaryPage';
-import { CalendarIcon, FileTextIcon, HeartHandshakeIcon, HistoryIcon, HomeIcon, PhoneIcon, ToDoIcon } from '../components/foundationIcons';
+import { CalendarIcon, FileTextIcon, HeartHandshakeIcon, HistoryIcon, HomeIcon, PhoneIcon, PillIcon, ToDoIcon } from '../components/foundationIcons';
 import { ActivityEvent, describeActivityEvent } from '../activity';
 import { CareCircleMember } from '../careCircle';
 import { buildCareSummary } from '../careSummary';
@@ -48,6 +48,7 @@ export function CareSummaryScreen({ records, careCircleMembers, recentActivity, 
     if (key === 'comingUp') return { icon: CalendarIcon, tone: 'plum' as const };
     if (key === 'keyContacts') return { icon: PhoneIcon, tone: 'blue' as const };
     if (key === 'careCircle') return { icon: HeartHandshakeIcon, tone: 'green' as const };
+    if (key === 'medical') return { icon: PillIcon, tone: 'rose' as const };
     if (key === 'documents') return { icon: FileTextIcon, tone: 'plum' as const };
     if (key === 'recentActivity') return { icon: HistoryIcon, tone: 'neutral' as const };
     return { icon: HomeIcon, tone: 'green' as const };

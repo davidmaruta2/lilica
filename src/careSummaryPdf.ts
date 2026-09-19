@@ -29,6 +29,10 @@ function escapeHtml(value: unknown): string {
 }
 
 function recordTypeLabel(type: LilicaRecordType): string {
+  // 'condition'/'medicine' are deliberately not in firstItemOptions (see
+  // its own comment) -- their own dedicated Medical Log labels used here.
+  if (type === 'condition') return 'Diagnosed condition';
+  if (type === 'medicine') return 'Prescribed medicine';
   return firstItemOptions.find((option) => option.id === type)?.title ?? type;
 }
 
@@ -57,6 +61,18 @@ function recordMeta(record: LilicaRecord, members: CareCircleMember[]): string[]
     date,
     assignee ? `Assigned to ${assignee}` : undefined,
   ].filter((value): value is string => Boolean(value));
+}
+
+function medicalDetail(record: LilicaRecord): string | undefined {
+  if (record.type === 'condition') {
+    return record.diagnosedDate ? `Diagnosed ${formatDateForDisplay(record.diagnosedDate)}` : undefined;
+  }
+  if (record.type === 'medicine') {
+    return record.medicineSchedule === 'duration' && record.medicineEndDate
+      ? `Until ${formatDateForDisplay(record.medicineEndDate)}`
+      : 'Ongoing';
+  }
+  return undefined;
 }
 
 function recordItem(record: LilicaRecord, members: CareCircleMember[], detail?: string): string {
@@ -91,6 +107,11 @@ export function buildCareSummaryPdfHtml({
   const appointments = active.filter((record) => record.type === 'appointment');
   const errands = active.filter((record) => record.type === 'task');
   const careInformation = active.filter((record) => record.type === 'careNote');
+  // Medical Log: only active (never closed/resolved) conditions and
+  // medicines, matching MedicalLogScreen's own "current" grouping and
+  // careSummary.ts's identical section -- a quick handover report shows
+  // what currently applies, not full history.
+  const medical = active.filter((record) => (record.type === 'condition' || record.type === 'medicine') && !record.closedAt);
   const documents = active.filter((record) => record.type === 'document');
   const bills = active.filter((record) => record.type === 'bill');
   const homeCar = active.filter((record) => record.type === 'homeMatter');
@@ -106,6 +127,7 @@ export function buildCareSummaryPdfHtml({
     section('Key contacts', contacts.map((record) => recordItem(record, careCircleMembers, [record.role, record.phone, record.email].filter(Boolean).join(' | ')))),
     section('Care Circle', careCircleMembers.map((member) => `<li><strong>${escapeHtml(member.isSelf ? 'You' : member.displayName)}</strong><div class="meta">${escapeHtml(member.role)}</div></li>`)),
     section('Important care information', careInformation.map((record) => recordItem(record, careCircleMembers))),
+    section('Conditions & medicines', medical.map((record) => recordItem(record, careCircleMembers, medicalDetail(record) ?? record.notes))),
     section('Documents index', [
       ...documents.map((record) => recordItem(record, careCircleMembers, record.expiryDate ? `Expires ${formatDateForDisplay(record.expiryDate)}` : record.notes)),
       ...attachments.map(({ record, attachment }) => `<li><strong>${escapeHtml(attachment.name)}</strong><div class="meta">Attached to ${escapeHtml(record.title)}</div></li>`),

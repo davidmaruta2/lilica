@@ -15,7 +15,7 @@ import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
 import { firstItemOptions } from '../data/options';
 import { colors, radius, shadow, spacing } from '../theme';
-import { LilicaRecordType } from '../types';
+import { CategoryOptionId } from '../types';
 
 // Corrective task: the choices here are the real canonical record
 // categories (firstItemOptions, minus any not eligible for initial
@@ -28,7 +28,7 @@ import { LilicaRecordType } from '../types';
 const setupOptions = firstItemOptions.filter((option) => option.onboardingEligible !== false);
 
 type Props = {
-  selected: LilicaRecordType[];
+  selected: CategoryOptionId[];
   personName?: string;
   // True for the organiser's own "Myself" care space. "What do you help
   // David with?" is grammatically fine but conceptually odd once the
@@ -37,7 +37,7 @@ type Props = {
   // the fork already established -- no new domain concept.
   isSelf?: boolean;
   onBack: () => void;
-  onToggle: (type: LilicaRecordType) => void;
+  onToggle: (type: CategoryOptionId) => void;
   onContinue: () => void;
   onSkip: () => void;
 };

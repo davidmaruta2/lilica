@@ -139,7 +139,7 @@ The exact post-build delta also includes the returning-account duplicate-person 
 
 1. ~~Obtain express product-owner approval before starting any new iOS or Android build~~ -- obtained and executed 19 September 2026: `1.0.0 (4)` both platforms, submitted to TestFlight and Google Play internal. See `docs/REVISION_LOG.md`.
 2. ~~Build/install new `store-test` binaries containing the approved icon, duplicate-person fix, and OTA foundation~~ -- done, per above.
-3. Supply Apple's subscription review screenshot and final subscription review metadata.
+3. ~~Supply Apple's subscription review screenshot~~ -- done 19 September 2026, via the App Store Connect API directly (`subscriptionAppStoreReviewScreenshots`), using David's Lilica in-app subscription screen padded to Apple's required 1242x2208px canvas. State confirmed `COMPLETE`. Final subscription review metadata (beyond the screenshot) remains outstanding.
 4. Run physical iPhone sandbox purchase, restore, renewal, cancellation, expiry, and refund/revocation checks.
 5. Add/confirm licensed Google Play testers and run equivalent Android internal-track checks.
 6. ~~Configure a durable EAS-managed Google Play submission credential~~ -- done 19 September 2026; a permanent Apple key was also configured at the same time. Both are wired into `eas.json` outside the repo. Never ask David to re-supply these.

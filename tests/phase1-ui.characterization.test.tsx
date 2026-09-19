@@ -148,7 +148,7 @@ describe('protected structured-record onboarding', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
-  it('renders the protected heading, skip route and all eight categories', async () => {
+  it('renders the protected heading, skip route and all nine categories', async () => {
     const screen = await render(<FirstThingScreen {...props} />);
     screen.getByText("Let's get Margaret organised.");
     [
@@ -159,6 +159,7 @@ describe('protected structured-record onboarding', () => {
       'Important document',
       'Contact',
       'Care information',
+      'Medical Log',
       'Wellbeing update',
     ].forEach((label) => screen.getByLabelText(`Add ${label}`));
     screen.getByText('A repair, service, MOT or maintenance job');
@@ -189,7 +190,7 @@ describe('protected structured-record onboarding', () => {
     const categoryLabels = screen.getAllByRole('button')
       .map((item) => item.props.accessibilityLabel as string | undefined)
       .filter((label): label is string => Boolean(label?.startsWith('Add ')));
-    expect(categoryLabels).toHaveLength(8);
+    expect(categoryLabels).toHaveLength(9);
     screen.getByLabelText('Add Care information');
   });
 
@@ -213,7 +214,7 @@ describe('protected structured-record onboarding', () => {
     const categoryLabels = screen.getAllByRole('button')
       .map((item) => item.props.accessibilityLabel as string | undefined)
       .filter((label): label is string => Boolean(label?.startsWith('Add ')));
-    expect(categoryLabels).toHaveLength(8);
+    expect(categoryLabels).toHaveLength(9);
   });
 
   // Explicit product direction: closing the sheet (Done) now saves

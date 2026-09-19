@@ -24,7 +24,7 @@ import { createUuid } from '../identifiers';
 import { createRecordLink, LinkedRecordSummary, listRecordLinks, removeRecordLink } from '../recordLinks';
 import { formatDateForDisplay, isLinkableRecordType, linkPickerSummary } from '../records';
 import { colors, radius, spacing } from '../theme';
-import { LilicaRecord, LilicaRecordType } from '../types';
+import { CategoryOptionId, LilicaRecord, LilicaRecordType } from '../types';
 
 type Props = {
   // Corrective task: which categories were chosen on "What do you help
@@ -32,7 +32,7 @@ type Props = {
   // `ordered`) to decide which category cards this screen offers WHILE
   // `everyday` is false; has no effect at all once `everyday` is true
   // (or here in any other way) -- never a filter/permission/capability.
-  interests: LilicaRecordType[];
+  interests: CategoryOptionId[];
   personName?: string;
   supportedPersonId: string;
   // Phase 17: needed for record-link and cloud-attachment RPCs, both
@@ -70,6 +70,11 @@ type Props = {
   // stays visible but blocked, exactly like RecordQuickEditor.
   isReadOnly?: boolean;
   onBlockedMutation?: () => void;
+  // The "Medical Log" card is a gateway to the dedicated MedicalLogScreen
+  // (all three sections together), not a single record type this screen's
+  // own list/editor sheet can render -- so it's handled separately from
+  // every other card, via this callback, rather than through openCategory.
+  onOpenMedicalLog?: () => void;
 };
 
 const CLOSED_HEIGHT = 118;
@@ -108,6 +113,7 @@ export function FirstThingScreen({
   onSkip,
   isReadOnly,
   onBlockedMutation,
+  onOpenMedicalLog,
 }: Props) {
   const name = personName?.trim() || 'them';
   const list = useRef<FlatList<(typeof firstItemOptions)[number]>>(null);
@@ -329,7 +335,13 @@ export function FirstThingScreen({
           list.current?.scrollToOffset({ offset: index * (CLOSED_HEIGHT + ITEM_GAP), animated: true });
         }}
         renderItem={({ item, index }) => {
-          const savedRecords = records.filter((record) => record.type === item.id);
+          // The Medical Log card spans two real record types (plus the
+          // pre-existing Care information card's own careNote records) --
+          // count its own badge across condition/medicine specifically,
+          // never careNote, so the two cards' counts never overlap.
+          const savedRecords = item.id === 'medicalLog'
+            ? records.filter((record) => record.type === 'condition' || record.type === 'medicine')
+            : records.filter((record) => record.type === item.id);
           const hasRecords = savedRecords.length > 0;
           const focusOffset = snapOffsets[index] ?? index * (CLOSED_HEIGHT + ITEM_GAP);
           const inputRange = [focusOffset - CLOSED_HEIGHT, focusOffset, focusOffset + CLOSED_HEIGHT];
@@ -352,7 +364,10 @@ export function FirstThingScreen({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`${hasRecords ? 'Open' : 'Add'} ${item.title}`}
-                onPress={() => openCategory(index, item.id)}
+                onPress={() => {
+                  if (item.id === 'medicalLog') { onOpenMedicalLog?.(); return; }
+                  openCategory(index, item.id);
+                }}
                 style={styles.itemHeader}
               >
                   <View style={[styles.categoryMark, hasRecords && styles.categoryMarkSaved]}>
