@@ -25,8 +25,10 @@ David has said explicitly and repeatedly that re-finding/re-supplying these cred
 
 - **Apple App Store Connect API key:** `C:\Users\DavidPC\.lilica-credentials\AuthKey_5LPXC77JFN.p8`, Key ID `5LPXC77JFN`, Issuer ID `67953a69-92f8-4cce-931b-8543e12844dd`.
 - **Google Play service-account key:** `C:\Users\DavidPC\.lilica-credentials\google-service-account.json` (`revenuecat-service-account@lilica-6gy1l5.iam.gserviceaccount.com`).
+- **RevenueCat Secret API key:** `C:\Users\DavidPC\.lilica-credentials\revenuecat_secret_api_key.txt` (`sk_...`).
+- **Resend API key (production):** `C:\Users\DavidPC\.lilica-credentials\resend_api_key_production.txt`.
 
-Both are referenced by absolute path in `eas.json`'s `submit.store-test` and `submit.production` blocks and work non-interactively (`eas submit --non-interactive`) exactly as-is. **If a submission fails with a credentials error, check `eas.json` and confirm the files still exist at these paths before ever asking David to regenerate anything.** These files are permanent and outside the repository by design (never commit them; see `AGENTS.md`). Full context: `docs/REVISION_LOG.md`'s 19 September "Production Supabase/EAS and durable submission credentials" entry.
+The Apple/Google keys are referenced by absolute path in `eas.json`'s `submit.store-test` and `submit.production` blocks and work non-interactively (`eas submit --non-interactive`) exactly as-is. **David has said explicitly, more than once, that being asked to re-supply any of these four credentials in a future session is unacceptable. If a submission fails with a credentials error, or RevenueCat/Resend access is needed, check these exact paths first -- never ask David to regenerate or re-supply anything before confirming the file is genuinely missing.** These files are permanent and outside the repository by design (never commit them; see `AGENTS.md`). Full context: `docs/REVISION_LOG.md`'s 19 September entries.
 
 ## iOS device family
 

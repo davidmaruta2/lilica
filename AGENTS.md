@@ -42,8 +42,10 @@ David has stated explicitly, more than once, that re-asking him for these creden
 
 - Apple API key: `C:\Users\DavidPC\.lilica-credentials\AuthKey_5LPXC77JFN.p8` (Key ID `5LPXC77JFN`, Issuer ID `67953a69-92f8-4cce-931b-8543e12844dd`).
 - Google service-account key: `C:\Users\DavidPC\.lilica-credentials\google-service-account.json` (`revenuecat-service-account@lilica-6gy1l5.iam.gserviceaccount.com`).
+- RevenueCat Secret API key: `C:\Users\DavidPC\.lilica-credentials\revenuecat_secret_api_key.txt` (`sk_...`) -- usable directly against RevenueCat's v2 API for inspecting/managing webhooks, apps, products, entitlements without dashboard access.
+- Resend API key (production): `C:\Users\DavidPC\.lilica-credentials\resend_api_key_production.txt` -- also set as the `RESEND_API_KEY` Supabase secret on `lilica-production`.
 
-`eas submit --non-interactive` already works with these as configured. Do not ask David for an Apple or Google key again -- if a submission errors on credentials, check these exact paths/`eas.json` fields first. Full detail: `docs/REVISION_LOG.md`'s 19 September "Production Supabase/EAS and durable submission credentials" entry.
+`eas submit --non-interactive` already works with the Apple/Google keys as configured. **Do not ask David for any of these four credentials again** -- if a submission errors on credentials, or if RevenueCat/Resend access is needed, check these exact paths first. Full detail: `docs/REVISION_LOG.md`'s 19 September entries.
 
 ## Post-build implementation batch (17 September 2026)
 
