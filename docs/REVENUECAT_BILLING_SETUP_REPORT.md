@@ -105,7 +105,7 @@ Google availability is currently UK-only. Wider territories and prices should be
 - The no-op test did not alter a user's entitlement record.
 - No webhook secret or temporary HMAC material remains in the repository.
 
-Apple Server Notifications V2 and Google Real-time Developer Notifications still need their final store-side verification/configuration before production launch.
+Apple Server Notifications V2 and Google Real-time Developer Notifications are now configured and confirmed (see "Remaining launch gates" item 7 below).
 
 ## EAS configuration
 
@@ -143,7 +143,7 @@ The exact post-build delta also includes the returning-account duplicate-person 
 4. Run physical iPhone sandbox purchase, restore, renewal, cancellation, expiry, and refund/revocation checks.
 5. Add/confirm licensed Google Play testers and run equivalent Android internal-track checks.
 6. ~~Configure a durable EAS-managed Google Play submission credential~~ -- done 19 September 2026; a permanent Apple key was also configured at the same time. Both are wired into `eas.json` outside the repo. Never ask David to re-supply these.
-7. Configure/verify Apple Server Notifications V2 and Google RTDN through RevenueCat.
+7. ~~Configure/verify Apple Server Notifications V2 and Google RTDN through RevenueCat~~ -- done 19 September 2026. Apple: RevenueCat's one-click "Apply to App Store Connect" button on the Lilica iOS app page succeeded. Google: required granting the RevenueCat service account (`revenuecat-service-account@lilica-6gy1l5.iam.gserviceaccount.com`) the Pub/Sub Editor IAM role on Google Cloud project `lilica-6gy1l5` first (initial attempt failed with a Pub/Sub topic permission error); after that fix, RevenueCat's "Connect to Google" button (topic `Play-Store-Notifications`) succeeded. See `docs/REVISION_LOG.md`'s 19 September entry.
 8. Confirm a real store event reaches RevenueCat, passes the signed webhook, updates Supabase entitlement state, and changes Lilica's access gates correctly. (The webhook plumbing itself -- a correctly environment-scoped production integration -- is now independently verified via the RevenueCat API as of 19 September 2026; an end-to-end real-purchase proof is still outstanding.)
 9. Verify purchase on one platform and login on the other for the same Lilica account.
 10. ~~Create production Supabase/EAS environment values before any production build~~ -- done and independently verified 19 September 2026: `lilica-production` (`luyoyupghbxjftqwzcfn`), fully migrated, pgTAP-proven, edge functions deployed, RevenueCat production webhook correctly scoped, Auth SMTP/URLs/OTP length all confirmed correct. See `docs/REVISION_LOG.md` and `docs/SUPABASE_OPERATIONS.md`. This does not itself authorise a production build.

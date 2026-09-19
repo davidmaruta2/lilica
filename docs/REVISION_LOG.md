@@ -1,5 +1,11 @@
 # Revision Log
 
+## 19 September 2026 - Apple Server Notifications V2 / Google RTDN confirmed configured
+
+David completed both console-side confirmations that were left pending after a mid-session computer restart (see the entries below). **Apple:** used RevenueCat's own one-click "Apply to App Store Connect" integration button on the Lilica iOS app page; it returned success. **Google:** the first attempt via RevenueCat's "Connect to Google" button (Lilica Android app page, topic ID `Play-Store-Notifications`) failed with "Your Google service account credentials do not have permission to create a Google Cloud Pub/Sub topic" -- the RevenueCat service account (`revenuecat-service-account@lilica-6gy1l5.iam.gserviceaccount.com`) lacked the Pub/Sub Editor IAM role on Google Cloud project `lilica-6gy1l5`. David granted that role via Google Cloud Console -> IAM & Admin -> IAM, then retried "Connect to Google", which succeeded.
+
+Both Apple ASN V2 and Google RTDN are now genuinely wired -- confirmed via each platform's own success state, not merely assumed. This closes `docs/REVENUECAT_BILLING_SETUP_REPORT.md`'s remaining-launch-gates item 7. Real subscription lifecycle events (renewal, cancellation, refund, billing retry) on both stores can now reach RevenueCat, and from there the already-verified signed webhook into Supabase, in real time. This does not itself constitute end-to-end proof with a real purchase (that remains a separate outstanding QA item) and does not authorise any build, submission, or production release.
+
 ## 19 September 2026 - First production-profile build: iOS/Android 1.0.0 (5)
 
 On David's explicit authorisation ("generate the new android and apple builds and submit both to stores when they are done"), the first ever `production`-profile build was run, following the full pre-build validation checklist: `npm run typecheck` clean, Jest 104 suites/916 tests pass, `secrets:check` clean (423 files), resolved Expo config confirmed (real icon, `ios.supportsTablet: false`, correct bundle id, OTA update URL/runtime policy), `expo export --platform web` clean, `git diff --check` clean, from commit `313d064`.
