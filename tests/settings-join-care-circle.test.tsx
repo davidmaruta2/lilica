@@ -52,7 +52,11 @@ describe('Settings drawer: "Join a Care Circle" is always reachable', () => {
         onOpenContact={jest.fn()}
       />,
     );
-    screen.getByText('Care Circle');
+    // getByLabelText (the row's own accessibilityLabel), not getByText --
+    // since the 20 September 2026 grouping correction, "Care Circle" is
+    // now also the group heading text above these rows, so a plain text
+    // match is ambiguous between the two.
+    screen.getByLabelText('Care Circle');
     screen.getByText('Join a Care Circle');
   });
 

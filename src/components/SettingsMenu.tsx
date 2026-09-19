@@ -188,8 +188,15 @@ export function SettingsMenu({
       : []),
   ];
 
-  const accountEntries = [
-    { key: 'account', label: 'Account', description: 'Your profile, reminders and sign out', icon: UserIcon, onPress: onOpenAccount },
+  // 20 September 2026 grouping correction (direct product-owner report):
+  // Care Circle/Join a Care Circle/Archived care are about who else has
+  // access to this care space, never about the signed-in user's own
+  // account -- a different mental category from Account/Privacy &
+  // data/Subscription, exactly the split serious multi-user apps make
+  // (Notion "Members" vs "My account", 1Password "People" vs "Account",
+  // Slack "Team members" vs "Profile & account", Dropbox "Sharing" vs
+  // "Account"). Kept as its own group below, separate from accountEntries.
+  const careCircleEntries = [
     ...(onOpenCareCircle
       ? [{ key: 'careCircle', label: 'Care Circle', description: 'Who can help, and what they can see', icon: UsersRoundIcon, onPress: onOpenCareCircle }]
       : []),
@@ -201,13 +208,20 @@ export function SettingsMenu({
     // own set up yet -- exactly who a fresh invitation code is most
     // likely to reach -- had no way to find it at all. Always offered
     // here (App.tsx always supplies onOpenJoinCareCircle), regardless of
-    // onOpenCareCircle/careCircleAvailable, for that reason.
+    // onOpenCareCircle/careCircleAvailable, for that reason -- and
+    // (20 September 2026, explicit product-owner decision) this is
+    // exactly why the "Care Circle" group heading itself still appears
+    // for someone with nothing set up yet, showing only this row.
     ...(onOpenJoinCareCircle
       ? [{ key: 'joinCareCircle', label: 'Join a Care Circle', description: 'Enter an invitation code you\'ve been sent', icon: HeartHandshakeIcon, onPress: onOpenJoinCareCircle }]
       : []),
     ...(onOpenArchivedCare
       ? [{ key: 'archivedCare', label: 'Archived care', description: 'Care spaces you\'ve paused', icon: ArchiveIcon, onPress: onOpenArchivedCare }]
       : []),
+  ];
+
+  const accountEntries = [
+    { key: 'account', label: 'Account', description: 'Your profile, reminders and sign out', icon: UserIcon, onPress: onOpenAccount },
     { key: 'privacyData', label: 'Privacy & data', description: 'What Lilica stores, export, and device data', icon: LockIcon, onPress: onOpenPrivacyData },
     { key: 'subscription', label: 'Subscription', description: subscriptionSummary ?? 'Your Lilica subscription', icon: CreditCardIcon, onPress: onOpenSubscription },
   ];
@@ -254,6 +268,14 @@ export function SettingsMenu({
                         {personName ? `${personName}'s care` : 'This care space'}
                       </AppText>
                       {personCareEntries.map((entry) => (
+                        <SettingsRow key={entry.key} icon={entry.icon} label={entry.label} description={entry.description} onPress={entry.onPress} />
+                      ))}
+                    </View>
+                  ) : null}
+                  {careCircleEntries.length > 0 ? (
+                    <View style={styles.group}>
+                      <AppText variant="meta" tone="muted" style={styles.groupLabel}>Care Circle</AppText>
+                      {careCircleEntries.map((entry) => (
                         <SettingsRow key={entry.key} icon={entry.icon} label={entry.label} description={entry.description} onPress={entry.onPress} />
                       ))}
                     </View>
