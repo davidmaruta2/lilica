@@ -12,7 +12,7 @@
 
 **Diagnostic accounts created and deleted during investigation:** several throwaway/duplicate test signups were created directly against `lilica-production`'s Auth API to reproduce and isolate the fault (including transient duplicates of `davidmaruta@gmail.com`), each deleted immediately after via the admin API once no longer needed. Zero diagnostic accounts remain on `lilica-production` as of this entry.
 
-**Outstanding:** confirm with David that signup now succeeds on-device after the OTA lands. If it does not, the fix did not reach the device (check the app's current update group) or there is a second, independent fault.
+**Confirmed:** David tried signup again after the OTA landed and it succeeded. Closed.
 
 ## 19 September 2026 - Password show/hide toggle added to auth and recovery screens
 
