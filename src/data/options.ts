@@ -70,7 +70,7 @@ export const firstItemOptions: Array<{
   // creation (see FirstThingScreen.tsx's openCategory).
   {
     id: 'medicalLog',
-    title: 'Medical Log',
+    title: 'Medical issues',
     description: 'Diagnosed conditions, medicines and care needs',
   },
   {

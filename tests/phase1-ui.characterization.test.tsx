@@ -159,7 +159,7 @@ describe('protected structured-record onboarding', () => {
       'Important document',
       'Contact',
       'Care information',
-      'Medical Log',
+      'Medical issues',
       'Wellbeing update',
     ].forEach((label) => screen.getByLabelText(`Add ${label}`));
     screen.getByText('A repair, service, MOT or maintenance job');

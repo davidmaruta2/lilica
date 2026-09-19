@@ -1,5 +1,9 @@
 # Revision Log
 
+## 20 September 2026 - Apple subscription review screenshot uploaded
+
+David supplied two screenshots of the RevenueCat sandbox purchase flow (one with the native iOS purchase-confirmation sheet visible, one of Lilica's own clean subscription screen). Uploaded the clean subscription-screen image directly to App Store Connect via its API (`subscriptionAppStoreReviewScreenshots`, subscription `6812831899`), using the durable Apple App Store Connect API key. First attempt failed (`IMAGE_INCORRECT_DIMENSIONS` -- the source was 828x1792, Apple requires exactly 1242x2208 for this asset); fixed by padding the image onto a white 1242x2208 canvas (centred, undistorted) and re-uploading. Confirmed `assetDeliveryState.state: "COMPLETE"` via a follow-up GET. Closes `docs/REVENUECAT_BILLING_SETUP_REPORT.md` remaining-launch-gates item 3. Final subscription review metadata beyond the screenshot itself remains outstanding.
+
 ## 20 September 2026 - OTA: Medical Log Add-flow tile, Care Summary medical section, Care Circle regrouping, header spacing fix
 
 Published to the `production` channel on David's explicit approval (update group `0c587d88-d63a-4c81-ad36-8020227beca5`, both iOS and Android, runtime `1.0.0`, commit `68f6247`). Confirmed JS/UI-only beforehand via `git diff` against the prior OTA's commit -- no `app.json`/`package.json`/`eas.json` changes, so no native build was required. Contains:
