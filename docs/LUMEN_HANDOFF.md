@@ -57,6 +57,10 @@ Built from commit `313d064`. Contains everything `1.0.0 (4)` (the `store-test`/d
 
 **Not yet done, and not resolved by this build:** Android's `eas.json` submit track is still `internal` (David's choice, changeable to `production` with no rebuild needed when ready); iOS still needs a manual "submit for App Store review" and release action in App Store Connect to go public. Neither is a build-content gap.
 
+## RESOLVED: production signup was completely broken (19 September 2026)
+
+David could not create any account on the installed `1.0.0 (5)` build -- traced to a stale `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in the EAS `production` environment that didn't match `lilica-production`'s actual current key, causing every Supabase request from the app to fail with `401 Invalid API key`. Fixed by correcting the EAS env var and shipping it via OTA (update group `c9ff772b-2a9c-4d03-880d-f6cf103028e6`) rather than a new native build, since `EXPO_PUBLIC_*` values resolve at JS-bundle time. Full diagnosis and fix detail: `docs/REVISION_LOG.md`'s 19 September "CRITICAL" entry. **Confirm with David that signup now works on-device -- do not assume the OTA fixed it without his confirmation.**
+
 ## Apple ASN V2 / Google RTDN: now CONFIRMED CONFIGURED (19 September 2026)
 
 Both sides confirmed directly by David, not just "looks fine":

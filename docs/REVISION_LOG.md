@@ -1,5 +1,23 @@
 # Revision Log
 
+## 19 September 2026 - CRITICAL: production signup was completely broken; fixed via OTA
+
+**Symptom:** David could not create an account on the installed `1.0.0 (5)` production build -- "Your account could not be created just now. Please try again." -- for any email address, on both WiFi and cellular, on repeated attempts including after killing and relaunching the app.
+
+**Diagnosis:** direct API calls against `lilica-production`'s Auth endpoint using the project's actual current key succeeded every time, but no user record was ever created server-side from David's real attempts -- proving the request was being rejected before reaching account logic, not intermittently failing. Cross-checking `eas env:list --environment production` against `supabase projects api-keys --project-ref luyoyupghbxjftqwzcfn` found the two `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` values did not match. A direct curl using the EAS-configured (built-in) key value returned `401 {"message":"Invalid API key","hint":"...This API key might also be owned by another Supabase project."}`; the same call with the project's actual current key succeeded. This confirmed every Supabase request from the installed app -- not just signup -- was being rejected with an unrecognised error, which the app's `friendlyAuthError()` silently maps to its generic fallback text for any action.
+
+**Root cause:** the EAS `production` environment's `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, set once when the production backend was originally configured, did not match `lilica-production`'s actual current publishable key (rotated or mistyped since) and was baked into the `1.0.0 (5)` binary at build time.
+
+**Fix (David's explicit approval obtained first):** `eas env:set production --name EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY --value sb_publishable_nLeYaWTZqb_yzjVTzdGReA_hEB2q0zh --environment production`, confirmed via a fresh `eas env:list`. Because `EXPO_PUBLIC_*` values are resolved at JS-bundle time (not compiled into native code), this was recoverable without a new native build: an `eas update --channel production --environment production` OTA publish (update group `c9ff772b-2a9c-4d03-880d-f6cf103028e6`, both iOS and Android, runtime `1.0.0`, commit `656a98d`) shipped the corrected key to the already-installed binary. The same OTA also carried the password show/hide eye toggle (see below) -- both were bundled into one publish since both were approved together.
+
+**Diagnostic accounts created and deleted during investigation:** several throwaway/duplicate test signups were created directly against `lilica-production`'s Auth API to reproduce and isolate the fault (including transient duplicates of `davidmaruta@gmail.com`), each deleted immediately after via the admin API once no longer needed. Zero diagnostic accounts remain on `lilica-production` as of this entry.
+
+**Outstanding:** confirm with David that signup now succeeds on-device after the OTA lands. If it does not, the fix did not reach the device (check the app's current update group) or there is a second, independent fault.
+
+## 19 September 2026 - Password show/hide toggle added to auth and recovery screens
+
+Pure JS/UI change (`src/components/TextField.tsx` gained an optional `rightAccessory` slot; wired to a Lucide eye/eye-off icon button in `src/screens/EmailAuthScreen.tsx` and `src/screens/RecoveryScreen.tsx`), no new native dependency. Commit `656a98d`. Published via the same OTA update as the signup key fix above (update group `c9ff772b-2a9c-4d03-880d-f6cf103028e6`, `production` channel).
+
 ## 19 September 2026 - Apple Server Notifications V2 / Google RTDN confirmed configured
 
 David completed both console-side confirmations that were left pending after a mid-session computer restart (see the entries below). **Apple:** used RevenueCat's own one-click "Apply to App Store Connect" integration button on the Lilica iOS app page; it returned success. **Google:** the first attempt via RevenueCat's "Connect to Google" button (Lilica Android app page, topic ID `Play-Store-Notifications`) failed with "Your Google service account credentials do not have permission to create a Google Cloud Pub/Sub topic" -- the RevenueCat service account (`revenuecat-service-account@lilica-6gy1l5.iam.gserviceaccount.com`) lacked the Pub/Sub Editor IAM role on Google Cloud project `lilica-6gy1l5`. David granted that role via Google Cloud Console -> IAM & Admin -> IAM, then retried "Connect to Google", which succeeded.
