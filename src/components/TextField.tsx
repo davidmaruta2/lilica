@@ -8,9 +8,10 @@ import { AppText } from './Text';
 type TextFieldProps = TextInputProps & {
   label: string;
   compact?: boolean;
+  rightAccessory?: React.ReactNode;
 };
 
-export const TextField = forwardRef<TextInput, TextFieldProps>(function TextField({ label, compact, style, ...props }, ref) {
+export const TextField = forwardRef<TextInput, TextFieldProps>(function TextField({ label, compact, style, rightAccessory, ...props }, ref) {
   const [focused, setFocused] = useState(false);
   const revealFocusedInput = useRevealFocusedInput();
 
@@ -19,22 +20,31 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
       <AppText variant="secondary" tone="soft" style={styles.label}>
         {label}
       </AppText>
-      <TextInput
-        {...props}
-        ref={ref}
-        allowFontScaling
-        placeholderTextColor={colors.muted}
-        onBlur={(event) => {
-          setFocused(false);
-          props.onBlur?.(event);
-        }}
-        onFocus={(event) => {
-          setFocused(true);
-          revealFocusedInput(event.nativeEvent.target);
-          props.onFocus?.(event);
-        }}
-        style={[styles.input, compact && styles.compactInput, focused && styles.focused, style]}
-      />
+      <View style={styles.inputRow}>
+        <TextInput
+          {...props}
+          ref={ref}
+          allowFontScaling
+          placeholderTextColor={colors.muted}
+          onBlur={(event) => {
+            setFocused(false);
+            props.onBlur?.(event);
+          }}
+          onFocus={(event) => {
+            setFocused(true);
+            revealFocusedInput(event.nativeEvent.target);
+            props.onFocus?.(event);
+          }}
+          style={[
+            styles.input,
+            compact && styles.compactInput,
+            focused && styles.focused,
+            Boolean(rightAccessory) && styles.inputWithAccessory,
+            style,
+          ]}
+        />
+        {rightAccessory ? <View style={styles.accessory}>{rightAccessory}</View> : null}
+      </View>
     </View>
   );
 });
@@ -45,6 +55,16 @@ const styles = StyleSheet.create({
   },
   label: {
     paddingHorizontal: spacing.xs,
+  },
+  inputRow: {
+    justifyContent: 'center',
+  },
+  accessory: {
+    position: 'absolute',
+    right: spacing.xs,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
     minHeight: 66,
@@ -59,6 +79,9 @@ const styles = StyleSheet.create({
   focused: {
     borderColor: colors.primary,
     backgroundColor: colors.white,
+  },
+  inputWithAccessory: {
+    paddingRight: spacing.xxl,
   },
   compactInput: {
     minHeight: 52,

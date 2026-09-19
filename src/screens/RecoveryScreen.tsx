@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '../components/Button';
+import { FoundationIcon } from '../components/FoundationIcon';
+import { EyeIcon, EyeOffIcon } from '../components/foundationIcons';
 import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
@@ -70,6 +72,7 @@ export function RecoveryEmailSentScreen({ email, onEnterCode }: {
 export function RecoveryPasswordScreen({ linkError, onUpdate }: { linkError?: string; onUpdate: (password: string) => Promise<Result> }) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>();
   const valid = password.length >= 8 && password === confirm;
@@ -89,8 +92,32 @@ export function RecoveryPasswordScreen({ linkError, onUpdate }: { linkError?: st
         <AppText variant="display" tone="primary">Choose a new password</AppText>
         <AppText variant="body" tone="soft" style={styles.passwordCopy}>Use at least 8 characters and enter it twice.</AppText>
         <View style={styles.form}>
-          <TextField label="New password" secureTextEntry autoComplete="new-password" value={password} onChangeText={setPassword} placeholder="At least 8 characters" />
-          <TextField label="Confirm password" secureTextEntry autoComplete="new-password" value={confirm} onChangeText={setConfirm} placeholder="Type it again" />
+          <TextField
+            label="New password"
+            secureTextEntry={!passwordVisible}
+            autoComplete="new-password"
+            value={password}
+            onChangeText={setPassword}
+            placeholder="At least 8 characters"
+            rightAccessory={
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
+                onPress={() => setPasswordVisible((visible) => !visible)}
+                hitSlop={8}
+              >
+                <FoundationIcon icon={passwordVisible ? EyeOffIcon : EyeIcon} role="utility" color={colors.muted} />
+              </Pressable>
+            }
+          />
+          <TextField
+            label="Confirm password"
+            secureTextEntry={!passwordVisible}
+            autoComplete="new-password"
+            value={confirm}
+            onChangeText={setConfirm}
+            placeholder="Type it again"
+          />
           {confirm.length > 0 && password !== confirm ? <AppText variant="secondary" tone="danger">Passwords do not match.</AppText> : null}
           {linkError || error ? <AppText variant="secondary" tone="danger" accessibilityRole="alert">{linkError ?? error}</AppText> : null}
         </View>

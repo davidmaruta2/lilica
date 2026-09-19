@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button } from '../components/Button';
+import { FoundationIcon } from '../components/FoundationIcon';
+import { EyeIcon, EyeOffIcon } from '../components/foundationIcons';
 import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
@@ -31,6 +33,7 @@ export function EmailAuthScreen({
 }: Props) {
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>();
   const passwordInput = useRef<TextInput>(null);
@@ -86,12 +89,22 @@ export function EmailAuthScreen({
             autoCapitalize="none"
             autoComplete={mode === 'create' ? 'new-password' : 'current-password'}
             autoCorrect={false}
-            secureTextEntry
+            secureTextEntry={!passwordVisible}
             placeholder="At least 8 characters"
             value={password}
             onChangeText={setPassword}
             returnKeyType="done"
             onSubmitEditing={canSubmit ? () => void submit() : undefined}
+            rightAccessory={
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
+                onPress={() => setPasswordVisible((visible) => !visible)}
+                hitSlop={8}
+              >
+                <FoundationIcon icon={passwordVisible ? EyeOffIcon : EyeIcon} role="utility" color={colors.muted} />
+              </Pressable>
+            }
           />
           {error ? <AppText variant="secondary" tone="danger" accessibilityRole="alert">{error}</AppText> : null}
           {mode === 'login' ? <Button label="Forgot password?" variant="text" onPress={onForgotPassword} /> : null}

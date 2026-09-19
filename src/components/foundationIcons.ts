@@ -39,3 +39,5 @@ export const ShieldIcon = iconFromModule(require('lucide-react-native/icons/shie
 export const PillIcon = iconFromModule(require('lucide-react-native/icons/pill'));
 export const ScanFaceIcon = iconFromModule(require('lucide-react-native/icons/scan-face'));
 export const LightbulbIcon = iconFromModule(require('lucide-react-native/icons/lightbulb'));
+export const EyeIcon = iconFromModule(require('lucide-react-native/icons/eye'));
+export const EyeOffIcon = iconFromModule(require('lucide-react-native/icons/eye-off'));
