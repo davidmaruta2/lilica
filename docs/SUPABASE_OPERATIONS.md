@@ -64,6 +64,14 @@ Review every dry run. Dashboard-only schema changes are prohibited because they 
 
 The migration in `supabase/migrations/` is authoritative schema history. `supabase/seed.sql` deliberately contains no shared users or profile data.
 
+### Hosted Medical Log deployment - 19 September 2026
+
+- `npx supabase db push --linked --dry-run` listed only `20260917130000_medical_log.sql`, with no seeds or roles.
+- `npx supabase db push --linked` applied that migration only to `lilica-development`.
+- Local and linked suites each passed all 496 pgTAP assertions across twenty-three files; warning-level database lint returned only two pre-existing, unrelated warnings (`delete_care_space`, `accept_invitation_group`), neither introduced by this migration.
+- Local and linked migration histories match through `20260917130000`. No Auth configuration, Storage resource, seed, role or production project was changed. This migration widens the `records_type` CHECK constraint and redefines (same signatures) `record_domain_for_type()` and `apply_record_mutation()` to recognise two new record types, `condition` and `medicine`, both mapped to the existing `health` domain.
+- Docker Desktop was off for the preceding several sessions, leaving this migration reviewed by hand only; it is now database-proven on both local and hosted development.
+
 ### Hosted Phase 21B deployment - 14 September 2026
 
 - `npx supabase db push --linked --dry-run` listed only `20260914090000_phase21b_billing_entitlement.sql`, with no seeds or roles.
