@@ -1,5 +1,15 @@
 # Revision Log
 
+## 20 September 2026 - OTA: Medical Log Add-flow tile, Care Summary medical section, Care Circle regrouping, header spacing fix
+
+Published to the `production` channel on David's explicit approval (update group `0c587d88-d63a-4c81-ad36-8020227beca5`, both iOS and Android, runtime `1.0.0`, commit `68f6247`). Confirmed JS/UI-only beforehand via `git diff` against the prior OTA's commit -- no `app.json`/`package.json`/`eas.json` changes, so no native build was required. Contains:
+
+- A "Medical Log" card in the Add flow and the onboarding "What do you help X with?" carousel, opening the existing MedicalLogScreen directly (see `CategoryOptionId` in `src/types.ts`).
+- Care Summary (in-app and the exported PDF) now includes an active conditions/medicines section.
+- Care Circle's "Care & health" permission description now names Medical Log explicitly.
+- Settings drawer: Care Circle/Join a Care Circle/Archived care split into their own "Care Circle" group, separate from Account (direct product-owner request, comparing against how Notion/1Password/Slack/Dropbox separate account settings from sharing/membership settings). The group heading stays visible even for someone with no care space of their own yet, showing only "Join a Care Circle" -- explicit product-owner decision.
+- Notification bell/settings cog spacing tightened in the primary tab header.
+
 ## 19 September 2026 - CRITICAL: production signup was completely broken; fixed via OTA
 
 **Symptom:** David could not create an account on the installed `1.0.0 (5)` production build -- "Your account could not be created just now. Please try again." -- for any email address, on both WiFi and cellular, on repeated attempts including after killing and relaunching the app.
