@@ -46,12 +46,13 @@ Built from commit `313d064`, the first build genuinely wired to `lilica-producti
 
 ## OTA state -- two updates published to `production`, both confirmed working
 
-The installed `1.0.0 (5)` binary is OTA-capable (`expo-updates`, update URL, `runtimeVersion.policy: appVersion`, `production` channel all configured and built in). Two OTA updates have been published since, both on David's explicit approval:
+The installed `1.0.0 (5)` binary is OTA-capable (`expo-updates`, update URL, `runtimeVersion.policy: appVersion`, `production` channel all configured and built in). Three OTA updates have been published since, all on David's explicit approval:
 
 1. **Update group `c9ff772b-2a9c-4d03-880d-f6cf103028e6`** (commit `656a98d`, 19 September 2026): fixed a **critical production outage** (see next section) + added a password show/hide eye toggle to Create Account/Log In/Reset Password.
-2. **Update group `0c587d88-d63a-4c81-ad36-8020227beca5`** (commit `68f6247`, 20 September 2026): Medical Log Add-flow tile (see below), Care Summary now includes active conditions/medicines, Settings drawer regrouped (new "Care Circle" group split out of "Account"), notification bell/settings cog spacing tightened.
+2. **Update group `0c587d88-d63a-4c81-ad36-8020227beca5`** (commit `68f6247`, 20 September 2026): Medical Log Add-flow tile, Care Summary now includes active conditions/medicines, Settings drawer regrouped (new "Care Circle" group split out of "Account"), notification bell/settings cog spacing tightened.
+3. **Update group `1fb7917f-2682-40d0-b0c5-2d0418889ab5`** (commit `f7753a8`, 20 September 2026): renamed the Add-flow/onboarding tile from "Medical Log" to "Medical issues" (the destination screen's own header is unchanged, still "Medical Log" -- only the entry-point tile wording changed).
 
-Both are on the `production` channel, runtime `1.0.0`, so they apply automatically to the installed binary. **David confirmed device state after update 1 (signup works); has not yet explicitly confirmed device state after update 2** -- the Medical Log tile/Settings regrouping/Care Summary changes were validated by full test suite (104 suites/916 tests) and typecheck only, not yet physically confirmed on David's device. Worth asking if not yet mentioned.
+All on the `production` channel, runtime `1.0.0`, so they apply automatically to the installed binary. **David confirmed device state after update 1 (signup works); has not yet explicitly confirmed device state after updates 2 or 3** -- validated by full test suite (104 suites/916 tests) and typecheck only, not yet physically confirmed on David's device. Worth asking if not yet mentioned.
 
 Full detail on each OTA and everything it fixed: `docs/REVISION_LOG.md`'s 20 September entries (read top-down, most recent first).
 
@@ -69,7 +70,7 @@ Uploaded directly via the App Store Connect API (`subscriptionAppStoreReviewScre
 
 ## Product change this session: Medical Log now reachable from the Add flow
 
-Previously Medical Log (care needs/diagnosed conditions/prescribed medicines) was reachable ONLY via Settings -> Medical Log. David explicitly asked for it to be part of the everyday Add flow too. Implemented as a new "Medical Log" card in both `FirstThingScreen` (the Add gateway) and `InterestsScreen` (onboarding's "What do you help X with?" carousel) -- tapping it opens the existing `MedicalLogScreen` directly (all three sections together), unlike every other card, which maps to exactly one record type. This required widening the shared category-option id type (`CategoryOptionId` in `src/types.ts` = `LilicaRecordType | 'medicalLog'`) since Medical Log isn't a record type of its own.
+Previously Medical Log (care needs/diagnosed conditions/prescribed medicines) was reachable ONLY via Settings -> Medical Log. David explicitly asked for it to be part of the everyday Add flow too. Implemented as a new card in both `FirstThingScreen` (the Add gateway) and `InterestsScreen` (onboarding's "What do you help X with?" carousel) -- tapping it opens the existing `MedicalLogScreen` directly (all three sections together, screen header still reads "Medical Log"), unlike every other card, which maps to exactly one record type. The card's own title was later changed to **"Medical issues"** (not "Medical Log") per direct product-owner request -- `src/data/options.ts`'s `firstItemOptions` entry. This required widening the shared category-option id type (`CategoryOptionId` in `src/types.ts` = `LilicaRecordType | 'medicalLog'`) since Medical Log isn't a record type of its own.
 
 **This is a deliberate reopening of the previously-protected "eight-category record stack" constraint, now nine categories, per David's explicit instruction.** Do not treat "eight categories" as protected any more -- it's nine, and Medical Log is the ninth. Tests updated accordingly (`tests/phase1-ui.characterization.test.tsx`, `tests/onboarding-setup-categories.test.tsx`).
 

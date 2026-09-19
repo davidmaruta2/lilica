@@ -1,5 +1,9 @@
 # Revision Log
 
+## 20 September 2026 - OTA: Add-flow tile renamed "Medical Log" -> "Medical issues"
+
+Published to the `production` channel on David's explicit approval (update group `1fb7917f-2682-40d0-b0c5-2d0418889ab5`, both iOS and Android, runtime `1.0.0`, commit `f7753a8`). Only `src/data/options.ts`'s `firstItemOptions` entry title changed -- the destination screen's own header still reads "Medical Log" (unchanged); only the entry-point tile shown in the onboarding "What do you help X with?" carousel and the everyday Add screen changed wording. `tests/phase1-ui.characterization.test.tsx` updated to match. Confirmed JS-only via `git diff` before publishing.
+
 ## 20 September 2026 - Apple subscription review screenshot uploaded
 
 David supplied two screenshots of the RevenueCat sandbox purchase flow (one with the native iOS purchase-confirmation sheet visible, one of Lilica's own clean subscription screen). Uploaded the clean subscription-screen image directly to App Store Connect via its API (`subscriptionAppStoreReviewScreenshots`, subscription `6812831899`), using the durable Apple App Store Connect API key. First attempt failed (`IMAGE_INCORRECT_DIMENSIONS` -- the source was 828x1792, Apple requires exactly 1242x2208 for this asset); fixed by padding the image onto a white 1242x2208 canvas (centred, undistorted) and re-uploading. Confirmed `assetDeliveryState.state: "COMPLETE"` via a follow-up GET. Closes `docs/REVENUECAT_BILLING_SETUP_REPORT.md` remaining-launch-gates item 3. Final subscription review metadata beyond the screenshot itself remains outstanding.
