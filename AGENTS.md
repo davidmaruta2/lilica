@@ -40,7 +40,7 @@ The full binary delta and pre/post-build checklists are authoritative in `docs/N
 
 ## Post-build implementation batch (17 September 2026)
 
-Intro copy correction, opt-in biometric app lock (new native dependency, `expo-local-authentication`), and a structured Medical Log (new `condition`/`medicine` record types, health-domain) are implemented and validated. Committed and pushed (`55d4fc1`), on David's explicit instruction. The Medical Log migration is not applied to `lilica-development` (Docker was off). Biometric protection requires a new native build to reach any real device -- Expo Go cannot load it. See `docs/REVISION_LOG.md`, `docs/NEXT_NATIVE_BUILD_MANIFEST.md` section 5, and `LILBATCH_COMPLETION_REPORT.txt` (repository root, untracked).
+Intro copy correction, opt-in biometric app lock (new native dependency, `expo-local-authentication`), and a structured Medical Log (new `condition`/`medicine` record types, health-domain) are implemented and validated. Committed and pushed (`55d4fc1`), on David's explicit instruction. The Medical Log migration was applied to `lilica-development` and database-proven on 19 September 2026 (local + linked pgTAP both 496/496). Biometric protection still requires a new native build to reach any real device -- Expo Go cannot load it. See `docs/REVISION_LOG.md`, `docs/NEXT_NATIVE_BUILD_MANIFEST.md` section 5, and `LILBATCH_COMPLETION_REPORT.txt` (repository root, untracked).
 
 ## Current product and roadmap state
 

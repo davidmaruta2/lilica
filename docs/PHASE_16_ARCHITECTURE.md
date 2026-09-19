@@ -76,7 +76,7 @@ Everything below is real, scoped UI/orchestration work - none of it is blocked b
 
 ## Hosted `lilica-development`
 
-Dry-run only, per standing instruction - **not yet applied**: `npx supabase db push --linked --dry-run` on 12 September 2026 reported exactly one pending migration, `20260912100000_phase16_document_maturity.sql`, with no unrelated diff. Apply only on explicit product-owner instruction, then re-verify linked pgTAP/lint per `docs/SUPABASE_OPERATIONS.md`'s established pattern.
+Applied 12 September 2026: `npx supabase db push --linked --dry-run` first reported exactly one pending migration, `20260912100000_phase16_document_maturity.sql`, with no unrelated diff; it was then pushed and verified with linked pgTAP/lint per `docs/SUPABASE_OPERATIONS.md`'s "Hosted Phase 16 deployment" entry, which is authoritative for the result.
 
 ## Backward Compatibility
 

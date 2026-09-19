@@ -144,5 +144,5 @@ An OTA smoke test may be designed only after the new binary is installed and onl
 - Apple Server Notifications V2 and Google RTDN still need final store-side verification through RevenueCat.
 - Store purchase, renewal, cancellation, refund/revocation, expiry, restore, and iOS-to-Android cross-login flows are not yet physically signed off.
 - Expo's compatibility check reports several SDK 57 packages a few patch versions behind. Do not upgrade them incidentally; handle them as a separately reviewed dependency task.
-- Local backend validation requires Docker Desktop. The latest checkpoint could not run local pgTAP because Docker was off; hosted backend state was not modified by the post-build changes above.
+- Local backend validation requires Docker Desktop. It was blocked at the 17 September checkpoint (Docker off) but has since run successfully -- see the 19 September 2026 Medical Log migration deployment in `docs/REVISION_LOG.md`.
 - Biometric app lock has real automated test coverage (`tests/biometric-lock.test.ts`, mocked at the `expo-local-authentication` boundary) but has NEVER been exercised against real device biometrics -- Expo Go cannot load a new native module at all, so this is entirely unverified on a physical device until a new native build exists.
