@@ -2,6 +2,10 @@
 
 This repository is the Lilica React Native care-organising app for Luxford Interactive.
 
+## STOP -- immediate pending task as of 19 September 2026
+
+David was mid-way through checking Apple ASN V2 / Google RTDN configuration in RevenueCat's dashboard when his session was interrupted. Pick this up first, before other work, unless told otherwise -- full context and exact instructions are in `docs/LUMEN_HANDOFF.md`'s "IMMEDIATE NEXT TASK ON RESUME" section. Do not assume it is resolved; ask what he found rather than re-explaining from scratch.
+
 ## Required reading before any work
 
 Read these files in this order:
