@@ -46,14 +46,16 @@ Authoritative policy: `docs/BUILD_RELEASE_CONTROL.md`.
 
 ## Existing native binaries
 
-The latest native binaries, approved and submitted 19 September 2026:
+The latest native binaries, built and submitted 19 September 2026 on the `production` EAS profile -- **the first build genuinely wired to `lilica-production`, not `lilica-development`:**
 
 | Platform | Version | EAS build ID | State |
 | --- | --- | --- | --- |
-| iOS | `1.0.0 (4)` | `6d89e118-ab7b-4065-a279-03ef1b581b66` | Submitted to TestFlight |
-| Android | `1.0.0 (4)` | `56cb08fe-f5a7-4b16-b101-ce6fe5a63ae1` | Submitted to Google Play internal, status `COMPLETED` |
+| iOS | `1.0.0 (5)` | `22860bae-49bb-46de-9ccb-0e4cb5a51ca8` | Submitted to TestFlight |
+| Android | `1.0.0 (5)` | `a7ed9204-270b-482e-a329-2f72f863ceef` | Submitted to Google Play **internal** track (David's explicit choice -- not public), status `COMPLETED` |
 
-These supersede `1.0.0 (3)`/`1.0.0 (2)` and contain the returning-account duplicate-person fix, the approved Lilica icon, the OTA foundation, and the 17 September post-build batch (biometric lock, Medical Log, intro copy) -- the first OTA-capable Lilica binaries. Built from commit `f3d0dcb` via the `store-test` EAS profile. Full manifest: `docs/NEXT_NATIVE_BUILD_MANIFEST.md`.
+Built from commit `313d064`. Contains everything `1.0.0 (4)` (the `store-test`/dev-backed predecessor) contained, plus real production backend wiring: `lilica-production` Supabase, the correctly-scoped RevenueCat production webhook, and verified production Auth (SMTP/URLs/OTP length). Full detail: `docs/REVISION_LOG.md`'s 19 September "First production-profile build" entry.
+
+**Not yet done, and not resolved by this build:** Android's `eas.json` submit track is still `internal` (David's choice, changeable to `production` with no rebuild needed when ready); iOS still needs a manual "submit for App Store review" and release action in App Store Connect to go public. Neither is a build-content gap.
 
 **Submission credentials are now durable and permanent** -- an Apple App Store Connect API key and a Google Play service-account key are stored outside the repo at `C:\Users\DavidPC\.lilica-credentials\` and wired into `eas.json`. Never ask David to re-supply these; see `AGENTS.md`/`docs/BUILD_RELEASE_CONTROL.md`'s CRITICAL sections.
 

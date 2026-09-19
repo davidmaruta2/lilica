@@ -28,11 +28,12 @@ Do not run `eas build`, `eas submit`, or `eas update` merely because configurati
 
 ## Current release state
 
-- iOS TestFlight baseline: `1.0.0 (4)`, EAS build `6d89e118-ab7b-4065-a279-03ef1b581b66` (superseding `1.0.0 (3)`). Submitted 19 September 2026.
-- Android internal-track baseline: `1.0.0 (4)`, EAS build `56cb08fe-f5a7-4b16-b101-ce6fe5a63ae1` (superseding `1.0.0 (2)`). Submitted 19 September 2026.
-- Both new builds include the returning-account duplicate-person fix, the approved Lilica icon, the `expo-updates`/OTA foundation, the notification bell/Care Summary PDF/RevenueCat webhook hardening batch, and the 17 September post-build batch (intro copy, biometric app lock, structured Medical Log). These are the first OTA-capable Lilica binaries. No OTA update has actually been published yet.
+- **iOS TestFlight baseline: `1.0.0 (5)`, EAS build `22860bae-49bb-46de-9ccb-0e4cb5a51ca8`** (superseding `1.0.0 (4)`). Built and submitted 19 September 2026 on the `production` EAS profile -- the first build wired to `lilica-production`, not dev.
+- **Android baseline: `1.0.0 (5)`, EAS build `a7ed9204-270b-482e-a329-2f72f863ceef`**, submitted to Google Play's **internal** track specifically (David's explicit choice -- `eas.json`'s `submit.production.android.track` is still `internal`, not `production`; changing it needs no rebuild).
+- Both contain the returning-account duplicate-person fix, the approved Lilica icon, the OTA foundation (first OTA-capable binaries), the notification bell/Care Summary PDF/webhook hardening batch, the 17 September post-build batch (biometric lock, Medical Log, intro copy), and real production backend wiring (`lilica-production` Supabase, correctly-scoped RevenueCat webhook, verified Auth). No OTA update has been published yet.
 - iOS remains iPhone-only. Preserve `app.json` -> `ios.supportsTablet: false`.
-- A production Supabase project (`lilica-production`, `luyoyupghbxjftqwzcfn`) and EAS `production` environment now exist (created 19 September 2026) -- see "Backend and secrets" below. This does not itself authorise a production build; none has been requested.
+- **David has stated the project is now oriented entirely toward real public go-live, not further dev/store-test cycles (19 September 2026)** -- treat `production` as the default profile for future build discussions, though the absolute build-approval gate is unchanged.
+- Going public still needs, independent of any build: Android submit track switched to `production` (or Google's testing-track requirement satisfied), Apple App Store review submission/release, Apple subscription review screenshot, real purchase QA, and Apple ASN V2/Google RTDN configuration confirmed in Apple's/Google's own consoles (not visible via any API available to this session).
 
 The full binary delta and pre/post-build checklists are authoritative in `docs/NEXT_NATIVE_BUILD_MANIFEST.md`.
 

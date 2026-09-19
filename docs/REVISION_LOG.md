@@ -1,5 +1,15 @@
 # Revision Log
 
+## 19 September 2026 - First production-profile build: iOS/Android 1.0.0 (5)
+
+On David's explicit authorisation ("generate the new android and apple builds and submit both to stores when they are done"), the first ever `production`-profile build was run, following the full pre-build validation checklist: `npm run typecheck` clean, Jest 104 suites/916 tests pass, `secrets:check` clean (423 files), resolved Expo config confirmed (real icon, `ios.supportsTablet: false`, correct bundle id, OTA update URL/runtime policy), `expo export --platform web` clean, `git diff --check` clean, from commit `313d064`.
+
+Result: iOS `1.0.0 (5)` (EAS `22860bae-49bb-46de-9ccb-0e4cb5a51ca8`) and Android `1.0.0 (5)` (EAS `a7ed9204-270b-482e-a329-2f72f863ceef`), both correctly pulling the `production` EAS environment (confirmed in build logs: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, both RevenueCat keys, all loaded from "production"). This is the first build genuinely wired to `lilica-production` rather than `lilica-development`.
+
+Both submitted immediately after: iOS to App Store Connect/TestFlight (using the durable Apple API key, zero manual credential entry), Android to Google Play's **internal** track specifically -- David explicitly chose to keep the Android submission on `internal` rather than switch `eas.json`'s `submit.production.android.track` to `production`, so this release is not yet publicly visible on Google Play. iOS submissions always upload to App Store Connect/TestFlight regardless of profile; going public on the App Store still requires a separate manual "submit for review" and release action in App Store Connect, not performed here.
+
+This supersedes `1.0.0 (4)` (the `store-test` build, still dev-backed) as the current binary baseline. It is the first build carrying the app's real, live-configured backend end to end. What remains before this is a genuine public release is unchanged from the store-readiness list already tracked in `docs/REVENUECAT_BILLING_SETUP_REPORT.md` and `docs/BUILD_RELEASE_CONTROL.md` -- none of it something a build resolves.
+
 ## 19 September 2026 - Production Supabase/EAS, durable submission credentials, RevenueCat production webhook, and production Auth email
 
 On David's explicit instruction, in a single session:

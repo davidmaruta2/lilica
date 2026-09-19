@@ -4,7 +4,20 @@ Status: the build described below has been built and submitted (19 September 202
 
 Date: 17 September 2026 (original); updated 19 September 2026
 
-## 19 September 2026 update: this build was approved, built, and submitted
+## 19 September 2026 update: FIRST PRODUCTION-PROFILE BUILD -- this is now the current baseline
+
+David stated explicitly he is done with dev-phase work; everything now targets real public go-live. After the RevenueCat production webhook and production Auth config were verified/fixed (a cross-environment webhook bug found and fixed via the RevenueCat API -- see `docs/REVISION_LOG.md`), David explicitly authorised the first `production`-profile build, following the full mandatory pre-build checklist below (all passed): commit `313d064`.
+
+| Platform | Version | EAS build ID | Distribution state |
+| --- | --- | --- | --- |
+| iOS | `1.0.0 (5)` | `22860bae-49bb-46de-9ccb-0e4cb5a51ca8` | Submitted to TestFlight |
+| Android | `1.0.0 (5)` | `a7ed9204-270b-482e-a329-2f72f863ceef` | Submitted to Google Play **internal** track (David's explicit choice, not `production`), status `COMPLETED` |
+
+**This is the first binary genuinely wired to `lilica-production`, not `lilica-development`.** It supersedes `1.0.0 (4)` (below) as the current baseline and contains everything that build contained, plus real production backend wiring. Treat `production` as the default profile for any future build discussion -- the absolute build-approval gate is unchanged, but the default assumption should no longer be `store-test`.
+
+**Not resolved by this build, and not resolvable by any build:** Android's `eas.json` submit track is still `internal` (a one-line, no-rebuild change when David wants public release); iOS still needs a manual "submit for App Store review" and release action in App Store Connect; Apple ASN V2/Google RTDN configuration is unconfirmed (lives entirely in Apple's/Google's own consoles, not visible via any API); the rest of the store-readiness list below is also unaffected.
+
+## 19 September 2026 update (superseded by the above): store-test build 4 was approved, built, and submitted
 
 On David's explicit approval (stated build request: both platforms, `store-test` profile, purpose superseding the `1.0.0 (3)`/`1.0.0 (2)` baseline, commit `f3d0dcb`, full delta as listed below, validation as listed below, submission included), the build described in this manifest was run:
 
@@ -13,7 +26,7 @@ On David's explicit approval (stated build request: both platforms, `store-test`
 | iOS | `1.0.0 (4)` | `6d89e118-ab7b-4065-a279-03ef1b581b66` | Submitted to TestFlight (processing on Apple's side after upload) |
 | Android | `1.0.0 (4)` | `56cb08fe-f5a7-4b16-b101-ce6fe5a63ae1` | Submitted to Google Play internal testing, release status `COMPLETED` |
 
-This is now the current native baseline, superseding `1.0.0 (3)`/`1.0.0 (2)` everywhere in this document. It contains everything listed in "Changes awaiting the next approved iOS and Android builds" below (items 1-5), and is the first OTA-capable Lilica binary. No OTA update has been published from it yet.
+This was the dev-backed baseline before the production-profile build above superseded it. It contains everything listed in "Changes awaiting the next approved iOS and Android builds" below (items 1-5), and is the first OTA-capable Lilica binary. No OTA update has been published from it yet.
 
 **Durable submission credentials were also configured during this same session** so that this manual credential-gathering step never has to repeat: an Apple App Store Connect API key (`C:\Users\DavidPC\.lilica-credentials\AuthKey_5LPXC77JFN.p8`, Key ID `5LPXC77JFN`, Issuer ID `67953a69-92f8-4cce-931b-8543e12844dd`) and a Google Play service-account key (`C:\Users\DavidPC\.lilica-credentials\google-service-account.json`), both wired into `eas.json`'s `submit.store-test` and `submit.production` blocks. **Never ask David for these again** -- see `docs/BUILD_RELEASE_CONTROL.md`'s "CRITICAL" section and `docs/REVISION_LOG.md`'s matching 19 September entry.
 
