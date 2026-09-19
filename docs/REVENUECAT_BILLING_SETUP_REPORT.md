@@ -1,6 +1,6 @@
 # Lilica RevenueCat and Store Billing Implementation Report
 
-**Report date:** 16 September 2026
+**Report date:** 16 September 2026 (see "Remaining launch gates" below for 19 September 2026 updates -- new `1.0.0 (4)` binaries submitted, durable Apple/Google submission credentials configured, and a full production Supabase/EAS environment created and independently verified, including a correctly-scoped RevenueCat production webhook and production Auth config. Full detail: `docs/REVISION_LOG.md`'s 19 September entries.)
 **Scope:** RevenueCat catalogue, Apple and Google subscription configuration, signed entitlement webhook, EAS store builds, test-store submissions, and current next steps.
 
 ## Executive status
@@ -68,8 +68,8 @@ Apple still requires the subscription review screenshot/final review metadata be
 
 - Play package: `com.luxfordinteractive.lilica`.
 - Play developer account ID: `8290450229567893119`.
-- Google Cloud project: `lilica-6gy115`.
-- RevenueCat service account: `revenuecat-service-account@lilica-6gy115.iam.gserviceaccount.com`.
+- Google Cloud project: `lilica-6gy1l5` (a lowercase "L" -- this and other docs previously mistyped it as `lilica-6gy115`).
+- RevenueCat service account: `revenuecat-service-account@lilica-6gy1l5.iam.gserviceaccount.com`.
 - Product/base plan: `com.luxfordinteractive.lilica.annual` / `annual-autorenewing`.
 - Product state: **READY**.
 - UK price: GBP 8.99.
@@ -137,16 +137,16 @@ The exact post-build delta also includes the returning-account duplicate-person 
 
 ## Remaining launch gates
 
-1. Obtain express product-owner approval before starting any new iOS or Android build.
-2. Build/install new `store-test` binaries containing the approved icon, duplicate-person fix, and OTA foundation only after that approval.
+1. ~~Obtain express product-owner approval before starting any new iOS or Android build~~ -- obtained and executed 19 September 2026: `1.0.0 (4)` both platforms, submitted to TestFlight and Google Play internal. See `docs/REVISION_LOG.md`.
+2. ~~Build/install new `store-test` binaries containing the approved icon, duplicate-person fix, and OTA foundation~~ -- done, per above.
 3. Supply Apple's subscription review screenshot and final subscription review metadata.
 4. Run physical iPhone sandbox purchase, restore, renewal, cancellation, expiry, and refund/revocation checks.
 5. Add/confirm licensed Google Play testers and run equivalent Android internal-track checks.
-6. Configure a durable EAS-managed Google Play submission credential before the next automated Android submission.
+6. ~~Configure a durable EAS-managed Google Play submission credential~~ -- done 19 September 2026; a permanent Apple key was also configured at the same time. Both are wired into `eas.json` outside the repo. Never ask David to re-supply these.
 7. Configure/verify Apple Server Notifications V2 and Google RTDN through RevenueCat.
-8. Confirm a real store event reaches RevenueCat, passes the signed webhook, updates Supabase entitlement state, and changes Lilica's access gates correctly.
+8. Confirm a real store event reaches RevenueCat, passes the signed webhook, updates Supabase entitlement state, and changes Lilica's access gates correctly. (The webhook plumbing itself -- a correctly environment-scoped production integration -- is now independently verified via the RevenueCat API as of 19 September 2026; an end-to-end real-purchase proof is still outstanding.)
 9. Verify purchase on one platform and login on the other for the same Lilica account.
-10. Create production Supabase/EAS environment values before any production build.
+10. ~~Create production Supabase/EAS environment values before any production build~~ -- done and independently verified 19 September 2026: `lilica-production` (`luyoyupghbxjftqwzcfn`), fully migrated, pgTAP-proven, edge functions deployed, RevenueCat production webhook correctly scoped, Auth SMTP/URLs/OTP length all confirmed correct. See `docs/REVISION_LOG.md` and `docs/SUPABASE_OPERATIONS.md`. This does not itself authorise a production build.
 11. Complete store listings, privacy/policy declarations, review assets, and explicit production release approval.
 
 Expo Go cannot test RevenueCat native purchases. Real billing QA must use the TestFlight and Play-distributed builds.

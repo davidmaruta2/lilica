@@ -46,22 +46,16 @@ Authoritative policy: `docs/BUILD_RELEASE_CONTROL.md`.
 
 ## Existing native binaries
 
-The latest native binaries are:
+The latest native binaries, approved and submitted 19 September 2026:
 
 | Platform | Version | EAS build ID | State |
 | --- | --- | --- | --- |
-| iOS | `1.0.0 (3)` | `ea54ffa7-f4c3-4386-b5d1-7d2060cfeb17` | Submitted to TestFlight and installed on a physical iPhone |
-| Android | `1.0.0 (2)` | `f0f85941-405b-4f24-a457-6ce6660f5077` | Submitted to Google Play internal testing |
+| iOS | `1.0.0 (4)` | `6d89e118-ab7b-4065-a279-03ef1b581b66` | Submitted to TestFlight |
+| Android | `1.0.0 (4)` | `56cb08fe-f5a7-4b16-b101-ce6fe5a63ae1` | Submitted to Google Play internal, status `COMPLETED` |
 
-Both were produced from the then-current working tree before commit `2942a25`; they are not tied reproducibly to a clean git commit. The EAS IDs and native versions are the authoritative binary baseline.
+These supersede `1.0.0 (3)`/`1.0.0 (2)` and contain the returning-account duplicate-person fix, the approved Lilica icon, the OTA foundation, and the 17 September post-build batch (biometric lock, Medical Log, intro copy) -- the first OTA-capable Lilica binaries. Built from commit `f3d0dcb` via the `store-test` EAS profile. Full manifest: `docs/NEXT_NATIVE_BUILD_MANIFEST.md`.
 
-Both existing binaries contain the native RevenueCat integration and store products. They do not contain:
-
-1. the returning-account duplicate-person/care-space prevention fix;
-2. the approved Lilica app icon;
-3. `expo-updates` and the EAS Update runtime/channel foundation.
-
-Those three items are awaiting the next expressly approved iOS and Android builds. Full manifest: `docs/NEXT_NATIVE_BUILD_MANIFEST.md`.
+**Submission credentials are now durable and permanent** -- an Apple App Store Connect API key and a Google Play service-account key are stored outside the repo at `C:\Users\DavidPC\.lilica-credentials\` and wired into `eas.json`. Never ask David to re-supply these; see `AGENTS.md`/`docs/BUILD_RELEASE_CONTROL.md`'s CRITICAL sections.
 
 ## OTA state
 
@@ -74,7 +68,7 @@ Current source includes:
 - `runtimeVersion.policy: appVersion`;
 - `preview`, `store-test`, and `production` channels in `eas.json`.
 
-No OTA update has ever been published. OTA cannot be retrofitted into iOS build 3 or Android build 2. The next expressly approved native builds must keep this configuration and will be the first OTA-capable binaries.
+No OTA update has ever been published. OTA cannot be retrofitted into iOS build 3 or Android build 2. iOS `1.0.0 (4)`/Android `1.0.0 (4)` (submitted 19 September 2026) are the first OTA-capable binaries.
 
 Publishing an update with `eas update` requires separate express product-owner approval for the exact channel, environment, commit/change set, and message.
 
@@ -139,22 +133,23 @@ The app uses RevenueCat's native store-formatted `priceString`. A US Apple store
 - App Store Connect app: **Lilica: Care & Support**, ID `6812822327`.
 - Apple annual subscription resource ID: `6812831899`; UK anchor GBP 8.99; 175 storefront equivalents.
 - Google Play package: `com.luxfordinteractive.lilica`; developer account `8290450229567893119`.
-- Google Cloud project: `lilica-6gy115`.
+- Google Cloud project: `lilica-6gy1l5` (a lowercase "L" -- earlier docs mistyped this as `lilica-6gy115`).
 - Google product/base plan is READY and UK price is GBP 8.99.
-- EAS preview environment contains development Supabase public configuration and both RevenueCat public SDK keys.
-- No production Supabase project/EAS production environment is configured.
+- EAS preview environment contains development Supabase public configuration and both RevenueCat public SDK keys. EAS `production` environment now exists too, pointing at `lilica-production`.
+- **Production Supabase project (`lilica-production`, `luyoyupghbxjftqwzcfn`) and EAS production environment now exist and are fully configured and independently verified (19 September 2026)** -- schema, edge functions, secrets, a correctly-scoped second RevenueCat webhook integration, and production Auth (SMTP/URLs/OTP length) all confirmed. See `docs/REVISION_LOG.md`'s 19 September entries and `docs/SUPABASE_OPERATIONS.md`.
+- **Durable submission credentials are configured** -- Apple App Store Connect API key and Google Play service-account key, both outside the repo, wired into `eas.json`. Never ask David to re-supply these.
 
 ### RevenueCat/store work still outstanding
 
-1. Build and install new store-test binaries only after explicit approval, so logo, duplicate fix, and OTA foundation are present.
+1. ~~Build and install new store-test binaries~~ -- done 19 September 2026 (`1.0.0 (4)` both platforms, see "Existing native binaries" above).
 2. Complete physical iPhone sandbox purchase/restore/renewal/cancellation/expiry/refund tests.
 3. Complete equivalent Google Play internal-track tests on Android.
-4. Verify one real store event traverses store -> RevenueCat -> signed Supabase webhook -> entitlement row -> app read-only gate.
+4. Verify one real store event traverses store -> RevenueCat -> signed Supabase webhook -> entitlement row -> app read-only gate (the webhook plumbing itself is now confirmed correctly wired for both environments; an end-to-end real-event proof is still outstanding).
 5. Verify cross-platform entitlement by purchasing on one platform and signing into the same Lilica account on the other.
 6. Supply Apple's subscription review screenshot and final review metadata.
-7. Configure a durable EAS-managed Google Play submission credential.
+7. ~~Configure a durable EAS-managed Google Play submission credential~~ -- done 19 September 2026.
 8. Finalise/verify Apple Server Notifications V2 and Google RTDN through RevenueCat.
-9. Create production Supabase and EAS environment configuration before any production build.
+9. ~~Create production Supabase and EAS environment configuration~~ -- done and verified 19 September 2026.
 10. Complete store listings, policy/privacy declarations, review assets, and a separate production release go/no-go.
 
 Full details: `docs/REVENUECAT_BILLING_SETUP_REPORT.md` and `docs/PHASE_21_QA.md`.

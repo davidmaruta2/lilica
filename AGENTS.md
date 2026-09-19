@@ -28,15 +28,22 @@ Do not run `eas build`, `eas submit`, or `eas update` merely because configurati
 
 ## Current release state
 
-- iOS TestFlight baseline: `1.0.0 (3)`, EAS build `ea54ffa7-f4c3-4386-b5d1-7d2060cfeb17`.
-- Android internal-track baseline: `1.0.0 (2)`, EAS build `f0f85941-405b-4f24-a457-6ce6660f5077`.
-- Both builds contain the RevenueCat/store integration but predate the returning-account duplicate-person fix, approved Lilica icon, and `expo-updates` foundation.
-- The next expressly approved native builds must include OTA support. Existing binaries cannot receive OTA because `expo-updates` was not baked into them.
-- No OTA has ever been published.
+- iOS TestFlight baseline: `1.0.0 (4)`, EAS build `6d89e118-ab7b-4065-a279-03ef1b581b66` (superseding `1.0.0 (3)`). Submitted 19 September 2026.
+- Android internal-track baseline: `1.0.0 (4)`, EAS build `56cb08fe-f5a7-4b16-b101-ce6fe5a63ae1` (superseding `1.0.0 (2)`). Submitted 19 September 2026.
+- Both new builds include the returning-account duplicate-person fix, the approved Lilica icon, the `expo-updates`/OTA foundation, the notification bell/Care Summary PDF/RevenueCat webhook hardening batch, and the 17 September post-build batch (intro copy, biometric app lock, structured Medical Log). These are the first OTA-capable Lilica binaries. No OTA update has actually been published yet.
 - iOS remains iPhone-only. Preserve `app.json` -> `ios.supportsTablet: false`.
-- Production Supabase/EAS environment values are not configured. Do not run a production build.
+- A production Supabase project (`lilica-production`, `luyoyupghbxjftqwzcfn`) and EAS `production` environment now exist (created 19 September 2026) -- see "Backend and secrets" below. This does not itself authorise a production build; none has been requested.
 
 The full binary delta and pre/post-build checklists are authoritative in `docs/NEXT_NATIVE_BUILD_MANIFEST.md`.
+
+## CRITICAL: durable release credentials exist -- never ask David for these again
+
+David has stated explicitly, more than once, that re-asking him for these credentials every session is unacceptable. Permanent App Store Connect and Google Play submission credentials are already configured and wired into `eas.json` (`submit.store-test` and `submit.production` blocks, both platforms):
+
+- Apple API key: `C:\Users\DavidPC\.lilica-credentials\AuthKey_5LPXC77JFN.p8` (Key ID `5LPXC77JFN`, Issuer ID `67953a69-92f8-4cce-931b-8543e12844dd`).
+- Google service-account key: `C:\Users\DavidPC\.lilica-credentials\google-service-account.json` (`revenuecat-service-account@lilica-6gy1l5.iam.gserviceaccount.com`).
+
+`eas submit --non-interactive` already works with these as configured. Do not ask David for an Apple or Google key again -- if a submission errors on credentials, check these exact paths/`eas.json` fields first. Full detail: `docs/REVISION_LOG.md`'s 19 September "Production Supabase/EAS and durable submission credentials" entry.
 
 ## Post-build implementation batch (17 September 2026)
 
@@ -83,7 +90,9 @@ Follow `docs/REVENUECAT_BILLING_SETUP_REPORT.md` for exact resource IDs, build I
 
 ## Backend and secrets
 
-- Current hosted environment: `lilica-development` (`ldocquqbcabdbscghojc`). No production Supabase project is configured.
+- Development hosted environment: `lilica-development` (`ldocquqbcabdbscghojc`). The CLI's default link (`supabase/.temp/project-ref`) should normally point here for day-to-day work -- always re-link to `ldocquqbcabdbscghojc` after any production operation.
+- Production hosted environment: `lilica-production` (`luyoyupghbxjftqwzcfn`), eu-west-2, created 19 September 2026. All 22 migrations through `20260917130000_medical_log.sql` are applied and pgTAP-proven (23 files/496 assertions). `entitlement-webhook` and `send-invitation-email` edge functions are deployed. `REVENUECAT_WEBHOOK_SECRET` and `RESEND_API_KEY` are set as Supabase secrets on this project. The production database password is saved at `C:\Users\DavidPC\.lilica_production_db_password.txt` and the RevenueCat webhook secret at `C:\Users\DavidPC\.lilica_production_revenuecat_webhook_secret.txt` -- both outside the repo, never commit them, reuse them rather than regenerating.
+- **Production backend is now fully configured and independently verified (19 September 2026):** a RevenueCat production webhook integration exists and is correctly scoped to production-only events (confirmed via the RevenueCat v2 API; a cross-environment bug where both webhooks lacked an `environment` filter was found and fixed in the same session -- see `docs/REVISION_LOG.md`). Production Auth is configured: custom SMTP (Resend, verified live), `site_url`/`additional_redirect_urls` pointing at the app's own scheme, and `otp_length` set to 6 to match the app's UI -- all confirmed via a scoped `supabase config diff`, not merely assumed. A RevenueCat Secret API key (`sk_...`) is saved at `C:\Users\DavidPC\.lilica-credentials\revenuecat_secret_api_key.txt` for any future verification/automation. **No production EAS build has ever been run** -- this readiness does not authorise one.
 - Never commit `.env.local`, `lilica-development.txt`, personal tokens, service-role keys, HMAC secrets, Apple `.p8` keys, Google service-account JSON, database passwords, or SMTP credentials.
 - Preview migrations with `npx supabase db push --linked --dry-run`.
 - Never run `supabase db reset --linked`.

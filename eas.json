@@ -31,12 +31,27 @@
   "submit": {
     "store-test": {
       "ios": {
-        "ascAppId": "6812822327"
+        "ascAppId": "6812822327",
+        "ascApiKeyPath": "C:/Users/DavidPC/.lilica-credentials/AuthKey_5LPXC77JFN.p8",
+        "ascApiKeyIssuerId": "67953a69-92f8-4cce-931b-8543e12844dd",
+        "ascApiKeyId": "5LPXC77JFN"
       },
       "android": {
-        "track": "internal"
+        "track": "internal",
+        "serviceAccountKeyPath": "C:/Users/DavidPC/.lilica-credentials/google-service-account.json"
       }
     },
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6812822327",
+        "ascApiKeyPath": "C:/Users/DavidPC/.lilica-credentials/AuthKey_5LPXC77JFN.p8",
+        "ascApiKeyIssuerId": "67953a69-92f8-4cce-931b-8543e12844dd",
+        "ascApiKeyId": "5LPXC77JFN"
+      },
+      "android": {
+        "track": "internal",
+        "serviceAccountKeyPath": "C:/Users/DavidPC/.lilica-credentials/google-service-account.json"
+      }
+    }
   }
 }

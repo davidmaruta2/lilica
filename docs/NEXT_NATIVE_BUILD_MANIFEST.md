@@ -1,8 +1,25 @@
 # Lilica Next Native Build Manifest
 
-Status: ready for review, but not authorised to build
+Status: the build described below has been built and submitted (19 September 2026). This document's "existing native baseline" and "changes awaiting" sections are retained for history but are now superseded -- see the 19 September update immediately below for the actual current baseline.
 
-Date: 17 September 2026
+Date: 17 September 2026 (original); updated 19 September 2026
+
+## 19 September 2026 update: this build was approved, built, and submitted
+
+On David's explicit approval (stated build request: both platforms, `store-test` profile, purpose superseding the `1.0.0 (3)`/`1.0.0 (2)` baseline, commit `f3d0dcb`, full delta as listed below, validation as listed below, submission included), the build described in this manifest was run:
+
+| Platform | Version | EAS build ID | Distribution state |
+| --- | --- | --- | --- |
+| iOS | `1.0.0 (4)` | `6d89e118-ab7b-4065-a279-03ef1b581b66` | Submitted to TestFlight (processing on Apple's side after upload) |
+| Android | `1.0.0 (4)` | `56cb08fe-f5a7-4b16-b101-ce6fe5a63ae1` | Submitted to Google Play internal testing, release status `COMPLETED` |
+
+This is now the current native baseline, superseding `1.0.0 (3)`/`1.0.0 (2)` everywhere in this document. It contains everything listed in "Changes awaiting the next approved iOS and Android builds" below (items 1-5), and is the first OTA-capable Lilica binary. No OTA update has been published from it yet.
+
+**Durable submission credentials were also configured during this same session** so that this manual credential-gathering step never has to repeat: an Apple App Store Connect API key (`C:\Users\DavidPC\.lilica-credentials\AuthKey_5LPXC77JFN.p8`, Key ID `5LPXC77JFN`, Issuer ID `67953a69-92f8-4cce-931b-8543e12844dd`) and a Google Play service-account key (`C:\Users\DavidPC\.lilica-credentials\google-service-account.json`), both wired into `eas.json`'s `submit.store-test` and `submit.production` blocks. **Never ask David for these again** -- see `docs/BUILD_RELEASE_CONTROL.md`'s "CRITICAL" section and `docs/REVISION_LOG.md`'s matching 19 September entry.
+
+A production Supabase project (`lilica-production`) and EAS `production` environment were also created and fully configured in this same session -- see `docs/SUPABASE_OPERATIONS.md` and `docs/REVENUECAT_BILLING_SETUP_REPORT.md`. This does not itself authorise a production build.
+
+## Original 17 September manifest (historical, describes the delta that is now IN the binaries above)
 
 ## Absolute authority rule
 
