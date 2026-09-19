@@ -57,6 +57,30 @@ Built from commit `313d064`. Contains everything `1.0.0 (4)` (the `store-test`/d
 
 **Not yet done, and not resolved by this build:** Android's `eas.json` submit track is still `internal` (David's choice, changeable to `production` with no rebuild needed when ready); iOS still needs a manual "submit for App Store review" and release action in App Store Connect to go public. Neither is a build-content gap.
 
+## IMMEDIATE NEXT TASK ON RESUME: walk David through checking Apple ASN V2 / Google RTDN in RevenueCat
+
+Session interrupted by a computer restart mid-task -- **pick this up first, conversationally, before anything else, unless David says otherwise.**
+
+**What this is:** Apple Server Notifications V2 and Google Real-time Developer Notifications (RTDN) are how Apple/Google proactively push subscription lifecycle events (renewal, cancellation, refund, billing retry) to RevenueCat in real time. This is pure account/console configuration -- not app code, not affected by any build, and not something the RevenueCat v2 API exposes (confirmed by direct API probing this session: `/apps/{id}/app_store`, `/server_notifications`, `/play_store`, `/notifications` sub-resources all return `resource_missing`). It can only be checked via the RevenueCat dashboard UI directly.
+
+**Status as of this session: genuinely unconfirmed either way.** David started checking the RevenueCat dashboard, said "ok all good" without specifics, then asked for the instructions again (suggesting he hadn't actually found/read the setting yet), then the computer froze and needed a restart. **Do not assume this is configured. Do not write it into any doc as done until David reports the specific URL/topic name and page state.**
+
+**Instructions to give David (repeat these, don't paraphrase loosely):**
+
+*Apple Server Notifications V2:*
+1. `app.revenuecat.com` -> **Lilica** project -> **Apps** -> **Lilica iOS**.
+2. Find the "App Store Server Notifications" section -- RevenueCat shows the exact URL to paste into App Store Connect.
+3. Paste that URL into App Store Connect -> the app -> **App Information** -> **App Store Server Notifications**, both **Production** and **Sandbox** fields.
+
+*Google RTDN:*
+1. Same RevenueCat project -> **Apps** -> **Lilica Android**.
+2. Find "Real-time Developer Notifications" / Pub/Sub settings -- RevenueCat gives a topic name/value.
+3. Paste that into Google Play Console -> the app -> **Monetize** -> **Monetization setup** -> **Real-time developer notifications**.
+
+**Why this matters, but isn't urgent:** it does not affect the already-submitted `1.0.0 (5)` binaries or a brand-new customer's first purchase (that goes through the client SDK directly and already fires the verified webhook). It affects whether *later* lifecycle events on an existing subscription (a renewal a year on, a cancellation, a refund) reach Lilica's backend promptly. Worth closing before real paying subscribers exist for any length of time, not before the current build/testing phase.
+
+Once David reports back what each RevenueCat page actually shows, update this section (and `docs/REVENUECAT_BILLING_SETUP_REPORT.md` remaining-launch-gates item 7) with the real confirmed state, then remove this "IMMEDIATE NEXT TASK" section since it will no longer be pending.
+
 **Submission credentials are now durable and permanent** -- an Apple App Store Connect API key and a Google Play service-account key are stored outside the repo at `C:\Users\DavidPC\.lilica-credentials\` and wired into `eas.json`. Never ask David to re-supply these; see `AGENTS.md`/`docs/BUILD_RELEASE_CONTROL.md`'s CRITICAL sections.
 
 ## OTA state
