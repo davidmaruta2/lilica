@@ -1,5 +1,28 @@
 # Revision Log
 
+## 20 September 2026 - App Store Connect store listing completed (privacy/terms/support pages published, most metadata filled)
+
+David asked to complete the store product info. Discovered `lilica.co.uk` was already live (a Care Circle invitation landing page, deployed via a dedicated `github-pages-hosting` branch/workflow in the `lilica` GitHub repo -- set up in an earlier session, not previously documented here). Rather than create a conflicting second site, added three new pages to that existing branch/deployment:
+
+- `https://lilica.co.uk/privacy.html` -- Privacy Policy
+- `https://lilica.co.uk/terms.html` -- Terms of Use
+- `https://lilica.co.uk/support.html` -- Support/contact page
+
+All three match the existing landing page's exact visual style; `index.html` gained small footer links to all three; nothing else in `public/` (`.well-known`, `invite/`, `404.html`, `CNAME`) was touched. Deployed automatically via the existing "Deploy invitation landing page to GitHub Pages" workflow.
+
+Then updated App Store Connect (`Lilica: Care & Support`, app ID `6812822327`) directly via its API using the durable App Store Connect API key:
+
+- Privacy Policy URL, Support URL, Marketing URL -- set to the new pages above.
+- Subtitle: "Family care, organised".
+- Description, keywords, promotional text -- drafted and set (subscription pricing/auto-renewal terms included per Apple's requirement).
+- Copyright: "2026 Luxford Interactive".
+- Primary category: Lifestyle.
+- Age rating declaration -- filled in honestly for every required field (all content-intensity descriptors NONE; feature flags false except `healthOrWellnessTopics: true`, reflecting the Medical Log).
+
+**Still outstanding for App Store submission** (not done, needs either David's input or a separate future session): app screenshots for the actual store listing (distinct from the subscription-review screenshot already uploaded), App Review contact/demo account info if reviewers need to sign in, and the final "submit for review" action itself, which remains a separate protected release operation.
+
+A separate, unused public repo (`davidmaruta2/lilica-legal`) was created early in this task before the existing `lilica.co.uk` site was discovered, and is not part of the final setup -- left in place, harmless, pending David's decision on whether to delete it.
+
 ## 20 September 2026 - Rename-supported-person migration was missing from lilica-production; applied and proven
 
 David tried renaming Beauty to Julia and got "Your profile could not be saved just now" -- the generic `friendlyAuthError` fallback. Root cause: `20260920120000_rename_supported_person.sql` had been applied to and proven against `lilica-development` only. The installed app's `production` binary/OTA channel is wired to `lilica-production` (a completely separate database), where `rename_supported_person()` didn't exist at all -- calling it failed with an unrecognised Postgres error that fell through to the generic client message. Applied via `supabase db push --linked` against `luyoyupghbxjftqwzcfn`, then proven with the full pgTAP suite against that same hosted database (24 files/505 assertions, all passing). CLI re-linked back to `lilica-development` afterward, matching standing convention.
