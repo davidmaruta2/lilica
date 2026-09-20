@@ -1,5 +1,13 @@
 # Revision Log
 
+## 20 September 2026 - CRITICAL: Medical Log's Add buttons did nothing when reached via the Add flow; fixed via OTA
+
+**Symptom:** David reported that opening Medical Log via the Add flow (the tile added earlier this session) and tapping any of the three "Add" links (care need / diagnosed condition / prescribed medicine) did nothing -- no editor opened, nothing saved.
+
+**Root cause:** Medical Log's `onAddType` calls `openNewFromProjection()`, which sets a piece of App.tsx state (`projectionOpenType`) that only `renderShell()` (the Home/Calendar/To Do/People tab shell) was listening for, via its own `RecordQuickEditor` overlay. Medical Log reached from Settings lives inside `renderShell()`, so this always worked there. Medical Log reached from the Add flow/onboarding is rendered by `renderAuthenticatedOnboarding()`'s own stage switch -- a separate render path that never calls `renderShell()` -- so nothing in that part of the tree ever rendered the overlay. Tapping Add set the state correctly; nothing was listening for it.
+
+**Fix:** extracted the overlay into one shared `renderProjectionEditor()` function, now called from both render paths, so they structurally cannot diverge again. Published via OTA (update group `a50f7bbe-c642-4046-8a8d-4d0940c1baad`, both iOS and Android, runtime `1.0.0`, commit `dc471b9`), confirmed JS-only beforehand via `git diff`. Full suite (104 suites/916 tests) and typecheck both clean before publishing.
+
 ## 20 September 2026 - OTA: Add-flow tile renamed "Medical Log" -> "Medical issues"
 
 Published to the `production` channel on David's explicit approval (update group `1fb7917f-2682-40d0-b0c5-2d0418889ab5`, both iOS and Android, runtime `1.0.0`, commit `f7753a8`). Only `src/data/options.ts`'s `firstItemOptions` entry title changed -- the destination screen's own header still reads "Medical Log" (unchanged); only the entry-point tile shown in the onboarding "What do you help X with?" carousel and the everyday Add screen changed wording. `tests/phase1-ui.characterization.test.tsx` updated to match. Confirmed JS-only via `git diff` before publishing.
