@@ -1,5 +1,11 @@
 # Revision Log
 
+## 20 September 2026 - Rename-supported-person migration was missing from lilica-production; applied and proven
+
+David tried renaming Beauty to Julia and got "Your profile could not be saved just now" -- the generic `friendlyAuthError` fallback. Root cause: `20260920120000_rename_supported_person.sql` had been applied to and proven against `lilica-development` only. The installed app's `production` binary/OTA channel is wired to `lilica-production` (a completely separate database), where `rename_supported_person()` didn't exist at all -- calling it failed with an unrecognised Postgres error that fell through to the generic client message. Applied via `supabase db push --linked` against `luyoyupghbxjftqwzcfn`, then proven with the full pgTAP suite against that same hosted database (24 files/505 assertions, all passing). CLI re-linked back to `lilica-development` afterward, matching standing convention.
+
+**Lesson for future backend work:** proving a migration against `lilica-development` is necessary but not sufficient once a `production` build/OTA exists -- it must also be pushed to `lilica-production` before it can work for a real user on the installed app. Check which backend the currently-installed binary/OTA channel actually points to (see `docs/LUMEN_HANDOFF.md`'s "Store state" section) before considering a backend change complete.
+
 ## 20 September 2026 - OTA: supported-person renaming; fixed invisible Overdue/Today To Do titles
 
 Published to `production` on David's explicit approval (update group `aa77b033-8ec7-4b0e-b258-12d27524c843`, both iOS and Android, runtime `1.0.0`, commit `7c64de7`). Confirmed JS-only beforehand via `git diff`.
