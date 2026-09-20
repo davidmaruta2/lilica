@@ -1,5 +1,11 @@
 # Revision Log
 
+## 20 September 2026 - Confirmed: fresh installs need one restart to pick up an OTA update
+
+David installed the Android internal-track build fresh (`1.0.0 (5)`) and hit the same "Your account could not be created just now" signup failure already fixed via OTA on the 19th. Confirmed WiFi-connected, and the production Auth API itself worked fine with the current key when tested directly -- so the backend was healthy. Root cause: `expo-updates`' default behaviour runs the originally embedded (pre-OTA-fix) JS bundle on a brand-new install's very first launch, and only fetches/applies the OTA update in the background for the *next* launch -- it does not block the first launch waiting for an update. David force-closed and reopened the app once, and signup then worked immediately.
+
+**Standing note for any future tester onboarding:** tell new internal testers (iOS or Android) to fully close and reopen the app once right after installing, before relying on it -- the very first launch of a fresh install can still reflect the original build's bugs even when OTA fixes already exist for that binary/channel.
+
 ## 20 September 2026 - App Store Connect store listing completed (privacy/terms/support pages published, most metadata filled)
 
 David asked to complete the store product info. Discovered `lilica.co.uk` was already live (a Care Circle invitation landing page, deployed via a dedicated `github-pages-hosting` branch/workflow in the `lilica` GitHub repo -- set up in an earlier session, not previously documented here). Rather than create a conflicting second site, added three new pages to that existing branch/deployment:
