@@ -1,5 +1,15 @@
 # Revision Log
 
+## 21 September 2026 - First Apple submission attempt blocked; two of three blockers fixed via API, one needs an Admin
+
+David clicked "Add for Review" in App Store Connect on David's explicit approval to submit -- the API itself also refused a scripted submission (`appStoreVersionSubmissions` CREATE returned 403, this API key's role only permits DELETE on that resource, confirming submission genuinely requires a human with the right Console role). Apple returned three blockers:
+
+1. **Content Rights Information** -- never set. Fixed via API: `PATCH /v1/apps/6812822327` with `contentRightsDeclaration: DOES_NOT_USE_THIRD_PARTY_CONTENT` (accurate -- Lilica contains no third-party media).
+2. **Pricing (app download price tier)** -- never set, distinct from the GBP 8.99/year subscription (which remained untouched and is still `READY_TO_SUBMIT`). Every app needs a base download price even when free. Fixed via API: created an `appPriceSchedules` resource with a manual Free ($0.00 USA base territory) price point, found via `GET /v1/apps/{id}/appPricePoints?filter[territory]=USA`. The correct inline-creation local-id syntax for this endpoint is `${local-id}` (a literal `${...}` string), not the `£localId` convention documented elsewhere -- found by reading the 409 error's own detail message.
+3. **App Privacy** ("an Admin must provide...") -- genuinely Console-UI-only, no API resource exists for it (`appPrivacyDetails`/`appPrivacyPublishState` both 404 as relationship names). Answers drafted and published in the same reference artifact as the Google Play forms (now retitled "Store Compliance Forms"): https://claude.ai/artifact/X24sS1xL1yNcwgDpnaon6n -- needs an Admin-role account to complete before resubmitting.
+
+Also gave the subscription (`6812831899`) a review note (it had none) explaining the free-trial/demo-account context to Apple's reviewer, since its `reviewNote` was still null.
+
 ## 21 September 2026 - Build attached to the App Store version; App Store Connect metadata now complete
 
 Discovered while walking the submission workflow: no build was attached to the `PREPARE_FOR_SUBMISSION` App Store version at all, despite `1.0.0 (5)` being valid on TestFlight -- "Submit for Review" would not have even been reachable. On David's explicit approval, attached build `1.0.0 (5)` (`01fe0374-6289-40e7-8d3c-988a608546f3`) via `PATCH /v1/appStoreVersions/{id}/relationships/build`, confirmed `APP_STORE_ELIGIBLE`/not expired via a follow-up GET.
