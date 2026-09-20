@@ -1602,6 +1602,44 @@ function LilicaApp() {
     setProjectionOpenType(type);
   }
 
+  // The RecordQuickEditor overlay itself, extracted so both renderShell()
+  // (Home/Calendar/To Do/People) AND the Medical Log screen reached via
+  // the Add flow/onboarding (rendered by renderAuthenticatedOnboarding()'s
+  // own stage switch, a separate render path that never calls
+  // renderShell()) can host it. Bug found and fixed 20 September 2026:
+  // Medical Log's per-section "Add" links call openNewFromProjection()
+  // exactly like every other onAddType consumer, but when Medical Log was
+  // reached from the Add flow (not Settings, which lives inside
+  // renderShell()), nothing rendered this overlay at all -- tapping Add
+  // silently did nothing, since setProjectionOpenType() had no listener in
+  // that part of the tree.
+  function renderProjectionEditor() {
+    if (!calendarOpenRecordId && !projectionOpenType) return null;
+    return (
+      <RecordQuickEditor
+        key={calendarOpenRecordId ?? projectionOpenType}
+        records={state.records}
+        recordId={calendarOpenRecordId}
+        origin={calendarOpenRecordId ? recordOpenOrigin : undefined}
+        newType={calendarOpenRecordId ? undefined : projectionOpenType}
+        supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
+        careSpaceId={currentSpace?.careSpaceId ?? ''}
+        activeMembershipId={currentSpace?.membershipId}
+        careCircleMembers={careCircleMembers}
+        onRequestReminderPermission={requestReminderPermission}
+        onSaveRecord={saveRecord}
+        onRemoveRecord={removeRecord}
+        onDismiss={() => {
+          setCalendarOpenRecordId(undefined);
+          setRecordOpenOrigin(undefined);
+          setProjectionOpenType(undefined);
+        }}
+        isReadOnly={isReadOnly || isArchived}
+        onBlockedEdit={() => showBlockedGate()}
+      />
+    );
+  }
+
   // Corrective task 2: Home's Overdue/Due today/Assigned to you tiles
   // land here. This only switches which tab is active and what To Do
   // opens focused on -- the active care space (and so activeCareSpaceId)
@@ -1859,29 +1897,7 @@ function LilicaApp() {
           </Pressable>
         ) : null}
         <View style={styles.shellContent}>{content}</View>
-        {(calendarOpenRecordId || projectionOpenType) ? (
-          <RecordQuickEditor
-            key={calendarOpenRecordId ?? projectionOpenType}
-            records={state.records}
-            recordId={calendarOpenRecordId}
-            origin={calendarOpenRecordId ? recordOpenOrigin : undefined}
-            newType={calendarOpenRecordId ? undefined : projectionOpenType}
-            supportedPersonId={currentSpace?.supportedPersonId ?? 'person-local'}
-            careSpaceId={currentSpace?.careSpaceId ?? ''}
-            activeMembershipId={currentSpace?.membershipId}
-            careCircleMembers={careCircleMembers}
-            onRequestReminderPermission={requestReminderPermission}
-            onSaveRecord={saveRecord}
-            onRemoveRecord={removeRecord}
-            onDismiss={() => {
-              setCalendarOpenRecordId(undefined);
-              setRecordOpenOrigin(undefined);
-              setProjectionOpenType(undefined);
-            }}
-            isReadOnly={isReadOnly || isArchived}
-            onBlockedEdit={() => showBlockedGate()}
-          />
-        ) : null}
+        {renderProjectionEditor()}
         <NotificationCentre
           visible={showNotificationCentre}
           origin={notificationOrigin}
@@ -2369,14 +2385,17 @@ function LilicaApp() {
         );
       case 'firstThing':
         return firstThingMedicalLogOpen ? (
-          <MedicalLogScreen
-            personName={currentSpace?.displayName}
-            isSelf={currentSpace?.relationshipType === 'Myself'}
-            records={currentSpace?.records ?? []}
-            onBack={() => setFirstThingMedicalLogOpen(false)}
-            onOpenRecord={openRecordFromProjection}
-            onAddType={(type) => guardMutation(() => openNewFromProjection(type))}
-          />
+          <>
+            <MedicalLogScreen
+              personName={currentSpace?.displayName}
+              isSelf={currentSpace?.relationshipType === 'Myself'}
+              records={currentSpace?.records ?? []}
+              onBack={() => setFirstThingMedicalLogOpen(false)}
+              onOpenRecord={openRecordFromProjection}
+              onAddType={(type) => guardMutation(() => openNewFromProjection(type))}
+            />
+            {renderProjectionEditor()}
+          </>
         ) : (
           <FirstThingScreen
             interests={currentSpace?.interests ?? []}
@@ -2407,14 +2426,17 @@ function LilicaApp() {
             onSave={completeOnboarding}
           />
         ) : firstThingMedicalLogOpen ? (
-          <MedicalLogScreen
-            personName={currentSpace?.displayName}
-            isSelf={currentSpace?.relationshipType === 'Myself'}
-            records={currentSpace?.records ?? []}
-            onBack={() => setFirstThingMedicalLogOpen(false)}
-            onOpenRecord={openRecordFromProjection}
-            onAddType={(type) => guardMutation(() => openNewFromProjection(type))}
-          />
+          <>
+            <MedicalLogScreen
+              personName={currentSpace?.displayName}
+              isSelf={currentSpace?.relationshipType === 'Myself'}
+              records={currentSpace?.records ?? []}
+              onBack={() => setFirstThingMedicalLogOpen(false)}
+              onOpenRecord={openRecordFromProjection}
+              onAddType={(type) => guardMutation(() => openNewFromProjection(type))}
+            />
+            {renderProjectionEditor()}
+          </>
         ) : (
           <FirstThingScreen
             interests={currentSpace?.interests ?? []}
