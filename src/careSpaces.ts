@@ -122,3 +122,14 @@ export async function restoreCareSpace(careSpaceId: string): Promise<{ ok: true 
   if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
   return { ok: true };
 }
+
+// 20 September 2026, direct product-owner request: renaming a supported
+// person after initial setup. Same thin-wrapper shape as archive/restore
+// above -- all authority (active organiser only) and validation (1-80
+// trimmed characters) enforced server-side
+// (rename_supported_person(), 20260920120000_rename_supported_person.sql).
+export async function renameSupportedPerson(careSpaceId: string, newDisplayName: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('rename_supported_person', { target_care_space_id: careSpaceId, new_display_name: newDisplayName });
+  if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
+  return { ok: true };
+}

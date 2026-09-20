@@ -80,7 +80,7 @@ import {
   setCareSpaceStatus,
   validatePersonDraft,
 } from './src/careSpaceState';
-import { archiveCareSpace, deleteCareSpace, provisionSupportedPeople, reconnectCareSpaces, restoreCareSpace } from './src/careSpaces';
+import { archiveCareSpace, deleteCareSpace, provisionSupportedPeople, reconnectCareSpaces, renameSupportedPerson, restoreCareSpace } from './src/careSpaces';
 import {
   acceptInvitation,
   acceptInvitationGroup,
@@ -831,6 +831,16 @@ function LilicaApp() {
     setState((current) => removeCareSpace(current, targetId));
     setShowSettingsMenu(false);
     setSettingsSection('menu');
+    return { ok: true };
+  }
+
+  // 20 September 2026, direct product-owner request: renaming a supported
+  // person after initial setup. Same discipline as archive/restore below --
+  // local state only updates once the server call has genuinely succeeded.
+  async function handleRenameSupportedPerson(targetId: string, newDisplayName: string): Promise<{ ok: boolean; message?: string }> {
+    const result = await renameSupportedPerson(targetId, newDisplayName);
+    if (!result.ok) return result;
+    setState((current) => projectActiveCareSpace(replaceCareSpace(current, targetId, (space) => ({ ...space, displayName: newDisplayName.trim() }))));
     return { ok: true };
   }
 
@@ -1964,6 +1974,7 @@ function LilicaApp() {
               selfMembershipId={currentSpace.membershipId}
               onBack={() => setSettingsSection('menu')}
               onOpenCareCircle={() => setSettingsSection('careCircle')}
+              onRename={(newDisplayName) => handleRenameSupportedPerson(currentSpace.careSpaceId, newDisplayName)}
               onArchive={() => handleArchiveCareSpace(currentSpace.careSpaceId)}
               onRestore={() => handleRestoreCurrentCareSpace(currentSpace.careSpaceId)}
               onPromote={handlePromoteToOrganiser}

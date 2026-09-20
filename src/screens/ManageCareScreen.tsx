@@ -6,6 +6,7 @@ import { Header } from '../components/Header';
 import { RemoveCareSpaceConfirm } from '../components/RemoveCareSpaceConfirm';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
+import { TextField } from '../components/TextField';
 import { CareCircleMember, CareSpaceDeletionStatus, DeletionReason } from '../careCircle';
 import { colors, radius, spacing } from '../theme';
 
@@ -29,6 +30,7 @@ type Props = {
   selfMembershipId?: string;
   onBack: () => void;
   onOpenCareCircle: () => void;
+  onRename: (newDisplayName: string) => Promise<{ ok: boolean; message?: string }>;
   onArchive: () => Promise<{ ok: boolean; message?: string }>;
   onRestore: () => Promise<{ ok: boolean; message?: string }>;
   onPromote: (membershipId: string) => Promise<{ ok: boolean; message?: string }>;
@@ -51,6 +53,7 @@ export function ManageCareScreen({
   selfMembershipId,
   onBack,
   onOpenCareCircle,
+  onRename,
   onArchive,
   onRestore,
   onPromote,
@@ -61,10 +64,26 @@ export function ManageCareScreen({
   onCancelDeletion,
   onRefreshDeletionStatus,
 }: Props) {
+  const [nameDraft, setNameDraft] = useState(personName);
+  const [nameState, setNameState] = useState<SectionState>({ busy: false });
   const [statusState, setStatusState] = useState<SectionState>({ busy: false });
   const [handoffState, setHandoffState] = useState<SectionState>({ busy: false });
   const [deletionState, setDeletionState] = useState<SectionState>({ busy: false });
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+
+  useEffect(() => {
+    setNameDraft(personName);
+  }, [personName]);
+
+  const trimmedNameDraft = nameDraft.trim();
+  const canSaveName = trimmedNameDraft.length > 0 && trimmedNameDraft.length <= 80 && trimmedNameDraft !== personName;
+
+  async function handleRename() {
+    if (!canSaveName) return;
+    setNameState({ busy: true });
+    const result = await onRename(trimmedNameDraft);
+    setNameState({ busy: false, message: result.message, tone: result.ok ? 'success' : 'danger' });
+  }
 
   useEffect(() => {
     onRefreshDeletionStatus();
@@ -124,6 +143,29 @@ export function ManageCareScreen({
     <Screen>
       <Header title={`Manage ${personName}'s care`} onBack={onBack} />
       <View style={styles.content}>
+
+        <View style={styles.section}>
+          <AppText variant="section">Name</AppText>
+          <AppText variant="body" tone="soft">The name Lilica uses for {personName} throughout the app.</AppText>
+          <TextField
+            label="Name"
+            compact
+            value={nameDraft}
+            onChangeText={setNameDraft}
+            autoCapitalize="words"
+            autoCorrect={false}
+            returnKeyType="done"
+            onSubmitEditing={() => void handleRename()}
+          />
+          <Button
+            label={nameState.busy ? 'Saving…' : 'Save name'}
+            variant="secondary"
+            disabled={!canSaveName || nameState.busy}
+            onPress={() => void handleRename()}
+            style={styles.button}
+          />
+          {nameState.message ? <AppText variant="secondary" tone={nameState.tone === 'danger' ? 'danger' : 'soft'}>{nameState.message}</AppText> : null}
+        </View>
 
         <View style={styles.section}>
           <AppText variant="section">Care status</AppText>

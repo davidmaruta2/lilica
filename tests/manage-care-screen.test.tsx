@@ -31,6 +31,7 @@ const baseProps = {
   selfMembershipId: 'm-self',
   onBack: jest.fn(),
   onOpenCareCircle: jest.fn(),
+  onRename: jest.fn().mockResolvedValue({ ok: true }),
   onArchive: jest.fn().mockResolvedValue({ ok: true }),
   onRestore: jest.fn().mockResolvedValue({ ok: true }),
   onPromote: jest.fn().mockResolvedValue({ ok: true }),
@@ -43,6 +44,34 @@ const baseProps = {
 };
 
 beforeEach(() => jest.clearAllMocks());
+
+// 20 September 2026, direct product-owner request: no way to rename a
+// supported person after initial setup existed anywhere in the app --
+// see rename_supported_person() (supabase/migrations/20260920120000_
+// rename_supported_person.sql) and src/careSpaces.ts's renameSupportedPerson().
+describe('ManageCareScreen: renaming the supported person', () => {
+  it('Save name is disabled until the name actually changes to something non-empty', async () => {
+    const screen = await render(<ManageCareScreen {...baseProps} />);
+    const saveButton = screen.getByLabelText('Save name');
+    expect(saveButton.props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('editing the name and pressing Save calls onRename with the trimmed new name', async () => {
+    const screen = await render(<ManageCareScreen {...baseProps} />);
+    const input = screen.getByDisplayValue('Maggie');
+    await fireEvent.changeText(input, '  Margaret  ');
+    await fireEvent.press(screen.getByText('Save name'));
+    expect(baseProps.onRename).toHaveBeenCalledWith('Margaret');
+  });
+
+  it('shows the real result message when the server rejects the rename', async () => {
+    const onRename = jest.fn().mockResolvedValue({ ok: false, message: 'Your profile could not be saved just now. Please try again.' });
+    const screen = await render(<ManageCareScreen {...baseProps} onRename={onRename} />);
+    await fireEvent.changeText(screen.getByDisplayValue('Maggie'), 'Margaret');
+    await fireEvent.press(screen.getByText('Save name'));
+    screen.getByText('Your profile could not be saved just now. Please try again.');
+  });
+});
 
 describe('ManageCareScreen: care status / Archive / Restore', () => {
   it('an active care space offers Archive, and calls the real handler', async () => {
