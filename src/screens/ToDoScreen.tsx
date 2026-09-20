@@ -71,9 +71,16 @@ type AssignmentFilter = 'all' | 'mine' | 'unassigned';
 type ViewMode = 'list' | 'grid';
 type TaskGroupKey = 'overdue' | 'today' | 'upcoming' | 'completed';
 
+// Bug found and fixed 20 September 2026 (reported directly: "why doesn't
+// this actually show us in the tile what the item is"): overdue/today
+// both had `heading: colors.white` against a white/near-white `tile` --
+// the record title (and the chevron, which also reads groupVisual.heading)
+// was genuinely invisible, not just low-contrast, on both. `colors.ink`
+// matches the same dark-on-light pattern upcoming/completed already used
+// correctly.
 const TASK_GROUP_VISUALS: Record<TaskGroupKey, { tile: string; heading: string; metadata: string }> = {
-  overdue: { tile: '#FFFFFF', heading: colors.white, metadata: colors.danger },
-  today: { tile: '#FBF8F4', heading: colors.white, metadata: colors.inkSoft },
+  overdue: { tile: '#FFFFFF', heading: colors.ink, metadata: colors.danger },
+  today: { tile: '#FBF8F4', heading: colors.ink, metadata: colors.inkSoft },
   upcoming: { tile: '#E6F7FE', heading: '#155E8A', metadata: '#356F88' },
   completed: { tile: '#F1F4F5', heading: colors.inkSoft, metadata: colors.inkSoft },
 };
