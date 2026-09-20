@@ -1,5 +1,13 @@
 # Revision Log
 
+## 20 September 2026 - Store screenshots uploaded to both App Store Connect and Google Play
+
+Processed 10 WhatsApp-compressed device screenshots David supplied into store-quality images (1290x2796, Apple's iPhone 6.7" requirement, also comfortably within Google Play's range) named `lilica1.jpg`-`lilica10.jpg`, cropping out dimmed backgrounds on the two modal-style captures (Care Summary, Manage care) and top-anchoring every crop so headers are never cut off. One genuine mix-up caught and corrected before upload: an early duplicate (green onboarding screen appeared twice in the source set) was swapped for the actual unique "Mum's records" Add-flow screen once individually re-verified against every source file.
+
+**App Store Connect:** uploaded all 10 (Apple's per-device-size maximum) to a new `APP_IPHONE_67` screenshot set, in David's chosen priority order (onboarding hook, Home, Calendar, To Do, People, Medical Log, Care Summary, second onboarding screen, Add-flow, Manage-care/rename). All confirmed `COMPLETE` via the App Store Connect API.
+
+**Google Play:** uploaded the best 8 of the 10 (Google's hard maximum for phone screenshots; dropped the Add-flow and Manage-care/rename shots as least distinct for marketing) via the Android Publisher API, using the same Google service account already configured for EAS submissions. Two real path bugs found and fixed while building this (confirmed against Google's own API discovery document rather than guessed): the `imageType` path segment is not a literal, and media uploads need the `/upload/` URL prefix with `uploadType=media` -- without both fixes every call returned a generic ESF 404. Edit validated then committed; a fresh listing fetch afterward confirmed exactly 8 images in the intended order.
+
 ## 20 September 2026 - Confirmed: fresh installs need one restart to pick up an OTA update
 
 David installed the Android internal-track build fresh (`1.0.0 (5)`) and hit the same "Your account could not be created just now" signup failure already fixed via OTA on the 19th. Confirmed WiFi-connected, and the production Auth API itself worked fine with the current key when tested directly -- so the backend was healthy. Root cause: `expo-updates`' default behaviour runs the originally embedded (pre-OTA-fix) JS bundle on a brand-new install's very first launch, and only fetches/applies the OTA update in the background for the *next* launch -- it does not block the first launch waiting for an update. David force-closed and reopened the app once, and signup then worked immediately.
