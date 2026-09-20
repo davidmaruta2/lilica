@@ -10,6 +10,8 @@ David clicked "Add for Review" in App Store Connect on David's explicit approval
 
 Also gave the subscription (`6812831899`) a review note (it had none) explaining the free-trial/demo-account context to Apple's reviewer, since its `reviewNote` was still null.
 
+**Follow-up (same day):** re-audited the data model directly (`src/types.ts`) rather than relying on the first pass from memory, and found two genuine gaps in the drafted Data Safety/App Privacy answers -- Contact records' `phone` field, and appointments' free-text `location` field (address-adjacent) -- plus a minor taxonomy gap (Apple's own "User ID" identifier category). All three added to the same artifact.
+
 ## 21 September 2026 - Build attached to the App Store version; App Store Connect metadata now complete
 
 Discovered while walking the submission workflow: no build was attached to the `PREPARE_FOR_SUBMISSION` App Store version at all, despite `1.0.0 (5)` being valid on TestFlight -- "Submit for Review" would not have even been reachable. On David's explicit approval, attached build `1.0.0 (5)` (`01fe0374-6289-40e7-8d3c-988a608546f3`) via `PATCH /v1/appStoreVersions/{id}/relationships/build`, confirmed `APP_STORE_ELIGIBLE`/not expired via a follow-up GET.
