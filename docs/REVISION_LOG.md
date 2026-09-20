@@ -1,5 +1,13 @@
 # Revision Log
 
+## 20-21 September 2026 - App Store Connect App Review contact and demo account set up
+
+Created `appStoreReviewDetails` for the current App Store version via the API: contact name/phone/email (David's own; phone sourced from the `lilica.co.uk` domain registration, not separately confirmed -- worth double-checking), plus a dedicated demo account so reviewers are never handed a real personal account.
+
+**Demo account:** `applereview@luxfordinteractive.com`, created directly on `lilica-production`, email pre-confirmed via the Supabase admin API (`email_confirm: true`) so reviewers can log straight in without the six-digit verification step. Populated with one sample supported person ("Mum") and three records (an appointment, an errand, a care note) via `bootstrap_supported_people`/`apply_record_mutation`, so the app isn't empty on first login. Within the 60-day free period at creation, so no subscription purchase is needed to review the app. Credentials saved to `C:\Users\DavidPC\.lilica-credentials\apple_review_demo_account.txt` (outside the repo, matching the existing credentials pattern) -- never ask David to re-supply them.
+
+**Found during this work:** `apply_record_mutation()`'s actual PostgREST parameter names (`operation_id`, `target_record_id`, `target_care_space_id`, `mutation_kind`, `base_version`, `mutation_payload`) differ from the positional names used when calling it directly in SQL/pgTAP (`operation_id`, `mutation_id`, `target_care_space_id`, `operation`, `base_version`, `payload`) -- calling it over the REST API needs the PostgREST names, confirmed via the function-not-found error's own hint.
+
 ## 20 September 2026 - Store screenshots uploaded to both App Store Connect and Google Play
 
 Processed 10 WhatsApp-compressed device screenshots David supplied into store-quality images (1290x2796, Apple's iPhone 6.7" requirement, also comfortably within Google Play's range) named `lilica1.jpg`-`lilica10.jpg`, cropping out dimmed backgrounds on the two modal-style captures (Care Summary, Manage care) and top-anchoring every crop so headers are never cut off. One genuine mix-up caught and corrected before upload: an early duplicate (green onboarding screen appeared twice in the source set) was swapped for the actual unique "Mum's records" Add-flow screen once individually re-verified against every source file.
