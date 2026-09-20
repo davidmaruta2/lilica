@@ -2,13 +2,13 @@
 
 Despite its legacy filename, this is the canonical current handoff for every incoming agent.
 
-Last updated: 20 September 2026, end of session (David going to sleep -- next agent picks up cold).
+Last updated: 21 September 2026, end of session (David going to sleep -- next agent picks up cold).
 
 ## Read this first
 
 Lilica is a calm personal and family care organiser built with Expo SDK 57, React Native, TypeScript, Supabase, RevenueCat, EAS, App Store Connect, and Google Play. It is not a clinical system, emergency monitor, surveillance product, or generic family calendar.
 
-**Nothing is urgent or broken right now.** The one real incident this session (production signup completely broken) is fixed and David confirmed it working on-device. Everything else below is either done, or a known/expected next step -- read it, don't panic about it.
+**Nothing is urgent or broken right now.** The one real incident this session (production signup completely broken) is fixed and David confirmed it working on-device. **Apple submission is done -- Lilica is now `WAITING_FOR_REVIEW` on the App Store.** Google Play is next: the listing/contact metadata is filled in, but three Console-only forms (App access, Data safety, Content rating) and the actual production-track publish are still outstanding and are explicitly David's task to pick up next session. Everything else below is either done, or a known/expected next step -- read it, don't panic about it.
 
 An incoming agent must not assume a new phase or release action is authorised. Read this file, `AGENTS.md`, `docs/NEXT_NATIVE_BUILD_MANIFEST.md`, `docs/BUILD_RELEASE_CONTROL.md`, and `docs/REVENUECAT_BILLING_SETUP_REPORT.md` before acting.
 
@@ -37,8 +37,8 @@ Authoritative policy: `docs/BUILD_RELEASE_CONTROL.md`.
 
 | Platform | Version | EAS build ID | State |
 | --- | --- | --- | --- |
-| iOS | `1.0.0 (5)` | `22860bae-49bb-46de-9ccb-0e4cb5a51ca8` | **Submitted to Apple for review** (`appStoreState: WAITING_FOR_REVIEW`, submitted 21 September 2026) |
-| Android | `1.0.0 (5)` | `a7ed9204-270b-482e-a329-2f72f863ceef` | Submitted to Google Play **internal** track (David's explicit choice -- not public), status `COMPLETED`. Play's own store-listing forms (App access/Data safety/Content rating) and publish action are still outstanding -- see `docs/REVISION_LOG.md`'s 21 September entries. |
+| iOS | `1.0.0 (5)` | `22860bae-49bb-46de-9ccb-0e4cb5a51ca8` | **Submitted to Apple for review** (`appStoreState: WAITING_FOR_REVIEW`, submitted 21 September 2026). No further action needed until Apple responds. |
+| Android | `1.0.0 (5)` | `a7ed9204-270b-482e-a329-2f72f863ceef` | Still only on Google Play's **internal** track, status `COMPLETED`. Store listing description and contact details are now filled in via the API (21 September). Still outstanding: App access, Data safety, and Content rating -- Console-UI-only, David completing these himself; then promoting the release from `internal` to `production` (needs David's explicit approval, same rule as any other publish action). See `docs/REVISION_LOG.md`'s 21 September Google Play entry. |
 
 Built from commit `313d064`, the first build genuinely wired to `lilica-production` (not `lilica-development`). No new native build has been run since -- everything below this point has reached the installed app via OTA (JS/asset-only, no native change), not a new binary. **This means the version currently under Apple review does not include any of the OTA fixes from 19-21 September** (password toggle, Medical Log Add-flow fix, supported-person rename, ToDo contrast fix, tile rename) -- those exist only as OTA updates for already-installed copies, not baked into the submitted binary. A fresh install from the App Store (once approved) will get them automatically on second launch, same as the Android tester did.
 
@@ -123,12 +123,13 @@ Lilica is iPhone-only. `app.json` must retain `ios.supportsTablet: false`. Check
 
 ### RevenueCat/store work still outstanding (unrelated to any build/OTA)
 
-1. Run physical iPhone sandbox purchase, restore, renewal, cancellation, expiry, and refund/revocation checks.
-2. Add/confirm licensed Google Play testers and run equivalent Android internal-track checks.
-3. Confirm a real store event reaches RevenueCat, passes the signed webhook, updates Supabase entitlement state, and changes Lilica's access gates correctly end-to-end (plumbing itself is verified; a real-purchase proof is still outstanding).
-4. Verify purchase on one platform and login on the other for the same Lilica account (cross-platform entitlement).
-5. Complete store listings, policy/privacy declarations, review assets beyond the subscription screenshot, and a separate production release go/no-go.
-6. When ready to go public: flip Android's `eas.json` submit track from `internal` to `production` (no rebuild needed); iOS needs a manual "submit for review" action in App Store Connect.
+1. **Google Play: complete the three Console-only forms** -- App access, Data safety, Content rating. Answers are already drafted and paste-ready in the Store Compliance Forms artifact: https://claude.ai/artifact/X24sS1xL1yNcwgDpnaon6n. This is explicitly David's task, picking up next session (as of 21 September, end of session).
+2. **Google Play: promote the release from `internal` to `production` track** once (1) is done -- the actual "go live" action. Fully scriptable via the Android Publisher API (`edits.tracks.update` + `edits.commit`), but is a protected publish-equivalent action -- state the exact track/version/versionCode/release-name being promoted and wait for David's direct approval before running it, same rule as any build/OTA/submission.
+3. **Apple: awaiting review outcome.** Submitted `1.0.0 (5)` to Apple 21 September 2026 (`appStoreState: WAITING_FOR_REVIEW`). No action needed unless Apple rejects or requests changes -- check `GET /v1/apps/6812822327/appStoreVersions` for state changes at the start of a new session.
+4. Run physical iPhone sandbox purchase, restore, renewal, cancellation, expiry, and refund/revocation checks.
+5. Add/confirm licensed Google Play testers and run equivalent Android internal-track checks.
+6. Confirm a real store event reaches RevenueCat, passes the signed webhook, updates Supabase entitlement state, and changes Lilica's access gates correctly end-to-end (plumbing itself is verified; a real-purchase proof is still outstanding).
+7. Verify purchase on one platform and login on the other for the same Lilica account (cross-platform entitlement).
 
 Full details: `docs/REVENUECAT_BILLING_SETUP_REPORT.md`.
 
@@ -167,7 +168,9 @@ Authority: `docs/PHASE_22_APPROVED_VISUAL_DIRECTION.md` and completion reports. 
 
 ## Immediate continuation instructions
 
-There is no automatically authorised next phase or pending urgent issue. On a new instruction:
+**Most likely next task:** David said he'll go through Google Play's three Console-only forms (App access, Data safety, Content rating) next session, using the answers in https://claude.ai/artifact/X24sS1xL1yNcwgDpnaon6n. If he reports having completed them, the next step is offering to promote the `internal` release to `production` -- state the exact track/version/versionCode being promoted and wait for his direct yes before running it.
+
+Beyond that, there is no automatically authorised next phase or pending urgent issue. On a new instruction:
 
 1. re-read current git status/log and this handoff;
 2. if David hasn't yet confirmed the second OTA (Medical Log tile / Settings regrouping / Care Summary) looks right on his device, ask;

@@ -1,5 +1,15 @@
 # Revision Log
 
+## 21 September 2026 - Google Play listing description and contact details filled in via API
+
+Continuing Google Play preparation after the Apple submission. An audit (`edits.listings`/`edits.details`/`edits.tracks` GETs) found the Play listing had only a title (no short/full description at all), `details` had only `defaultLanguage`, and `production`/`beta`/`alpha` tracks were all empty -- only `internal` has a release (`1.0.0`, versionCode `5`, status `completed`).
+
+Filled in via the Android Publisher API (`edits.listings.update` + `edits.details.update`, each followed by `edits.commit`):
+- **Listing** (`en-GB`): short description (75 chars) and full description (1826 chars), adapted from the same product copy used for Apple's App Store listing but with Google Play-specific billing language (Google Play Subscriptions settings, not Apple ID). Title unchanged (`Lilica: Care & Support`).
+- **Details**: `contactEmail` set to `admin@luxfordinteractive.com` -- the real in-app support address already used by `ContactScreen.tsx`/`FeatureRequestScreen.tsx` (`SUPPORT_EMAIL`/`FEATURE_REQUEST_EMAIL` constants), not a new/guessed address. `contactWebsite` set to `https://lilica.co.uk`.
+
+**Not done, and deliberately not attempted:** the App access declaration, Data safety form, and Content rating questionnaire are Console-UI-only (confirmed earlier this session -- no Android Publisher API resource exists for any of them). Paste-ready answers for all three are in the same Store Compliance Forms artifact used for Apple's App Privacy: https://claude.ai/artifact/X24sS1xL1yNcwgDpnaon6n. David is completing these three forms himself the next session. Promoting the release from `internal` to `production` track (the actual "go live" action, equivalent to Apple's Submit for Review) has not been attempted and needs David's explicit approval first, same as every other publish-equivalent action this session.
+
 ## 21 September 2026 - Lilica submitted to Apple for review
 
 David completed the App Privacy section in App Store Connect (Admin-only, per the blocker below) using the answers drafted in the Store Compliance Forms artifact, then successfully clicked "Add for Review". Confirmed via the API: `appStoreState`/`appVersionState` both now `WAITING_FOR_REVIEW` (build `1.0.0 (5)`, commit `313d064`). This is Lilica's first-ever App Store review submission.

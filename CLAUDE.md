@@ -1,13 +1,15 @@
 # Claude Handoff Entry Point
 
-Last updated 20 September 2026, end of session -- David going to sleep, next agent picks up cold with no chat context. Nothing is currently broken or urgent; read this fully before doing anything.
+Last updated 21 September 2026, end of session -- David going to sleep, next agent picks up cold with no chat context. Nothing is currently broken or urgent; read this fully before doing anything.
 
 ## Where things stand right now
 
 - Installed native binary: iOS/Android **`1.0.0 (5)`**, built from commit `313d064`, the first build genuinely wired to `lilica-production`. No new native build since.
 - Two OTA updates have shipped on top of that binary since, both approved and both JS/asset-only (no native change): one fixed a critical production signup outage (confirmed working by David); the second added a Medical Log Add-flow tile, a Care Summary medical section, a regrouped Settings drawer, and a header spacing fix (validated by tests, not yet explicitly confirmed on David's device -- worth asking).
-- Local `HEAD` and `origin/prephase22-remove-supported-person-faq-help` both at `cd8ca91`, working tree clean. Confirm this is still true with a fresh `git log -1`/`git status --short` -- do not trust this line alone.
-- Full detail on everything above: `docs/LUMEN_HANDOFF.md` (rewritten fresh this session -- read it in full, it is now the accurate source, not a stale summary).
+- **Apple: submitted for review 21 September 2026** (`appStoreState: WAITING_FOR_REVIEW`, build `1.0.0 (5)`). No action needed unless Apple responds with a rejection or change request -- check on session start.
+- **Google Play: listing description and contact details filled in via API 21 September 2026.** Still outstanding: App access, Data safety, and Content rating forms (Console-UI-only, answers ready at https://claude.ai/artifact/X24sS1xL1yNcwgDpnaon6n) -- David is completing these himself next session. After that, promoting the release from `internal` to `production` track is the final step, and needs David's explicit approval before running (fully scriptable, just protected).
+- Local `HEAD` and `origin/prephase22-remove-supported-person-faq-help` should be in sync, working tree clean. Confirm this is still true with a fresh `git log -1`/`git status --short` -- do not trust this line alone.
+- Full detail on everything above: `docs/LUMEN_HANDOFF.md` (updated this session -- read it in full, it is the accurate source, not a stale summary).
 
 ## CRITICAL: durable release credentials -- never ask David for these again
 
