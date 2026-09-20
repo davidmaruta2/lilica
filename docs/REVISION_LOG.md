@@ -1,5 +1,13 @@
 # Revision Log
 
+## 20 September 2026 - OTA: supported-person renaming; fixed invisible Overdue/Today To Do titles
+
+Published to `production` on David's explicit approval (update group `aa77b033-8ec7-4b0e-b258-12d27524c843`, both iOS and Android, runtime `1.0.0`, commit `7c64de7`). Confirmed JS-only beforehand via `git diff`.
+
+**Supported-person renaming** (direct product-owner request -- no way to rename a supported person after initial setup existed anywhere in the app or schema): new `rename_supported_person()` RPC (`supabase/migrations/20260920120000_rename_supported_person.sql`, organiser-only, same authority pattern as archive/restore), applied to and database-proven against `lilica-development` (24 files/505 pgTAP assertions, both local Docker and the hosted database). Also widened `care_space_activity`'s `event_type` CHECK constraint to include the new `supported_person_renamed` event -- missed on the first pass, caught by the pgTAP proof before it ever touched anything real. Client: `renameSupportedPerson()` in `src/careSpaces.ts`, a "Name" field + Save button at the top of "Manage [Name]'s care" (`src/screens/ManageCareScreen.tsx`).
+
+**Invisible Overdue/Today To Do titles** (reported directly: "why doesn't this actually show us in the tile what the item is"): `TASK_GROUP_VISUALS` in `src/screens/ToDoScreen.tsx` had `heading: colors.white` for both the `overdue` and `today` groups, whose tile backgrounds are also white/near-white -- the record title (and the chevron, which reads the same colour) was genuinely invisible, not merely low-contrast. Fixed to `colors.ink`, matching the dark-on-light pattern `upcoming`/`completed` already used correctly.
+
 ## 20 September 2026 - CRITICAL: Medical Log's Add buttons did nothing when reached via the Add flow; fixed via OTA
 
 **Symptom:** David reported that opening Medical Log via the Add flow (the tile added earlier this session) and tapping any of the three "Add" links (care need / diagnosed condition / prescribed medicine) did nothing -- no editor opened, nothing saved.
