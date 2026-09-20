@@ -1,5 +1,11 @@
 # Revision Log
 
+## 21 September 2026 - Lilica submitted to Apple for review
+
+David completed the App Privacy section in App Store Connect (Admin-only, per the blocker below) using the answers drafted in the Store Compliance Forms artifact, then successfully clicked "Add for Review". Confirmed via the API: `appStoreState`/`appVersionState` both now `WAITING_FOR_REVIEW` (build `1.0.0 (5)`, commit `313d064`). This is Lilica's first-ever App Store review submission.
+
+**Not yet done, unrelated to this submission:** Google Play's equivalent forms (App access, Data safety, Content rating -- answers in the same artifact) and its own publish action; flipping Android's Play track from `internal` to `production`; physical purchase/restore/renewal QA; cross-platform entitlement verification.
+
 ## 21 September 2026 - First Apple submission attempt blocked; two of three blockers fixed via API, one needs an Admin
 
 David clicked "Add for Review" in App Store Connect on David's explicit approval to submit -- the API itself also refused a scripted submission (`appStoreVersionSubmissions` CREATE returned 403, this API key's role only permits DELETE on that resource, confirming submission genuinely requires a human with the right Console role). Apple returned three blockers:

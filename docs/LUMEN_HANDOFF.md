@@ -37,10 +37,10 @@ Authoritative policy: `docs/BUILD_RELEASE_CONTROL.md`.
 
 | Platform | Version | EAS build ID | State |
 | --- | --- | --- | --- |
-| iOS | `1.0.0 (5)` | `22860bae-49bb-46de-9ccb-0e4cb5a51ca8` | Submitted to TestFlight |
-| Android | `1.0.0 (5)` | `a7ed9204-270b-482e-a329-2f72f863ceef` | Submitted to Google Play **internal** track (David's explicit choice -- not public), status `COMPLETED` |
+| iOS | `1.0.0 (5)` | `22860bae-49bb-46de-9ccb-0e4cb5a51ca8` | **Submitted to Apple for review** (`appStoreState: WAITING_FOR_REVIEW`, submitted 21 September 2026) |
+| Android | `1.0.0 (5)` | `a7ed9204-270b-482e-a329-2f72f863ceef` | Submitted to Google Play **internal** track (David's explicit choice -- not public), status `COMPLETED`. Play's own store-listing forms (App access/Data safety/Content rating) and publish action are still outstanding -- see `docs/REVISION_LOG.md`'s 21 September entries. |
 
-Built from commit `313d064`, the first build genuinely wired to `lilica-production` (not `lilica-development`). No new native build has been run since -- everything below this point has reached the installed app via OTA (JS/asset-only, no native change), not a new binary.
+Built from commit `313d064`, the first build genuinely wired to `lilica-production` (not `lilica-development`). No new native build has been run since -- everything below this point has reached the installed app via OTA (JS/asset-only, no native change), not a new binary. **This means the version currently under Apple review does not include any of the OTA fixes from 19-21 September** (password toggle, Medical Log Add-flow fix, supported-person rename, ToDo contrast fix, tile rename) -- those exist only as OTA updates for already-installed copies, not baked into the submitted binary. A fresh install from the App Store (once approved) will get them automatically on second launch, same as the Android tester did.
 
 **Not yet done, and not resolved by any build or OTA:** Android's `eas.json` submit track is still `internal` (David's choice, changeable to `production` with no rebuild needed when ready); iOS still needs a manual "submit for App Store review" and release action in App Store Connect to go public.
 
