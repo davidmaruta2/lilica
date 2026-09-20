@@ -1,5 +1,13 @@
 # Revision Log
 
+## 21 September 2026 - Build attached to the App Store version; App Store Connect metadata now complete
+
+Discovered while walking the submission workflow: no build was attached to the `PREPARE_FOR_SUBMISSION` App Store version at all, despite `1.0.0 (5)` being valid on TestFlight -- "Submit for Review" would not have even been reachable. On David's explicit approval, attached build `1.0.0 (5)` (`01fe0374-6289-40e7-8d3c-988a608546f3`) via `PATCH /v1/appStoreVersions/{id}/relationships/build`, confirmed `APP_STORE_ELIGIBLE`/not expired via a follow-up GET.
+
+With this, every App Store Connect metadata item is now complete: description/keywords/subtitle/promotional text/copyright/category/age rating, privacy/support/marketing URLs, 10 screenshots, App Review contact/demo account, and now a build. The only remaining step is the "Submit for Review" action itself -- a separate protected action requiring David's explicit approval, not yet given.
+
+Also drafted (in a published artifact, not this repo) paste-ready answers for Google Play's App access, Data safety, and Content rating forms -- all three are Console-UI-only with no Android Publisher API support (confirmed by listing every resource in the API's own discovery document).
+
 ## 20-21 September 2026 - App Store Connect App Review contact and demo account set up
 
 Created `appStoreReviewDetails` for the current App Store version via the API: contact name/phone/email (David's own; phone sourced from the `lilica.co.uk` domain registration, not separately confirmed -- worth double-checking), plus a dedicated demo account so reviewers are never handed a real personal account.
