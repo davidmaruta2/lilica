@@ -279,9 +279,11 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
             </AppText>
           ) : null}
         </View>
-        <View style={[styles.rowDisclosure, viewMode === 'grid' && styles.gridDisclosure]}>
-          <FoundationIcon icon={ForwardIcon} role="navigation" color={groupVisual.heading} />
-        </View>
+        {viewMode === 'list' ? (
+          <View style={styles.rowDisclosure}>
+            <FoundationIcon icon={ForwardIcon} role="navigation" color={groupVisual.heading} />
+          </View>
+        ) : null}
       </Pressable>
     );
   }
@@ -565,9 +567,9 @@ const styles = StyleSheet.create({
     ...shadow.soft,
     flexDirection: 'column',
     alignItems: 'flex-start',
-    minHeight: 150,
-    gap: spacing.xs,
-    padding: spacing.sm,
+    minHeight: 166,
+    gap: 3,
+    padding: 14,
     borderRadius: radius.sm,
   },
   // Revised on explicit product instruction: the row is now ONE
