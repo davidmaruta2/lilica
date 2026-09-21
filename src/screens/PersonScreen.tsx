@@ -89,8 +89,12 @@ function contactDetail(record: LilicaRecord): string | undefined {
   return [record.role, record.phone, record.email].filter(Boolean).join(' · ') || undefined;
 }
 
+// Empty-string fallback: a legacy-imported record can genuinely have
+// neither date set at runtime despite LilicaRecord's type declaring
+// createdAt required -- see MedicalLogScreen.tsx's recentFirst for the
+// real crash this pattern caused, 21 September 2026.
 function recentFirst(a: LilicaRecord, b: LilicaRecord) {
-  return (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt);
+  return (b.updatedAt ?? b.createdAt ?? '').localeCompare(a.updatedAt ?? a.createdAt ?? '');
 }
 
 function roleLabel(role: CareCircleRole) {

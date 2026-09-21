@@ -28,8 +28,18 @@ type Props = {
   onAddType: (type: LilicaRecordType) => void;
 };
 
+// Real crash, 21 September 2026: a legacy-imported record (the demo
+// reviewer account's original seed care note, `source: 'phase1_import'`)
+// had no `createdAt`/`updatedAt` in its stored `record_data` at all --
+// `LilicaRecord.createdAt` is typed as required, but that's a compile-time
+// guarantee only; a malformed row from an older import script can still
+// produce one with both fields genuinely undefined at runtime. Calling
+// `.localeCompare` on that `undefined` crashed the whole screen the moment
+// a second careNote existed to sort against. Empty string sorts first
+// (oldest), which is the safest fallback for a record with no known date
+// rather than crashing or guessing one.
 function recentFirst(a: LilicaRecord, b: LilicaRecord) {
-  return (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt);
+  return (b.updatedAt ?? b.createdAt ?? '').localeCompare(a.updatedAt ?? a.createdAt ?? '');
 }
 
 function Row({ record, subtitle, onPress }: { record: LilicaRecord; subtitle?: string; onPress: () => void }) {

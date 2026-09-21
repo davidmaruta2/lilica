@@ -107,6 +107,10 @@ export function searchRecords(records: LilicaRecord[], queryRaw: string): Search
     .map((type) => ({
       type,
       label: SEARCH_GROUP_LABELS[type],
-      matches: (byType.get(type) ?? []).sort((a, b) => (b.record.updatedAt ?? b.record.createdAt).localeCompare(a.record.updatedAt ?? a.record.createdAt)),
+      // Empty-string fallback: a legacy-imported record can genuinely have
+      // neither date set at runtime despite LilicaRecord's type declaring
+      // createdAt required -- see MedicalLogScreen.tsx's recentFirst for
+      // the real crash this pattern caused, 21 September 2026.
+      matches: (byType.get(type) ?? []).sort((a, b) => (b.record.updatedAt ?? b.record.createdAt ?? '').localeCompare(a.record.updatedAt ?? a.record.createdAt ?? '')),
     }));
 }
