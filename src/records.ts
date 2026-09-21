@@ -174,10 +174,37 @@ const ACTIONABLE_TYPES: LilicaRecordType[] = ['task', 'bill', 'homeMatter'];
 // blanket careNote inclusion -- a preference/routine note, or a 'need'
 // with no recurrence set, stays purely informational in Medical Log,
 // never entering Home/To Do/the Care Summary handover report.
+// 22 September 2026: a need past its own careNoteEndDate ("daily wound
+// care, until it's healed") stops being actionable on its own, without
+// needing to be manually closed -- see types.ts's careNoteEndDate comment
+// for why this is deliberately separate from closedAt.
+// 22 September 2026: one shared source for "how often" wording -- used by
+// both RecordEditor's completion checkbox ("Done today"/"Done this week")
+// and ToDoScreen's "Not yet marked done <cadence>" copy, so the two never
+// drift out of sync. Only day/week(1)/week(2)/month(1) are actually
+// offered by the recurrence picker for care needs; the generic "every N
+// <unit>s" fallback covers any other combination without crashing.
+export function careNeedCadenceLabel(recurrence?: RecordRecurrence): string {
+  if (!recurrence) return 'this period';
+  if (recurrence.unit === 'day') return recurrence.interval === 1 ? 'today' : `every ${recurrence.interval} days`;
+  if (recurrence.unit === 'week') {
+    if (recurrence.interval === 1) return 'this week';
+    if (recurrence.interval === 2) return 'this fortnight';
+    return `every ${recurrence.interval} weeks`;
+  }
+  if (recurrence.unit === 'month') return recurrence.interval === 1 ? 'this month' : `every ${recurrence.interval} months`;
+  return recurrence.interval === 1 ? 'this year' : `every ${recurrence.interval} years`;
+}
+
 export function isActionableRecord(record: LilicaRecord): boolean {
   if (record.status === 'cancelled') return false;
   if (ACTIONABLE_TYPES.includes(record.type)) return true;
-  return record.type === 'careNote' && record.careNoteKind === 'need' && Boolean(record.recurrence);
+  if (record.type !== 'careNote' || record.careNoteKind !== 'need' || !record.recurrence) return false;
+  if (record.careNoteEndDate) {
+    const end = parseDate(record.careNoteEndDate);
+    if (end && startOfDay(end).getTime() < startOfDay(new Date()).getTime()) return false;
+  }
+  return true;
 }
 
 export function deriveRecordState(record: LilicaRecord, now = new Date()): DerivedRecordState {

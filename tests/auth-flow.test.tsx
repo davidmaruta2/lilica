@@ -24,6 +24,25 @@ describe('Phase 5 account screens', () => {
     await waitFor(() => expect(onAuthenticated).toHaveBeenCalledTimes(1));
   });
 
+  // Real bug, 22 September 2026: filling these fields via Android's own
+  // autofill/password-manager suggestion visibly filled the text but left
+  // React state empty, so Log in stayed disabled even though the fields
+  // looked filled in -- a known RN/Android class of bug where the
+  // autofill path fires the native `onChange` event but not the
+  // `onChangeText` prop callback. Proven directly here by firing ONLY the
+  // native `change` event (never `changeText`, which exercises
+  // onChangeText) -- exactly the autofill path, not normal typing.
+  it('the Log in button enables from the native onChange event alone (the autofill path), not just onChangeText', async () => {
+    const onSubmit = jest.fn().mockResolvedValue({ ok: true });
+    const screen = await render(
+      <EmailAuthScreen mode="login" onBack={jest.fn()} onSubmit={onSubmit} onVerificationRequired={jest.fn()} onAuthenticated={jest.fn()} onForgotPassword={jest.fn()} />,
+    );
+    expect(screen.getByLabelText('Log in').props.accessibilityState.disabled).toBe(true);
+    await fireEvent(screen.getByPlaceholderText('you@example.com'), 'change', { nativeEvent: { text: 'applereview@luxfordinteractive.com' } });
+    await fireEvent(screen.getByPlaceholderText('At least 8 characters'), 'change', { nativeEvent: { text: 'LilicaReview2026!' } });
+    expect(screen.getByLabelText('Log in').props.accessibilityState.disabled).toBe(false);
+  });
+
   it('supports verification resend without treating signup as verification', async () => {
     const onResend = jest.fn().mockResolvedValue({ ok: true });
     const onVerify = jest.fn().mockResolvedValue({ ok: true });

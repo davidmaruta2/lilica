@@ -1,9 +1,15 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { StyleSheet, TextStyle, ViewStyle } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { openRecordFromMeasuredRow, ToDoScreen, todoGridLayout } from '../src/screens/ToDoScreen';
 import { tabAccent } from '../src/theme';
 import { LilicaRecord } from '../src/types';
+
+// 22 September 2026: view mode now persists to AsyncStorage (real bug fix
+// -- see tests/todo-view-mode-persistence.test.tsx), so tests in this file
+// that toggle it must not leak that choice into later tests here.
+beforeEach(() => AsyncStorage.clear());
 
 const onOpenRecord = jest.fn();
 const onAddSomething = jest.fn();
@@ -87,14 +93,20 @@ describe('Phase 22 Batch 5 correction: approved To Do contract', () => {
     screen.getByTestId('todo-list-overdue');
   });
 
-  it('keeps view state session-local and defaults a new screen session back to List', async () => {
+  // Superseded 22 September 2026, David's explicit instruction after
+  // reporting it live as a bug ("the screen is not remembering the last
+  // selected view"): App.tsx remounts this whole screen on every tab
+  // switch, so session-local state reset to List every single time --
+  // not the intended behaviour after all. Now persists across remounts.
+  it('remembers the chosen view across a full screen remount (tab switch)', async () => {
     const first = await render(<ToDoScreen {...baseProps} records={records} />);
     await fireEvent.press(first.getByLabelText('Grid view'));
     expect(first.getByLabelText('Grid view').props.accessibilityState).toEqual({ selected: true });
+    await waitFor(async () => expect(await AsyncStorage.getItem('lilica_todo_view_mode')).toBe('grid'));
     await first.unmount();
 
     const next = await render(<ToDoScreen {...baseProps} records={records} />);
-    expect(next.getByLabelText('List view').props.accessibilityState).toEqual({ selected: true });
+    await waitFor(() => expect(next.getByLabelText('Grid view').props.accessibilityState).toEqual({ selected: true }));
   });
 
   it('preserves All, Mine and Unassigned semantics in both views', async () => {

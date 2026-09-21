@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { CareCircleMember } from '../careCircle';
 import { createUuid } from '../identifiers';
 import { LinkedRecordSummary, RecordLinkType } from '../recordLinks';
-import { advanceRecurrence, formatDateForInput, linkPickerSummary, recordDomainForType, toIsoDate } from '../records';
+import { advanceRecurrence, careNeedCadenceLabel, formatDateForInput, linkPickerSummary, recordDomainForType, toIsoDate } from '../records';
 import { colors, radius, spacing } from '../theme';
 import {
   LilicaRecord,
@@ -134,7 +134,7 @@ export function createRecordDraft(type: LilicaRecordType, record?: LilicaRecord)
     date: formatDateForInput(record?.eventDate ?? record?.dueDate ?? record?.diagnosedDate ?? record?.date)
       || (type === 'update' ? inputDate() : ''),
     time: record?.eventTime ?? record?.time ?? (type === 'update' ? inputTime() : ''),
-    expiryDate: formatDateForInput(record?.expiryDate ?? record?.medicineEndDate),
+    expiryDate: formatDateForInput(record?.expiryDate ?? record?.medicineEndDate ?? record?.careNoteEndDate),
     location: record?.location ?? '',
     responsiblePerson: record?.responsiblePerson ?? '',
     assignedMembershipId: record?.assignedMembershipId,
@@ -380,6 +380,7 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
       notes: draft.notes.trim() || undefined,
       recurrence: finalRecurrence,
       careNoteKind: type === 'careNote' ? draft.careNoteKind : undefined,
+      careNoteEndDate: isRecurringCareNote ? parsedExpiry : undefined,
       completed: savedCompleted,
       completedAt: newlyCompleted ? now : draft.completed ? record?.completedAt : undefined,
       confirmationHistory: confirmations,
@@ -526,7 +527,11 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
 
       {type !== 'contact' && !isCondition && !isMedicine ? (
         <DateTimeWheelField
-          label={usesDueDate ? (type === 'bill' ? 'Due or renewal date' : 'Date or due date') : 'Date'}
+          label={
+            usesDueDate
+              ? (type === 'bill' ? 'Due or renewal date' : 'Date or due date')
+              : isCareNoteNeed ? 'Start date' : 'Date'
+          }
           mode="date"
           value={draft.date}
           onChange={(date) => change({ date })}
@@ -806,6 +811,8 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
             {(isCareNoteNeed ? [
               { label: 'Daily', value: { interval: 1, unit: 'day' as const } },
               { label: 'Weekly', value: { interval: 1, unit: 'week' as const } },
+              { label: 'Fortnightly', value: { interval: 2, unit: 'week' as const } },
+              { label: 'Monthly', value: { interval: 1, unit: 'month' as const } },
             ] : [
               { label: 'Weekly', value: { interval: 1, unit: 'week' as const } },
               { label: 'Bi-weekly', value: { interval: 2, unit: 'week' as const } },
@@ -828,6 +835,16 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
             })}
           </ScrollView>
         </View>
+      ) : null}
+
+      {isRecurringCareNote ? (
+        <DateTimeWheelField
+          label="End date"
+          mode="date"
+          value={draft.expiryDate}
+          onChange={(expiryDate) => change({ expiryDate })}
+          optional
+        />
       ) : null}
 
       {supportsReminder ? (
@@ -867,9 +884,7 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
         <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: draft.completed }} onPress={() => change({ completed: !draft.completed })} style={styles.completion}>
           <View style={[styles.checkbox, draft.completed && styles.checkboxSelected]}>{draft.completed ? <View style={styles.tick} /> : null}</View>
           <AppText variant="bodyStrong">
-            {isRecurringCareNote
-              ? (draft.recurrence?.unit === 'day' ? 'Done today' : 'Done this week')
-              : 'Already sorted'}
+            {isRecurringCareNote ? `Done ${careNeedCadenceLabel(draft.recurrence)}` : 'Already sorted'}
           </AppText>
         </Pressable>
       ) : null}

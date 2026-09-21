@@ -79,6 +79,14 @@ export function EmailAuthScreen({
             placeholder="you@example.com"
             value={email}
             onChangeText={setEmail}
+            // 22 September 2026: real bug reported on Android -- filling this
+            // field via the OS's own autofill/password-manager suggestion
+            // visibly filled the text but left React state empty, so the Log
+            // in button stayed disabled even though the field looked filled
+            // in. A known RN/Android class of bug: the autofill path doesn't
+            // always fire onChangeText, but the native onChange event does.
+            // Wiring both is safe -- normal typing fires them identically.
+            onChange={(event) => setEmail(event.nativeEvent.text)}
             returnKeyType="next"
             blurOnSubmit={false}
             onSubmitEditing={() => passwordInput.current?.focus()}
@@ -93,6 +101,7 @@ export function EmailAuthScreen({
             placeholder="At least 8 characters"
             value={password}
             onChangeText={setPassword}
+            onChange={(event) => setPassword(event.nativeEvent.text)}
             returnKeyType="done"
             onSubmitEditing={canSubmit ? () => void submit() : undefined}
             rightAccessory={

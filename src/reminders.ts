@@ -41,9 +41,18 @@ const REMINDER_ELIGIBLE_TYPES: LilicaRecordType[] = ['appointment', 'task', 'bil
 // records.ts exactly (a preference note or a non-recurring need is never
 // reminder-eligible).
 export function isReminderEligible(record: LilicaRecord): boolean {
-  const typeEligible = REMINDER_ELIGIBLE_TYPES.includes(record.type)
-    || (record.type === 'careNote' && record.careNoteKind === 'need' && Boolean(record.recurrence));
+  const isRecurringCareNeed = record.type === 'careNote' && record.careNoteKind === 'need' && Boolean(record.recurrence);
+  const typeEligible = REMINDER_ELIGIBLE_TYPES.includes(record.type) || isRecurringCareNeed;
   if (!typeEligible) return false;
+  // 22 September 2026: matches isActionableRecord()'s own careNoteEndDate
+  // gate in records.ts -- a need past its known end date shouldn't keep
+  // reminding either.
+  if (isRecurringCareNeed && record.careNoteEndDate) {
+    const end = parseLocalDateTime(record.careNoteEndDate);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    if (end && end.getTime() < startOfToday.getTime()) return false;
+  }
   if (record.status === 'cancelled') return false;
   if (record.completed) return false;
   return true;

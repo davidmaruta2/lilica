@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { FoundationIcon } from '../components/FoundationIcon';
 import { BackIcon, ForwardIcon, GridIcon, ListIcon } from '../components/foundationIcons';
@@ -11,7 +12,7 @@ import type { RecordSheetOrigin } from '../components/RecordSheet';
 import { AppText } from '../components/Text';
 import { CareCircleMember } from '../careCircle';
 import { CategoryIcon, categoryLabel, visualFor } from './HomeScreen';
-import { DerivedRecordState, deriveRecordState, formatDateForDisplay, isActionableRecord } from '../records';
+import { careNeedCadenceLabel, DerivedRecordState, deriveRecordState, formatDateForDisplay, isActionableRecord } from '../records';
 import { colors, radius, shadow, spacing, tabAccent } from '../theme';
 import { LilicaRecord } from '../types';
 
@@ -120,6 +121,15 @@ export function openRecordFromMeasuredRow(
 // years of future recurring obligations.
 const UPCOMING_HORIZON_DAYS = 30;
 
+// 22 September 2026: real bug -- To Do's grid/list choice lived only in
+// useState, and App.tsx remounts this whole screen every time the tab
+// becomes active (see the Props comment on initialFilter above), so it
+// silently reset to 'list' on every single tab switch. Not account-scoped
+// (unlike src/biometricLock.ts's preference) -- this is a plain device-
+// level display preference, not sensitive, no reason to isolate it per
+// signed-in account.
+const VIEW_MODE_STORAGE_KEY = 'lilica_todo_view_mode';
+
 // "Unassigned"/"You" are exactly as before (Phase 9); a third case
 // resolves any OTHER assignee to their real Care Circle display name when
 // that data is available (Phase 15). Phase 18B: an assignee whose
@@ -157,7 +167,7 @@ function dueMetaText(record: LilicaRecord, derived: DerivedRecordState): string 
   }
   if (derived.dueToday) {
     if (!isRecurringCareNeed) return 'Today';
-    return record.recurrence?.unit === 'day' ? 'Not yet marked done today' : 'Not yet marked done this week';
+    return `Not yet marked done ${careNeedCadenceLabel(record.recurrence)}`;
   }
   const dueDate = relevantDate;
   if (!dueDate) return 'No due date';
@@ -177,8 +187,21 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
   const { width: windowWidth, fontScale } = useWindowDimensions();
   const rowRefs = useRef<Record<string, View | null>>({});
   const [filter, setFilter] = useState<AssignmentFilter>(initialFilter ?? 'all');
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewModeState] = useState<ViewMode>('list');
   const [showCompleted, setShowCompleted] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    AsyncStorage.getItem(VIEW_MODE_STORAGE_KEY).then((stored) => {
+      if (!cancelled && (stored === 'list' || stored === 'grid')) setViewModeState(stored);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  function setViewMode(mode: ViewMode) {
+    setViewModeState(mode);
+    AsyncStorage.setItem(VIEW_MODE_STORAGE_KEY, mode).catch(() => {});
+  }
 
   const actionable = useMemo(() => records.filter(isActionableRecord), [records]);
 

@@ -9,7 +9,7 @@ import { fireEvent, render } from '@testing-library/react-native';
 
 import { createRecordDraft, RecordDraft, RecordEditor } from '../src/components/RecordEditor';
 import { isReminderEligible } from '../src/reminders';
-import { advanceRecurrence, isActionableRecord } from '../src/records';
+import { advanceRecurrence, careNeedCadenceLabel, isActionableRecord } from '../src/records';
 import { LilicaRecord, LilicaRecordType } from '../src/types';
 
 function RecordEditorHarness(props: {
@@ -74,14 +74,26 @@ describe('isActionableRecord / isReminderEligible -- recurring care needs only',
 });
 
 describe('RecordEditor: care need kind and recurrence UI', () => {
-  it('a new careNote defaults to Support need and offers Daily/Weekly only', async () => {
+  it('a new careNote defaults to Support need and offers Daily/Weekly/Fortnightly/Monthly only', async () => {
     const onSave = jest.fn();
     const screen = await render(<RecordEditorHarness type="careNote" supportedPersonId="p1" onSave={onSave} />);
     screen.getByText('Support need');
+    screen.getByText('Start date'); // relabeled from the generic "Date", 22 September 2026
     screen.getByText('Daily');
     screen.getByText('Weekly');
-    expect(screen.queryByText('Monthly')).toBeNull();
-    expect(screen.queryByText('Bi-weekly')).toBeNull();
+    screen.getByText('Fortnightly');
+    screen.getByText('Monthly');
+    expect(screen.queryByText('Bi-weekly')).toBeNull(); // the bill/homeMatter-only options never leak in
+    expect(screen.queryByText('6-monthly')).toBeNull();
+    expect(screen.queryByText('Annually')).toBeNull();
+  });
+
+  it('an end date field only appears once a recurrence is actually chosen', async () => {
+    const onSave = jest.fn();
+    const screen = await render(<RecordEditorHarness type="careNote" supportedPersonId="p1" onSave={onSave} />);
+    expect(screen.queryByText('End date')).toBeNull();
+    await fireEvent.press(screen.getByText('Daily'));
+    screen.getByText('End date');
   });
 
   it('switching to Preference or routine hides the recurrence picker and clears any chosen recurrence', async () => {
@@ -100,13 +112,17 @@ describe('RecordEditor: care need kind and recurrence UI', () => {
     expect(screen.queryByText('Done this week')).toBeNull();
   });
 
-  it('choosing Daily shows "Done today"; choosing Weekly shows "Done this week"', async () => {
+  it('the completion label matches the chosen cadence for all four options', async () => {
     const onSave = jest.fn();
     const screen = await render(<RecordEditorHarness type="careNote" supportedPersonId="p1" onSave={onSave} />);
     await fireEvent.press(screen.getByText('Daily'));
     screen.getByText('Done today');
     await fireEvent.press(screen.getByText('Weekly'));
     screen.getByText('Done this week');
+    await fireEvent.press(screen.getByText('Fortnightly'));
+    screen.getByText('Done this fortnight');
+    await fireEvent.press(screen.getByText('Monthly'));
+    screen.getByText('Done this month');
   });
 });
 
@@ -171,5 +187,91 @@ describe('RecordEditor: rollover on completion -- the core new mechanism', () =>
     const saved = onSave.mock.calls[0][0] as LilicaRecord;
     expect(saved.eventDate).toBe('2026-09-21');
     expect(saved.completed).toBe(false);
+  });
+});
+
+describe('careNeedCadenceLabel (records.ts) -- shared wording for editor + To Do', () => {
+  it('covers all four offered recurrence options plus sensible fallbacks', () => {
+    expect(careNeedCadenceLabel({ interval: 1, unit: 'day' })).toBe('today');
+    expect(careNeedCadenceLabel({ interval: 1, unit: 'week' })).toBe('this week');
+    expect(careNeedCadenceLabel({ interval: 2, unit: 'week' })).toBe('this fortnight');
+    expect(careNeedCadenceLabel({ interval: 1, unit: 'month' })).toBe('this month');
+    expect(careNeedCadenceLabel({ interval: 3, unit: 'day' })).toBe('every 3 days');
+    expect(careNeedCadenceLabel({ interval: 3, unit: 'week' })).toBe('every 3 weeks');
+    expect(careNeedCadenceLabel(undefined)).toBe('this period');
+  });
+});
+
+describe('RecordEditor: care need end date', () => {
+  it('shows the field, pre-filled, and round-trips an existing end date on save', async () => {
+    // DateTimeWheelField is a press-to-open wheel sheet, not a text input --
+    // proven here the same way the existing condition/medicine date tests
+    // above do it (a pre-set record, not simulating wheel interaction).
+    const onSave = jest.fn();
+    const record: LilicaRecord = {
+      id: 'need-4',
+      type: 'careNote',
+      title: 'Wound care',
+      careNoteKind: 'need',
+      eventDate: '2026-09-21',
+      recurrence: { interval: 1, unit: 'day' },
+      careNoteEndDate: '2026-10-15',
+      createdAt: '2026-09-01T00:00:00.000Z',
+    };
+    const screen = await render(<RecordEditorHarness type="careNote" record={record} supportedPersonId="p1" onSave={onSave} />);
+    screen.getByLabelText(/^End date: 15\/10\/2026/);
+    await fireEvent.press(screen.getByText('Save changes'));
+    const saved = onSave.mock.calls[0][0] as LilicaRecord;
+    expect(saved.careNoteEndDate).toBe('2026-10-15');
+  });
+
+  it('switching to Preference or routine clears any end date, matching the recurrence clear', async () => {
+    const onSave = jest.fn();
+    const record: LilicaRecord = {
+      id: 'need-5',
+      type: 'careNote',
+      title: 'Wound care',
+      careNoteKind: 'need',
+      eventDate: '2026-09-21',
+      recurrence: { interval: 1, unit: 'day' },
+      careNoteEndDate: '2026-10-15',
+      createdAt: '2026-09-01T00:00:00.000Z',
+    };
+    const screen = await render(<RecordEditorHarness type="careNote" record={record} supportedPersonId="p1" onSave={onSave} />);
+    await fireEvent.press(screen.getByText('Preference or routine'));
+    await fireEvent.press(screen.getByText('Save changes'));
+    const saved = onSave.mock.calls[0][0] as LilicaRecord;
+    expect(saved.careNoteEndDate).toBeUndefined();
+    expect(saved.recurrence).toBeUndefined();
+  });
+});
+
+describe('isActionableRecord / isReminderEligible: careNoteEndDate gating', () => {
+  const base: LilicaRecord = {
+    id: 'n2',
+    type: 'careNote',
+    title: 'Wound care',
+    careNoteKind: 'need',
+    recurrence: { interval: 1, unit: 'day' },
+    createdAt: '2026-09-01T00:00:00.000Z',
+  };
+
+  it('a need with a future end date stays actionable', () => {
+    const farFuture = new Date();
+    farFuture.setFullYear(farFuture.getFullYear() + 1);
+    const record: LilicaRecord = { ...base, careNoteEndDate: farFuture.toISOString().slice(0, 10) };
+    expect(isActionableRecord(record)).toBe(true);
+    expect(isReminderEligible(record)).toBe(true);
+  });
+
+  it('a need past its own end date stops being actionable, without needing to be closed', () => {
+    const record: LilicaRecord = { ...base, careNoteEndDate: '2020-01-01' };
+    expect(isActionableRecord(record)).toBe(false);
+    expect(isReminderEligible(record)).toBe(false);
+    expect(record.closedAt).toBeUndefined(); // never auto-closed, per types.ts's careNoteEndDate comment
+  });
+
+  it('a need with no end date at all is unaffected (the common case)', () => {
+    expect(isActionableRecord(base)).toBe(true);
   });
 });

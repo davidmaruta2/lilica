@@ -201,6 +201,14 @@ export type FirstItem = {
   // harmless even though the editor's draft defaults new/opened notes
   // to 'need'.
   careNoteKind?: 'need' | 'preference';
+  // careNote 'need' only, 22 September 2026: the recurring support need's
+  // own known end date, e.g. "daily wound care, until it's healed" -- left
+  // undefined for a need with no known end (the common case). Distinct
+  // from closedAt: this is a date the person planned in advance, closedAt
+  // is a one-way manual "no longer applies" decision made after the fact.
+  // A need past its careNoteEndDate stops being actionable (see
+  // isActionableRecord in records.ts) without requiring it to be closed.
+  careNoteEndDate?: string;
   createdAt: string;
   updatedAt?: string;
 };
