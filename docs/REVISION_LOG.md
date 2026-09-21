@@ -1,5 +1,36 @@
 # Revision Log
 
+## 21 September 2026 - Lilica submitted to Google Play production track
+
+David completed all 13 steps of Play Console's App content checklist. On his explicit approval ("start rollout to production"), promoted the existing internal-track build (`1.0.0`, versionCode `5`) to the `production` track via the Android Publisher API.
+
+First attempt failed: `PUT edits/{id}/tracks/production` with `status: completed` returned 400 `"Only releases with status draft may be created on draft app"` -- Lilica had never had a production release before, and Google requires a brand-new app's first production release to be created as `draft` first. Retried with `status: draft`, committed successfully, confirmed via a follow-up `edits.tracks` GET. Then, per David's explicit "start rollout to production," updated the same release to `status: completed` (100% rollout) and committed -- this time succeeded (200 on both the track update and the commit).
+
+Confirmed via `edits.tracks`: `production` now shows release `1.0.0`/versionCode `5`, status `completed`, with release notes attached ("First release of Lilica - a calm way to organise and share care for the person you support."). The `alpha` and `beta` tracks also show the same version as `completed` -- Google appears to auto-populate lower tracks alongside a production release; harmless, since nobody downloads via those tracks without being an opted-in tester.
+
+**Both stores are now formally submitted.** Apple: `WAITING_FOR_REVIEW` (see the 21 September Apple submission entry below). Google Play: production rollout `completed`, awaiting Google's own review before the app becomes publicly downloadable -- this is the equivalent of Apple's review queue, not an instant go-live. Nothing further to do on either submission unless a review outcome changes something.
+
+## 21 September 2026 - Google Play app icon and feature graphic uploaded
+
+Discovered while walking Play Console's App content checklist live with David: the app icon and feature graphic were both entirely unset (`edits.images.list` returned empty for both `icon` and `featureGraphic`), unlike the 8 phone screenshots already uploaded earlier. Both are scriptable via the same Android Publisher images API used for screenshots.
+
+- **Icon**: resized `assets/lilica-app-icon.png` (the real, approved Lilica logo mark -- coral bubble-b/flag "L" on deep teal) to Play's required 512x512 RGBA PNG.
+- **Feature graphic**: newly composed 1024x500 opaque PNG built from the app's own real assets and brand tokens (not a generic template) -- the "Lilica" wordmark in Fraunces 800 ExtraBold with the same olive leaf accent used in-app (`src/components/Wordmark.tsx`), a short tagline in Inter, and the existing `assets/lilica-hero.png` illustration, on the app's `colors.canvas` (#F7F2EA) background. Generated via a PowerShell/System.Drawing script (`scratchpad/make_feature_graphic.ps1` pattern, same tool used for the store screenshots).
+
+Both uploaded via `edits.images` (upload + commit), confirmed 200 responses with returned image IDs/URLs.
+
+## 21 September 2026 - Google Play App content: support-page deletion link added; category/health/age-group guidance given
+
+While going through Play Console's App content checklist live with David:
+
+- **Account/data deletion link**: Google's Data safety step requires a web-reachable way to request deletion without the app installed. `lilica.co.uk/support.html` had no such section, so added one (`public/support.html` on the `github-pages-hosting` branch, commit `41095cc`) -- in-app path (Settings > Privacy & data > Delete account) plus an email fallback, matching the existing deletion behaviour already described in `privacy.html`. Confirmed live at `https://lilica.co.uk/support.html#delete-account`.
+- **App category**: recommended "Lifestyle" (matching Apple's own category choice) over "Medical" (reserved for clinical/diagnostic apps, which Lilica explicitly isn't) or "Health & Fitness" (undersells the app -- Medical Log is one feature of nine). Confirmed against a real comparable competitor: Jointly (Carers UK's care-coordination app) is itself categorised "Lifestyle" on Google Play (verified directly from its live listing's structured data). Category has no API resource -- confirmed by checking the full discovery document -- so David set it manually in Console.
+- **Health declaration**: recommended "Diseases and conditions management" + "Medication and treatment management" only (matching Medical Log), not "does not have health features" (would contradict the Health data type already declared in Data safety) and not Clinical decision support/Medical device apps/Mental and behavioral health (none apply -- Lilica doesn't diagnose, advise, or connect to any device).
+- **Target age group**: recommended 18 and over only, not any minor bracket -- paid subscription, health data, and no compliance work done for a minor audience.
+- Also answered several Data safety/Content rating sub-questions live (data collection ephemerality, required-vs-optional flags, user-interaction/content-sharing/blocking-and-reporting questions, promoted-external-content question) -- all "No"/"not applicable" except where Lilica's actual Care Circle sharing and subscription purchases apply.
+
+**Verified, not just stated, that the reviewer demo account works**: signed in live against `lilica-production` with `applereview@luxfordinteractive.com` (the same account already used for Apple's review) via the Auth REST API, confirmed `TRIAL_ACTIVE` entitlement expiring 19 November 2026 (full access, not paywalled) and that its sample care space/records are still present, before reusing the credentials for Google Play's App access "Sign-in details" field.
+
 ## 21 September 2026 - Google Play listing description and contact details filled in via API
 
 Continuing Google Play preparation after the Apple submission. An audit (`edits.listings`/`edits.details`/`edits.tracks` GETs) found the Play listing had only a title (no short/full description at all), `details` had only `defaultLanguage`, and `production`/`beta`/`alpha` tracks were all empty -- only `internal` has a release (`1.0.0`, versionCode `5`, status `completed`).
