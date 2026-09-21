@@ -98,8 +98,12 @@ describe('protected Phase 1 onboarding surfaces', () => {
 
   // Corrective task: the choices here are now the real canonical record
   // categories (minus Wellbeing update, not offered as an initial-setup
-  // choice) -- never a separate, competing taxonomy.
-  it('keeps all seven canonical setup choices, skipping, and selection callbacks', async () => {
+  // choice) -- never a separate, competing taxonomy. Updated 21 September
+  // 2026: "Care information" was removed as a redundant duplicate of
+  // Medical Log's own "Care needs" section (see docs/CARE_NEEDS_REDESIGN_SKETCH_2026-09-21.txt) --
+  // "Medical issues" (the Medical Log gateway) already rendered here too,
+  // just previously unasserted.
+  it('keeps all six canonical setup choices plus Medical issues, skipping, and selection callbacks', async () => {
     const onToggle = jest.fn();
     const onSkip = jest.fn();
     const screen = await render(
@@ -120,8 +124,9 @@ describe('protected Phase 1 onboarding surfaces', () => {
       'Home or car matter',
       'Important document',
       'Contact',
-      'Care information',
+      'Medical issues',
     ].forEach((label) => screen.getByText(label));
+    expect(screen.queryByText('Care information')).toBeNull();
     // Wellbeing update is a canonical category, but not an initial-setup
     // choice -- it remains fully available from Add once setup is done.
     expect(screen.queryByText('Wellbeing update')).toBeNull();
@@ -148,7 +153,7 @@ describe('protected structured-record onboarding', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
-  it('renders the protected heading, skip route and all nine categories', async () => {
+  it('renders the protected heading, skip route and all eight categories', async () => {
     const screen = await render(<FirstThingScreen {...props} />);
     screen.getByText("Let's get Margaret organised.");
     [
@@ -158,52 +163,55 @@ describe('protected structured-record onboarding', () => {
       'Home or car matter',
       'Important document',
       'Contact',
-      'Care information',
       'Medical issues',
       'Wellbeing update',
     ].forEach((label) => screen.getByLabelText(`Add ${label}`));
+    expect(screen.queryByLabelText('Add Care information')).toBeNull();
     screen.getByText('A repair, service, MOT or maintenance job');
     await fireEvent.press(screen.getByLabelText("I'll add things later"));
     expect(props.onSkip).toHaveBeenCalledTimes(1);
   });
 
   // Corrective task, brief's own worked example: David selects
-  // Appointments + Bills for Beauty and does not select Medication
-  // (Care information). Initial setup (everyday false, the default
-  // here) offers ONLY the chosen categories, in canonical order --
-  // acceptance tests 2/3.
-  it('offers only the chosen categories during initial setup (selecting Appointments/Bills; not Medication)', async () => {
+  // Appointments + Bills for Beauty and does not select Contact.
+  // Initial setup (everyday false, the default here) offers ONLY the
+  // chosen categories, in canonical order -- acceptance tests 2/3.
+  it('offers only the chosen categories during initial setup (selecting Appointments/Bills; not Contact)', async () => {
     const screen = await render(<FirstThingScreen {...props} interests={['appointment', 'bill']} />);
     const categoryLabels = screen.getAllByRole('button')
       .map((item) => item.props.accessibilityLabel as string | undefined)
       .filter((label): label is string => Boolean(label?.startsWith('Add ')));
     expect(categoryLabels).toEqual(['Add Appointment', 'Add Bill or renewal']);
-    expect(screen.queryByLabelText('Add Care information')).toBeNull();
+    expect(screen.queryByLabelText('Add Contact')).toBeNull();
   });
 
   // Acceptance test 4: after setup completes (everyday true), the exact
-  // same unselected category (Care information/"Medication") is
-  // nevertheless offered through the normal Add flow -- with no return
-  // to onboarding and no profile-setting change (acceptance tests 4-6).
+  // same unselected category (Contact) is nevertheless offered through
+  // the normal Add flow -- with no return to onboarding and no
+  // profile-setting change (acceptance tests 4-6).
   it('the everyday Add flow always offers the complete category set, regardless of what was chosen during initial setup', async () => {
     const screen = await render(<FirstThingScreen {...props} everyday interests={['appointment', 'bill']} />);
     const categoryLabels = screen.getAllByRole('button')
       .map((item) => item.props.accessibilityLabel as string | undefined)
       .filter((label): label is string => Boolean(label?.startsWith('Add ')));
-    expect(categoryLabels).toHaveLength(9);
-    screen.getByLabelText('Add Care information');
+    expect(categoryLabels).toHaveLength(8);
+    screen.getByLabelText('Add Contact');
   });
 
   // Acceptance test 5/6: a record CAN be created in a category that was
   // not selected during onboarding, without returning to onboarding --
   // proven directly against the everyday Add flow's own save path.
+  // Uses Contact (was Care information before that card was removed as a
+  // redundant duplicate of Medical Log's own Care needs section, 21
+  // September 2026) -- the test's real purpose, an unselected category
+  // still being creatable, is unaffected by which category demonstrates it.
   it('a record can be created in a category that was not selected during onboarding', async () => {
     const onSaveRecord = jest.fn();
     const screen = await render(<FirstThingScreen {...props} everyday interests={['appointment', 'bill']} onSaveRecord={onSaveRecord} />);
-    await fireEvent.press(screen.getByLabelText('Add Care information'));
-    await fireEvent.changeText(screen.getAllByDisplayValue('')[0], 'Metformin');
-    await fireEvent.press(screen.getByText('Add care information'));
-    expect(onSaveRecord).toHaveBeenCalledWith(expect.objectContaining({ type: 'careNote', title: 'Metformin' }));
+    await fireEvent.press(screen.getByLabelText('Add Contact'));
+    await fireEvent.changeText(screen.getAllByDisplayValue('')[0], 'Dr Ahmed');
+    await fireEvent.press(screen.getByText('Add contact'));
+    expect(onSaveRecord).toHaveBeenCalledWith(expect.objectContaining({ type: 'contact', title: 'Dr Ahmed' }));
   });
 
   // An empty selection (skipped, or continued without choosing anything)
@@ -214,7 +222,7 @@ describe('protected structured-record onboarding', () => {
     const categoryLabels = screen.getAllByRole('button')
       .map((item) => item.props.accessibilityLabel as string | undefined)
       .filter((label): label is string => Boolean(label?.startsWith('Add ')));
-    expect(categoryLabels).toHaveLength(9);
+    expect(categoryLabels).toHaveLength(8);
   });
 
   // Explicit product direction: closing the sheet (Done) now saves

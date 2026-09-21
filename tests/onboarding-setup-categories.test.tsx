@@ -71,7 +71,7 @@ describe('Corrective task: initial-setup selections are temporary orchestration,
     // because setupStatus is 'ready', FirstThingScreen's own `everyday`
     // handling (see tests/phase1-ui.characterization.test.tsx) makes it
     // completely inert from here on -- every canonical category,
-    // including ones never selected (e.g. Care information/"Medication"),
+    // including ones never selected (e.g. Contact),
     // remains available through the normal Add flow with no special
     // migration, setting change, or return to onboarding.
     expect(beauty.interests).toEqual(['appointment', 'bill']);

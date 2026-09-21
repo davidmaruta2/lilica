@@ -87,7 +87,10 @@ export type RecordStatus = 'scheduled' | 'unresolved' | 'completed' | 'saved' | 
 
 export type RecordRecurrence = {
   interval: number;
-  unit: 'week' | 'month' | 'year';
+  // 'day' added 21 September 2026 for recurring careNote support needs
+  // (see careNoteKind below) -- addRecurrence() in records.ts previously
+  // had no 'day' case at all.
+  unit: 'day' | 'week' | 'month' | 'year';
 };
 
 export type RecordConfirmation = {
@@ -187,6 +190,17 @@ export type FirstItem = {
   // any other historical record, and can be cleared again to reopen it.
   // See docs/CORE_SYSTEM_CONTRACT.md and RecordEditor.tsx's own handling.
   closedAt?: string;
+  // careNote only, 21 September 2026: distinguishes an actual support
+  // need (something someone should actively help with -- can be
+  // recurring, then appears on Home/To Do/notifications and must be
+  // actively marked done each period) from a preference or routine note
+  // (context only, never actionable). A legacy careNote with this
+  // undefined and no recurrence set is never actionable regardless --
+  // isActionableRecord() requires both 'need' AND a real recurrence, so
+  // opening and resaving an old note without changing anything is
+  // harmless even though the editor's draft defaults new/opened notes
+  // to 'need'.
+  careNoteKind?: 'need' | 'preference';
   createdAt: string;
   updatedAt?: string;
 };

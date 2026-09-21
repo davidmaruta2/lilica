@@ -1,0 +1,343 @@
+LILICA - "CARE NEEDS" REDESIGN SKETCH (21 September 2026)
+======================================================================
+Not started, not approved for implementation. Written to sense-check
+whether Medical Log's "Care needs" section is coherent and useful
+enough to absorb the separate "Care information" Add-flow card before
+that card is removed as a redundant duplicate entry point.
+
+BACKGROUND / WHY THIS IS NEEDED
+----------------------------------------------------------------------
+"Care information" (data/options.ts, id 'careNote') and Medical Log's
+"Care needs" section (MedicalLogScreen.tsx) both read/write the exact
+same underlying careNote records -- genuinely redundant, two doors to
+the same room.
+
+But before folding one into the other, Care needs itself has a real
+coherence gap, found by inspecting the real code and real demo-account
+data:
+- A careNote is currently just a title. No structure, no lifecycle, no
+  owner, no urgency.
+- Real data mixes two very different things under one flat list:
+  "Mum requires support with lifting" (a genuine, arguably safety-
+  relevant support need) sits next to "Prefers tea over coffee in the
+  morning" (a nice-to-know preference, not something anyone needs to
+  act on). Nothing distinguishes them.
+- Unlike diagnosed conditions and prescribed medicines (which both have
+  an active/closed lifecycle), a care need can never be marked resolved
+  or no-longer-relevant -- it just accumulates forever.
+- In Care Summary (careSummary.ts), every other section has a real
+  subtitle (diagnosed date, medicine schedule, due date...). Care
+  needs' subtitle pulls from record.notes, but careNote records only
+  ever populate title -- so today this section of the handover report
+  is a bare list of titles with zero context.
+
+THE QUESTION THIS SKETCH ANSWERS
+----------------------------------------------------------------------
+Imagine stepping into a Care Circle for the first time. What should
+"Care needs" actually tell you?
+1. What does this person need help with, right now -- scannable, not
+   buried in history.
+2. Is it still current, or has it resolved/changed?
+3. Is this a support need (something to actively help with) or just
+   useful context (a preference/routine)? Today these look identical.
+4. How often does it come up -- daily routine vs occasional?
+5. Who normally handles it, if anyone?
+
+PROPOSED STRUCTURE
+----------------------------------------------------------------------
+No new record type, no database migration -- purely additive JSON
+fields on the existing careNote type, the same way condition/medicine
+were extended earlier.
+
+1. KIND -- splits "need" from "preference"
+   New field: careNoteKind: 'need' | 'preference'
+   Chosen via a segmented control in RecordEditor.tsx (same pattern
+   already used for medicine's Repeat/Duration toggle).
+     - Support need: something someone should actively help with
+       (mobility, medication reminders, getting dressed).
+     - Preference or routine: improves care quality but isn't
+       actionable (tea not coffee, prefers the radio on).
+   Deliberately NOT a "safety-critical" flag -- Lilica's own contract
+   says it never infers medical/safety judgements, so the app
+   shouldn't imply a clinical severity ranking. The need/preference
+   split is enough to stop the two blurring together; urgency stays a
+   human judgement call, not the app's.
+
+2. LIFECYCLE -- reuse closedAt, already on LilicaRecord
+   Same "Currently active / Closed -- no longer applies" toggle
+   conditions and medicines already have. Architecturally free -- the
+   field exists, MedicalLogScreen's careNote filter just isn't using
+   it yet. Closing preserves the record and moves it to "Past /
+   closed", exactly like the other two sections.
+
+3. FREQUENCY -- light, not a full recurrence schedule
+   Optional field: careNoteFrequency: 'daily' | 'occasional' |
+   'situational'. Not a due-date/reminder system (that's what To Do is
+   for) -- just enough for a new Care Circle member to gauge how often
+   this comes up.
+
+4. WHO NORMALLY HELPS -- reuse assignedMembershipId
+   Already exists on the type, already used elsewhere (tasks, bills).
+   Surfacing it here (optional) tells a stand-in carer who to check
+   with first.
+
+DISPLAY CHANGES
+----------------------------------------------------------------------
+- MedicalLogScreen.tsx's "Care needs" section splits into two
+  subgroups -- Support needs and Preferences & routines -- active-
+  first, closed collapsed below, matching conditions/medicines'
+  existing pattern exactly.
+- Row subtitle shows frequency + assigned person, same visual language
+  as condition's "Diagnosed {date}" / medicine's "Until {date}".
+- careSummary.ts's handover report only surfaces ACTIVE support needs
+  (never preferences -- a quick handover summary should be actionable,
+  not personality trivia), with the same subtitle. This fixes the
+  current gap where Care Summary shows bare titles with no context.
+
+NOT DECIDED YET / OPEN QUESTIONS
+----------------------------------------------------------------------
+- Default careNoteKind for existing careNote records with no kind set
+  (legacy data) -- probably defaults to 'need' so nothing silently
+  disappears from the actionable view, but worth confirming.
+- Whether "Care information" is removed outright once this ships, or
+  kept as a thin alias/shortcut into Medical Log's Care needs section.
+- Exact wording for the two subgroup headings and the kind picker's
+  labels -- draft only, not copy-reviewed.
+
+ADDENDUM -- DAILY CARE NEEDS: DASHBOARD, TO DO, NOTIFICATIONS, AND
+"NOT YET DONE TODAY" ESCALATION (David's follow-up, same session)
+======================================================================
+David's proposal: if a care need is marked daily, it should appear on
+Home, under To Do's "Today", and as a notification reminder -- the same
+as any other daily thing. And if nobody in the Care Circle marks it
+done for the day, Lilica keeps flagging it as an unaddressed care need
+rather than letting it quietly roll into tomorrow unmarked. His framing:
+this consistent daily accountability loop is where Lilica becomes more
+than a shared notes group (a "Facebook group") -- a real coordination
+tool, not just a place information sits.
+
+WHAT ALREADY EXISTS (checked directly in code, not assumed)
+----------------------------------------------------------------------
+This is much closer to "already built" than "new feature":
+- src/domain/recordOccurrence.ts (Phase 8 architecture) already turns a
+  record's `recurrence: { unit, interval }` field into a real
+  RecurrenceRule + Occurrence, currently wired for task/bill/homeMatter.
+  `unit` already accepts arbitrary frequencies (bills use 'month' and
+  'year' in real data) -- 'day' is not a new capability, just a value
+  already representable by the existing engine.
+- Per the app's own protected system contract: "Due/overdue is derived,
+  not duplicated state" and "Occurrence history is immutable/versioned;
+  recurrence changes do not rewrite history." So a daily item correctly
+  showing as Overdue once its day passes without completion is not new
+  behaviour to build -- it is what the existing derived-overdue model
+  already does for any recurring task/bill today.
+- Home's Overdue/Due today tiles and To Do's Overdue/Today/Upcoming
+  grouping already read this same derived state for task/bill/
+  homeMatter -- careNote just isn't included in that read yet.
+
+SO WHAT'S ACTUALLY NEW
+----------------------------------------------------------------------
+1. Give careNote the same `recurrence` field task/bill/homeMatter
+   already have (ties directly to this sketch's earlier
+   careNoteFrequency idea -- 'daily' becomes recurrence: { unit: 'day',
+   interval: 1 } using the real recurrence engine, not a separate light
+   field as first drafted above).
+2. Include careNote in Home's tile counts and To Do's grouping the same
+   way task/bill/homeMatter already are -- likely a small, additive
+   change to whatever central filter currently lists which types count
+   as "actionable."
+3. Reminders/notifications: CHECKED, GENUINELY UNCERTAIN, NOT ASSUMED --
+   src/reminders.ts's reminderOccasionsForRecord() reads a record's own
+   raw `dueDate` field directly, not the Phase 8 domain Occurrence
+   system. It's not yet confirmed whether a recurring bill's `dueDate`
+   itself rolls forward each period, or whether only the derived
+   Occurrence layer knows the "current" due date while the stored
+   `dueDate` stays fixed at the original date. This needs a direct check
+   against real recurring-bill behaviour (does its notification actually
+   fire again next month, on-device or via a live test) before assuming
+   daily care-need reminders "just work" the same way -- worth doing
+   before committing to a build estimate.
+4. "Keeps flagging as unaddressed" -- confirm this really just means
+   "never auto-complete or auto-dismiss a missed day silently," i.e. the
+   existing Overdue bucket already IS this behaviour, with two decisions
+   still open:
+     a. Does yesterday's missed daily need show as a SEPARATE overdue
+        entry once today's new occurrence exists, or does it collapse
+        into just "overdue" without stacking one row per missed day?
+        (Stacking risks a long, alarming list for a need missed several
+        days running -- probably want "still overdue, oldest date shown"
+        rather than one row per day.)
+     b. Any member of the Care Circle marking it done, or only the
+        assigned member? Given assignedMembershipId already exists and
+        Care Circle is explicitly collaborative, "anyone can mark it
+        done" fits the product better than restricting to one assignee.
+
+ONE THING TO WATCH: TONE AND THE APP'S OWN PROTECTED CONTRACT
+----------------------------------------------------------------------
+AGENTS.md is explicit: Lilica "never infers medical, legal, emergency,
+or monitoring conclusions" and is "not... an emergency monitor,
+surveillance product." Persistent daily flagging of an unmet care need
+is legitimate coordination, not surveillance, as long as the language
+stays calm and factual -- "Not yet marked done today" rather than
+David's own phrase "omitted care need that must be addressed," which
+reads closer to a clinical/incident-report tone than Lilica's existing
+warm, plain-language voice elsewhere in the app. Worth a deliberate
+copy pass here, not reusing crisis-adjacent wording, when this is built.
+
+STATUS: superseded by the full implementation scope below -- read that
+section for the actual build plan. This section is kept for its
+reasoning.
+
+======================================================================
+IMPLEMENTATION SCOPE -- FOR DAVID'S REVIEW BEFORE ANY CODE IS WRITTEN
+======================================================================
+Written after reading the exact current code this needs to plug into
+(src/records.ts, src/domain/recordOccurrence.ts, src/reminders.ts,
+src/screens/RecordEditor.tsx, ToDoScreen.tsx, HomeScreen.tsx,
+careSummary.ts). Nothing below has been built yet.
+
+THE GOOD NEWS: this reuses an existing engine almost entirely
+----------------------------------------------------------------------
+Recurring bills already do 90% of this today: a bill has a `dueDate`
+and a `recurrence: { unit, interval }`; when marked paid, records.ts's
+deriveRecordState() automatically rolls the due date forward to the
+next period and resets completed to false (records.ts line ~166,
+addRecurrence()). "Missed" is not a separate mechanism to invent -- an
+unpaid recurring bill already shows as Overdue the moment its date
+passes, because Overdue/Due-today/Upcoming are DERIVED from dueDate,
+never stored as a separate flag. A daily care need reuses exactly this,
+not a new system.
+
+Two small, precise gaps found by reading the code directly (not
+assumed) -- both are the actual reason this hasn't already applied to
+care needs:
+1. addRecurrence() (records.ts) currently handles 'week'/'month'/'year'
+   but has no 'day' branch at all -- a one-line addition.
+2. Three separate allowlists gate which record types count as
+   actionable/reminder-eligible/calendar-eligible, and 'careNote' is in
+   none of them:
+   - ACTIONABLE_TYPES (records.ts) -- controls Home's Overdue/Due
+     today tiles, To Do's whole screen, and careSummary.ts's "Needs
+     attention"/"Coming up" sections.
+   - REMINDER_ELIGIBLE_TYPES (reminders.ts) -- controls notifications.
+   - calendarDateForRecord() (records.ts) -- controls Calendar
+     placement (not explicitly asked for here; proposed as a natural
+     inclusion, flagged below as a decision, not assumed in scope).
+
+WHAT THIS ACTUALLY BUILDS
+----------------------------------------------------------------------
+1. types.ts: add `careNoteKind?: 'need' | 'preference'` to LilicaRecord
+   (the only genuinely new field -- dueDate, recurrence, completed,
+   assignedMembershipId already exist on every record, task/bill/
+   homeMatter already use them the same way a care need would).
+
+2. records.ts:
+   - addRecurrence(): add the missing 'day' case.
+   - ACTIONABLE_TYPES / isActionableRecord(): a recurring careNote of
+     kind 'need' becomes actionable (a one-off, non-recurring, or
+     'preference'-kind careNote does NOT -- only a real recurring
+     support need enters Home/To Do/the handover summary; personal
+     preference notes stay exactly as informational as they are today).
+   - calendarDateForRecord(): proposed to include recurring care needs
+     too, so they're visible on Calendar the same as a recurring bill
+     -- OPEN DECISION, see below.
+
+3. reminders.ts: REMINDER_ELIGIBLE_TYPES gains careNote (recurring
+   'need' kind only, same gating as above) -- notification scheduling
+   itself needs no new logic, it already reads dueDate/recurrence
+   generically. Confirmed (not assumed): a rollover writes a new
+   dueDate through the same save path every other record update goes
+   through, which already re-triggers reminder scheduling -- so a
+   recurring bill's reminder already re-fires next period today, and a
+   daily care need's reminder would too, with no special-casing needed.
+
+4. RecordEditor.tsx: careNote's editor gains:
+   - Need / Preference segmented control (from the earlier sketch).
+   - A recurrence picker, shown only for kind='need': None / Daily /
+     Weekly (Monthly technically free to add later since the field
+     already supports it -- not exposed in this first pass unless
+     David wants it now).
+   - The existing assignment picker (already built, already used by
+     task/bill/homeMatter) -- no new UI component, just enabled for
+     careNote.
+
+5. Home / To Do / Calendar / careSummary.ts / careSummaryPdf.ts:
+   NO screen-specific code changes needed beyond step 2's allowlist
+   entries -- these screens already read the shared derived-state
+   functions generically. This is the actual payoff of the existing
+   architecture: a qualifying care need appears in Home's Overdue/Due
+   today tiles, To Do's Overdue/Today/Upcoming groups, and the Care
+   Summary handover report automatically, the same day this ships,
+   with no per-screen special-casing.
+   One small addition: TODO_ICON_COLORS (ToDoScreen.tsx) and any
+   similar per-type colour/icon maps already have a careNote entry
+   (it's an existing category) -- confirmed no gap there.
+
+6. Copy: the existing "Overdue" treatment applies as-is (no new
+   escalation mechanism to build), but the per-row subtitle text for a
+   recurring care need is proposed to read "Not yet marked done today"
+   / "Not yet marked done this week" rather than the generic
+   "Overdue - {date}" tasks/bills use -- calmer, and accurate to what
+   actually happened (nobody marked it, not that a deadline was blown).
+   Matches AGENTS.md's explicit instruction that Lilica never reads as
+   a monitoring/emergency tool.
+
+OPEN DECISIONS -- NEED DAVID'S ANSWER, NOT ASSUMED
+----------------------------------------------------------------------
+A. Recurrence options: Daily and Weekly only for this first pass (your
+   own two examples), or also expose Monthly since the field already
+   supports it at no extra engineering cost?
+B. Assignment semantics: propose reusing the existing assignment picker
+   exactly as-is -- "assigned to [a specific person]" or left
+   unassigned. An unassigned recurring care need would read as "shared
+   -- anyone in the Care Circle" (matching how Unassigned already works
+   in To Do's Mine/Unassigned/All filter) rather than inventing a
+   separate explicit "All" value. Confirm this matches what you meant
+   by "assigned to me/all," or if "all" needs to be a distinct,
+   explicit choice from plain Unassigned.
+C. A care need missed several periods running: should each missed
+   period appear as its own separate overdue row (a growing list), or
+   stay a single row that just reads "overdue since {oldest missed
+   date}"? Proposed: single row, oldest date -- matches how every other
+   recurring item in the app already behaves, and avoids a long,
+   alarming list for a need missed several days in a row.
+D. Should a recurring care need also appear on the Calendar screen
+   (like a recurring bill does), or stay Home/To Do/notifications only,
+   as literally asked?
+E. "Mark done" entry point: today, completing anything (task, bill,
+   homeMatter) requires opening the record and using its own
+   completion control -- there's no one-tap "done" directly from a
+   Home/To Do tile (a deliberate product decision made earlier, per
+   ToDoScreen.tsx's own comment: "the row is now ONE tap target...
+   marking complete happens from INSIDE the opened record"). Proposed:
+   care needs follow the same pattern, no special-casing. Confirm, or
+   flag if a faster one-tap "done for today" directly from the
+   dashboard tile matters enough to be a deliberate UX exception.
+
+VALIDATION PLAN, IF APPROVED
+----------------------------------------------------------------------
+- npm run typecheck / npm run lint, as always.
+- A real live check (not just typecheck) that completing a recurring
+  bill today genuinely reschedules its reminder for the next period --
+  confirms point 3 above beyond static reading before relying on it for
+  care needs too.
+- Manual walkthrough: create a daily care need assigned to "me," let a
+  day pass without marking it done, confirm it shows Overdue on Home
+  and To Do with the softened copy, confirm the notification fires,
+  mark it done, confirm the due date and reminder both roll to
+  tomorrow, confirm yesterday's missed occurrence does not linger as a
+  stale/duplicate row.
+- Confirm 'preference'-kind and non-recurring care needs are
+  unaffected -- still appear only in Medical Log's Care needs list,
+  never in Home/To Do/notifications.
+
+NOT IN THIS PASS (explicitly out of scope unless you ask)
+----------------------------------------------------------------------
+- Removing "Care information" as a separate Add-flow card -- still
+  blocked on this whole redesign landing first, per the original
+  question that started this sketch.
+- Any per-occurrence history view (a log of "was this done on the 3rd,
+  4th, 5th...") -- this pass gives current-period status only, the same
+  as every other recurring record type in the app today.
+- Monthly/yearly recurrence exposed in the UI (technically free, not
+  offered unless you want it in decision A above).

@@ -58,20 +58,22 @@ export const firstItemOptions: Array<{
     title: 'Contact',
     description: 'Family, health or household contacts',
   },
-  {
-    id: 'careNote',
-    title: 'Care information',
-    description: 'Medication, visits, routines or useful notes',
-  },
-  // Represents the dedicated Medical Log screen (care needs, diagnosed
-  // conditions and prescribed medicines together) as one Add-flow/setup
-  // gateway -- not a single record type of its own, so 'medicalLog' is
-  // handled as a special case wherever this id is consumed for record
-  // creation (see FirstThingScreen.tsx's openCategory).
+  // 21 September 2026: the standalone "Care information" card (careNote)
+  // was removed as a redundant duplicate entry point -- it read/wrote the
+  // exact same careNote records as Medical Log's own "Care needs" section
+  // below, just with weaker structure (no lifecycle, no need/preference
+  // distinction, no recurrence). Medical Log is now the one home for
+  // careNote records; the type itself, its editor, and its Settings-drawer
+  // entry point are all unchanged, only this duplicate Add-flow card is
+  // gone. Represents the dedicated Medical Log screen (care needs,
+  // diagnosed conditions and prescribed medicines together) as one
+  // Add-flow/setup gateway -- not a single record type of its own, so
+  // 'medicalLog' is handled as a special case wherever this id is
+  // consumed for record creation (see FirstThingScreen.tsx's openCategory).
   {
     id: 'medicalLog',
     title: 'Medical issues',
-    description: 'Diagnosed conditions, medicines and care needs',
+    description: 'Care needs, diagnosed conditions and medicines',
   },
   {
     id: 'update',

@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { CareCircleMember } from '../careCircle';
 import { createUuid } from '../identifiers';
 import { LinkedRecordSummary, RecordLinkType } from '../recordLinks';
-import { formatDateForInput, linkPickerSummary, recordDomainForType, toIsoDate } from '../records';
+import { advanceRecurrence, formatDateForInput, linkPickerSummary, recordDomainForType, toIsoDate } from '../records';
 import { colors, radius, spacing } from '../theme';
 import {
   LilicaRecord,
@@ -50,6 +50,8 @@ export type RecordDraft = {
   // pressed while this is true). `medicineSchedule` is medicine-only.
   closed: boolean;
   medicineSchedule?: 'repeat' | 'duration';
+  // careNote only, 21 September 2026 -- see types.ts's LilicaRecord.careNoteKind.
+  careNoteKind?: 'need' | 'preference';
 };
 
 type Props = {
@@ -149,6 +151,11 @@ export function createRecordDraft(type: LilicaRecordType, record?: LilicaRecord)
     remindersEnabled: record?.remindersEnabled ?? false,
     closed: Boolean(record?.closedAt),
     medicineSchedule: record?.medicineSchedule ?? 'repeat',
+    // A brand-new careNote defaults to 'need' -- the actionable case is
+    // the common one this feature exists for; a genuinely untouched
+    // existing record's absent kind is left absent (see save() below),
+    // this default only ever affects what a new draft starts as.
+    careNoteKind: type === 'careNote' ? (record?.careNoteKind ?? 'need') : undefined,
   };
 }
 
@@ -221,7 +228,7 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
   const [taskAssignee, setTaskAssignee] = useState<string | undefined>(activeMembershipId);
   const parsedDate = draft.date ? toIsoDate(draft.date) : undefined;
   const parsedExpiry = draft.expiryDate ? toIsoDate(draft.expiryDate) : undefined;
-  const dateRequired = type === 'appointment' || type === 'bill';
+  const dateRequired = type === 'appointment' || type === 'bill' || Boolean(type === 'careNote' && draft.careNoteKind === 'need' && draft.recurrence);
   const dateValid = (!dateRequired || Boolean(parsedDate)) && (!draft.date || Boolean(parsedDate));
   const expiryValid = !draft.expiryDate || Boolean(parsedExpiry);
   const canSave = draft.title.trim().length > 0 && dateValid && expiryValid;
@@ -239,9 +246,16 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
   const isCondition = type === 'condition';
   const isMedicine = type === 'medicine';
   const supportsClosedLifecycle = isCondition || isMedicine;
-  const supportsCompletion = type === 'task' || type === 'bill' || type === 'homeMatter';
-  const supportsRecurrence = type === 'bill' || type === 'homeMatter';
-  const supportsAssignment = (type === 'appointment' || type === 'task' || type === 'bill' || type === 'homeMatter') && Boolean(activeMembershipId);
+  // Daily/weekly recurring care needs (21 September 2026): a real support
+  // need (not a preference note) can be made recurring, at which point it
+  // needs the same completion/assignment/reminder machinery task/bill/
+  // homeMatter already have -- gated to isRecurringCareNote specifically
+  // so a preference note or a one-off need is never affected.
+  const isCareNoteNeed = type === 'careNote' && draft.careNoteKind === 'need';
+  const isRecurringCareNote = isCareNoteNeed && Boolean(draft.recurrence);
+  const supportsCompletion = type === 'task' || type === 'bill' || type === 'homeMatter' || isRecurringCareNote;
+  const supportsRecurrence = type === 'bill' || type === 'homeMatter' || isCareNoteNeed;
+  const supportsAssignment = (type === 'appointment' || type === 'task' || type === 'bill' || type === 'homeMatter' || isCareNoteNeed) && Boolean(activeMembershipId);
   // Phase 15: real members, filtered to those with visibility into this
   // record's domain -- an organiser always qualifies; a contributor/viewer
   // only if explicitly granted that domain. Falls back to "You" alone when
@@ -258,7 +272,7 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
     : [{ label: 'You', value: activeMembershipId }];
   // Phase 14: only genuinely time/action-relevant types can meaningfully
   // remind -- matches isReminderEligible() in src/reminders.ts exactly.
-  const supportsReminder = type === 'appointment' || type === 'task' || type === 'bill' || type === 'homeMatter';
+  const supportsReminder = type === 'appointment' || type === 'task' || type === 'bill' || type === 'homeMatter' || isRecurringCareNote;
   const itemName = type === 'careNote'
     ? 'care information'
     : type === 'homeMatter'
@@ -299,6 +313,24 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
     const finalDiagnosedDate = isCondition ? parsedDate : undefined;
     const finalMedicineSchedule = isMedicine ? (draft.medicineSchedule ?? 'repeat') : undefined;
     const finalMedicineEndDate = isMedicine && finalMedicineSchedule === 'duration' ? parsedExpiry : undefined;
+    const finalRecurrence = supportsRecurrence ? draft.recurrence : undefined;
+
+    // Rollover-on-completion, 21 September 2026 (see records.ts's
+    // advanceRecurrence): marking a recurring record done advances it to
+    // its next period immediately, rather than leaving it permanently
+    // "completed" -- it comes back tomorrow/next week exactly like a
+    // recurring bill should, undone again, ready to be missed and flagged
+    // Overdue if nobody acts. completedAt/confirmationHistory below still
+    // record that it genuinely was done just now, even though `completed`
+    // itself is reset by the rollover.
+    const rolloverSourceDate = finalDueDate ?? finalEventDate;
+    const rolledDate = newlyCompleted && finalRecurrence && rolloverSourceDate
+      ? advanceRecurrence(rolloverSourceDate, finalRecurrence)
+      : undefined;
+    const savedEventDate = rolledDate && usesEventDate ? rolledDate : finalEventDate;
+    const savedDueDate = rolledDate && usesDueDate ? rolledDate : finalDueDate;
+    const savedCompleted = rolledDate ? false : (supportsCompletion ? draft.completed : false);
+
     // Closing is a one-way timestamp captured the moment the toggle turns
     // on, then preserved across further edits -- reopening (draft.closed
     // -> false) clears it entirely rather than leaving a stale value that
@@ -310,9 +342,11 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
     // Phase 14: the schedule version is a pure fingerprint of the fields a
     // reminder occasion is computed from. It bumps whenever they change,
     // regardless of whether reminders are currently on, so re-enabling
-    // later still reconciles correctly against the right version.
+    // later still reconciles correctly against the right version. Reads
+    // the post-rollover dates so a completed recurring record's next
+    // reminder is scheduled against its new due date, not its old one.
     const relevantDateChanged = supportsReminder
-      && (record?.eventDate !== finalEventDate || record?.eventTime !== finalEventTime || record?.dueDate !== finalDueDate);
+      && (record?.eventDate !== savedEventDate || record?.eventTime !== finalEventTime || record?.dueDate !== savedDueDate);
     const reminderScheduleVersion = relevantDateChanged ? (record?.reminderScheduleVersion ?? 0) + 1 : record?.reminderScheduleVersion ?? 0;
     const recordId = record?.id ?? createUuid();
 
@@ -321,10 +355,10 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
       type,
       title: draft.title.trim(),
       supportedPersonId,
-      status: statusFor(type, draft.completed),
-      eventDate: finalEventDate,
+      status: statusFor(type, savedCompleted),
+      eventDate: savedEventDate,
       eventTime: finalEventTime,
-      dueDate: finalDueDate,
+      dueDate: savedDueDate,
       remindersEnabled: supportsReminder ? draft.remindersEnabled : undefined,
       reminderScheduleVersion: supportsReminder ? reminderScheduleVersion : undefined,
       expiryDate: type === 'document' ? parsedExpiry : undefined,
@@ -344,8 +378,9 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
       phone: type === 'contact' ? draft.phone.trim() || undefined : undefined,
       email: type === 'contact' ? draft.email.trim() || undefined : undefined,
       notes: draft.notes.trim() || undefined,
-      recurrence: supportsRecurrence ? draft.recurrence : undefined,
-      completed: supportsCompletion ? draft.completed : false,
+      recurrence: finalRecurrence,
+      careNoteKind: type === 'careNote' ? draft.careNoteKind : undefined,
+      completed: savedCompleted,
       completedAt: newlyCompleted ? now : draft.completed ? record?.completedAt : undefined,
       confirmationHistory: confirmations,
       attachments: type === 'document' ? draft.attachments : undefined,
@@ -497,6 +532,35 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
           onChange={(date) => change({ date })}
           optional={!dateRequired}
         />
+      ) : null}
+
+      {type === 'careNote' ? (
+        <View style={styles.fieldGroup}>
+          <AppText variant="secondary" tone="soft">What kind of note is this?</AppText>
+          <View style={styles.segmented}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: draft.careNoteKind !== 'preference' }}
+              onPress={() => change({ careNoteKind: 'need' })}
+              style={[styles.segment, draft.careNoteKind !== 'preference' && styles.segmentSelected]}
+            >
+              <AppText variant="secondary" tone={draft.careNoteKind !== 'preference' ? 'primary' : 'soft'} centre>Support need</AppText>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: draft.careNoteKind === 'preference' }}
+              onPress={() => change({ careNoteKind: 'preference', recurrence: undefined })}
+              style={[styles.segment, draft.careNoteKind === 'preference' && styles.segmentSelected]}
+            >
+              <AppText variant="secondary" tone={draft.careNoteKind === 'preference' ? 'primary' : 'soft'} centre>Preference or routine</AppText>
+            </Pressable>
+          </View>
+          <AppText variant="secondary" tone="soft">
+            {draft.careNoteKind === 'preference'
+              ? "Useful context -- doesn't appear on Home or To Do."
+              : 'Something to actively help with. Make it Daily or Weekly below to have it appear on Home and To Do until marked done.'}
+          </AppText>
+        </View>
       ) : null}
 
       {isCondition ? (
@@ -739,13 +803,16 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
         <View style={styles.fieldGroup}>
           <AppText variant="secondary" tone="soft">Repeats</AppText>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recurrenceRow}>
-            {[
+            {(isCareNoteNeed ? [
+              { label: 'Daily', value: { interval: 1, unit: 'day' as const } },
+              { label: 'Weekly', value: { interval: 1, unit: 'week' as const } },
+            ] : [
               { label: 'Weekly', value: { interval: 1, unit: 'week' as const } },
               { label: 'Bi-weekly', value: { interval: 2, unit: 'week' as const } },
               { label: 'Monthly', value: { interval: 1, unit: 'month' as const } },
               { label: '6-monthly', value: { interval: 6, unit: 'month' as const } },
               { label: 'Annually', value: { interval: 1, unit: 'year' as const } },
-            ].map((option) => {
+            ]).map((option) => {
               const selected = draft.recurrence?.unit === option.value.unit && draft.recurrence?.interval === option.value.interval;
               return (
                 <Pressable
@@ -799,7 +866,11 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
       {supportsCompletion ? (
         <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: draft.completed }} onPress={() => change({ completed: !draft.completed })} style={styles.completion}>
           <View style={[styles.checkbox, draft.completed && styles.checkboxSelected]}>{draft.completed ? <View style={styles.tick} /> : null}</View>
-          <AppText variant="bodyStrong">Already sorted</AppText>
+          <AppText variant="bodyStrong">
+            {isRecurringCareNote
+              ? (draft.recurrence?.unit === 'day' ? 'Done today' : 'Done this week')
+              : 'Already sorted'}
+          </AppText>
         </Pressable>
       ) : null}
 

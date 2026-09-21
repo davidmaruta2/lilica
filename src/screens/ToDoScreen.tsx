@@ -141,11 +141,25 @@ function assignmentLabel(record: LilicaRecord, activeMembershipId?: string, care
 // today/upcoming) a record falls into, only how its due date reads in
 // the one compact metadata line. "Tomorrow" is a plain local date
 // comparison, not a new stored/derived field.
+// Recurring care needs (21 September 2026) use eventDate, not dueDate --
+// fall back to it here so the date actually shows instead of a blank
+// "Overdue · " (the bug this fix corrects), and soften the wording: a
+// care need that's not been marked done isn't a blown deadline, it's
+// something nobody's confirmed doing yet.
 function dueMetaText(record: LilicaRecord, derived: DerivedRecordState): string | undefined {
   if (derived.completed) return undefined;
-  if (derived.overdue) return `Overdue · ${formatDateForDisplay(record.dueDate ?? record.date) ?? ''}`;
-  if (derived.dueToday) return 'Today';
-  const dueDate = record.dueDate ?? record.date;
+  const isRecurringCareNeed = record.type === 'careNote' && record.careNoteKind === 'need' && Boolean(record.recurrence);
+  const relevantDate = record.dueDate ?? record.eventDate ?? record.date;
+  if (derived.overdue) {
+    return isRecurringCareNeed
+      ? `Not yet marked done · since ${formatDateForDisplay(relevantDate) ?? ''}`
+      : `Overdue · ${formatDateForDisplay(relevantDate) ?? ''}`;
+  }
+  if (derived.dueToday) {
+    if (!isRecurringCareNeed) return 'Today';
+    return record.recurrence?.unit === 'day' ? 'Not yet marked done today' : 'Not yet marked done this week';
+  }
+  const dueDate = relevantDate;
   if (!dueDate) return 'No due date';
   const parsed = new Date(`${dueDate}T00:00:00`);
   const tomorrow = new Date();

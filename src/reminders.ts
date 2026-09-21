@@ -36,8 +36,14 @@ export type QuietHours = {
 // appointment (unlike a completed/cancelled item) can meaningfully remind.
 const REMINDER_ELIGIBLE_TYPES: LilicaRecordType[] = ['appointment', 'task', 'bill', 'homeMatter'];
 
+// 21 September 2026: a recurring careNote of kind 'need' can remind the
+// same way a recurring bill/task can -- matches isActionableRecord() in
+// records.ts exactly (a preference note or a non-recurring need is never
+// reminder-eligible).
 export function isReminderEligible(record: LilicaRecord): boolean {
-  if (!REMINDER_ELIGIBLE_TYPES.includes(record.type)) return false;
+  const typeEligible = REMINDER_ELIGIBLE_TYPES.includes(record.type)
+    || (record.type === 'careNote' && record.careNoteKind === 'need' && Boolean(record.recurrence));
+  if (!typeEligible) return false;
   if (record.status === 'cancelled') return false;
   if (record.completed) return false;
   return true;
@@ -75,7 +81,11 @@ export function reminderOccasionsForRecord(record: LilicaRecord, now: Date = new
     occasions.push({ key: 'appt-1day', fireAt: new Date(start.getTime() - 24 * 60 * 60 * 1000) });
     occasions.push({ key: 'appt-2hour', fireAt: new Date(start.getTime() - 2 * 60 * 60 * 1000) });
   } else {
-    const due = parseLocalDateTime(record.dueDate ?? record.date);
+    // eventDate fallback added 21 September 2026: careNote (the only
+    // reminder-eligible type that isn't dueDate-based -- it uses
+    // eventDate, same as an appointment's date-only sibling) would
+    // otherwise never find a date here at all.
+    const due = parseLocalDateTime(record.dueDate ?? record.eventDate ?? record.date);
     if (!due) return [];
     occasions.push({ key: 'dateOnly-3day', fireAt: new Date(due.getTime() - 3 * 24 * 60 * 60 * 1000) });
     // Date-only records carry no time of their own; 09:00 is a reasonable,

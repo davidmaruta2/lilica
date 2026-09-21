@@ -58,10 +58,29 @@ function parseDate(value?: string) {
 
 function addRecurrence(date: Date, recurrence: RecordRecurrence) {
   const next = new Date(date);
+  if (recurrence.unit === 'day') next.setDate(next.getDate() + recurrence.interval);
   if (recurrence.unit === 'week') next.setDate(next.getDate() + (7 * recurrence.interval));
   if (recurrence.unit === 'month') next.setMonth(next.getMonth() + recurrence.interval);
   if (recurrence.unit === 'year') next.setFullYear(next.getFullYear() + recurrence.interval);
   return next;
+}
+
+function toIsoDateOnly(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+// 21 September 2026: the actual rollover-on-completion mechanism.
+// deriveRecordState() below has computed a "next due date" for any
+// completed recurring record since Phase 12, but nothing ever wrote it
+// back anywhere or read it -- completing a recurring bill/task
+// permanently marked it done, with no real regeneration. This is the fix,
+// exported so RecordEditor.tsx's save() can advance a record to its next
+// period the moment it's marked done, instead of leaving it finished
+// forever. Returns undefined if the date or recurrence is missing/invalid
+// -- never fabricates a date.
+export function advanceRecurrence(isoDate: string, recurrence: RecordRecurrence): string | undefined {
+  const parsed = parseDate(isoDate);
+  return parsed ? toIsoDateOnly(addRecurrence(parsed, recurrence)) : undefined;
 }
 
 export function toIsoDate(value: string) {
@@ -149,8 +168,16 @@ export function isLinkableRecordType(type: LilicaRecordType): boolean {
 // though some of them have dates and already appear in Calendar.
 const ACTIONABLE_TYPES: LilicaRecordType[] = ['task', 'bill', 'homeMatter'];
 
+// 21 September 2026: a recurring careNote of kind 'need' (a real,
+// scheduled support need -- "help with bathing," not a preference note)
+// is actionable the same way a recurring bill is. Deliberately NOT a
+// blanket careNote inclusion -- a preference/routine note, or a 'need'
+// with no recurrence set, stays purely informational in Medical Log,
+// never entering Home/To Do/the Care Summary handover report.
 export function isActionableRecord(record: LilicaRecord): boolean {
-  return ACTIONABLE_TYPES.includes(record.type) && record.status !== 'cancelled';
+  if (record.status === 'cancelled') return false;
+  if (ACTIONABLE_TYPES.includes(record.type)) return true;
+  return record.type === 'careNote' && record.careNoteKind === 'need' && Boolean(record.recurrence);
 }
 
 export function deriveRecordState(record: LilicaRecord, now = new Date()): DerivedRecordState {

@@ -50,7 +50,7 @@ export type RecurrenceRule = {
   careSpaceId: string;
   seriesId?: string;
   version: number;
-  frequency: 'week' | 'month' | 'year';
+  frequency: 'day' | 'week' | 'month' | 'year';
   interval: number;
   anchorDate: IsoDate;
   effectiveFrom: IsoDate;
