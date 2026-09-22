@@ -34,6 +34,14 @@ const titledConversation: ConversationSummary = {
   unreadCount: 3,
 };
 
+const freshSubjectConversation: ConversationSummary = {
+  threadId: 'thread-3',
+  subjectRecordId: 'record-spinal',
+  subjectRecordTitle: 'Spinal disc injury',
+  createdAt: '2026-09-23T20:05:00.000Z',
+  unreadCount: 0,
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockListMyConversations.mockResolvedValue({ ok: true, data: [] });
@@ -61,6 +69,19 @@ describe('Phase 23 slice 5: Lilica Chat conversation list', () => {
     screen.getByText('Conversation started 10 Sept');
     screen.getByText('Thanks for letting me know');
     expect(mockListMyConversations).toHaveBeenCalledWith('space-1', 'care_circle', undefined);
+  });
+
+  // Direct product-owner report (23 September 2026): a conversation
+  // started with a real subject but no messages yet showed no date at
+  // all -- just "No messages yet", undated.
+  it('a conversation with its own subject but no messages yet shows a "Created on" date, never a bare "No messages yet"', async () => {
+    mockListMyConversations.mockResolvedValue({ ok: true, data: [freshSubjectConversation] });
+    const screen = await render(
+      <ChatConversationListScreen careSpaceId="space-1" kind="care_circle" onBack={jest.fn()} onOpenConversation={jest.fn()} />,
+    );
+    await waitFor(() => screen.getByText('Spinal disc injury'));
+    screen.getByText('Created on 23 Sept 2026 at 21:05');
+    expect(screen.queryByText('No messages yet')).toBeNull();
   });
 
   it('tapping a conversation calls onOpenConversation with its thread id and title', async () => {

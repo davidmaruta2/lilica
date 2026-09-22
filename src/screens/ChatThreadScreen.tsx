@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { ComponentProps, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Header } from '../components/Header';
@@ -67,6 +67,29 @@ function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
+// useRevealFocusedInput() reads the KeyboardAwareScrollView's own React
+// context -- that only resolves correctly for a component actually
+// rendered INSIDE that Screen's subtree. ChatThreadScreen renders its own
+// <Screen> further down in its return value, so calling the hook at
+// ChatThreadScreen's own top level (as the fix first shipped, 22
+// September 2026) silently read the context's no-op default instead --
+// every reveal call did nothing, which is why the compose box stayed
+// hidden behind the keyboard even after the "fix". A tiny wrapper
+// rendered as a real child of <Screen> is the only place this hook
+// resolves to the live reveal function.
+function RevealingTextInput({ onFocus, ...props }: ComponentProps<typeof TextInput>) {
+  const revealFocusedInput = useRevealFocusedInput();
+  return (
+    <TextInput
+      {...props}
+      onFocus={(event) => {
+        revealFocusedInput(event.nativeEvent.target);
+        onFocus?.(event);
+      }}
+    />
+  );
+}
+
 export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, directPartnerDisplayName, recordId, recordTitle, explicitThreadId, explicitThreadTitle, subjectOptions, onBack, onMessagesChanged }: Props) {
   const [threadId, setThreadId] = useState<string>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -76,14 +99,6 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
   const [sending, setSending] = useState(false);
   const [editingId, setEditingId] = useState<string>();
   const [editDraft, setEditDraft] = useState('');
-  const inputRef = useRef<TextInput>(null);
-  // Real gap found by direct product-owner report (22 September 2026):
-  // every other text input in this app (TextField.tsx) calls this on
-  // focus so KeyboardAwareScrollView actually scrolls it above the
-  // keyboard -- this screen's own compose/edit TextInputs never did,
-  // leaving the compose box hidden behind the keyboard with nothing
-  // visible to type into.
-  const revealFocusedInput = useRevealFocusedInput();
   const isDirect = Boolean(directPartnerMembershipId);
   const isRecord = Boolean(recordId);
   // Slice 6/7: a conversation's subject lives on the conversation itself,
@@ -237,11 +252,9 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
         threadId ? (
           <View>
             <View style={styles.composeRow}>
-              <TextInput
-                ref={inputRef}
+              <RevealingTextInput
                 value={draft}
                 onChangeText={setDraft}
-                onFocus={(event) => revealFocusedInput(event.nativeEvent.target)}
                 placeholder={composePlaceholder}
                 placeholderTextColor={colors.muted}
                 multiline
@@ -291,10 +304,9 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
                 <AppText variant="secondary" tone="soft">Not logged yet? Give it a title</AppText>
               )}
               <View style={styles.subjectTitleRow}>
-                <TextInput
+                <RevealingTextInput
                   value={subjectCustomTitle}
                   onChangeText={setSubjectCustomTitle}
-                  onFocus={(event) => revealFocusedInput(event.nativeEvent.target)}
                   placeholder="e.g. Weekend visit plans"
                   placeholderTextColor={colors.muted}
                   style={styles.subjectTitleInput}
@@ -366,10 +378,9 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
                 ) : null}
                 {isEditing ? (
                   <View style={styles.editWrap}>
-                    <TextInput
+                    <RevealingTextInput
                       value={editDraft}
                       onChangeText={setEditDraft}
-                      onFocus={(event) => revealFocusedInput(event.nativeEvent.target)}
                       multiline
                       style={styles.editInput}
                       autoFocus

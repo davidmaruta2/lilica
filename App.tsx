@@ -1833,7 +1833,24 @@ function LilicaApp() {
           subjectOptions={state.records
             .filter((record) => (record.type === 'careNote' || record.type === 'condition' || record.type === 'medicine') && record.status !== 'cancelled')
             .map((record) => ({ id: record.id, title: record.title }))}
-          onBack={() => { setShowChat(false); setDirectChatPartner(undefined); setRecordChatFor(undefined); setOpenConversation(undefined); }}
+          onBack={() => {
+            setShowChat(false);
+            setOpenConversation(undefined);
+            if (recordChatFor) {
+              // Record-linked chat has no list of its own to return to --
+              // back exits straight out, same as before.
+              setRecordChatFor(undefined);
+              return;
+            }
+            // Every other conversation was reached via
+            // ChatConversationListScreen (its own onOpenConversation
+            // cleared showChatList when this thread opened) -- direct
+            // product-owner report (23 September 2026): back should
+            // return there, not skip past it out of Lilica Chat/DMs
+            // entirely. Keep directChatPartner so the right list (this
+            // partner's DMs, or the shared Lilica Chat) comes back.
+            setShowChatList(directChatPartner ? 'direct' : 'care_circle');
+          }}
           onMessagesChanged={() => setChatRefreshToken((token) => token + 1)}
         />
       );

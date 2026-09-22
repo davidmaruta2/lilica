@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { ComponentProps, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Header } from '../components/Header';
@@ -38,6 +38,26 @@ type Props = {
   onOpenConversation: (threadId: string, title?: string) => void;
 };
 
+// useRevealFocusedInput() only resolves to the live reveal function for a
+// component rendered INSIDE the enclosing <Screen>'s subtree -- calling it
+// at this screen's own top level (as this first shipped, 22 September
+// 2026) read the context's no-op default instead, since the <Screen> it
+// renders is a descendant of this component, never an ancestor. This
+// wrapper is genuinely rendered as a child of that <Screen>, so it
+// resolves correctly.
+function RevealingTextInput({ onFocus, ...props }: ComponentProps<typeof TextInput>) {
+  const revealFocusedInput = useRevealFocusedInput();
+  return (
+    <TextInput
+      {...props}
+      onFocus={(event) => {
+        revealFocusedInput(event.nativeEvent.target);
+        onFocus?.(event);
+      }}
+    />
+  );
+}
+
 function timeLabel(iso: string): string {
   const date = new Date(iso);
   const today = new Date();
@@ -48,6 +68,18 @@ function timeLabel(iso: string): string {
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
+// Direct product-owner report (23 September 2026): a conversation
+// started via a real subject (e.g. "Spinal disc injury") but with no
+// messages sent yet showed no date at all -- just the bare "No messages
+// yet" fallback. When it has its own real subject, name when it was
+// actually created instead, so the row isn't undated.
+function createdOnLabel(iso: string): string {
+  const date = new Date(iso);
+  const day = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return `Created on ${day} at ${time}`;
+}
+
 export function ChatConversationListScreen({ careSpaceId, kind, partnerMembershipId, partnerDisplayName, subjectOptions, onBack, onOpenConversation }: Props) {
   const [conversations, setConversations] = useState<ConversationSummary[]>();
   const [loading, setLoading] = useState(true);
@@ -55,7 +87,6 @@ export function ChatConversationListScreen({ careSpaceId, kind, partnerMembershi
   const [starting, setStarting] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [customTitle, setCustomTitle] = useState('');
-  const revealFocusedInput = useRevealFocusedInput();
   const isDirect = kind === 'direct';
   const headerTitle = isDirect ? (partnerDisplayName ? `Chat with ${partnerDisplayName}` : 'Direct messages') : 'Lilica Chat';
 
@@ -115,10 +146,9 @@ export function ChatConversationListScreen({ careSpaceId, kind, partnerMembershi
                 <AppText variant="secondary" tone="soft">Not logged yet? Give it a title</AppText>
               )}
               <View style={styles.titleRow}>
-                <TextInput
+                <RevealingTextInput
                   value={customTitle}
                   onChangeText={setCustomTitle}
-                  onFocus={(event) => revealFocusedInput(event.nativeEvent.target)}
                   placeholder="e.g. Weekend visit plans"
                   placeholderTextColor={colors.muted}
                   style={styles.titleInput}
@@ -179,6 +209,8 @@ export function ChatConversationListScreen({ careSpaceId, kind, partnerMembershi
                   <AppText variant="secondary" tone="soft" numberOfLines={1}>
                     {conversation.lastMessageSenderIsSelf ? 'You: ' : ''}{conversation.lastMessageBody}
                   </AppText>
+                ) : conversation.subjectRecordTitle || conversation.title ? (
+                  <AppText variant="meta" tone="soft">{createdOnLabel(conversation.createdAt)}</AppText>
                 ) : (
                   <AppText variant="secondary" tone="soft">No messages yet</AppText>
                 )}
