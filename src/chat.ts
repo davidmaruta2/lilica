@@ -173,6 +173,69 @@ export async function setConversationSubject(
   return { ok: true, data: undefined };
 }
 
+// Slice 9: a single combined overview -- every Care Circle conversation
+// AND every direct message conversation (across all partners), in one
+// list. Direct product-owner report (23 September 2026): DMing was
+// reachable via a Care Circle member's avatar, but the main "Lilica
+// Chat" entry point only ever showed Care Circle conversations, with no
+// way to see DMs from there. otherMembershipId/otherDisplayName/
+// otherIsFormer are only ever set for a kind='direct' row.
+export type ChatOverviewEntry = {
+  threadId: string;
+  kind: 'care_circle' | 'direct';
+  title?: string;
+  subjectRecordId?: string;
+  subjectRecordTitle?: string;
+  otherMembershipId?: string;
+  otherDisplayName?: string;
+  otherIsFormer?: boolean;
+  createdAt: string;
+  lastMessageAt?: string;
+  lastMessageBody?: string;
+  lastMessageSenderIsSelf?: boolean;
+  unreadCount: number;
+};
+
+export async function listMyChatOverview(careSpaceId: string): Promise<Result<ChatOverviewEntry[]>> {
+  const { data, error } = await supabase.rpc('list_my_chat_overview', {
+    target_care_space_id: careSpaceId,
+  });
+  if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
+  const rows = (data ?? []) as Array<{
+    thread_id: string;
+    kind: 'care_circle' | 'direct';
+    title: string | null;
+    subject_record_id: string | null;
+    subject_record_title: string | null;
+    other_membership_id: string | null;
+    other_display_name: string | null;
+    other_is_former: boolean | null;
+    created_at: string;
+    last_message_at: string | null;
+    last_message_body: string | null;
+    last_message_sender_is_self: boolean | null;
+    unread_count: number;
+  }>;
+  return {
+    ok: true,
+    data: rows.map((row) => ({
+      threadId: row.thread_id,
+      kind: row.kind,
+      title: row.title ?? undefined,
+      subjectRecordId: row.subject_record_id ?? undefined,
+      subjectRecordTitle: row.subject_record_title ?? undefined,
+      otherMembershipId: row.other_membership_id ?? undefined,
+      otherDisplayName: row.other_display_name ?? undefined,
+      otherIsFormer: row.other_is_former ?? undefined,
+      createdAt: row.created_at,
+      lastMessageAt: row.last_message_at ?? undefined,
+      lastMessageBody: row.last_message_body ?? undefined,
+      lastMessageSenderIsSelf: row.last_message_sender_is_self ?? undefined,
+      unreadCount: row.unread_count,
+    })),
+  };
+}
+
 export type ConversationSummary = {
   threadId: string;
   title?: string;

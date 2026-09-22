@@ -88,13 +88,114 @@ function createdOnLabel(iso: string): string {
   return `Created on ${day} at ${time}`;
 }
 
+// Extracted (23 September 2026) so ChatOverviewScreen's combined "Lilica
+// Chat" entry point can offer the exact same "+ New conversation" picker
+// for its own Care Circle section, without duplicating this logic.
+// Direct messages deliberately never get this picker anywhere -- DMing
+// stays reachable only via a Care Circle member's own avatar, never a
+// second "pick someone" flow.
+type NewConversationSheetProps = {
+  careSpaceId?: string;
+  kind: 'care_circle' | 'direct';
+  partnerMembershipId?: string;
+  subjectOptions?: ChatSubjectOption[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onStarted: (threadId: string, title?: string, subjectRecordId?: string) => void;
+};
+
+export function ChatNewConversationSheet({ careSpaceId, kind, partnerMembershipId, subjectOptions, open, onOpenChange, onStarted }: NewConversationSheetProps) {
+  const [starting, setStarting] = useState(false);
+  const [customTitle, setCustomTitle] = useState('');
+
+  async function handleStart(options: { title?: string; subjectRecordId?: string }) {
+    if (!careSpaceId || starting) return;
+    setStarting(true);
+    const result = await startNewConversation(careSpaceId, kind, partnerMembershipId, options.title, options.subjectRecordId);
+    setStarting(false);
+    if (!result.ok) {
+      Alert.alert('Could not start a new conversation', result.message);
+      return;
+    }
+    onOpenChange(false);
+    setCustomTitle('');
+    onStarted(
+      result.data,
+      options.subjectRecordId ? subjectOptions?.find((option) => option.id === options.subjectRecordId)?.title : options.title,
+      options.subjectRecordId,
+    );
+  }
+
+  if (!open) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Start a new conversation"
+        onPress={() => onOpenChange(true)}
+        disabled={starting}
+        style={[styles.newButton, starting && styles.newButtonDisabled]}
+      >
+        {starting ? <ActivityIndicator color={colors.white} /> : <AppText variant="bodyStrong" tone="white">+ New conversation</AppText>}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={styles.picker}>
+      <AppText variant="bodyStrong">Is it related to an existing medical or care issue?</AppText>
+      {subjectOptions && subjectOptions.length > 0 ? (
+        <>
+          <AppText variant="secondary" tone="soft">Pick a Medical Log item</AppText>
+          <ScrollView style={styles.pickerList} keyboardShouldPersistTaps="handled">
+            {subjectOptions.map((option) => (
+              <Pressable
+                key={option.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Start a conversation about ${option.title}`}
+                onPress={() => void handleStart({ subjectRecordId: option.id })}
+                disabled={starting}
+                style={styles.pickerRow}
+              >
+                <AppText variant="secondary" numberOfLines={1}>{option.title}</AppText>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <AppText variant="secondary" tone="soft">Not logged yet? Give it a title instead</AppText>
+        </>
+      ) : (
+        <AppText variant="secondary" tone="soft">Not logged yet? Give it a title</AppText>
+      )}
+      <View style={styles.titleRow}>
+        <RevealingTextInput
+          value={customTitle}
+          onChangeText={setCustomTitle}
+          placeholder="e.g. Weekend visit plans"
+          placeholderTextColor={colors.muted}
+          style={styles.titleInput}
+          accessibilityLabel="Conversation title"
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Start conversation with this title"
+          onPress={() => void handleStart({ title: customTitle })}
+          disabled={!customTitle.trim() || starting}
+          style={[styles.titleButton, (!customTitle.trim() || starting) && styles.newButtonDisabled]}
+        >
+          <AppText variant="bodyStrong" tone="white">Start</AppText>
+        </Pressable>
+      </View>
+      <Pressable accessibilityRole="button" accessibilityLabel="Cancel" onPress={() => { onOpenChange(false); setCustomTitle(''); }} hitSlop={8}>
+        <AppText variant="secondary" tone="soft" centre>Cancel</AppText>
+      </Pressable>
+    </View>
+  );
+}
+
 export function ChatConversationListScreen({ careSpaceId, kind, partnerMembershipId, partnerDisplayName, subjectOptions, onBack, onOpenConversation }: Props) {
   const [conversations, setConversations] = useState<ConversationSummary[]>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
-  const [starting, setStarting] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [customTitle, setCustomTitle] = useState('');
   const isDirect = kind === 'direct';
   const headerTitle = isDirect ? (partnerDisplayName ? `Chat with ${partnerDisplayName}` : 'Direct messages') : 'Lilica Chat';
 
@@ -112,85 +213,19 @@ export function ChatConversationListScreen({ careSpaceId, kind, partnerMembershi
     return () => { cancelled = true; };
   }, [careSpaceId, kind, partnerMembershipId]);
 
-  async function handleStart(options: { title?: string; subjectRecordId?: string }) {
-    if (!careSpaceId || starting) return;
-    setStarting(true);
-    const result = await startNewConversation(careSpaceId, kind, partnerMembershipId, options.title, options.subjectRecordId);
-    setStarting(false);
-    if (!result.ok) {
-      Alert.alert('Could not start a new conversation', result.message);
-      return;
-    }
-    onOpenConversation(
-      result.data,
-      options.subjectRecordId ? subjectOptions?.find((option) => option.id === options.subjectRecordId)?.title : options.title,
-      options.subjectRecordId,
-    );
-  }
-
   return (
     <Screen
       footer={
         <View style={styles.footer}>
-          {pickerOpen ? (
-            <View style={styles.picker}>
-              <AppText variant="bodyStrong">Is it related to an existing medical or care issue?</AppText>
-              {subjectOptions && subjectOptions.length > 0 ? (
-                <>
-                  <AppText variant="secondary" tone="soft">Pick a Medical Log item</AppText>
-                  <ScrollView style={styles.pickerList} keyboardShouldPersistTaps="handled">
-                    {subjectOptions.map((option) => (
-                      <Pressable
-                        key={option.id}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Start a conversation about ${option.title}`}
-                        onPress={() => void handleStart({ subjectRecordId: option.id })}
-                        disabled={starting}
-                        style={styles.pickerRow}
-                      >
-                        <AppText variant="secondary" numberOfLines={1}>{option.title}</AppText>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                  <AppText variant="secondary" tone="soft">Not logged yet? Give it a title instead</AppText>
-                </>
-              ) : (
-                <AppText variant="secondary" tone="soft">Not logged yet? Give it a title</AppText>
-              )}
-              <View style={styles.titleRow}>
-                <RevealingTextInput
-                  value={customTitle}
-                  onChangeText={setCustomTitle}
-                  placeholder="e.g. Weekend visit plans"
-                  placeholderTextColor={colors.muted}
-                  style={styles.titleInput}
-                  accessibilityLabel="Conversation title"
-                />
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Start conversation with this title"
-                  onPress={() => void handleStart({ title: customTitle })}
-                  disabled={!customTitle.trim() || starting}
-                  style={[styles.titleButton, (!customTitle.trim() || starting) && styles.newButtonDisabled]}
-                >
-                  <AppText variant="bodyStrong" tone="white">Start</AppText>
-                </Pressable>
-              </View>
-              <Pressable accessibilityRole="button" accessibilityLabel="Cancel" onPress={() => { setPickerOpen(false); setCustomTitle(''); }} hitSlop={8}>
-                <AppText variant="secondary" tone="soft" centre>Cancel</AppText>
-              </Pressable>
-            </View>
-          ) : (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Start a new conversation"
-              onPress={() => setPickerOpen(true)}
-              disabled={starting}
-              style={[styles.newButton, starting && styles.newButtonDisabled]}
-            >
-              {starting ? <ActivityIndicator color={colors.white} /> : <AppText variant="bodyStrong" tone="white">+ New conversation</AppText>}
-            </Pressable>
-          )}
+          <ChatNewConversationSheet
+            careSpaceId={careSpaceId}
+            kind={kind}
+            partnerMembershipId={partnerMembershipId}
+            subjectOptions={subjectOptions}
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            onStarted={onOpenConversation}
+          />
         </View>
       }
     >

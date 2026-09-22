@@ -294,24 +294,6 @@ export function PersonScreen({
                 </View>
                 <AppText variant="secondary" style={styles.memberName} numberOfLines={1}>{label}</AppText>
                 <AppText variant="secondary" tone="soft" style={styles.memberRole} numberOfLines={1}>{roleLabel(member.role)}</AppText>
-                {/* Direct product-owner request (22 September 2026): a
-                    direct "Chat" link right beneath each member's own
-                    avatar -- DMing them no longer needs the popup as a
-                    detour. The popup's own "Message privately" stays too
-                    (still useful once you're already looking at their
-                    details); this is a second, faster entry point to the
-                    exact same onOpenDirectChat. Never shown for "You". */}
-                {!member.isSelf && onOpenDirectChat ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Chat with ${label}`}
-                    onPress={(event) => { event.stopPropagation(); onOpenDirectChat(member); }}
-                    hitSlop={6}
-                    style={styles.memberChatLink}
-                  >
-                    <AppText variant="meta" tone="primary" style={styles.memberChatLinkText}>Chat</AppText>
-                  </Pressable>
-                ) : null}
               </Pressable>
             );
           })}
@@ -571,15 +553,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   memberRole: {
-    fontSize: 11.5,
-  },
-  memberChatLink: {
-    marginTop: 2,
-    minHeight: 20,
-    justifyContent: 'center',
-  },
-  memberChatLinkText: {
-    fontWeight: '700',
     fontSize: 11.5,
   },
   // Phase 23 slice 1: same opaque-card, "white surface on a coloured

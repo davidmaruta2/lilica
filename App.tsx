@@ -49,6 +49,7 @@ import { RecoveryCodeScreen, VerificationScreen } from './src/screens/Verificati
 import { PersonScreen } from './src/screens/PersonScreen';
 import { ContactsListScreen } from './src/screens/ContactsListScreen';
 import { ChatConversationListScreen } from './src/screens/ChatConversationListScreen';
+import { ChatOverviewScreen } from './src/screens/ChatOverviewScreen';
 import { ChatThreadScreen } from './src/screens/ChatThreadScreen';
 import { CareCircleScreen } from './src/screens/CareCircleScreen';
 import { ToDoScreen } from './src/screens/ToDoScreen';
@@ -391,11 +392,17 @@ function LilicaApp() {
   // Phase 23 slice 5: "past conversations, reopen one, or start a new
   // one" -- direct product-owner decision that a single never-ending
   // Lilica Chat/DM thread doesn't work. showChatList's own kind decides
-  // which list renders (Lilica Chat for the space, or every DM with
-  // directChatPartner); tapping a row (or "New conversation") sets
-  // openConversation and switches to showChat itself. Record-linked chat
-  // is unchanged -- it never goes through this list.
-  const [showChatList, setShowChatList] = useState<'care_circle' | 'direct'>();
+  // which list renders: 'overview' is the combined "Lilica Chat" entry
+  // point (Care Circle + Direct Messages sections, slice 9 -- 23
+  // September 2026, direct product-owner report that not being able to
+  // see DMs from the main Lilica Chat space "seems odd" given DMing was
+  // already reachable via a member's avatar); 'direct' is one specific
+  // partner's own DM list (reached only via that avatar's "Message"
+  // button, never a second "pick someone" flow from Lilica Chat itself).
+  // Tapping a row (or "New conversation") sets openConversation and
+  // switches to showChat itself. Record-linked chat is unchanged -- it
+  // never goes through this list.
+  const [showChatList, setShowChatList] = useState<'overview' | 'care_circle' | 'direct'>();
   const [openConversation, setOpenConversation] = useState<{ threadId: string; title?: string; subjectRecordId?: string }>();
   // Phase 20B: Search is keyed by the active care space id in renderShell
   // below, so switching supported person while it's open always remounts
@@ -1796,6 +1803,21 @@ function LilicaApp() {
           onOpenRecord={openRecordFromProjection}
         />
       );
+    } else if (showChatList === 'overview') {
+      content = (
+        <ChatOverviewScreen
+          careSpaceId={currentSpace && !currentSpace.careSpaceId.startsWith('local-') ? currentSpace.careSpaceId : undefined}
+          subjectOptions={state.records
+            .filter((record) => (record.type === 'careNote' || record.type === 'condition' || record.type === 'medicine') && record.status !== 'cancelled')
+            .map((record) => ({ id: record.id, title: record.title }))}
+          onBack={() => setShowChatList(undefined)}
+          onOpenConversation={(threadId, title, subjectRecordId) => {
+            setOpenConversation({ threadId, title, subjectRecordId });
+            setShowChatList(undefined);
+            setShowChat(true);
+          }}
+        />
+      );
     } else if (showChatList) {
       content = (
         <ChatConversationListScreen
@@ -1850,13 +1872,15 @@ function LilicaApp() {
               return;
             }
             // Every other conversation was reached via
-            // ChatConversationListScreen (its own onOpenConversation
-            // cleared showChatList when this thread opened) -- direct
-            // product-owner report (23 September 2026): back should
-            // return there, not skip past it out of Lilica Chat/DMs
-            // entirely. Keep directChatPartner so the right list (this
-            // partner's DMs, or the shared Lilica Chat) comes back.
-            setShowChatList(directChatPartner ? 'direct' : 'care_circle');
+            // ChatConversationListScreen or ChatOverviewScreen (either
+            // one's own onOpenConversation cleared showChatList when this
+            // thread opened) -- direct product-owner report (23 September
+            // 2026): back should return there, not skip past it out of
+            // Lilica Chat/DMs entirely. A direct conversation always came
+            // from that partner's own DM list (only reachable via their
+            // avatar); every other conversation came from the combined
+            // overview.
+            setShowChatList(directChatPartner ? 'direct' : 'overview');
           }}
           onMessagesChanged={() => setChatRefreshToken((token) => token + 1)}
         />
@@ -2020,7 +2044,7 @@ function LilicaApp() {
           selfAvatarPath={auth.profile?.avatarPath}
           onOpenCareSummary={careCircleAvailable ? () => setShowCareSummary(true) : undefined}
           onOpenRecentActivity={careCircleAvailable ? () => setShowRecentActivity(true) : undefined}
-          onOpenChat={careCircleAvailable ? () => { setDirectChatPartner(undefined); setRecordChatFor(undefined); setOpenConversation(undefined); setShowChatList('care_circle'); } : undefined}
+          onOpenChat={careCircleAvailable ? () => { setDirectChatPartner(undefined); setRecordChatFor(undefined); setOpenConversation(undefined); setShowChatList('overview'); } : undefined}
           onOpenDirectChat={careCircleAvailable ? (member) => { setDirectChatPartner({ membershipId: member.membershipId, displayName: member.displayName }); setRecordChatFor(undefined); setOpenConversation(undefined); setShowChatList('direct'); } : undefined}
           chatUnreadCount={chatUnreadCount}
           chatPreviewText={chatPreviewMessage ? previewChatMessage(chatPreviewMessage) : undefined}
