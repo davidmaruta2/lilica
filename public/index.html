@@ -12,6 +12,73 @@
   a { color: inherit; text-decoration: none; }
   a:hover { opacity: 0.85; }
   * { box-sizing: border-box; }
+
+  /* Layout-critical properties live here as classes (not inline) so the
+     mobile breakpoint below can actually override them - an inline
+     style="" always outranks a class, media query or not. */
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 22px 64px; max-width: 1180px; margin: 0 auto; }
+  .nav-links { display: flex; align-items: center; gap: 36px; }
+  .hero-row { display: flex; align-items: center; justify-content: center; gap: 64px; padding: 88px 64px 56px 64px; max-width: 1180px; margin: 0 auto; }
+  .hero-text { flex: 0 1 540px; display: flex; flex-direction: column; gap: 24px; }
+  .hero-h1 { font-size: 52px; }
+  .cta-row { display: flex; align-items: center; gap: 16px; margin-top: 6px; flex-wrap: wrap; }
+  .hero-image-wrap { flex: 0 0 280px; display: flex; align-items: flex-start; justify-content: center; }
+  .hero-image { width: 280px; }
+  .why-section { padding: 40px 64px 88px 64px; max-width: 1180px; margin: 0 auto; }
+  .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; }
+  .chat-section { padding: 88px 64px; }
+  .chat-row { display: flex; align-items: center; gap: 56px; }
+  .chat-image-wrap { flex: 0 0 260px; }
+  .chat-image { width: 260px; }
+  .chat-cards { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .how-section { padding: 88px 64px; max-width: 1280px; margin: 0 auto; }
+  .how-row { display: flex; align-items: center; justify-content: center; gap: 56px; max-width: 980px; margin: 0 auto; }
+  .how-steps { flex: 0 1 480px; display: flex; flex-direction: column; gap: 28px; }
+  .how-image-wrap { flex: 0 0 280px; }
+  .how-image { width: 280px; }
+  .showcase-section { padding: 80px 64px; }
+  .showcase-row { display: flex; align-items: center; justify-content: center; gap: 56px; max-width: 980px; margin: 0 auto; }
+  .showcase-image-wrap { flex: 0 0 260px; }
+  .showcase-image { width: 260px; }
+  .showcase-text { flex: 0 1 440px; display: flex; flex-direction: column; gap: 20px; }
+  .pricing-section { padding: 88px 64px; }
+  .support-section { padding: 72px 64px; }
+  .footer-row { padding: 40px 64px; display: flex; align-items: center; justify-content: space-between; max-width: 1440px; margin: 0 auto; flex-wrap: wrap; gap: 16px; }
+
+  @media (max-width: 900px) {
+    .nav-inner { padding: 16px 24px; }
+    .nav-links { gap: 18px; }
+    .nav-links a:not(#nav-cta) { display: none; }
+    .hero-row { flex-direction: column-reverse; gap: 32px; padding: 40px 24px 48px 24px; text-align: center; }
+    .hero-text { flex-basis: auto; max-width: 100%; align-items: center; }
+    .hero-h1 { font-size: 34px; max-width: 100% !important; }
+    .hero-text p { max-width: 100% !important; }
+    .cta-row { justify-content: center; }
+    .hero-image-wrap { flex-basis: auto; }
+    .hero-image { width: 200px; }
+    .why-section { padding: 32px 24px 56px 24px; }
+    .why-grid { grid-template-columns: 1fr; gap: 32px; }
+    .chat-section { padding: 56px 24px; }
+    .chat-row { flex-direction: column; gap: 32px; }
+    .chat-image { width: 200px; }
+    .chat-cards { grid-template-columns: 1fr; width: 100%; }
+    .how-section { padding: 56px 24px; }
+    .how-row { flex-direction: column; gap: 32px; }
+    .how-steps { flex-basis: auto; width: 100%; }
+    .how-image { width: 200px; }
+    .showcase-section { padding: 56px 24px; }
+    .showcase-row { flex-direction: column; gap: 32px; text-align: center; }
+    .showcase-text { flex-basis: auto; align-items: center; max-width: 100%; }
+    .showcase-text h2, .showcase-text p { max-width: 100% !important; }
+    .showcase-image { width: 200px; }
+    .pricing-section { padding: 56px 24px; }
+    .support-section { padding: 48px 24px; }
+    .footer-row { padding: 28px 24px; justify-content: center; text-align: center; }
+  }
+
+  @media (max-width: 480px) {
+    .hero-h1 { font-size: 28px; }
+  }
 </style>
 </head>
 <body>
@@ -20,31 +87,31 @@
 
   <!-- NAV -->
   <div style="position: sticky; top: 0; z-index: 20; background: rgba(251,247,239,0.92); backdrop-filter: blur(6px); border-bottom: 1px solid rgba(62,22,56,0.08);">
-    <div style="display: flex; align-items: center; justify-content: space-between; padding: 22px 64px; max-width: 1180px; margin: 0 auto;">
+    <div class="nav-inner">
       <div style="display: flex; align-items: center; gap: 10px;">
         <div style="font-family: 'Fraunces', serif; font-weight: 800; font-size: 32px; color: #3E1638;">Lilica</div>
         <div style="width: 11px; height: 11px; border-radius: 40% 60% 60% 40% / 60% 40% 60% 40%; background: #8FAE5D; transform: rotate(-20deg);"></div>
       </div>
-      <div style="display: flex; align-items: center; gap: 36px;">
+      <div class="nav-links">
         <a href="#why-not-chat" style="font-family: 'Inter Tight', sans-serif; font-weight: 600; font-size: 15px; color: #3E1638;">Why Lilica</a>
         <a href="#how" style="font-family: 'Inter Tight', sans-serif; font-weight: 600; font-size: 15px; color: #3E1638;">How it works</a>
         <a href="#pricing" style="font-family: 'Inter Tight', sans-serif; font-weight: 600; font-size: 15px; color: #3E1638;">Pricing</a>
         <a href="#support" style="font-family: 'Inter Tight', sans-serif; font-weight: 600; font-size: 15px; color: #3E1638;">Support</a>
-        <a href="#download" style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 15px; color: #FFFFFF; background: #3E1638; padding: 12px 24px; border-radius: 999px;">Get the app</a>
+        <a id="nav-cta" href="#download" style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 15px; color: #FFFFFF; background: #3E1638; padding: 12px 24px; border-radius: 999px;">Get the app</a>
       </div>
     </div>
   </div>
 
   <!-- HERO: what it is, in one breath -->
-  <div style="display: flex; align-items: center; justify-content: center; gap: 64px; padding: 88px 64px 56px 64px; max-width: 1180px; margin: 0 auto;">
-    <div style="flex: 0 1 540px; display: flex; flex-direction: column; gap: 24px;">
-      <h1 style="margin: 0; font-family: 'Fraunces', serif; font-weight: 700; font-size: 52px; line-height: 1.14; color: #3E1638; letter-spacing: -1px; max-width: 600px;">
+  <div class="hero-row">
+    <div class="hero-text">
+      <h1 class="hero-h1" style="margin: 0; font-family: 'Fraunces', serif; font-weight: 700; line-height: 1.14; color: #3E1638; letter-spacing: -1px; max-width: 600px;">
         Lilica helps you organise care for someone you love.
       </h1>
       <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 19px; line-height: 1.55; color: #6B4E63; max-width: 520px;">
         You can keep track of appointments, medicines, bills, home matters and everyday care needs all in one place, and share them with the family or carers who are helping.
       </p>
-      <div style="display: flex; align-items: center; gap: 16px; margin-top: 6px;">
+      <div class="cta-row">
         <a href="https://play.google.com/store/apps/details?id=com.luxfordinteractive.lilica" style="display: flex; align-items: center; gap: 10px; background: #3E1638; color: #FFFFFF; padding: 14px 24px; border-radius: 14px; font-family: 'Inter Tight', sans-serif;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 3l16 9-16 9V3z"/></svg>
           <div>
@@ -61,16 +128,16 @@
         </div>
       </div>
     </div>
-    <div style="flex: 0 0 280px; display: flex; align-items: flex-start; justify-content: center;">
-      <div style="width: 280px; border-radius: 38px; overflow: hidden; box-shadow: 0 40px 90px rgba(62,22,56,0.28); border: 8px solid #1C0F19;">
+    <div class="hero-image-wrap">
+      <div class="hero-image" style="border-radius: 38px; overflow: hidden; box-shadow: 0 40px 90px rgba(62,22,56,0.28); border: 8px solid #1C0F19;">
         <img src="/assets/screenshot-home.jpg" alt="The Lilica Home screen, showing what is overdue, due today and coming up" style="width: 100%; display: block;">
       </div>
     </div>
   </div>
 
   <!-- WHY WE BUILT IT + WHO IT'S FOR -->
-  <div style="padding: 40px 64px 88px 64px; max-width: 1180px; margin: 0 auto;">
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 56px;">
+  <div class="why-section">
+    <div class="why-grid">
       <div style="display: flex; flex-direction: column; gap: 14px;">
         <div style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: #B8622C;">Why we built it</div>
         <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 18px; line-height: 1.6; color: #3E1638;">
@@ -87,7 +154,7 @@
   </div>
 
   <!-- WHY NOT JUST A GROUP CHAT -->
-  <div id="why-not-chat" style="background: #3E1638; padding: 88px 64px;">
+  <div id="why-not-chat" class="chat-section" style="background: #3E1638;">
     <div style="max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 48px;">
       <div style="text-align: center; display: flex; flex-direction: column; gap: 14px;">
         <h2 style="margin: 0; font-family: 'Fraunces', serif; font-weight: 700; font-size: 34px; color: #FFFFFF;">Why not just use a family group chat or text messages?</h2>
@@ -95,13 +162,13 @@
           Many families try this first. It usually becomes difficult to keep track of, for a few reasons.
         </p>
       </div>
-      <div style="display: flex; align-items: center; gap: 56px;">
-        <div style="flex: 0 0 260px;">
-          <div style="width: 260px; border-radius: 32px; overflow: hidden; box-shadow: 0 32px 70px rgba(0,0,0,0.35); border: 8px solid #1C0F19;">
+      <div class="chat-row">
+        <div class="chat-image-wrap">
+          <div class="chat-image" style="border-radius: 32px; overflow: hidden; box-shadow: 0 32px 70px rgba(0,0,0,0.35); border: 8px solid #1C0F19;">
             <img src="/assets/screenshot-calendar.jpg" alt="The Lilica Calendar screen" style="width: 100%; display: block;">
           </div>
         </div>
-        <div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="chat-cards">
           <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 24px;">
             <div style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 15px; color: #F0B9D8; margin-bottom: 8px;">Messages get buried</div>
             <div style="font-family: 'Inter', sans-serif; font-size: 14px; color: rgba(255,255,255,0.78); line-height: 1.5;">In a group chat, a question like "has anyone booked the dentist?" can get buried under other messages within a day. In Lilica, you can see straight away whether something is overdue, due today, or already done, without scrolling back through old messages to find out.</div>
@@ -124,13 +191,13 @@
   </div>
 
   <!-- HOW IT WORKS -->
-  <div id="how" style="padding: 88px 64px; max-width: 1280px; margin: 0 auto;">
+  <div id="how" class="how-section">
     <div style="text-align: center; max-width: 640px; margin: 0 auto 28px auto;">
       <h2 style="margin: 0 0 14px 0; font-family: 'Fraunces', serif; font-weight: 700; font-size: 36px; color: #3E1638;">How it works</h2>
       <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 17px; color: #6B4E63;">There is nothing to set up beyond what is described below.</p>
     </div>
-    <div style="display: flex; align-items: center; justify-content: center; gap: 56px; max-width: 980px; margin: 0 auto;">
-      <div style="flex: 0 1 480px; display: flex; flex-direction: column; gap: 28px;">
+    <div class="how-row">
+      <div class="how-steps">
         <div style="display: flex; gap: 18px; align-items: flex-start;">
           <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #3E1638; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 15px;">1</div>
           <div>
@@ -160,8 +227,8 @@
           </div>
         </div>
       </div>
-      <div style="flex: 0 0 280px;">
-        <div style="width: 280px; border-radius: 34px; overflow: hidden; box-shadow: 0 34px 75px rgba(62,22,56,0.22); border: 8px solid #1C0F19;">
+      <div class="how-image-wrap">
+        <div class="how-image" style="border-radius: 34px; overflow: hidden; box-shadow: 0 34px 75px rgba(62,22,56,0.22); border: 8px solid #1C0F19;">
           <img src="/assets/screenshot-todo.jpg" alt="The Lilica To Do screen" style="width: 100%; display: block;">
         </div>
       </div>
@@ -169,14 +236,14 @@
   </div>
 
   <!-- SHOWCASE BAND -->
-  <div style="background: linear-gradient(180deg, #2E6B62 0%, #6FA294 100%); padding: 80px 64px;">
-    <div style="display: flex; align-items: center; justify-content: center; gap: 56px; max-width: 980px; margin: 0 auto;">
-      <div style="flex: 0 0 260px;">
-        <div style="width: 260px; border-radius: 34px; overflow: hidden; box-shadow: 0 36px 80px rgba(18,40,36,0.35); border: 8px solid #12211d;">
+  <div class="showcase-section" style="background: linear-gradient(180deg, #2E6B62 0%, #6FA294 100%);">
+    <div class="showcase-row">
+      <div class="showcase-image-wrap">
+        <div class="showcase-image" style="border-radius: 34px; overflow: hidden; box-shadow: 0 36px 80px rgba(18,40,36,0.35); border: 8px solid #12211d;">
           <img src="/assets/screenshot-people.jpg" alt="The Lilica Care Circle screen, showing who is helping" style="width: 100%; display: block;">
         </div>
       </div>
-      <div style="flex: 0 1 440px; display: flex; flex-direction: column; gap: 20px;">
+      <div class="showcase-text">
         <h2 style="margin: 0; font-family: 'Fraunces', serif; font-weight: 700; font-size: 36px; line-height: 1.18; color: #FFFFFF; max-width: 460px;">
           Help them live well, and age independently.
         </h2>
@@ -188,7 +255,7 @@
   </div>
 
   <!-- PRICING -->
-  <div id="pricing" style="padding: 88px 64px; max-width: 680px; margin: 0 auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+  <div id="pricing" class="pricing-section" style="max-width: 680px; margin: 0 auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px;">
     <h2 style="margin: 0; font-family: 'Fraunces', serif; font-weight: 700; font-size: 32px; color: #3E1638;">How much does it cost?</h2>
     <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 20px; font-weight: 700; color: #3E1638;">Free for 60 days. Then &pound;8.99 a year.</p>
     <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 16px; color: #6B4E63; max-width: 420px;">
@@ -200,7 +267,7 @@
   </div>
 
   <!-- SUPPORT -->
-  <div id="support" style="background: #F3E4EE; padding: 72px 64px;">
+  <div id="support" class="support-section" style="background: #F3E4EE;">
     <div style="max-width: 680px; margin: 0 auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px;">
       <h2 style="margin: 0; font-family: 'Fraunces', serif; font-weight: 700; font-size: 30px; color: #3E1638;">Need help, or have an idea for us?</h2>
       <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 16px; color: #6B4E63; max-width: 440px;">
@@ -213,7 +280,7 @@
   </div>
 
   <!-- FOOTER -->
-  <div style="border-top: 1px solid rgba(62,22,56,0.1); padding: 40px 64px; display: flex; align-items: center; justify-content: space-between; max-width: 1440px; margin: 0 auto; flex-wrap: wrap; gap: 16px;">
+  <div class="footer-row" style="border-top: 1px solid rgba(62,22,56,0.1);">
     <div style="font-family: 'Inter Tight', sans-serif; font-size: 14px; color: #8A7A85;">&copy; 2026 Luxford Interactive Ltd. Lilica is a calm way to organise and share care.</div>
     <div style="display: flex; gap: 28px; font-family: 'Inter Tight', sans-serif; font-weight: 600; font-size: 14px; color: #6B4E63;">
       <a href="/privacy.html">Privacy</a>
