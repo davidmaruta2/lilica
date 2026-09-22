@@ -381,6 +381,12 @@ function LilicaApp() {
   // Chat thread instead. Cleared whenever chat is closed or the active
   // tab changes, same as every other secondary-screen flag.
   const [directChatPartner, setDirectChatPartner] = useState<{ membershipId: string; displayName: string }>();
+  // Phase 23 slice 3: set only when Chat is opened from a Medical Log
+  // item's "Start a conversation about this"/"View conversation" action --
+  // takes priority over directChatPartner (mutually exclusive in
+  // practice: opening one clears the other, same as switching tabs
+  // clears both).
+  const [recordChatFor, setRecordChatFor] = useState<{ recordId: string; title: string }>();
   // Phase 20B: Search is keyed by the active care space id in renderShell
   // below, so switching supported person while it's open always remounts
   // it fresh rather than risk showing a stale query/result set (brief
@@ -1691,6 +1697,14 @@ function LilicaApp() {
         }}
         isReadOnly={isReadOnly || isArchived}
         onBlockedEdit={() => showBlockedGate()}
+        onOpenConversation={currentSpace && !currentSpace.careSpaceId.startsWith('local-') ? (recordId, title) => {
+          setCalendarOpenRecordId(undefined);
+          setRecordOpenOrigin(undefined);
+          setProjectionOpenType(undefined);
+          setDirectChatPartner(undefined);
+          setRecordChatFor({ recordId, title });
+          setShowChat(true);
+        } : undefined}
       />
     );
   }
@@ -1774,9 +1788,11 @@ function LilicaApp() {
       content = (
         <ChatThreadScreen
           careSpaceId={currentSpace && !currentSpace.careSpaceId.startsWith('local-') ? currentSpace.careSpaceId : undefined}
-          directPartnerMembershipId={directChatPartner?.membershipId}
-          directPartnerDisplayName={directChatPartner?.displayName}
-          onBack={() => { setShowChat(false); setDirectChatPartner(undefined); }}
+          directPartnerMembershipId={recordChatFor ? undefined : directChatPartner?.membershipId}
+          directPartnerDisplayName={recordChatFor ? undefined : directChatPartner?.displayName}
+          recordId={recordChatFor?.recordId}
+          recordTitle={recordChatFor?.title}
+          onBack={() => { setShowChat(false); setDirectChatPartner(undefined); setRecordChatFor(undefined); }}
           onMessagesChanged={() => setChatRefreshToken((token) => token + 1)}
         />
       );
@@ -2160,6 +2176,7 @@ function LilicaApp() {
             setShowAllContacts(false);
             setShowChat(false);
             setDirectChatPartner(undefined);
+            setRecordChatFor(undefined);
             setShowNotificationCentre(false);
             setActiveTab(tab);
             setShowSettingsMenu(false);

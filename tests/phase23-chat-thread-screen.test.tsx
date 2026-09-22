@@ -1,5 +1,6 @@
 const mockGetOrCreateCareCircleThread = jest.fn();
 const mockGetOrCreateDirectThread = jest.fn();
+const mockGetOrCreateRecordThread = jest.fn();
 const mockListChatMessages = jest.fn();
 const mockSendChatMessage = jest.fn();
 const mockEditChatMessage = jest.fn();
@@ -9,6 +10,7 @@ const mockMarkChatThreadRead = jest.fn();
 jest.mock('../src/chat', () => ({
   getOrCreateCareCircleThread: (...args: unknown[]) => mockGetOrCreateCareCircleThread(...args),
   getOrCreateDirectThread: (...args: unknown[]) => mockGetOrCreateDirectThread(...args),
+  getOrCreateRecordThread: (...args: unknown[]) => mockGetOrCreateRecordThread(...args),
   listChatMessages: (...args: unknown[]) => mockListChatMessages(...args),
   sendChatMessage: (...args: unknown[]) => mockSendChatMessage(...args),
   editChatMessage: (...args: unknown[]) => mockEditChatMessage(...args),
@@ -47,6 +49,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockGetOrCreateCareCircleThread.mockResolvedValue({ ok: true, data: 'thread-1' });
   mockGetOrCreateDirectThread.mockResolvedValue({ ok: true, data: 'thread-direct-1' });
+  mockGetOrCreateRecordThread.mockResolvedValue({ ok: true, data: 'thread-record-1' });
   mockListChatMessages.mockResolvedValue({ ok: true, data: { messages: [], hasMore: false } });
   mockMarkChatThreadRead.mockResolvedValue({ ok: true, data: undefined });
 });
@@ -125,5 +128,38 @@ describe('Phase 23 slice 2: direct message mode', () => {
       <ChatThreadScreen careSpaceId="space-1" directPartnerMembershipId="m-sarah" directPartnerDisplayName="Sarah" onBack={jest.fn()} />,
     );
     await waitFor(() => screen.getByText('No messages yet - send the first one to Sarah.'));
+  });
+});
+
+describe('Phase 23 slice 3: record-linked chat mode', () => {
+  it('loads (or creates) the record thread by recordId, never the shared or direct thread', async () => {
+    const screen = await render(
+      <ChatThreadScreen careSpaceId="space-1" recordId="record-1" recordTitle="Metformin" onBack={jest.fn()} />,
+    );
+    await waitFor(() => screen.getByText('Metformin'));
+    expect(mockGetOrCreateRecordThread).toHaveBeenCalledWith('record-1');
+    expect(mockGetOrCreateCareCircleThread).not.toHaveBeenCalled();
+    expect(mockGetOrCreateDirectThread).not.toHaveBeenCalled();
+    screen.getByPlaceholderText('Write a message');
+  });
+
+  it('shows a record-specific empty state naming what the conversation is about', async () => {
+    const screen = await render(
+      <ChatThreadScreen careSpaceId="space-1" recordId="record-1" recordTitle="Metformin" onBack={jest.fn()} />,
+    );
+    await waitFor(() => screen.getByText('No messages yet - start the conversation about Metformin.'));
+  });
+
+  it('sending a message in record mode uses the record thread id', async () => {
+    mockSendChatMessage.mockResolvedValue({ ok: true, data: { ...myMessage, id: 'msg-4', body: 'Started taking the new dose today' } });
+    const screen = await render(
+      <ChatThreadScreen careSpaceId="space-1" recordId="record-1" recordTitle="Metformin" onBack={jest.fn()} />,
+    );
+    await waitFor(() => screen.getByPlaceholderText('Write a message'));
+    const input = screen.getByLabelText('Write a message');
+    await fireEvent.changeText(input, 'Started taking the new dose today');
+    await waitFor(() => expect(screen.getByLabelText('Write a message').props.value).toBe('Started taking the new dose today'));
+    await fireEvent.press(screen.getByLabelText('Send message'));
+    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-record-1', 'Started taking the new dose today'));
   });
 });

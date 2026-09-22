@@ -10,29 +10,36 @@ import {
   editChatMessage,
   getOrCreateCareCircleThread,
   getOrCreateDirectThread,
+  getOrCreateRecordThread,
   listChatMessages,
   markChatThreadRead,
   sendChatMessage,
 } from '../chat';
 import { colors, radius, spacing } from '../theme';
 
-// Phase 23: one screen for both the shared Care Circle conversation
-// (slice 1) and a private direct-message thread with one other member
-// (slice 2) -- the two differ only in which thread gets loaded and the
-// header/placeholder copy, never in how sending/editing/deleting/reading
-// works, so a single screen with a mode switch is simpler and more
-// honest than two near-identical copies.
+// Phase 23: one screen for the shared Care Circle conversation (slice 1),
+// a private direct-message thread with one other member (slice 2), and a
+// conversation attached to a single Medical Log item (slice 3) -- the
+// three differ only in which thread gets loaded and the header/
+// placeholder copy, never in how sending/editing/deleting/reading works,
+// so a single screen with a mode switch is simpler and more honest than
+// three near-identical copies.
 //
-// Shared mode: pass careSpaceId, leave directPartnerMembershipId unset --
-// loads (or lazily creates) the one shared thread for that care space.
-// Direct mode: pass BOTH careSpaceId and directPartnerMembershipId --
-// loads (or lazily creates) the private thread with that one member.
+// Shared mode: pass careSpaceId only -- loads (or lazily creates) the one
+// shared thread for that care space.
+// Direct mode: pass careSpaceId AND directPartnerMembershipId -- loads
+// (or lazily creates) the private thread with that one member.
+// Record mode: pass recordId (and recordTitle for the header/copy) --
+// loads (or lazily creates) that record's own conversation thread.
+// Exactly one of directPartnerMembershipId/recordId is ever set.
 // Either way, "load on mount, page further only on demand" matches the
 // same shape RecentActivityScreen already established for this app.
 type Props = {
   careSpaceId?: string;
   directPartnerMembershipId?: string;
   directPartnerDisplayName?: string;
+  recordId?: string;
+  recordTitle?: string;
   onBack: () => void;
   onMessagesChanged?: () => void;
 };
@@ -41,7 +48,7 @@ function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, directPartnerDisplayName, onBack, onMessagesChanged }: Props) {
+export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, directPartnerDisplayName, recordId, recordTitle, onBack, onMessagesChanged }: Props) {
   const [threadId, setThreadId] = useState<string>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,25 +59,36 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
   const [editDraft, setEditDraft] = useState('');
   const inputRef = useRef<TextInput>(null);
   const isDirect = Boolean(directPartnerMembershipId);
-  const headerTitle = isDirect ? (directPartnerDisplayName ?? 'Direct message') : 'Lilica Chat';
-  const composePlaceholder = isDirect ? `Message ${directPartnerDisplayName ?? 'them'}` : 'Message your Care Circle';
+  const isRecord = Boolean(recordId);
+  const headerTitle = isDirect ? (directPartnerDisplayName ?? 'Direct message') : isRecord ? (recordTitle ?? 'Conversation') : 'Lilica Chat';
+  const composePlaceholder = isDirect ? `Message ${directPartnerDisplayName ?? 'them'}` : isRecord ? 'Write a message' : 'Message your Care Circle';
   const emptyStateText = isDirect
     ? `No messages yet - send the first one to ${directPartnerDisplayName ?? 'them'}.`
+    : isRecord
+    ? `No messages yet - start the conversation about ${recordTitle ?? 'this'}.`
     : 'No messages yet - send the first one to start talking with your Care Circle.';
 
   useEffect(() => {
     let cancelled = false;
-    if (!careSpaceId) {
+    if (!careSpaceId && !recordId) {
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(undefined);
     (async () => {
-      const threadResult = directPartnerMembershipId
+      const threadResult = recordId
+        ? await getOrCreateRecordThread(recordId)
+        : directPartnerMembershipId && careSpaceId
         ? await getOrCreateDirectThread(careSpaceId, directPartnerMembershipId)
-        : await getOrCreateCareCircleThread(careSpaceId);
+        : careSpaceId
+        ? await getOrCreateCareCircleThread(careSpaceId)
+        : undefined;
       if (cancelled) return;
+      if (!threadResult) {
+        setLoading(false);
+        return;
+      }
       if (!threadResult.ok) {
         setLoading(false);
         setError(threadResult.message);
@@ -90,7 +108,7 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [careSpaceId, directPartnerMembershipId]);
+  }, [careSpaceId, directPartnerMembershipId, recordId]);
 
   async function handleSend() {
     const body = draft.trim();

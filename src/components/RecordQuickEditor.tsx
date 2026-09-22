@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 
 import { openAttachment, queuePendingAttachmentUploads } from '../attachments';
 import { CareCircleMember } from '../careCircle';
+import { getRecordThreadInfo } from '../chat';
 import { firstItemOptions } from '../data/options';
 import { createUuid } from '../identifiers';
 import { createRecordLink, LinkedRecordSummary, listRecordLinks, removeRecordLink } from '../recordLinks';
@@ -56,6 +57,12 @@ type Props = {
   // to open one at all, so this only ever applies to an EXISTING record.
   isReadOnly?: boolean;
   onBlockedEdit?: () => void;
+  // Phase 23 slice 3: omitted for a local-only care space (never synced,
+  // so there is no server-side thread to attach a conversation to) --
+  // same availability guard as every other conditional action in this
+  // app. RecordDetail itself further restricts the action to Medical Log
+  // items only.
+  onOpenConversation?: (recordId: string, recordTitle: string) => void;
 };
 
 export function RecordQuickEditor({
@@ -73,6 +80,7 @@ export function RecordQuickEditor({
   origin,
   isReadOnly,
   onBlockedEdit,
+  onOpenConversation,
 }: Props) {
   // Phase 17: link navigation ("Document -> Orthopaedic appointment ->
   // Appointment Detail") stays inside this SAME sheet -- retargeting which
@@ -115,6 +123,24 @@ export function RecordQuickEditor({
     });
     return () => { cancelled = true; };
   }, [record?.id]);
+
+  // Phase 23 slice 3: a plain read, never creates a thread -- only
+  // fetched for a Medical Log item in a real, synced care space (the
+  // only case RecordDetail actually shows the action at all), so this
+  // never runs pointlessly for every other record type.
+  const isMedicalLogRecord = record?.type === 'careNote' || record?.type === 'condition' || record?.type === 'medicine';
+  const [conversationInfo, setConversationInfo] = useState<{ threadId: string; messageCount: number }>();
+  useEffect(() => {
+    if (!record || !isMedicalLogRecord || !onOpenConversation || careSpaceId.startsWith('local-')) {
+      setConversationInfo(undefined);
+      return;
+    }
+    let cancelled = false;
+    getRecordThreadInfo(record.id).then((result) => {
+      if (!cancelled && result.ok) setConversationInfo(result.data);
+    });
+    return () => { cancelled = true; };
+  }, [record?.id, isMedicalLogRecord, onOpenConversation, careSpaceId]);
 
   if (!type) return null;
 
@@ -168,6 +194,8 @@ export function RecordQuickEditor({
               if (!result.ok) Alert.alert('Could not open document', result.message);
             });
           }}
+          onOpenConversation={isMedicalLogRecord && onOpenConversation ? () => onOpenConversation(record.id, record.title) : undefined}
+          conversationMessageCount={conversationInfo?.messageCount}
         />
       ) : (
         <RecordEditor

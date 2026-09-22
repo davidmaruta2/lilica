@@ -52,6 +52,16 @@ type Props = {
   // this component only ever shows the button and forwards which
   // attachment id was tapped.
   onViewDocument?: (attachmentId: string) => void;
+  // Phase 23 slice 3: available on every Medical Log item (careNote/
+  // condition/medicine), never for other record types. Omitted for a
+  // local-only care space, same availability guard as every other
+  // conditional action in this app. undefined conversationMessageCount
+  // means no conversation has started yet ("Start a conversation about
+  // this"); a number (including 0, which can't actually occur since a
+  // thread is only ever created alongside its first message, but handled
+  // honestly anyway) shows "View conversation (N)".
+  onOpenConversation?: () => void;
+  conversationMessageCount?: number;
 };
 
 const dueLabels: Record<string, string> = {
@@ -159,7 +169,7 @@ const recurrenceLabels: Record<string, string> = {
   '1-year': 'Repeats annually',
 };
 
-export function RecordDetail({ record, activeMembershipId, careCircleMembers, onEdit, relatedRecords, onOpenLinkedRecord, onViewDocument }: Props) {
+export function RecordDetail({ record, activeMembershipId, careCircleMembers, onEdit, relatedRecords, onOpenLinkedRecord, onViewDocument, onOpenConversation, conversationMessageCount }: Props) {
   const visual = visualFor(record.type);
   const derived = deriveRecordState(record);
   const usesDueDate = record.type === 'task' || record.type === 'bill' || record.type === 'homeMatter';
@@ -175,6 +185,10 @@ export function RecordDetail({ record, activeMembershipId, careCircleMembers, on
   // Medical Log (lilbatch.txt, 17 September 2026).
   const isClosableLifecycle = record.type === 'condition' || record.type === 'medicine';
   const isClosed = Boolean(record.closedAt);
+  // Phase 23 slice 3: Medical Log items only -- careNote/condition/
+  // medicine, the same three types record_domain_for_type() maps to
+  // 'health' (see src/records.ts).
+  const isMedicalLogItem = record.type === 'careNote' || record.type === 'condition' || record.type === 'medicine';
 
   return (
     <View style={styles.card}>
@@ -310,6 +324,19 @@ export function RecordDetail({ record, activeMembershipId, careCircleMembers, on
         </View>
       ) : null}
 
+      {isMedicalLogItem && onOpenConversation ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={conversationMessageCount !== undefined ? `View conversation (${conversationMessageCount})` : 'Start a conversation about this'}
+          onPress={onOpenConversation}
+          style={styles.conversationRow}
+        >
+          <AppText variant="bodyStrong" tone="primary">
+            {conversationMessageCount !== undefined ? `View conversation (${conversationMessageCount})` : 'Start a conversation about this'}
+          </AppText>
+        </Pressable>
+      ) : null}
+
       {onEdit ? (
         <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${record.title}`} onPress={onEdit} style={styles.editButton}>
           <AppText variant="bodyStrong" tone="primary">Edit</AppText>
@@ -364,6 +391,12 @@ const styles = StyleSheet.create({
   documentName: { flex: 1 },
   notes: { gap: spacing.xxs, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.line },
   notesText: { marginTop: 2 },
+  conversationRow: {
+    alignSelf: 'flex-start',
+    minHeight: 40,
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+  },
   editButton: {
     alignSelf: 'flex-start',
     minHeight: 44,

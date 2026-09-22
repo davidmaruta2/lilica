@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 
 import { canEditRecord, RecordDetail } from '../src/components/RecordDetail';
 import { CareCircleMember } from '../src/careCircle';
@@ -176,5 +176,56 @@ describe('RecordDetail: Edit visibility is a courtesy check over real Phase 15 d
   it('no loaded care circle at all (local-only space) keeps today\'s behaviour -- edit allowed', () => {
     expect(canEditRecord(record, undefined)).toBe(true);
     expect(canEditRecord(record, [])).toBe(true);
+  });
+});
+
+// Phase 23 slice 3: the "Start a conversation about this" / "View
+// conversation (N)" action -- Medical Log items only (careNote/condition/
+// medicine), never any other record type, and only ever shown when the
+// host actually supplies onOpenConversation (omitted for a local-only
+// care space).
+describe('RecordDetail: Phase 23 slice 3 record-linked chat action', () => {
+  const medicine: LilicaRecord = {
+    id: 'med-1', type: 'medicine', title: 'Metformin', createdAt: '2026-09-01T00:00:00.000Z',
+  };
+  const condition: LilicaRecord = {
+    id: 'cond-1', type: 'condition', title: 'Type 2 diabetes', createdAt: '2026-09-01T00:00:00.000Z',
+  };
+  const careNote: LilicaRecord = {
+    id: 'note-1', type: 'careNote', title: 'Morning routine', createdAt: '2026-09-01T00:00:00.000Z',
+  };
+  const appointment: LilicaRecord = {
+    id: 'appt-2', type: 'appointment', title: 'Dentist', status: 'scheduled', createdAt: '2026-09-01T00:00:00.000Z',
+  };
+
+  it('shows "Start a conversation about this" when no conversation exists yet, for every Medical Log type', async () => {
+    for (const record of [medicine, condition, careNote]) {
+      const screen = await render(<RecordDetail record={record} onOpenConversation={jest.fn()} />);
+      screen.getByLabelText('Start a conversation about this');
+    }
+  });
+
+  it('shows "View conversation (N)" with the real count once messages exist', async () => {
+    const screen = await render(<RecordDetail record={medicine} onOpenConversation={jest.fn()} conversationMessageCount={4} />);
+    screen.getByLabelText('View conversation (4)');
+    expect(screen.queryByLabelText('Start a conversation about this')).toBeNull();
+  });
+
+  it('tapping the action calls onOpenConversation', async () => {
+    const onOpenConversation = jest.fn();
+    const screen = await render(<RecordDetail record={medicine} onOpenConversation={onOpenConversation} />);
+    await fireEvent.press(screen.getByLabelText('Start a conversation about this'));
+    expect(onOpenConversation).toHaveBeenCalledTimes(1);
+  });
+
+  it('is never offered for a non-Medical-Log record type, even when onOpenConversation is supplied', async () => {
+    const screen = await render(<RecordDetail record={appointment} onOpenConversation={jest.fn()} />);
+    expect(screen.queryByLabelText('Start a conversation about this')).toBeNull();
+    expect(screen.queryByLabelText(/View conversation/)).toBeNull();
+  });
+
+  it('is omitted entirely for a Medical Log item when onOpenConversation is not supplied (e.g. a local-only care space)', async () => {
+    const screen = await render(<RecordDetail record={medicine} />);
+    expect(screen.queryByLabelText('Start a conversation about this')).toBeNull();
   });
 });

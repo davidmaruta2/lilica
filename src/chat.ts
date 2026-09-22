@@ -1,19 +1,24 @@
 // Phase 23: Lilica Chat -- the client boundary for chat_threads/
 // chat_messages/chat_thread_reads and their RPCs (supabase/migrations/
 // 20260922120000_phase23_lilica_chat.sql, ...120100_lint_fix.sql,
-// ...130000_phase23_lilica_chat_direct_messages.sql). A thin, typed
-// wrapper, same shape as src/activity.ts -- all permission filtering
-// (including who may read/write a private direct thread), sender-only
-// edit/delete enforcement and unread-count arithmetic live server-side.
+// ...130000_phase23_lilica_chat_direct_messages.sql,
+// ...140000_phase23_lilica_chat_record_linked.sql, ...140100_lint_fix.sql).
+// A thin, typed wrapper, same shape as src/activity.ts -- all permission
+// filtering (including who may read/write a private direct thread, or a
+// record-linked thread gated on that record's own domain access),
+// sender-only edit/delete enforcement and unread-count arithmetic live
+// server-side.
 //
 // Slice 1: the one shared Care Circle thread per care space.
-// Slice 2 (this file, current): direct messages -- a private one-to-one
-// thread between the signed-in member and exactly one other Care Circle
-// member.
+// Slice 2: direct messages -- a private one-to-one thread between the
+// signed-in member and exactly one other Care Circle member.
+// Slice 3 (this file, current): record-linked chat -- a conversation
+// thread attached to one Medical Log item, created lazily on first
+// message, never just by viewing the record.
 //
-// Record-linked threads, photo attachments, read receipts and typing
-// indicators are a deliberately separate next slice (see
-// LILICA_CHAT_SCOPE_2026-09-22.txt on David's machine).
+// Photo attachments, read receipts and typing indicators are a
+// deliberately separate next slice (see LILICA_CHAT_SCOPE_2026-09-22.txt
+// on David's machine).
 
 import { supabase } from './auth/client';
 import { friendlyAuthError } from './auth/errors';
@@ -50,6 +55,26 @@ export async function getOrCreateDirectThread(careSpaceId: string, otherMembersh
     target_care_space_id: careSpaceId,
     other_membership_id: otherMembershipId,
   });
+  if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
+  return { ok: true, data: data as string };
+}
+
+// Never creates a thread -- a plain read, safe to call every time a
+// Medical Log item's detail view renders. undefined (no data) means no
+// conversation has started yet ("Start a conversation about this");
+// otherwise messageCount drives "View conversation (N)".
+export async function getRecordThreadInfo(recordId: string): Promise<Result<{ threadId: string; messageCount: number } | undefined>> {
+  const { data, error } = await supabase.rpc('get_record_thread_info', { target_record_id: recordId });
+  if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
+  const rows = (data ?? []) as Array<{ thread_id: string; message_count: number }>;
+  const row = rows[0];
+  return { ok: true, data: row ? { threadId: row.thread_id, messageCount: row.message_count } : undefined };
+}
+
+// Idempotent -- one thread per record, created lazily the first time
+// this is called (i.e. the first time someone actually sends a message).
+export async function getOrCreateRecordThread(recordId: string): Promise<Result<string>> {
+  const { data, error } = await supabase.rpc('get_or_create_record_thread', { target_record_id: recordId });
   if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
   return { ok: true, data: data as string };
 }
