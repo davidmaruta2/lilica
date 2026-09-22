@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Header } from '../components/Header';
+import { useRevealFocusedInput } from '../components/KeyboardAwareScrollView';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
 import {
   ChatMessage,
+  ChatSubjectOption,
   deleteChatMessage,
   editChatMessage,
   getOrCreateCareCircleThread,
@@ -15,14 +17,9 @@ import {
   listRecordConversation,
   markChatThreadRead,
   sendChatMessage,
+  setConversationSubject,
 } from '../chat';
 import { colors, radius, spacing } from '../theme';
-
-// Slice 4: a plain {id, title} option this screen picks a subject from --
-// deliberately not the full LilicaRecord type, so this screen never needs
-// to know about record shapes beyond what a picker needs. The host
-// (App.tsx) filters the real records list down to Medical Log items.
-export type ChatSubjectOption = { id: string; title: string };
 
 // Phase 23: one screen for a Care Circle conversation (slice 1), a
 // private direct-message conversation with one other member (slice 2),
@@ -80,17 +77,28 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
   const [editingId, setEditingId] = useState<string>();
   const [editDraft, setEditDraft] = useState('');
   const inputRef = useRef<TextInput>(null);
+  // Real gap found by direct product-owner report (22 September 2026):
+  // every other text input in this app (TextField.tsx) calls this on
+  // focus so KeyboardAwareScrollView actually scrolls it above the
+  // keyboard -- this screen's own compose/edit TextInputs never did,
+  // leaving the compose box hidden behind the keyboard with nothing
+  // visible to type into.
+  const revealFocusedInput = useRevealFocusedInput();
   const isDirect = Boolean(directPartnerMembershipId);
   const isRecord = Boolean(recordId);
-  // Slice 4/5: subject tagging is offered in shared AND direct mode (a
+  // Slice 6/7: a conversation's subject lives on the conversation itself,
+  // not re-picked per message -- offered in shared AND direct mode (a
   // direct product-owner decision -- DM tagging behaves exactly like
   // Lilica Chat tagging, including surfacing in the record's shared
-  // conversation). Never in record mode.
-  const canTagSubject = !isRecord && Boolean(subjectOptions?.length);
-  const [selectedSubject, setSelectedSubject] = useState<ChatSubjectOption>();
-  const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
-  const headerTitle = explicitThreadTitle
-    ? explicitThreadTitle
+  // conversation). Never in record mode, which is already about exactly
+  // its own record.
+  const canHaveSubject = !isRecord;
+  const [conversationSubject, setConversationSubjectLabel] = useState<string | undefined>(explicitThreadTitle);
+  const [subjectPanelOpen, setSubjectPanelOpen] = useState(false);
+  const [subjectCustomTitle, setSubjectCustomTitle] = useState('');
+  const [savingSubject, setSavingSubject] = useState(false);
+  const headerTitle = conversationSubject
+    ? conversationSubject
     : isDirect ? (directPartnerDisplayName ?? 'Direct message') : isRecord ? (recordTitle ?? 'Conversation') : 'Lilica Chat';
   const composePlaceholder = isDirect ? `Message ${directPartnerDisplayName ?? 'them'}` : isRecord ? 'Write a message' : 'Message your Care Circle';
   const emptyStateText = isDirect
@@ -153,20 +161,35 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
     const body = draft.trim();
     if (!body || !threadId || sending) return;
     setSending(true);
-    const result = await sendChatMessage(threadId, body, selectedSubject?.id);
+    // No explicit per-message subject any more -- a new message inherits
+    // whatever subject the conversation itself already has (server-side,
+    // send_chat_message reads chat_threads.subject_record_id).
+    const result = await sendChatMessage(threadId, body);
     setSending(false);
     if (!result.ok) {
       Alert.alert('Message not sent', result.message);
       return;
     }
-    // The server doesn't echo subject_record_title back on the plain
-    // chat_messages row (only list_chat_messages resolves it via a
-    // join) -- fill it in from what was just picked so the chip renders
-    // immediately, without needing a full reload.
-    setMessages((current) => [...current, selectedSubject ? { ...result.data, subjectRecordTitle: selectedSubject.title } : result.data]);
+    setMessages((current) => [...current, result.data]);
     setDraft('');
-    setSelectedSubject(undefined);
     onMessagesChanged?.();
+  }
+
+  async function handleSaveSubject(options: { title?: string; subjectRecordId?: string }) {
+    if (!threadId || savingSubject) return;
+    setSavingSubject(true);
+    const result = await setConversationSubject(threadId, options);
+    setSavingSubject(false);
+    if (!result.ok) {
+      Alert.alert('Could not update subject', result.message);
+      return;
+    }
+    const label = options.subjectRecordId
+      ? subjectOptions?.find((option) => option.id === options.subjectRecordId)?.title
+      : options.title;
+    setConversationSubjectLabel(label);
+    setSubjectPanelOpen(false);
+    setSubjectCustomTitle('');
   }
 
   function startEdit(message: ChatMessage) {
@@ -213,49 +236,12 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
       footer={
         threadId ? (
           <View>
-            {canTagSubject ? (
-              <View style={styles.subjectArea}>
-                {selectedSubject ? (
-                  <View style={styles.subjectChip}>
-                    <AppText variant="meta" tone="primary" style={styles.subjectChipText} numberOfLines={1}>
-                      Subject: {selectedSubject.title}
-                    </AppText>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Remove subject" onPress={() => setSelectedSubject(undefined)} hitSlop={8}>
-                      <AppText variant="meta" tone="primary" style={styles.subjectChipClear}>Remove</AppText>
-                    </Pressable>
-                  </View>
-                ) : (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Add a subject"
-                    onPress={() => setSubjectPickerOpen((open) => !open)}
-                    style={styles.subjectAddButton}
-                  >
-                    <AppText variant="meta" tone="primary" style={styles.subjectChipText}>+ Add subject</AppText>
-                  </Pressable>
-                )}
-                {subjectPickerOpen ? (
-                  <ScrollView style={styles.subjectPicker} keyboardShouldPersistTaps="handled">
-                    {subjectOptions?.map((option) => (
-                      <Pressable
-                        key={option.id}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Tag this message to ${option.title}`}
-                        onPress={() => { setSelectedSubject(option); setSubjectPickerOpen(false); }}
-                        style={styles.subjectPickerRow}
-                      >
-                        <AppText variant="secondary" numberOfLines={1}>{option.title}</AppText>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                ) : null}
-              </View>
-            ) : null}
             <View style={styles.composeRow}>
               <TextInput
                 ref={inputRef}
                 value={draft}
                 onChangeText={setDraft}
+                onFocus={(event) => revealFocusedInput(event.nativeEvent.target)}
                 placeholder={composePlaceholder}
                 placeholderTextColor={colors.muted}
                 multiline
@@ -277,6 +263,78 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
       }
     >
       <Header title={headerTitle} onBack={onBack} />
+      {canHaveSubject && threadId ? (
+        <View style={styles.subjectArea}>
+          {subjectPanelOpen ? (
+            <View style={styles.subjectPanel}>
+              <AppText variant="bodyStrong">Is it related to an existing medical or care issue?</AppText>
+              {subjectOptions && subjectOptions.length > 0 ? (
+                <>
+                  <AppText variant="secondary" tone="soft">Pick a Medical Log item</AppText>
+                  <ScrollView style={styles.subjectPicker} keyboardShouldPersistTaps="handled">
+                    {subjectOptions.map((option) => (
+                      <Pressable
+                        key={option.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Set the subject to ${option.title}`}
+                        onPress={() => void handleSaveSubject({ subjectRecordId: option.id })}
+                        disabled={savingSubject}
+                        style={styles.subjectPickerRow}
+                      >
+                        <AppText variant="secondary" numberOfLines={1}>{option.title}</AppText>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                  <AppText variant="secondary" tone="soft">Not logged yet? Give it a title instead</AppText>
+                </>
+              ) : (
+                <AppText variant="secondary" tone="soft">Not logged yet? Give it a title</AppText>
+              )}
+              <View style={styles.subjectTitleRow}>
+                <TextInput
+                  value={subjectCustomTitle}
+                  onChangeText={setSubjectCustomTitle}
+                  onFocus={(event) => revealFocusedInput(event.nativeEvent.target)}
+                  placeholder="e.g. Weekend visit plans"
+                  placeholderTextColor={colors.muted}
+                  style={styles.subjectTitleInput}
+                  accessibilityLabel="Conversation subject title"
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Save subject title"
+                  onPress={() => void handleSaveSubject({ title: subjectCustomTitle })}
+                  disabled={!subjectCustomTitle.trim() || savingSubject}
+                  style={[styles.subjectTitleButton, (!subjectCustomTitle.trim() || savingSubject) && styles.subjectTitleButtonDisabled]}
+                >
+                  <AppText variant="bodyStrong" tone="white">Save</AppText>
+                </Pressable>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Cancel changing subject" onPress={() => { setSubjectPanelOpen(false); setSubjectCustomTitle(''); }} hitSlop={8}>
+                <AppText variant="secondary" tone="soft">Cancel</AppText>
+              </Pressable>
+            </View>
+          ) : conversationSubject ? (
+            // The header above already shows this conversation's subject
+            // -- repeating it here as its own chip would just be noise.
+            // Only the "Change" action itself is worth a second row.
+            <Pressable accessibilityRole="button" accessibilityLabel="Change subject" onPress={() => setSubjectPanelOpen(true)} style={styles.subjectAddButton}>
+              <AppText variant="meta" tone="primary" style={styles.subjectChipText}>Change subject</AppText>
+            </Pressable>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Is it related to an existing medical or care issue?"
+              onPress={() => setSubjectPanelOpen(true)}
+              style={styles.subjectAddButton}
+            >
+              <AppText variant="meta" tone="primary" style={styles.subjectChipText}>
+                Is it related to an existing medical or care issue?
+              </AppText>
+            </Pressable>
+          )}
+        </View>
+      ) : null}
       {loading ? (
         <ActivityIndicator />
       ) : error ? (
@@ -311,6 +369,7 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
                     <TextInput
                       value={editDraft}
                       onChangeText={setEditDraft}
+                      onFocus={(event) => revealFocusedInput(event.nativeEvent.target)}
                       multiline
                       style={styles.editInput}
                       autoFocus
@@ -437,27 +496,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
   },
+  subjectPanel: {
+    gap: spacing.xs,
+  },
+  subjectTitleRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  subjectTitleInput: {
+    flex: 1,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.surface,
+    color: colors.ink,
+  },
+  subjectTitleButton: {
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subjectTitleButtonDisabled: {
+    opacity: 0.6,
+  },
   subjectAddButton: {
     alignSelf: 'flex-start',
     minHeight: 28,
     justifyContent: 'center',
   },
-  subjectChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
-  },
   subjectChipText: {
     fontWeight: '700',
     flexShrink: 1,
-  },
-  subjectChipClear: {
-    fontWeight: '700',
   },
   subjectPicker: {
     marginTop: spacing.xxs,

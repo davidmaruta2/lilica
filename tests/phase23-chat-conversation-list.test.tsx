@@ -74,16 +74,41 @@ describe('Phase 23 slice 5: Lilica Chat conversation list', () => {
     expect(onOpenConversation).toHaveBeenCalledWith('thread-2', "This week's appointments");
   });
 
-  it('"+ New conversation" starts one and opens it immediately', async () => {
+  // Slice 6: "+ New conversation" opens the subject picker first -- a
+  // Medical Log item, or a free-text title for something not logged yet
+  // -- before the conversation is actually created.
+  it('"+ New conversation" opens a subject picker, then starts the conversation with the chosen Medical Log item', async () => {
     mockStartNewConversation.mockResolvedValue({ ok: true, data: 'thread-new-1' });
+    const onOpenConversation = jest.fn();
+    const screen = await render(
+      <ChatConversationListScreen
+        careSpaceId="space-1"
+        kind="care_circle"
+        subjectOptions={[{ id: 'record-1', title: 'Metformin' }]}
+        onBack={jest.fn()}
+        onOpenConversation={onOpenConversation}
+      />,
+    );
+    await waitFor(() => screen.getByLabelText('Start a new conversation'));
+    await fireEvent.press(screen.getByLabelText('Start a new conversation'));
+    await waitFor(() => screen.getByLabelText('Start a conversation about Metformin'));
+    await fireEvent.press(screen.getByLabelText('Start a conversation about Metformin'));
+    expect(mockStartNewConversation).toHaveBeenCalledWith('space-1', 'care_circle', undefined, undefined, 'record-1');
+    await waitFor(() => expect(onOpenConversation).toHaveBeenCalledWith('thread-new-1', 'Metformin'));
+  });
+
+  it('"+ New conversation" with a free-text title, for something not logged yet', async () => {
+    mockStartNewConversation.mockResolvedValue({ ok: true, data: 'thread-new-2' });
     const onOpenConversation = jest.fn();
     const screen = await render(
       <ChatConversationListScreen careSpaceId="space-1" kind="care_circle" onBack={jest.fn()} onOpenConversation={onOpenConversation} />,
     );
     await waitFor(() => screen.getByLabelText('Start a new conversation'));
     await fireEvent.press(screen.getByLabelText('Start a new conversation'));
-    expect(mockStartNewConversation).toHaveBeenCalledWith('space-1', 'care_circle', undefined);
-    await waitFor(() => expect(onOpenConversation).toHaveBeenCalledWith('thread-new-1'));
+    await fireEvent.changeText(screen.getByLabelText('Conversation title'), 'Weekend visit plans');
+    await fireEvent.press(screen.getByLabelText('Start conversation with this title'));
+    expect(mockStartNewConversation).toHaveBeenCalledWith('space-1', 'care_circle', undefined, 'Weekend visit plans', undefined);
+    await waitFor(() => expect(onOpenConversation).toHaveBeenCalledWith('thread-new-2', 'Weekend visit plans'));
   });
 });
 
@@ -104,7 +129,7 @@ describe('Phase 23 slice 5: direct message conversation list (one specific partn
     expect(mockListMyConversations).toHaveBeenCalledWith('space-1', 'direct', 'm-sarah');
   });
 
-  it('"+ New conversation" passes the partner membership id through', async () => {
+  it('"+ New conversation" passes the partner membership id through, alongside the chosen title', async () => {
     mockStartNewConversation.mockResolvedValue({ ok: true, data: 'thread-new-dm-1' });
     const onOpenConversation = jest.fn();
     const screen = await render(
@@ -119,7 +144,9 @@ describe('Phase 23 slice 5: direct message conversation list (one specific partn
     );
     await waitFor(() => screen.getByLabelText('Start a new conversation'));
     await fireEvent.press(screen.getByLabelText('Start a new conversation'));
-    expect(mockStartNewConversation).toHaveBeenCalledWith('space-1', 'direct', 'm-sarah');
-    await waitFor(() => expect(onOpenConversation).toHaveBeenCalledWith('thread-new-dm-1'));
+    await fireEvent.changeText(screen.getByLabelText('Conversation title'), 'Catching up');
+    await fireEvent.press(screen.getByLabelText('Start conversation with this title'));
+    expect(mockStartNewConversation).toHaveBeenCalledWith('space-1', 'direct', 'm-sarah', 'Catching up', undefined);
+    await waitFor(() => expect(onOpenConversation).toHaveBeenCalledWith('thread-new-dm-1', 'Catching up'));
   });
 });

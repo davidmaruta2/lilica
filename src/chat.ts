@@ -4,7 +4,8 @@
 // ...130000_phase23_lilica_chat_direct_messages.sql,
 // ...140000_phase23_lilica_chat_record_linked.sql, ...140100_lint_fix.sql,
 // ...160000_phase23_lilica_chat_subject_tagging.sql, ...160100_lint_fix.sql,
-// ...170000_phase23_lilica_chat_multi_conversation.sql).
+// ...170000_phase23_lilica_chat_multi_conversation.sql,
+// ...180000_phase23_lilica_chat_conversation_subject.sql).
 // A thin, typed wrapper, same shape as src/activity.ts -- all permission
 // filtering (including who may read/write a private direct thread, or a
 // record-linked thread gated on that record's own domain access),
@@ -27,12 +28,20 @@
 // Lilica Chat tagging -- a tagged DM message becomes visible in the
 // record's shared conversation to anyone with that domain's access, a
 // deliberate, knowing trade-off, not an oversight.
-// Slice 5 (this file, current): multiple conversations, not one endless
-// thread. getOrCreateCareCircleThread/getOrCreateDirectThread now mean
-// "the most recently active existing conversation, or a fresh first one"
-// -- startNewConversation is the only way to deliberately begin a new one
+// Slice 5: multiple conversations, not one endless thread.
+// getOrCreateCareCircleThread/getOrCreateDirectThread now mean "the most
+// recently active existing conversation, or a fresh first one" --
+// startNewConversation is the only way to deliberately begin a new one
 // instead, and listMyConversations lists them all (most recent first) so
 // an old one can be reopened.
+// Slice 6 (this file, current): a conversation's own subject, chosen
+// once at creation -- direct product-owner report (22 September 2026):
+// the collapsed conversation list gave no indication at all what a
+// conversation was about. startNewConversation takes an optional
+// subjectRecordId (a real Medical Log record) alongside the existing
+// free-text title -- exactly one of the two. Once a conversation has its
+// own subject, every message sent into it is automatically tagged with
+// it too (send_chat_message, server-side) -- no per-message re-picking.
 //
 // Photo attachments, read receipts and typing indicators are a
 // deliberately separate next slice (see LILICA_CHAT_SCOPE_2026-09-22.txt
@@ -59,6 +68,13 @@ export type ChatMessage = {
   subjectRecordId?: string;
   subjectRecordTitle?: string;
 };
+
+// A plain {id, title} option a picker (compose-bar subject picker, or
+// "+ New conversation"'s own subject picker) chooses from -- deliberately
+// not the full LilicaRecord type, so the screens that use this never need
+// to know about record shapes beyond what a picker needs. The host
+// (App.tsx) filters the real records list down to Medical Log items.
+export type ChatSubjectOption = { id: string; title: string };
 
 type Result<T> = { ok: true; data: T } | { ok: false; message: string };
 
@@ -112,25 +128,58 @@ export async function getOrCreateRecordThread(recordId: string): Promise<Result<
 // than continuing the most recently active one (which
 // getOrCreateCareCircleThread/getOrCreateDirectThread return). Never used
 // for record-linked chat -- that stays exactly one thread per record.
+//
+// Slice 6 (22 September 2026 report: the collapsed conversation list gave
+// no indication what a conversation was about): a conversation now has
+// ONE subject, chosen once at creation -- either a real Medical Log
+// record (subjectRecordId) or a free-text title, never both. Passing
+// both is rejected server-side (send_chat_message's own check).
 export async function startNewConversation(
   careSpaceId: string,
   kind: 'care_circle' | 'direct',
   otherMembershipId?: string,
   title?: string,
+  subjectRecordId?: string,
 ): Promise<Result<string>> {
   const { data, error } = await supabase.rpc('start_new_conversation', {
     target_care_space_id: careSpaceId,
     thread_kind: kind,
     other_membership_id: otherMembershipId ?? null,
     conversation_title: title ?? null,
+    subject_record_id: subjectRecordId ?? null,
   });
   if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
   return { ok: true, data: data as string };
 }
 
+// Slice 7: a conversation's subject is amendable after the fact --
+// direct product-owner report (22 September 2026): a message might
+// concern a medical/care issue that isn't logged in Medical Log yet when
+// the conversation starts. Pass a record id to link/relink it, a
+// free-text title to rename it, or neither to clear back to no subject
+// -- exactly one of the two, same as startNewConversation. New messages
+// sent afterwards inherit the change automatically; already-sent
+// messages keep whatever they were tagged with at the time.
+export async function setConversationSubject(
+  threadId: string,
+  options: { title?: string; subjectRecordId?: string },
+): Promise<Result<void>> {
+  const { error } = await supabase.rpc('set_conversation_subject', {
+    target_thread_id: threadId,
+    subject_record_id: options.subjectRecordId ?? null,
+    conversation_title: options.title ?? null,
+  });
+  if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
+  return { ok: true, data: undefined };
+}
+
 export type ConversationSummary = {
   threadId: string;
   title?: string;
+  // Slice 6: resolved fresh on each read (the record's real current
+  // title), same as message-level subjects -- never a stale copy.
+  subjectRecordId?: string;
+  subjectRecordTitle?: string;
   createdAt: string;
   lastMessageAt?: string;
   lastMessageBody?: string;
@@ -157,6 +206,8 @@ export async function listMyConversations(
   const rows = (data ?? []) as Array<{
     thread_id: string;
     title: string | null;
+    subject_record_id: string | null;
+    subject_record_title: string | null;
     created_at: string;
     last_message_at: string | null;
     last_message_body: string | null;
@@ -168,6 +219,8 @@ export async function listMyConversations(
     data: rows.map((row) => ({
       threadId: row.thread_id,
       title: row.title ?? undefined,
+      subjectRecordId: row.subject_record_id ?? undefined,
+      subjectRecordTitle: row.subject_record_title ?? undefined,
       createdAt: row.created_at,
       lastMessageAt: row.last_message_at ?? undefined,
       lastMessageBody: row.last_message_body ?? undefined,
@@ -177,10 +230,12 @@ export async function listMyConversations(
   };
 }
 
-// A short, calm fallback label for a conversation with no title of its
-// own -- "Conversation started 22 Sept" -- never invents a subject/topic
-// it doesn't actually know.
+// A conversation's own subject -- a real Medical Log record's current
+// title, or a free-text title, or (only when neither was ever set) a
+// calm fallback naming when it started. Never invents a topic it doesn't
+// actually know.
 export function conversationLabel(conversation: ConversationSummary): string {
+  if (conversation.subjectRecordTitle) return conversation.subjectRecordTitle;
   if (conversation.title) return conversation.title;
   const date = new Date(conversation.createdAt);
   return `Conversation started ${date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;

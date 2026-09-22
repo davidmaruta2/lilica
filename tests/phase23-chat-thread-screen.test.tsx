@@ -7,6 +7,7 @@ const mockSendChatMessage = jest.fn();
 const mockEditChatMessage = jest.fn();
 const mockDeleteChatMessage = jest.fn();
 const mockMarkChatThreadRead = jest.fn();
+const mockSetConversationSubject = jest.fn();
 
 jest.mock('../src/chat', () => ({
   getOrCreateCareCircleThread: (...args: unknown[]) => mockGetOrCreateCareCircleThread(...args),
@@ -18,6 +19,7 @@ jest.mock('../src/chat', () => ({
   editChatMessage: (...args: unknown[]) => mockEditChatMessage(...args),
   deleteChatMessage: (...args: unknown[]) => mockDeleteChatMessage(...args),
   markChatThreadRead: (...args: unknown[]) => mockMarkChatThreadRead(...args),
+  setConversationSubject: (...args: unknown[]) => mockSetConversationSubject(...args),
 }));
 
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
@@ -55,6 +57,7 @@ beforeEach(() => {
   mockListChatMessages.mockResolvedValue({ ok: true, data: { messages: [], hasMore: false } });
   mockListRecordConversation.mockResolvedValue({ ok: true, data: { messages: [], hasMore: false } });
   mockMarkChatThreadRead.mockResolvedValue({ ok: true, data: undefined });
+  mockSetConversationSubject.mockResolvedValue({ ok: true, data: undefined });
 });
 
 describe('Phase 23 slice 1: shared Lilica Chat mode', () => {
@@ -84,7 +87,7 @@ describe('Phase 23 slice 1: shared Lilica Chat mode', () => {
     await fireEvent.changeText(input, 'Hello');
     await waitFor(() => expect(screen.getByLabelText('Write a message').props.value).toBe('Hello'));
     await fireEvent.press(screen.getByLabelText('Send message'));
-    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-1', 'Hello', undefined));
+    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-1', 'Hello'));
     await waitFor(() => screen.getByText('Hello'));
     expect(screen.getByLabelText('Write a message').props.value).toBe('');
     // onMessagesChanged is called once on load, and again after sending.
@@ -180,10 +183,10 @@ describe('Phase 23 slice 3: record-linked chat mode', () => {
     await fireEvent.changeText(input, 'Started taking the new dose today');
     await waitFor(() => expect(screen.getByLabelText('Write a message').props.value).toBe('Started taking the new dose today'));
     await fireEvent.press(screen.getByLabelText('Send message'));
-    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-record-1', 'Started taking the new dose today', undefined));
+    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-record-1', 'Started taking the new dose today'));
   });
 
-  it('never shows the subject picker (record mode has no subject picker, even though shared/direct modes both do)', async () => {
+  it('never shows the conversation subject prompt (record mode has no subject of its own to change, even though shared/direct modes both do)', async () => {
     const screen = await render(
       <ChatThreadScreen
         careSpaceId="space-1"
@@ -194,27 +197,28 @@ describe('Phase 23 slice 3: record-linked chat mode', () => {
       />,
     );
     await waitFor(() => screen.getByPlaceholderText('Write a message'));
-    expect(screen.queryByLabelText('Add a subject')).toBeNull();
+    expect(screen.queryByLabelText('Is it related to an existing medical or care issue?')).toBeNull();
   });
 });
 
-describe('Phase 23 slice 4: subject picker in Lilica Chat', () => {
+// Slice 6/7: a conversation's subject lives on the conversation itself
+// (set once via ChatConversationListScreen, or changed here) -- not
+// re-picked per message. ChatThreadScreen offers a header-area prompt (no
+// subject yet) or a "Change subject" action (already has one), both
+// opening the same picker/free-text panel, and calling
+// setConversationSubject.
+describe('Phase 23 slice 6/7: conversation-level subject, amendable in ChatThreadScreen', () => {
   const subjectOptions = [
     { id: 'record-1', title: 'Metformin' },
     { id: 'record-2', title: 'Type 2 diabetes' },
   ];
 
-  it('is not shown at all when no subject options are supplied', async () => {
-    const screen = await render(<ChatThreadScreen careSpaceId="space-1" onBack={jest.fn()} />);
-    await waitFor(() => screen.getByPlaceholderText('Message your Care Circle'));
-    expect(screen.queryByLabelText('Add a subject')).toBeNull();
+  it('prompts for a subject when the conversation has none yet', async () => {
+    const screen = await render(<ChatThreadScreen careSpaceId="space-1" subjectOptions={subjectOptions} onBack={jest.fn()} />);
+    await waitFor(() => screen.getByLabelText('Is it related to an existing medical or care issue?'));
   });
 
-  // Direct product-owner decision (22 September 2026): DM tagging behaves
-  // exactly like Lilica Chat tagging, including surfacing in the record's
-  // shared conversation -- a knowing privacy trade-off, not an oversight.
-  it('is ALSO shown in direct message mode, and tags the DM message the same way', async () => {
-    mockSendChatMessage.mockResolvedValue({ ok: true, data: { ...myMessage, id: 'msg-6', body: 'Been struggling with this today' } });
+  it('is ALSO offered in direct message mode (DM subject tagging behaves the same as Lilica Chat -- direct product-owner decision, 22 September 2026)', async () => {
     const screen = await render(
       <ChatThreadScreen
         careSpaceId="space-1"
@@ -224,40 +228,62 @@ describe('Phase 23 slice 4: subject picker in Lilica Chat', () => {
         onBack={jest.fn()}
       />,
     );
-    await waitFor(() => screen.getByLabelText('Add a subject'));
-    await fireEvent.press(screen.getByLabelText('Add a subject'));
-    await fireEvent.press(screen.getByLabelText('Tag this message to Metformin'));
-    screen.getByText('Subject: Metformin');
-    await fireEvent.changeText(screen.getByLabelText('Write a message'), 'Been struggling with this today');
-    await fireEvent.press(screen.getByLabelText('Send message'));
-    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-direct-1', 'Been struggling with this today', 'record-1'));
+    await waitFor(() => screen.getByLabelText('Is it related to an existing medical or care issue?'));
   });
 
-  it('picking a subject shows a chip, and sending tags the message with it -- then clears for the next message', async () => {
-    mockSendChatMessage.mockResolvedValue({ ok: true, data: { ...myMessage, id: 'msg-5', body: 'New dose starts Monday' } });
+  it('picking a Medical Log item sets the conversation subject, and it becomes the header title', async () => {
     const screen = await render(<ChatThreadScreen careSpaceId="space-1" subjectOptions={subjectOptions} onBack={jest.fn()} />);
-    await waitFor(() => screen.getByLabelText('Add a subject'));
-    await fireEvent.press(screen.getByLabelText('Add a subject'));
-    await fireEvent.press(screen.getByLabelText('Tag this message to Metformin'));
-    screen.getByText('Subject: Metformin');
-
-    await fireEvent.changeText(screen.getByLabelText('Write a message'), 'New dose starts Monday');
-    await fireEvent.press(screen.getByLabelText('Send message'));
-    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-1', 'New dose starts Monday', 'record-1'));
-    // The chip disappears and "Add a subject" is back for the next message.
-    await waitFor(() => screen.getByLabelText('Add a subject'));
-    expect(screen.queryByText('Subject: Metformin')).toBeNull();
+    await waitFor(() => screen.getByLabelText('Is it related to an existing medical or care issue?'));
+    await fireEvent.press(screen.getByLabelText('Is it related to an existing medical or care issue?'));
+    await fireEvent.press(screen.getByLabelText('Set the subject to Metformin'));
+    await waitFor(() => expect(mockSetConversationSubject).toHaveBeenCalledWith('thread-1', { subjectRecordId: 'record-1' }));
+    await waitFor(() => screen.getByText('Metformin'));
+    screen.getByLabelText('Change subject');
   });
 
-  it('"Remove" clears the selected subject without sending', async () => {
+  it('giving it a free-text title works the same way, for a concern not logged yet', async () => {
     const screen = await render(<ChatThreadScreen careSpaceId="space-1" subjectOptions={subjectOptions} onBack={jest.fn()} />);
-    await waitFor(() => screen.getByLabelText('Add a subject'));
-    await fireEvent.press(screen.getByLabelText('Add a subject'));
-    await fireEvent.press(screen.getByLabelText('Tag this message to Type 2 diabetes'));
-    screen.getByText('Subject: Type 2 diabetes');
-    await fireEvent.press(screen.getByLabelText('Remove subject'));
-    expect(screen.queryByText('Subject: Type 2 diabetes')).toBeNull();
-    screen.getByLabelText('Add a subject');
+    await waitFor(() => screen.getByLabelText('Is it related to an existing medical or care issue?'));
+    await fireEvent.press(screen.getByLabelText('Is it related to an existing medical or care issue?'));
+    await fireEvent.changeText(screen.getByLabelText('Conversation subject title'), 'Weekend visit plans');
+    await fireEvent.press(screen.getByLabelText('Save subject title'));
+    await waitFor(() => expect(mockSetConversationSubject).toHaveBeenCalledWith('thread-1', { title: 'Weekend visit plans' }));
+    await waitFor(() => screen.getByText('Weekend visit plans'));
+  });
+
+  it('a conversation opened with an explicit subject shows "Change subject", never a duplicate prompt', async () => {
+    mockListChatMessages.mockResolvedValue({ ok: true, data: { messages: [sarahMessage], hasMore: false } });
+    const screen = await render(
+      <ChatThreadScreen
+        careSpaceId="space-1"
+        explicitThreadId="thread-old-1"
+        explicitThreadTitle="Metformin"
+        subjectOptions={subjectOptions}
+        onBack={jest.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('Picking up the prescription this afternoon'));
+    screen.getByLabelText('Change subject');
+    expect(screen.queryByLabelText('Is it related to an existing medical or care issue?')).toBeNull();
+  });
+
+  it('changing the subject on an already-tagged conversation updates the header to the new subject', async () => {
+    mockListChatMessages.mockResolvedValue({ ok: true, data: { messages: [sarahMessage], hasMore: false } });
+    const screen = await render(
+      <ChatThreadScreen
+        careSpaceId="space-1"
+        explicitThreadId="thread-old-1"
+        explicitThreadTitle="Metformin"
+        subjectOptions={subjectOptions}
+        onBack={jest.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByLabelText('Change subject'));
+    await fireEvent.press(screen.getByLabelText('Change subject'));
+    await fireEvent.press(screen.getByLabelText('Set the subject to Type 2 diabetes'));
+    await waitFor(() => expect(mockSetConversationSubject).toHaveBeenCalledWith('thread-old-1', { subjectRecordId: 'record-2' }));
+    await waitFor(() => screen.getByText('Type 2 diabetes'));
+    expect(screen.queryByText('Metformin')).toBeNull();
   });
 });
 
@@ -285,6 +311,6 @@ describe('Phase 23 slice 5: explicitThreadId opens a specific conversation direc
     await waitFor(() => screen.getByPlaceholderText('Message your Care Circle'));
     await fireEvent.changeText(screen.getByLabelText('Write a message'), 'Following up');
     await fireEvent.press(screen.getByLabelText('Send message'));
-    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-old-1', 'Following up', undefined));
+    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-old-1', 'Following up'));
   });
 });

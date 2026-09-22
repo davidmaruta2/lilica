@@ -104,7 +104,7 @@ export function MemberDetailPopup({ visible, member, avatarTone, selfAvatarUrl, 
             ) : null}
             {!member.isSelf && onMessagePrivately ? (
               <Pressable accessibilityRole="button" accessibilityLabel={`Message ${label} privately`} onPress={onMessagePrivately} style={styles.messageButton}>
-                <AppText variant="bodyStrong" tone="white">Message privately</AppText>
+                <AppText variant="bodyStrong" tone="white">Message</AppText>
               </Pressable>
             ) : null}
             <Pressable accessibilityRole="button" accessibilityLabel="Close member details" onPress={onClose} style={styles.closeButton}>

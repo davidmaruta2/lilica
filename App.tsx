@@ -1803,6 +1803,9 @@ function LilicaApp() {
           kind={showChatList}
           partnerMembershipId={showChatList === 'direct' ? directChatPartner?.membershipId : undefined}
           partnerDisplayName={showChatList === 'direct' ? directChatPartner?.displayName : undefined}
+          subjectOptions={state.records
+            .filter((record) => (record.type === 'careNote' || record.type === 'condition' || record.type === 'medicine') && record.status !== 'cancelled')
+            .map((record) => ({ id: record.id, title: record.title }))}
           onBack={() => { setShowChatList(undefined); setDirectChatPartner(undefined); }}
           onOpenConversation={(threadId, title) => {
             setOpenConversation({ threadId, title });
