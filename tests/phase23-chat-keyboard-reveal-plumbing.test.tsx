@@ -51,4 +51,31 @@ describe('Phase 23: the compose box genuinely scrolls above the keyboard on focu
 
     scrollToEndSpy.mockRestore();
   });
+
+  // Real device report (23 September 2026): still "partially" hidden even
+  // after the fix above -- KeyboardAvoidingView's own padding/height
+  // animation is still running when the first scrollToEnd() lands, so the
+  // viewport keeps shrinking a little further afterwards. This proves the
+  // container's own onLayout (which fires on every frame of that
+  // animation, since it's a real layout change) triggers a corrective
+  // re-scroll, without depending on any fixed delay.
+  it('re-scrolls when the container height changes after focus (KeyboardAvoidingView still animating)', async () => {
+    const scrollToEndSpy = jest.spyOn(ScrollView.prototype, 'scrollToEnd').mockImplementation(() => undefined);
+
+    const screen = await render(<ChatThreadScreen careSpaceId="space-1" onBack={jest.fn()} />);
+    await waitFor(() => screen.getByPlaceholderText('Message your Care Circle'));
+
+    fireEvent(screen.getByLabelText('Write a message'), 'focus', { nativeEvent: { target: 42 } });
+    await waitFor(() => expect(scrollToEndSpy).toHaveBeenCalled());
+    scrollToEndSpy.mockClear();
+
+    // First layout establishes the baseline height; a later, DIFFERENT
+    // height is what a still-animating KeyboardAvoidingView produces.
+    fireEvent(screen.getByTestId('screen-scroll-view'), 'layout', { nativeEvent: { layout: { height: 500, width: 400, x: 0, y: 0 } } });
+    fireEvent(screen.getByTestId('screen-scroll-view'), 'layout', { nativeEvent: { layout: { height: 460, width: 400, x: 0, y: 0 } } });
+
+    expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: true });
+
+    scrollToEndSpy.mockRestore();
+  });
 });

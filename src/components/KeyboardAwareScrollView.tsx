@@ -16,7 +16,10 @@ const KeyboardScrollContext = createContext<(target: number) => void>(() => unde
 const ScrollToEndContext = createContext<() => void>(() => undefined);
 
 // Extra space kept between the focused field and the keyboard/footer edge.
-const REVEAL_PADDING = 24;
+// Bumped from 24 (23 September 2026) as a cheap additional safety margin
+// alongside the layout-driven settle fix below -- belt and suspenders
+// against a sliver of the field still landing under the keyboard.
+const REVEAL_PADDING = 32;
 
 export function useRevealFocusedInput() {
   return useContext(KeyboardScrollContext);
@@ -55,6 +58,7 @@ export function KeyboardAwareScrollView({
   const focusedTarget = useRef<number | undefined>(undefined);
   const scrollOffset = useRef(0);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const lastContainerHeight = useRef<number | undefined>(undefined);
 
   // The legacy `scrollResponderScrollNativeHandleToKeyboard` API compares a
   // field's position (measured relative to this ScrollView) against the
@@ -135,16 +139,54 @@ export function KeyboardAwareScrollView({
     retryTimer.current = setTimeout(run, 180);
   }, []);
 
+  // Real device report (23 September 2026): still "partially" hidden even
+  // after the fixes above -- the compose box lands in roughly the right
+  // place, then ends up a sliver short. Root cause: KeyboardAvoidingView
+  // animates its own padding/height in response to the SAME keyboard
+  // event this listens to, but that animation is JS-driven (padding/
+  // height are layout properties, so it can't use the native driver) and
+  // is only just STARTING when 'keyboardDidShow' fires -- it takes
+  // roughly another animation's worth of time (iOS reports this as
+  // event.duration; Android reports nothing usable) to actually finish.
+  // A fixed-delay retry was always guessing at that duration. Instead,
+  // this container's own onLayout fires on every frame of that
+  // padding/height animation (because it's a real layout change, not a
+  // native-driven transform) -- reacting to an ACTUAL height change and
+  // re-running whichever action is still active settles on the true
+  // final position regardless of how long the animation takes, on either
+  // platform, without guessing a duration at all.
+  function handleContainerLayout(event: Parameters<NonNullable<ScrollViewProps['onLayout']>>[0]) {
+    const height = event.nativeEvent.layout.height;
+    if (lastContainerHeight.current !== undefined && height !== lastContainerHeight.current) {
+      if (scrollToEndRequested.current) {
+        scrollView.current?.scrollToEnd({ animated: true });
+      } else if (focusedTarget.current !== undefined) {
+        measureAndReveal(focusedTarget.current);
+      }
+    }
+    lastContainerHeight.current = height;
+    onLayout?.(event);
+  }
+
   useEffect(() => {
-    const subscription = Keyboard.addListener('keyboardDidShow', () => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
       if (scrollToEndRequested.current) {
         scrollView.current?.scrollToEnd({ animated: true });
       } else if (focusedTarget.current !== undefined) {
         reveal(focusedTarget.current);
       }
     });
+    // Once the keyboard is gone, a field losing focus without a fresh
+    // reveal()/scrollToEnd() call must never leave a stale target behind
+    // -- otherwise the NEXT unrelated layout change (rotating, a keyboard
+    // suggestion bar appearing) would wrongly trigger another scroll.
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      focusedTarget.current = undefined;
+      scrollToEndRequested.current = false;
+    });
     return () => {
-      subscription.remove();
+      showSubscription.remove();
+      hideSubscription.remove();
       if (retryTimer.current) clearTimeout(retryTimer.current);
     };
   }, [reveal]);
@@ -154,7 +196,7 @@ export function KeyboardAwareScrollView({
       <ScrollToEndContext.Provider value={scrollToEnd}>
         <ScrollView
           ref={scrollView}
-          onLayout={onLayout}
+          onLayout={handleContainerLayout}
           onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
             scrollOffset.current = event.nativeEvent.contentOffset.y;
             onScroll?.(event);
