@@ -1,47 +1,227 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Lilica</title>
-  <style>
-    :root { color-scheme: light; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #F7F3EF;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: #241D1C;
-      padding: 24px;
-      box-sizing: border-box;
-    }
-    .card {
-      max-width: 420px;
-      width: 100%;
-      background: #FFFFFF;
-      border-radius: 16px;
-      padding: 32px 28px;
-      box-shadow: 0 12px 32px rgba(36, 29, 28, 0.08);
-      text-align: center;
-    }
-    h1 { font-size: 24px; margin: 0 0 12px; color: #63364D; }
-    p { font-size: 15px; line-height: 22px; color: #6B615C; margin: 0; }
-    .links { margin-top: 20px; display: flex; gap: 16px; justify-content: center; }
-    .links a { color: #63364D; font-size: 13px; text-decoration: none; font-weight: 600; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lilica - organise care for someone you love</title>
+<meta name="description" content="Lilica helps you keep track of appointments, medicines, bills, home matters and everyday care needs in one place, and share them with the family or carers who are helping.">
+<link rel="icon" href="/assets/icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700;800&family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+  body { margin: 0; background: #FBF7EF; }
+  a { color: inherit; text-decoration: none; }
+  a:hover { opacity: 0.85; }
+  * { box-sizing: border-box; }
+</style>
 </head>
 <body>
-  <div class="card">
-    <h1>Lilica</h1>
-    <p>A calm care organiser for families. If you've received a Care Circle invitation link, open that link directly.</p>
-    <div class="links">
+
+<div style="width: 100%; min-height: 100vh; font-family: 'Inter', sans-serif; color: #241021; background: #FBF7EF;">
+
+  <!-- NAV -->
+  <div style="position: sticky; top: 0; z-index: 20; background: rgba(251,247,239,0.92); backdrop-filter: blur(6px); border-bottom: 1px solid rgba(62,22,56,0.08);">
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 22px 64px; max-width: 1180px; margin: 0 auto;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="font-family: 'Fraunces', serif; font-weight: 800; font-size: 32px; color: #3E1638;">Lilica</div>
+        <div style="width: 11px; height: 11px; border-radius: 40% 60% 60% 40% / 60% 40% 60% 40%; background: #8FAE5D; transform: rotate(-20deg);"></div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 36px;">
+        <a href="#why-not-chat" style="font-family: 'Inter Tight', sans-serif; font-weight: 600; font-size: 15px; color: #3E1638;">Why Lilica</a>
+        <a href="#how" style="font-family: 'Inter Tight', sans-serif; font-weight: 600; font-size: 15px; color: #3E1638;">How it works</a>
+        <a href="#pricing" style="font-family: 'Inter Tight', sans-serif; font-weight: 600; font-size: 15px; color: #3E1638;">Pricing</a>
+        <a href="#support" style="font-family: 'Inter Tight', sans-serif; font-weight: 600; font-size: 15px; color: #3E1638;">Support</a>
+        <a href="#download" style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 15px; color: #FFFFFF; background: #3E1638; padding: 12px 24px; border-radius: 999px;">Get the app</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- HERO: what it is, in one breath -->
+  <div style="display: flex; align-items: center; justify-content: center; gap: 64px; padding: 88px 64px 56px 64px; max-width: 1180px; margin: 0 auto;">
+    <div style="flex: 0 1 540px; display: flex; flex-direction: column; gap: 24px;">
+      <h1 style="margin: 0; font-family: 'Fraunces', serif; font-weight: 700; font-size: 52px; line-height: 1.14; color: #3E1638; letter-spacing: -1px; max-width: 600px;">
+        Lilica helps you organise care for someone you love.
+      </h1>
+      <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 19px; line-height: 1.55; color: #6B4E63; max-width: 520px;">
+        You can keep track of appointments, medicines, bills, home matters and everyday care needs all in one place, and share them with the family or carers who are helping.
+      </p>
+      <div style="display: flex; align-items: center; gap: 16px; margin-top: 6px;">
+        <a href="https://play.google.com/store/apps/details?id=com.luxfordinteractive.lilica" style="display: flex; align-items: center; gap: 10px; background: #3E1638; color: #FFFFFF; padding: 14px 24px; border-radius: 14px; font-family: 'Inter Tight', sans-serif;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 3l16 9-16 9V3z"/></svg>
+          <div>
+            <div style="font-size: 11px; opacity: 0.75;">Get it on</div>
+            <div style="font-size: 16px; font-weight: 700;">Google Play</div>
+          </div>
+        </a>
+        <div style="display: flex; align-items: center; gap: 10px; background: #EFE7EA; color: #8A7A85; padding: 14px 24px; border-radius: 14px; font-family: 'Inter Tight', sans-serif;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16.365 1.43c0 1.14-.416 2.06-1.25 2.78-.834.72-1.85 1.14-3.05 1.02-.06-1.1.42-2.02 1.25-2.74.86-.74 1.9-1.14 3.05-1.06zM20.5 17.2c-.53 1.22-1.18 2.4-2.02 3.44-1.03 1.28-2.06 2.56-3.64 2.58-1.55.02-2.05-.92-3.82-.92-1.78 0-2.34.9-3.8.94-1.53.04-2.7-1.38-3.74-2.66-2.02-2.5-3.58-7.06-1.5-10.14 1.04-1.54 2.9-2.5 4.9-2.54 1.5-.02 2.9.98 3.82.98.9 0 2.62-1.22 4.42-1.04.75.03 2.86.3 4.22 2.26-.11.07-2.52 1.46-2.5 4.35.03 3.44 3.05 4.6 3.06 4.65-.02.06-.48 1.62-1.4 3.1z"/></svg>
+          <div>
+            <div style="font-size: 11px; opacity: 0.85;">Coming soon to the</div>
+            <div style="font-size: 16px; font-weight: 700;">App Store</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="flex: 0 0 280px; display: flex; align-items: flex-start; justify-content: center;">
+      <div style="width: 280px; border-radius: 38px; overflow: hidden; box-shadow: 0 40px 90px rgba(62,22,56,0.28); border: 8px solid #1C0F19;">
+        <img src="/assets/screenshot-home.jpg" alt="The Lilica Home screen, showing what is overdue, due today and coming up" style="width: 100%; display: block;">
+      </div>
+    </div>
+  </div>
+
+  <!-- WHY WE BUILT IT + WHO IT'S FOR -->
+  <div style="padding: 40px 64px 88px 64px; max-width: 1180px; margin: 0 auto;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 56px;">
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: #B8622C;">Why we built it</div>
+        <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 18px; line-height: 1.6; color: #3E1638;">
+          Looking after someone is usually not just one person's job. It is often a few people, each doing what they can, and finding out about the rest later. An appointment gets missed, a bill goes unpaid, or nobody is sure if someone has already called the doctor. We built Lilica so that this information is kept in one place that everyone involved can see, instead of being remembered by one person or spread across lots of separate text messages.
+        </p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: #2E6B62;">Who it's for</div>
+        <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 18px; line-height: 1.6; color: #3E1638;">
+          Lilica is for anyone helping to look after another person, such as a parent, a partner, or an older relative who needs some support with everyday life. You might be the person mainly organising things, or one of a few people helping out. Lilica works well whether it is just you, or a whole family.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- WHY NOT JUST A GROUP CHAT -->
+  <div id="why-not-chat" style="background: #3E1638; padding: 88px 64px;">
+    <div style="max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 48px;">
+      <div style="text-align: center; display: flex; flex-direction: column; gap: 14px;">
+        <h2 style="margin: 0; font-family: 'Fraunces', serif; font-weight: 700; font-size: 34px; color: #FFFFFF;">Why not just use a family group chat or text messages?</h2>
+        <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 17px; color: rgba(255,255,255,0.75); max-width: 580px; margin: 0 auto;">
+          Many families try this first. It usually becomes difficult to keep track of, for a few reasons.
+        </p>
+      </div>
+      <div style="display: flex; align-items: center; gap: 56px;">
+        <div style="flex: 0 0 260px;">
+          <div style="width: 260px; border-radius: 32px; overflow: hidden; box-shadow: 0 32px 70px rgba(0,0,0,0.35); border: 8px solid #1C0F19;">
+            <img src="/assets/screenshot-calendar.jpg" alt="The Lilica Calendar screen" style="width: 100%; display: block;">
+          </div>
+        </div>
+        <div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 24px;">
+            <div style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 15px; color: #F0B9D8; margin-bottom: 8px;">Messages get buried</div>
+            <div style="font-family: 'Inter', sans-serif; font-size: 14px; color: rgba(255,255,255,0.78); line-height: 1.5;">In a group chat, a question like "has anyone booked the dentist?" can get buried under other messages within a day. In Lilica, you can see straight away whether something is overdue, due today, or already done, without scrolling back through old messages to find out.</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 24px;">
+            <div style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 15px; color: #F0B9D8; margin-bottom: 8px;">Nothing reminds you if something is missed</div>
+            <div style="font-family: 'Inter', sans-serif; font-size: 14px; color: rgba(255,255,255,0.78); line-height: 1.5;">For things that need doing every day or every week, such as giving medicine or checking in on someone, Lilica can keep track of whether it has actually been done. If nobody marks it as done, it stays visible, instead of getting lost further down a chat.</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 24px;">
+            <div style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 15px; color: #F0B9D8; margin-bottom: 8px;">You can choose what each person sees</div>
+            <div style="font-family: 'Inter', sans-serif; font-size: 14px; color: rgba(255,255,255,0.78); line-height: 1.5;">In a group chat, everyone usually sees everything. In Lilica, you can choose what each person is able to see, for example health information or money matters, so nothing is shared with someone by mistake.</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 24px;">
+            <div style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 15px; color: #F0B9D8; margin-bottom: 8px;">You can get a clear summary when you need one</div>
+            <div style="font-family: 'Inter', sans-serif; font-size: 14px; color: rgba(255,255,255,0.78); line-height: 1.5;">If someone new starts helping, or you are at an appointment, Lilica can put together a summary of what is happening right now. This is easier than trying to explain months of messages.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div id="how" style="padding: 88px 64px; max-width: 1280px; margin: 0 auto;">
+    <div style="text-align: center; max-width: 640px; margin: 0 auto 28px auto;">
+      <h2 style="margin: 0 0 14px 0; font-family: 'Fraunces', serif; font-weight: 700; font-size: 36px; color: #3E1638;">How it works</h2>
+      <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 17px; color: #6B4E63;">There is nothing to set up beyond what is described below.</p>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: center; gap: 56px; max-width: 980px; margin: 0 auto;">
+      <div style="flex: 0 1 480px; display: flex; flex-direction: column; gap: 28px;">
+        <div style="display: flex; gap: 18px; align-items: flex-start;">
+          <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #3E1638; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 15px;">1</div>
+          <div>
+            <div style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 16px; color: #3E1638;">Set up who you're caring for</div>
+            <div style="font-family: 'Inter', sans-serif; font-size: 14.5px; color: #6B4E63; line-height: 1.5;">This could be a parent, a partner, or yourself. It only takes a couple of minutes.</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 18px; align-items: flex-start;">
+          <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #3E1638; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 15px;">2</div>
+          <div>
+            <div style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 16px; color: #3E1638;">Add what needs tracking</div>
+            <div style="font-family: 'Inter', sans-serif; font-size: 14.5px; color: #6B4E63; line-height: 1.5;">Appointments, bills, medicines and care needs, added as they come up.</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 18px; align-items: flex-start;">
+          <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #3E1638; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 15px;">3</div>
+          <div>
+            <div style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 16px; color: #3E1638;">Invite who's helping</div>
+            <div style="font-family: 'Inter', sans-serif; font-size: 14.5px; color: #6B4E63; line-height: 1.5;">Family or carers join your Care Circle with just the access you choose.</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 18px; align-items: flex-start;">
+          <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #3E1638; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 15px;">4</div>
+          <div>
+            <div style="font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 16px; color: #3E1638;">Everyone stays in sync</div>
+            <div style="font-family: 'Inter', sans-serif; font-size: 14.5px; color: #6B4E63; line-height: 1.5;">Home shows what's overdue, due today, and coming up, for anyone who opens it.</div>
+          </div>
+        </div>
+      </div>
+      <div style="flex: 0 0 280px;">
+        <div style="width: 280px; border-radius: 34px; overflow: hidden; box-shadow: 0 34px 75px rgba(62,22,56,0.22); border: 8px solid #1C0F19;">
+          <img src="/assets/screenshot-todo.jpg" alt="The Lilica To Do screen" style="width: 100%; display: block;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHOWCASE BAND -->
+  <div style="background: linear-gradient(180deg, #2E6B62 0%, #6FA294 100%); padding: 80px 64px;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 56px; max-width: 980px; margin: 0 auto;">
+      <div style="flex: 0 0 260px;">
+        <div style="width: 260px; border-radius: 34px; overflow: hidden; box-shadow: 0 36px 80px rgba(18,40,36,0.35); border: 8px solid #12211d;">
+          <img src="/assets/screenshot-people.jpg" alt="The Lilica Care Circle screen, showing who is helping" style="width: 100%; display: block;">
+        </div>
+      </div>
+      <div style="flex: 0 1 440px; display: flex; flex-direction: column; gap: 20px;">
+        <h2 style="margin: 0; font-family: 'Fraunces', serif; font-weight: 700; font-size: 36px; line-height: 1.18; color: #FFFFFF; max-width: 460px;">
+          Help them live well, and age independently.
+        </h2>
+        <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 17px; line-height: 1.55; color: rgba(255,255,255,0.88); max-width: 440px;">
+          Everyone helping can stay up to date. Lilica works well from day one, even when it is just you, and more people can join in later.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRICING -->
+  <div id="pricing" style="padding: 88px 64px; max-width: 680px; margin: 0 auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+    <h2 style="margin: 0; font-family: 'Fraunces', serif; font-weight: 700; font-size: 32px; color: #3E1638;">How much does it cost?</h2>
+    <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 20px; font-weight: 700; color: #3E1638;">Free for 60 days. Then &pound;8.99 a year.</p>
+    <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 16px; color: #6B4E63; max-width: 420px;">
+      One subscription covers everyone in your Care Circle, with no per-person charges. You can cancel at any time.
+    </p>
+    <a id="download" href="https://play.google.com/store/apps/details?id=com.luxfordinteractive.lilica" style="margin-top: 10px; background: #3E1638; color: #FFFFFF; font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 16px; padding: 16px 36px; border-radius: 999px;">
+      Get Lilica on Google Play
+    </a>
+  </div>
+
+  <!-- SUPPORT -->
+  <div id="support" style="background: #F3E4EE; padding: 72px 64px;">
+    <div style="max-width: 680px; margin: 0 auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px;">
+      <h2 style="margin: 0; font-family: 'Fraunces', serif; font-weight: 700; font-size: 30px; color: #3E1638;">Need help, or have an idea for us?</h2>
+      <p style="margin: 0; font-family: 'Inter Tight', sans-serif; font-size: 16px; color: #6B4E63; max-width: 440px;">
+        Whether something isn't working or you'd like to see a feature added, we read every message ourselves.
+      </p>
+      <a href="mailto:admin@luxfordinteractive.com" style="margin-top: 8px; background: #FFFFFF; border: 1.5px solid #3E1638; color: #3E1638; font-family: 'Inter Tight', sans-serif; font-weight: 700; font-size: 15px; padding: 13px 28px; border-radius: 999px;">
+        admin@luxfordinteractive.com
+      </a>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div style="border-top: 1px solid rgba(62,22,56,0.1); padding: 40px 64px; display: flex; align-items: center; justify-content: space-between; max-width: 1440px; margin: 0 auto; flex-wrap: wrap; gap: 16px;">
+    <div style="font-family: 'Inter Tight', sans-serif; font-size: 14px; color: #8A7A85;">&copy; 2026 Luxford Interactive Ltd. Lilica is a calm way to organise and share care.</div>
+    <div style="display: flex; gap: 28px; font-family: 'Inter Tight', sans-serif; font-weight: 600; font-size: 14px; color: #6B4E63;">
       <a href="/privacy.html">Privacy</a>
       <a href="/terms.html">Terms</a>
       <a href="/support.html">Support</a>
     </div>
   </div>
+
+</div>
 </body>
 </html>
