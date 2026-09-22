@@ -2,7 +2,7 @@ import { ComponentProps, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Header } from '../components/Header';
-import { useRevealFocusedInput } from '../components/KeyboardAwareScrollView';
+import { useScrollToEnd } from '../components/KeyboardAwareScrollView';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
 import { ChatSubjectOption, ConversationSummary, conversationLabel, listMyConversations, startNewConversation } from '../chat';
@@ -35,23 +35,31 @@ type Props = {
   // title field alone -- never a fabricated affordance.
   subjectOptions?: ChatSubjectOption[];
   onBack: () => void;
-  onOpenConversation: (threadId: string, title?: string) => void;
+  // subjectRecordId, alongside title, so the thread screen can offer to
+  // open the linked record straight away for a conversation reopened
+  // from here -- not just one just created in this session.
+  onOpenConversation: (threadId: string, title?: string, subjectRecordId?: string) => void;
 };
 
-// useRevealFocusedInput() only resolves to the live reveal function for a
-// component rendered INSIDE the enclosing <Screen>'s subtree -- calling it
-// at this screen's own top level (as this first shipped, 22 September
-// 2026) read the context's no-op default instead, since the <Screen> it
-// renders is a descendant of this component, never an ancestor. This
-// wrapper is genuinely rendered as a child of that <Screen>, so it
-// resolves correctly.
+// useScrollToEnd() only resolves to the live scroll function for a
+// component rendered INSIDE the enclosing <Screen>'s subtree -- calling a
+// context hook at this screen's own top level (as an earlier version of
+// this fix shipped, 22 September 2026) reads the context's no-op default
+// instead, since the <Screen> it renders is a descendant of this
+// component, never an ancestor. This wrapper is genuinely rendered as a
+// child of that <Screen>, so it resolves correctly. scrollToEnd (not the
+// general-purpose measure-based reveal) because this title field is
+// always the very last thing in the footer -- see ChatThreadScreen.tsx's
+// own comment on why that's the more robust choice (real device report,
+// 23 September 2026: native Android keyboard resize is not reliable
+// enough to depend on for measurement-based positioning).
 function RevealingTextInput({ onFocus, ...props }: ComponentProps<typeof TextInput>) {
-  const revealFocusedInput = useRevealFocusedInput();
+  const scrollToEnd = useScrollToEnd();
   return (
     <TextInput
       {...props}
       onFocus={(event) => {
-        revealFocusedInput(event.nativeEvent.target);
+        scrollToEnd();
         onFocus?.(event);
       }}
     />
@@ -113,7 +121,11 @@ export function ChatConversationListScreen({ careSpaceId, kind, partnerMembershi
       Alert.alert('Could not start a new conversation', result.message);
       return;
     }
-    onOpenConversation(result.data, options.subjectRecordId ? subjectOptions?.find((option) => option.id === options.subjectRecordId)?.title : options.title);
+    onOpenConversation(
+      result.data,
+      options.subjectRecordId ? subjectOptions?.find((option) => option.id === options.subjectRecordId)?.title : options.title,
+      options.subjectRecordId,
+    );
   }
 
   return (
@@ -200,7 +212,7 @@ export function ChatConversationListScreen({ careSpaceId, kind, partnerMembershi
               key={conversation.threadId}
               accessibilityRole="button"
               accessibilityLabel={`Open ${conversationLabel(conversation)}`}
-              onPress={() => onOpenConversation(conversation.threadId, conversationLabel(conversation))}
+              onPress={() => onOpenConversation(conversation.threadId, conversationLabel(conversation), conversation.subjectRecordId)}
               style={styles.row}
             >
               <View style={styles.rowCopy}>

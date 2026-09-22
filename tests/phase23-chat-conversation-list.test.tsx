@@ -92,7 +92,7 @@ describe('Phase 23 slice 5: Lilica Chat conversation list', () => {
     );
     await waitFor(() => screen.getByText("This week's appointments"));
     await fireEvent.press(screen.getByLabelText("Open This week's appointments"));
-    expect(onOpenConversation).toHaveBeenCalledWith('thread-2', "This week's appointments");
+    expect(onOpenConversation).toHaveBeenCalledWith('thread-2', "This week's appointments", undefined);
   });
 
   // Slice 6: "+ New conversation" opens the subject picker first -- a
@@ -115,7 +115,7 @@ describe('Phase 23 slice 5: Lilica Chat conversation list', () => {
     await waitFor(() => screen.getByLabelText('Start a conversation about Metformin'));
     await fireEvent.press(screen.getByLabelText('Start a conversation about Metformin'));
     expect(mockStartNewConversation).toHaveBeenCalledWith('space-1', 'care_circle', undefined, undefined, 'record-1');
-    await waitFor(() => expect(onOpenConversation).toHaveBeenCalledWith('thread-new-1', 'Metformin'));
+    await waitFor(() => expect(onOpenConversation).toHaveBeenCalledWith('thread-new-1', 'Metformin', 'record-1'));
   });
 
   it('"+ New conversation" with a free-text title, for something not logged yet', async () => {
@@ -129,7 +129,7 @@ describe('Phase 23 slice 5: Lilica Chat conversation list', () => {
     await fireEvent.changeText(screen.getByLabelText('Conversation title'), 'Weekend visit plans');
     await fireEvent.press(screen.getByLabelText('Start conversation with this title'));
     expect(mockStartNewConversation).toHaveBeenCalledWith('space-1', 'care_circle', undefined, 'Weekend visit plans', undefined);
-    await waitFor(() => expect(onOpenConversation).toHaveBeenCalledWith('thread-new-2', 'Weekend visit plans'));
+    await waitFor(() => expect(onOpenConversation).toHaveBeenCalledWith('thread-new-2', 'Weekend visit plans', undefined));
   });
 });
 
@@ -168,6 +168,6 @@ describe('Phase 23 slice 5: direct message conversation list (one specific partn
     await fireEvent.changeText(screen.getByLabelText('Conversation title'), 'Catching up');
     await fireEvent.press(screen.getByLabelText('Start conversation with this title'));
     expect(mockStartNewConversation).toHaveBeenCalledWith('space-1', 'direct', 'm-sarah', 'Catching up', undefined);
-    await waitFor(() => expect(onOpenConversation).toHaveBeenCalledWith('thread-new-dm-1', 'Catching up'));
+    await waitFor(() => expect(onOpenConversation).toHaveBeenCalledWith('thread-new-dm-1', 'Catching up', undefined));
   });
 });

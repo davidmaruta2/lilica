@@ -287,6 +287,79 @@ describe('Phase 23 slice 6/7: conversation-level subject, amendable in ChatThrea
   });
 });
 
+// Direct product-owner request (23 September 2026, alongside a
+// screenshot of the "Spinal disc injury" subject): a conversation/message
+// tagged to a real Medical Log record should open that record right from
+// the subject, as a pop-out over the conversation -- never a real
+// navigation away from it. onOpenRecord is how the host (App.tsx) is told
+// which record to pop open; omitted means no such affordance, same
+// "never a fabricated tap target" pattern as everywhere else here.
+describe('Phase 23 slice 8: opening the linked record from a subject, as a pop-out', () => {
+  const subjectOptions = [{ id: 'record-1', title: 'Spinal disc injury' }];
+
+  it('offers "Open <subject>" next to "Change subject" when the conversation subject is a real record and onOpenRecord is given', async () => {
+    const onOpenRecord = jest.fn();
+    const screen = await render(
+      <ChatThreadScreen
+        careSpaceId="space-1"
+        explicitThreadId="thread-old-1"
+        explicitThreadTitle="Spinal disc injury"
+        explicitThreadSubjectRecordId="record-1"
+        subjectOptions={subjectOptions}
+        onOpenRecord={onOpenRecord}
+        onBack={jest.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByLabelText('Open Spinal disc injury'));
+    await fireEvent.press(screen.getByLabelText('Open Spinal disc injury'));
+    expect(onOpenRecord).toHaveBeenCalledWith('record-1');
+  });
+
+  it('never offers to open a record for a free-text subject (no real record behind it)', async () => {
+    const onOpenRecord = jest.fn();
+    const screen = await render(
+      <ChatThreadScreen
+        careSpaceId="space-1"
+        explicitThreadId="thread-old-1"
+        explicitThreadTitle="Weekend visit plans"
+        onOpenRecord={onOpenRecord}
+        onBack={jest.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByLabelText('Change subject'));
+    expect(screen.queryByLabelText('Open Weekend visit plans')).toBeNull();
+  });
+
+  it('never offers to open a record when onOpenRecord is not given', async () => {
+    const screen = await render(
+      <ChatThreadScreen
+        careSpaceId="space-1"
+        explicitThreadId="thread-old-1"
+        explicitThreadTitle="Spinal disc injury"
+        explicitThreadSubjectRecordId="record-1"
+        subjectOptions={subjectOptions}
+        onBack={jest.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByLabelText('Change subject'));
+    expect(screen.queryByLabelText('Open Spinal disc injury')).toBeNull();
+  });
+
+  it('a per-message "Re: <subject>" chip is also tappable to open that record', async () => {
+    mockListChatMessages.mockResolvedValue({
+      ok: true,
+      data: { messages: [{ ...sarahMessage, subjectRecordId: 'record-1', subjectRecordTitle: 'Spinal disc injury' }], hasMore: false },
+    });
+    const onOpenRecord = jest.fn();
+    const screen = await render(
+      <ChatThreadScreen careSpaceId="space-1" onOpenRecord={onOpenRecord} onBack={jest.fn()} />,
+    );
+    await waitFor(() => screen.getByText('Re: Spinal disc injury'));
+    await fireEvent.press(screen.getByLabelText('Open Spinal disc injury'));
+    expect(onOpenRecord).toHaveBeenCalledWith('record-1');
+  });
+});
+
 // Phase 23 slice 5: opening one SPECIFIC past conversation (reopened from
 // ChatConversationListScreen) instead of "the most recently active one".
 describe('Phase 23 slice 5: explicitThreadId opens a specific conversation directly', () => {

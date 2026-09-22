@@ -13,12 +13,26 @@ import {
 import { computeRevealScrollTo } from '../keyboardReveal';
 
 const KeyboardScrollContext = createContext<(target: number) => void>(() => undefined);
+const ScrollToEndContext = createContext<() => void>(() => undefined);
 
 // Extra space kept between the focused field and the keyboard/footer edge.
 const REVEAL_PADDING = 24;
 
 export function useRevealFocusedInput() {
   return useContext(KeyboardScrollContext);
+}
+
+// A defensive alternative to useRevealFocusedInput() for a field that is
+// always the LAST thing in the scroll content (a chat compose box, never
+// a mid-content field) -- scrollToEnd needs no measurement of anything at
+// all, so it can't be defeated by the coordinate-space/timing/legacy-API
+// fragility the measure-based reveal() is exposed to. Real device report
+// (23 September 2026): the compose box stayed hidden behind the keyboard
+// even after fixing a genuine context-resolution bug in reveal() -- this
+// exists because a field known to sit at the very end doesn't need the
+// general-purpose (and more fragile) machinery at all.
+export function useScrollToEnd() {
+  return useContext(ScrollToEndContext);
 }
 
 type Props = ScrollViewProps & {
@@ -90,7 +104,10 @@ export function KeyboardAwareScrollView({
     });
   }, [keepVisibleWithFocusRef]);
 
+  const scrollToEndRequested = useRef(false);
+
   const reveal = useCallback((target: number) => {
+    scrollToEndRequested.current = false;
     focusedTarget.current = target;
     if (retryTimer.current) clearTimeout(retryTimer.current);
     // One pass now, in case the keyboard/layout change has already
@@ -105,9 +122,26 @@ export function KeyboardAwareScrollView({
     retryTimer.current = setTimeout(() => measureAndReveal(target), 180);
   }, [measureAndReveal]);
 
+  // See useScrollToEnd()'s own comment -- no measurement, so nothing here
+  // can be defeated by a stale/mismatched coordinate space. Same
+  // now-plus-retry shape as reveal(), for the same "keyboard animation
+  // still mid-flight on the first pass" reason.
+  const scrollToEnd = useCallback(() => {
+    focusedTarget.current = undefined;
+    scrollToEndRequested.current = true;
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    const run = () => scrollView.current?.scrollToEnd({ animated: true });
+    requestAnimationFrame(run);
+    retryTimer.current = setTimeout(run, 180);
+  }, []);
+
   useEffect(() => {
     const subscription = Keyboard.addListener('keyboardDidShow', () => {
-      if (focusedTarget.current !== undefined) reveal(focusedTarget.current);
+      if (scrollToEndRequested.current) {
+        scrollView.current?.scrollToEnd({ animated: true });
+      } else if (focusedTarget.current !== undefined) {
+        reveal(focusedTarget.current);
+      }
     });
     return () => {
       subscription.remove();
@@ -117,18 +151,20 @@ export function KeyboardAwareScrollView({
 
   return (
     <KeyboardScrollContext.Provider value={reveal}>
-      <ScrollView
-        ref={scrollView}
-        onLayout={onLayout}
-        onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
-          scrollOffset.current = event.nativeEvent.contentOffset.y;
-          onScroll?.(event);
-        }}
-        scrollEventThrottle={16}
-        {...props}
-      >
-        {children}
-      </ScrollView>
+      <ScrollToEndContext.Provider value={scrollToEnd}>
+        <ScrollView
+          ref={scrollView}
+          onLayout={onLayout}
+          onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
+            scrollOffset.current = event.nativeEvent.contentOffset.y;
+            onScroll?.(event);
+          }}
+          scrollEventThrottle={16}
+          {...props}
+        >
+          {children}
+        </ScrollView>
+      </ScrollToEndContext.Provider>
     </KeyboardScrollContext.Provider>
   );
 }

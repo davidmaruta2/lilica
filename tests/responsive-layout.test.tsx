@@ -52,7 +52,7 @@ describe('responsive onboarding composition', () => {
     expect(flattenedStyle(screen.getByTestId('screen-scroll-view')).flex).toBe(1);
     expect(flattenedStyle(screen.getByTestId('screen-scroll-content')).flexGrow).toBe(1);
     expect(hasAncestor(screen.getByTestId('screen-footer'), screen.getByTestId('screen-scroll-view'))).toBe(true);
-    expect(keyboardAvoidingBehavior('android')).toBeUndefined();
+    expect(keyboardAvoidingBehavior('android')).toBe('height');
     expect(keyboardAvoidingBehavior('ios')).toBe('padding');
     expect(keyboardDismissMode('android')).toBe('on-drag');
     expect(keyboardDismissMode('ios')).toBe('interactive');

@@ -1,38 +1,20 @@
-// `app.json` declares `android.softwareKeyboardLayoutMode: "resize"`, but
-// that native config only takes effect in a custom dev client or a
-// standalone/production build - Expo Go's own host app ships a fixed native
-// AndroidManifest and never applies a loaded project's native Android
-// config. Inside Expo Go the window never actually resizes for the
-// keyboard, so `KeyboardAwareScrollView`'s reveal logic has nothing to react
-// to unless Android is also given real JS-driven `KeyboardAvoidingView`
-// behaviour, same as iOS already has. This is the actual fix for the
-// physical-device report that Password/the CTA became visible after
-// scrolling was corrected on iOS but Android still did not move at all.
+// This used to leave Android to app.json's `android.softwareKeyboardLayoutMode:
+// "resize"` in a real standalone build, on the assumption that native
+// resize genuinely worked there. Real-device report (23 September 2026,
+// screenshot evidence): in an actual production Android build, the
+// content never resized for the keyboard at all -- the compose box sat
+// in a dead gap below the visible area, completely off-screen. Android
+// now always gets the same JS-driven `height` behaviour, on every
+// runtime, never left to native resize alone.
 
-jest.mock('expo-constants', () => ({
-  __esModule: true,
-  default: { executionEnvironment: 'bare' },
-}));
-
-import Constants from 'expo-constants';
 import { keyboardAvoidingBehavior } from '../src/keyboard';
 
 describe('keyboardAvoidingBehavior', () => {
-  afterEach(() => {
-    (Constants as { executionEnvironment: string }).executionEnvironment = 'bare';
-  });
-
-  it('always uses padding on iOS regardless of runtime', () => {
+  it('always uses padding on iOS', () => {
     expect(keyboardAvoidingBehavior('ios')).toBe('padding');
   });
 
-  it('gives Android real JS-driven avoidance inside Expo Go, where native resize cannot apply', () => {
-    (Constants as { executionEnvironment: string }).executionEnvironment = 'storeClient';
+  it('always uses JS-driven height avoidance on Android, never leaving it to native resize alone', () => {
     expect(keyboardAvoidingBehavior('android')).toBe('height');
-  });
-
-  it('leaves Android to the native resize config in a real dev-client/standalone build', () => {
-    (Constants as { executionEnvironment: string }).executionEnvironment = 'standalone';
-    expect(keyboardAvoidingBehavior('android')).toBeUndefined();
   });
 });

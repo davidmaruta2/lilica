@@ -1,26 +1,23 @@
-import Constants from 'expo-constants';
 import { KeyboardAvoidingViewProps, ScrollViewProps } from 'react-native';
 
 type MobilePlatform = 'android' | 'ios' | string;
 
-// app.json declares `android.softwareKeyboardLayoutMode: "resize"`, which
-// only takes effect in a custom dev client or a standalone/production
-// build - Expo Go's own host app ships a fixed native AndroidManifest and
-// does not apply a loaded project's native Android config at all. Inside
-// Expo Go the window never actually resizes for the keyboard, so nothing
-// measured from the container ever shrinks and the reveal logic in
-// `KeyboardAwareScrollView` has nothing to react to. Give Android the same
-// JS-driven `KeyboardAvoidingView` behaviour iOS already uses whenever the
-// app is running inside Expo Go. In a real dev-client/standalone build,
-// where `resize` genuinely works, keep behaviour `undefined` so the native
-// resize is not double-compensated by also padding/shrinking in JS.
-function isExpoGo(): boolean {
-  return Constants.executionEnvironment === 'storeClient';
-}
-
+// This used to trust app.json's `android.softwareKeyboardLayoutMode:
+// "resize"` to shrink the window for the keyboard in a real standalone
+// build, leaving KeyboardAvoidingView's own `behaviour` `undefined` on
+// Android outside Expo Go so native resize wasn't "double-compensated".
+// Real-device report (23 September 2026, screenshot evidence): in an
+// actual production Android build, the content never resized for the
+// keyboard at all -- the compose box sat in a dead gap below the visible
+// area, completely off-screen, not just imperfectly positioned. Native
+// `resize` is evidently not reliable enough across real devices/keyboards
+// to depend on alone. `KeyboardAvoidingView`'s own JS-driven `height`
+// behaviour actively shrinks the view by the keyboard's actual reported
+// height on every platform/device, so Android now always gets the same
+// treatment iOS already relies on, never `undefined`.
 export function keyboardAvoidingBehavior(platform: MobilePlatform): KeyboardAvoidingViewProps['behavior'] {
   if (platform === 'ios') return 'padding';
-  if (platform === 'android') return isExpoGo() ? 'height' : undefined;
+  if (platform === 'android') return 'height';
   return undefined;
 }
 

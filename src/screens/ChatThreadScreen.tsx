@@ -2,7 +2,7 @@ import { ComponentProps, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Header } from '../components/Header';
-import { useRevealFocusedInput } from '../components/KeyboardAwareScrollView';
+import { useRevealFocusedInput, useScrollToEnd } from '../components/KeyboardAwareScrollView';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
 import {
@@ -55,10 +55,19 @@ type Props = {
   recordTitle?: string;
   explicitThreadId?: string;
   explicitThreadTitle?: string;
+  explicitThreadSubjectRecordId?: string;
   // Slice 4: shown in shared AND direct mode (never record mode) --
   // omitted or empty means no subject picker shows at all, same "never a
   // fabricated affordance" pattern as everywhere else in this app.
   subjectOptions?: ChatSubjectOption[];
+  // Direct product-owner report (23 September 2026): a conversation/
+  // message tagged to a real Medical Log record should let you open that
+  // record straight from the subject, without losing your place in the
+  // conversation -- omitted means no such affordance shows, same "never a
+  // fabricated tap target" pattern as everywhere else here. The host
+  // (App.tsx) opens it as a sheet ON TOP of this screen, so dismissing it
+  // returns right back here, never a real navigation away.
+  onOpenRecord?: (recordId: string) => void;
   onBack: () => void;
   onMessagesChanged?: () => void;
 };
@@ -77,20 +86,34 @@ function timeLabel(iso: string): string {
 // hidden behind the keyboard even after the "fix". A tiny wrapper
 // rendered as a real child of <Screen> is the only place this hook
 // resolves to the live reveal function.
-function RevealingTextInput({ onFocus, ...props }: ComponentProps<typeof TextInput>) {
+// alwaysAtEnd: the compose box is always the LAST thing in the scroll
+// content -- scrollToEnd() needs no measurement at all, so it can't be
+// defeated by the coordinate-space/native-resize fragility the
+// measure-based reveal() is exposed to (real device report, 23 September
+// 2026: the compose box stayed hidden behind the keyboard even after
+// fixing the context bug above -- Android's native window resize turned
+// out not to be reliable enough to depend on, see src/keyboard.ts). The
+// subject-title and edit-message fields are NOT always at the end, so
+// they still use the general-purpose reveal().
+function RevealingTextInput({ onFocus, alwaysAtEnd, ...props }: ComponentProps<typeof TextInput> & { alwaysAtEnd?: boolean }) {
   const revealFocusedInput = useRevealFocusedInput();
+  const scrollToEnd = useScrollToEnd();
   return (
     <TextInput
       {...props}
       onFocus={(event) => {
-        revealFocusedInput(event.nativeEvent.target);
+        if (alwaysAtEnd) {
+          scrollToEnd();
+        } else {
+          revealFocusedInput(event.nativeEvent.target);
+        }
         onFocus?.(event);
       }}
     />
   );
 }
 
-export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, directPartnerDisplayName, recordId, recordTitle, explicitThreadId, explicitThreadTitle, subjectOptions, onBack, onMessagesChanged }: Props) {
+export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, directPartnerDisplayName, recordId, recordTitle, explicitThreadId, explicitThreadTitle, explicitThreadSubjectRecordId, subjectOptions, onOpenRecord, onBack, onMessagesChanged }: Props) {
   const [threadId, setThreadId] = useState<string>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,6 +132,7 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
   // its own record.
   const canHaveSubject = !isRecord;
   const [conversationSubject, setConversationSubjectLabel] = useState<string | undefined>(explicitThreadTitle);
+  const [conversationSubjectRecordId, setConversationSubjectRecordId] = useState<string | undefined>(explicitThreadSubjectRecordId);
   const [subjectPanelOpen, setSubjectPanelOpen] = useState(false);
   const [subjectCustomTitle, setSubjectCustomTitle] = useState('');
   const [savingSubject, setSavingSubject] = useState(false);
@@ -203,6 +227,7 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
       ? subjectOptions?.find((option) => option.id === options.subjectRecordId)?.title
       : options.title;
     setConversationSubjectLabel(label);
+    setConversationSubjectRecordId(options.subjectRecordId);
     setSubjectPanelOpen(false);
     setSubjectCustomTitle('');
   }
@@ -253,6 +278,7 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
           <View>
             <View style={styles.composeRow}>
               <RevealingTextInput
+                alwaysAtEnd
                 value={draft}
                 onChangeText={setDraft}
                 placeholder={composePlaceholder}
@@ -329,10 +355,27 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
           ) : conversationSubject ? (
             // The header above already shows this conversation's subject
             // -- repeating it here as its own chip would just be noise.
-            // Only the "Change" action itself is worth a second row.
-            <Pressable accessibilityRole="button" accessibilityLabel="Change subject" onPress={() => setSubjectPanelOpen(true)} style={styles.subjectAddButton}>
-              <AppText variant="meta" tone="primary" style={styles.subjectChipText}>Change subject</AppText>
-            </Pressable>
+            // Direct product-owner report (23 September 2026): when that
+            // subject is a real Medical Log record (not just a free-text
+            // title), it should be possible to open that record right
+            // from here, as a pop-out over the conversation (never a
+            // real navigation away, so the conversation is never
+            // actually left).
+            <View style={styles.subjectRow}>
+              {conversationSubjectRecordId && onOpenRecord ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${conversationSubject}`}
+                  onPress={() => onOpenRecord(conversationSubjectRecordId)}
+                  style={styles.subjectAddButton}
+                >
+                  <AppText variant="meta" tone="primary" style={styles.subjectChipText}>Open {conversationSubject}</AppText>
+                </Pressable>
+              ) : null}
+              <Pressable accessibilityRole="button" accessibilityLabel="Change subject" onPress={() => setSubjectPanelOpen(true)} style={styles.subjectAddButton}>
+                <AppText variant="meta" tone="primary" style={styles.subjectChipText}>Change subject</AppText>
+              </Pressable>
+            </View>
           ) : (
             <Pressable
               accessibilityRole="button"
@@ -372,9 +415,20 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
                   </AppText>
                 ) : null}
                 {message.subjectRecordId && message.subjectRecordTitle && !message.deletedAt ? (
-                  <View style={styles.messageSubjectChip}>
-                    <AppText variant="meta" tone="soft" numberOfLines={1}>Re: {message.subjectRecordTitle}</AppText>
-                  </View>
+                  onOpenRecord ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open ${message.subjectRecordTitle}`}
+                      onPress={() => onOpenRecord(message.subjectRecordId as string)}
+                      style={styles.messageSubjectChip}
+                    >
+                      <AppText variant="meta" tone="primary" numberOfLines={1}>Re: {message.subjectRecordTitle}</AppText>
+                    </Pressable>
+                  ) : (
+                    <View style={styles.messageSubjectChip}>
+                      <AppText variant="meta" tone="soft" numberOfLines={1}>Re: {message.subjectRecordTitle}</AppText>
+                    </View>
+                  )
                 ) : null}
                 {isEditing ? (
                   <View style={styles.editWrap}>
@@ -534,6 +588,11 @@ const styles = StyleSheet.create({
   },
   subjectTitleButtonDisabled: {
     opacity: 0.6,
+  },
+  subjectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
   subjectAddButton: {
     alignSelf: 'flex-start',

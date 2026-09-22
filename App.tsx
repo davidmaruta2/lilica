@@ -396,7 +396,7 @@ function LilicaApp() {
   // openConversation and switches to showChat itself. Record-linked chat
   // is unchanged -- it never goes through this list.
   const [showChatList, setShowChatList] = useState<'care_circle' | 'direct'>();
-  const [openConversation, setOpenConversation] = useState<{ threadId: string; title?: string }>();
+  const [openConversation, setOpenConversation] = useState<{ threadId: string; title?: string; subjectRecordId?: string }>();
   // Phase 20B: Search is keyed by the active care space id in renderShell
   // below, so switching supported person while it's open always remounts
   // it fresh rather than risk showing a stale query/result set (brief
@@ -1807,8 +1807,8 @@ function LilicaApp() {
             .filter((record) => (record.type === 'careNote' || record.type === 'condition' || record.type === 'medicine') && record.status !== 'cancelled')
             .map((record) => ({ id: record.id, title: record.title }))}
           onBack={() => { setShowChatList(undefined); setDirectChatPartner(undefined); }}
-          onOpenConversation={(threadId, title) => {
-            setOpenConversation({ threadId, title });
+          onOpenConversation={(threadId, title, subjectRecordId) => {
+            setOpenConversation({ threadId, title, subjectRecordId });
             setShowChatList(undefined);
             setShowChat(true);
           }}
@@ -1824,6 +1824,7 @@ function LilicaApp() {
           recordTitle={recordChatFor?.title}
           explicitThreadId={openConversation?.threadId}
           explicitThreadTitle={openConversation?.title}
+          explicitThreadSubjectRecordId={openConversation?.subjectRecordId}
           // Slice 4/5: Lilica Chat AND direct messages both offer the
           // subject picker -- every Medical Log item, so a message can be
           // tagged to it and surface in that record's own conversation
@@ -1833,6 +1834,12 @@ function LilicaApp() {
           subjectOptions={state.records
             .filter((record) => (record.type === 'careNote' || record.type === 'condition' || record.type === 'medicine') && record.status !== 'cancelled')
             .map((record) => ({ id: record.id, title: record.title }))}
+          // Opens as a sheet ON TOP of this screen (renderProjectionEditor
+          // is a sibling of {content}, rendered regardless of which
+          // screen is showing) -- dismissing it returns right back to
+          // this exact conversation, never a real navigation away. Direct
+          // product-owner request (23 September 2026).
+          onOpenRecord={(recordId) => openRecordFromProjection(recordId)}
           onBack={() => {
             setShowChat(false);
             setOpenConversation(undefined);
