@@ -376,6 +376,11 @@ function LilicaApp() {
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [chatPreviewMessage, setChatPreviewMessage] = useState<ChatMessage>();
   const [chatRefreshToken, setChatRefreshToken] = useState(0);
+  // Phase 23 slice 2: set only when Chat is opened via a member's "Message
+  // privately" action -- undefined means showChat opens the shared Lilica
+  // Chat thread instead. Cleared whenever chat is closed or the active
+  // tab changes, same as every other secondary-screen flag.
+  const [directChatPartner, setDirectChatPartner] = useState<{ membershipId: string; displayName: string }>();
   // Phase 20B: Search is keyed by the active care space id in renderShell
   // below, so switching supported person while it's open always remounts
   // it fresh rather than risk showing a stale query/result set (brief
@@ -1769,7 +1774,9 @@ function LilicaApp() {
       content = (
         <ChatThreadScreen
           careSpaceId={currentSpace && !currentSpace.careSpaceId.startsWith('local-') ? currentSpace.careSpaceId : undefined}
-          onBack={() => setShowChat(false)}
+          directPartnerMembershipId={directChatPartner?.membershipId}
+          directPartnerDisplayName={directChatPartner?.displayName}
+          onBack={() => { setShowChat(false); setDirectChatPartner(undefined); }}
           onMessagesChanged={() => setChatRefreshToken((token) => token + 1)}
         />
       );
@@ -1932,7 +1939,8 @@ function LilicaApp() {
           selfAvatarPath={auth.profile?.avatarPath}
           onOpenCareSummary={careCircleAvailable ? () => setShowCareSummary(true) : undefined}
           onOpenRecentActivity={careCircleAvailable ? () => setShowRecentActivity(true) : undefined}
-          onOpenChat={careCircleAvailable ? () => setShowChat(true) : undefined}
+          onOpenChat={careCircleAvailable ? () => { setDirectChatPartner(undefined); setShowChat(true); } : undefined}
+          onOpenDirectChat={careCircleAvailable ? (member) => { setDirectChatPartner({ membershipId: member.membershipId, displayName: member.displayName }); setShowChat(true); } : undefined}
           chatUnreadCount={chatUnreadCount}
           chatPreviewText={chatPreviewMessage ? previewChatMessage(chatPreviewMessage) : undefined}
         />
@@ -2151,6 +2159,7 @@ function LilicaApp() {
             setShowJoinCareCircle(false);
             setShowAllContacts(false);
             setShowChat(false);
+            setDirectChatPartner(undefined);
             setShowNotificationCentre(false);
             setActiveTab(tab);
             setShowSettingsMenu(false);

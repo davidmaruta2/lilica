@@ -164,6 +164,30 @@ describe('Phase 23 slice 1: Lilica Chat card', () => {
   });
 });
 
+describe('Phase 23 slice 2: "Message privately" wired from the Care circle member popup', () => {
+  it('tapping "Message privately" for a real member calls onOpenDirectChat with that member', async () => {
+    const onOpenDirectChat = jest.fn();
+    const members: CareCircleMember[] = [
+      { membershipId: 'm-1', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
+      { membershipId: 'm-2', displayName: 'Sarah', role: 'contributor', relationshipType: 'Other relative', isSelf: false, grantedDomains: ['general'] },
+    ];
+    const screen = await render(<PersonScreen {...baseProps} careCircleMembers={members} onOpenDirectChat={onOpenDirectChat} />);
+    await fireEvent.press(screen.getByLabelText('View details for Sarah'));
+    await fireEvent.press(screen.getByLabelText('Message Sarah privately'));
+    expect(onOpenDirectChat).toHaveBeenCalledWith(members[1]);
+  });
+
+  it('is not offered at all for a local-only care space (onOpenDirectChat omitted)', async () => {
+    const members: CareCircleMember[] = [
+      { membershipId: 'm-1', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
+      { membershipId: 'm-2', displayName: 'Sarah', role: 'contributor', relationshipType: 'Other relative', isSelf: false, grantedDomains: ['general'] },
+    ];
+    const screen = await render(<PersonScreen {...baseProps} careCircleMembers={members} />);
+    await fireEvent.press(screen.getByLabelText('View details for Sarah'));
+    expect(screen.queryByLabelText('Message Sarah privately')).toBeNull();
+  });
+});
+
 describe('Corrective task 10, section 4: Ask Lilica moved from Home to People', () => {
   it('People shows the Ask Lilica placeholder', async () => {
     const screen = await render(<PersonScreen {...baseProps} />);

@@ -9,20 +9,30 @@ import {
   deleteChatMessage,
   editChatMessage,
   getOrCreateCareCircleThread,
+  getOrCreateDirectThread,
   listChatMessages,
   markChatThreadRead,
   sendChatMessage,
 } from '../chat';
 import { colors, radius, spacing } from '../theme';
 
-// Phase 23 slice 1: the shared Care Circle conversation. Loads (or
-// lazily creates) the one shared thread for this care space, its most
-// recent page of messages, and marks it read on open -- exactly the same
-// "load on mount, page further only on demand" shape RecentActivityScreen
-// already established for this app. Direct messages and record-linked
-// threads are a separate future screen, not this one.
+// Phase 23: one screen for both the shared Care Circle conversation
+// (slice 1) and a private direct-message thread with one other member
+// (slice 2) -- the two differ only in which thread gets loaded and the
+// header/placeholder copy, never in how sending/editing/deleting/reading
+// works, so a single screen with a mode switch is simpler and more
+// honest than two near-identical copies.
+//
+// Shared mode: pass careSpaceId, leave directPartnerMembershipId unset --
+// loads (or lazily creates) the one shared thread for that care space.
+// Direct mode: pass BOTH careSpaceId and directPartnerMembershipId --
+// loads (or lazily creates) the private thread with that one member.
+// Either way, "load on mount, page further only on demand" matches the
+// same shape RecentActivityScreen already established for this app.
 type Props = {
   careSpaceId?: string;
+  directPartnerMembershipId?: string;
+  directPartnerDisplayName?: string;
   onBack: () => void;
   onMessagesChanged?: () => void;
 };
@@ -31,7 +41,7 @@ function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function ChatThreadScreen({ careSpaceId, onBack, onMessagesChanged }: Props) {
+export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, directPartnerDisplayName, onBack, onMessagesChanged }: Props) {
   const [threadId, setThreadId] = useState<string>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +51,12 @@ export function ChatThreadScreen({ careSpaceId, onBack, onMessagesChanged }: Pro
   const [editingId, setEditingId] = useState<string>();
   const [editDraft, setEditDraft] = useState('');
   const inputRef = useRef<TextInput>(null);
+  const isDirect = Boolean(directPartnerMembershipId);
+  const headerTitle = isDirect ? (directPartnerDisplayName ?? 'Direct message') : 'Lilica Chat';
+  const composePlaceholder = isDirect ? `Message ${directPartnerDisplayName ?? 'them'}` : 'Message your Care Circle';
+  const emptyStateText = isDirect
+    ? `No messages yet - send the first one to ${directPartnerDisplayName ?? 'them'}.`
+    : 'No messages yet - send the first one to start talking with your Care Circle.';
 
   useEffect(() => {
     let cancelled = false;
@@ -51,7 +67,9 @@ export function ChatThreadScreen({ careSpaceId, onBack, onMessagesChanged }: Pro
     setLoading(true);
     setError(undefined);
     (async () => {
-      const threadResult = await getOrCreateCareCircleThread(careSpaceId);
+      const threadResult = directPartnerMembershipId
+        ? await getOrCreateDirectThread(careSpaceId, directPartnerMembershipId)
+        : await getOrCreateCareCircleThread(careSpaceId);
       if (cancelled) return;
       if (!threadResult.ok) {
         setLoading(false);
@@ -72,7 +90,7 @@ export function ChatThreadScreen({ careSpaceId, onBack, onMessagesChanged }: Pro
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [careSpaceId]);
+  }, [careSpaceId, directPartnerMembershipId]);
 
   async function handleSend() {
     const body = draft.trim();
@@ -137,7 +155,7 @@ export function ChatThreadScreen({ careSpaceId, onBack, onMessagesChanged }: Pro
               ref={inputRef}
               value={draft}
               onChangeText={setDraft}
-              placeholder="Message your Care Circle"
+              placeholder={composePlaceholder}
               placeholderTextColor={colors.muted}
               multiline
               style={styles.composeInput}
@@ -156,14 +174,14 @@ export function ChatThreadScreen({ careSpaceId, onBack, onMessagesChanged }: Pro
         ) : undefined
       }
     >
-      <Header title="Lilica Chat" onBack={onBack} />
+      <Header title={headerTitle} onBack={onBack} />
       {loading ? (
         <ActivityIndicator />
       ) : error ? (
         <AppText variant="secondary" tone="danger">{error}</AppText>
       ) : messages.length === 0 ? (
         <AppText variant="secondary" tone="soft">
-          No messages yet - send the first one to start talking with your Care Circle.
+          {emptyStateText}
         </AppText>
       ) : (
         <View style={styles.messages}>
@@ -189,7 +207,7 @@ export function ChatThreadScreen({ careSpaceId, onBack, onMessagesChanged }: Pro
                       multiline
                       style={styles.editInput}
                       autoFocus
-                      accessibilityLabel="Edit message"
+                      accessibilityLabel="Edit message text"
                     />
                     <View style={styles.editActions}>
                       <Pressable accessibilityRole="button" accessibilityLabel="Cancel edit" onPress={() => setEditingId(undefined)} hitSlop={8}>

@@ -1,14 +1,19 @@
-// Phase 23 (slice 1): Lilica Chat -- the client boundary for
-// chat_threads/chat_messages/chat_thread_reads and their RPCs
-// (supabase/migrations/20260922120000_phase23_lilica_chat.sql,
-// 20260922120100_phase23_lilica_chat_lint_fix.sql). A thin, typed wrapper,
-// same shape as src/activity.ts -- all permission filtering, sender-only
+// Phase 23: Lilica Chat -- the client boundary for chat_threads/
+// chat_messages/chat_thread_reads and their RPCs (supabase/migrations/
+// 20260922120000_phase23_lilica_chat.sql, ...120100_lint_fix.sql,
+// ...130000_phase23_lilica_chat_direct_messages.sql). A thin, typed
+// wrapper, same shape as src/activity.ts -- all permission filtering
+// (including who may read/write a private direct thread), sender-only
 // edit/delete enforcement and unread-count arithmetic live server-side.
 //
-// Direct messages, record-linked threads, photo attachments, read
-// receipts and typing indicators are a deliberately separate next slice
-// (see docs\LILICA_CHAT_SCOPE... on David's machine) -- this file covers
-// only the one shared Care Circle thread per care space.
+// Slice 1: the one shared Care Circle thread per care space.
+// Slice 2 (this file, current): direct messages -- a private one-to-one
+// thread between the signed-in member and exactly one other Care Circle
+// member.
+//
+// Record-linked threads, photo attachments, read receipts and typing
+// indicators are a deliberately separate next slice (see
+// LILICA_CHAT_SCOPE_2026-09-22.txt on David's machine).
 
 import { supabase } from './auth/client';
 import { friendlyAuthError } from './auth/errors';
@@ -36,6 +41,52 @@ export async function getOrCreateCareCircleThread(careSpaceId: string): Promise<
   });
   if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
   return { ok: true, data: data as string };
+}
+
+// Idempotent -- the same pair of members always resolves to the same
+// thread (server-canonicalised), regardless of who calls this first.
+export async function getOrCreateDirectThread(careSpaceId: string, otherMembershipId: string): Promise<Result<string>> {
+  const { data, error } = await supabase.rpc('get_or_create_direct_thread', {
+    target_care_space_id: careSpaceId,
+    other_membership_id: otherMembershipId,
+  });
+  if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
+  return { ok: true, data: data as string };
+}
+
+export type DirectThreadSummary = {
+  threadId: string;
+  otherMembershipId: string;
+  otherDisplayName: string;
+  otherIsFormer: boolean;
+  unreadCount: number;
+  lastMessageAt?: string;
+};
+
+export async function listMyDirectThreads(careSpaceId: string): Promise<Result<DirectThreadSummary[]>> {
+  const { data, error } = await supabase.rpc('list_my_direct_threads', {
+    target_care_space_id: careSpaceId,
+  });
+  if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
+  const rows = (data ?? []) as Array<{
+    thread_id: string;
+    other_membership_id: string;
+    other_display_name: string;
+    other_is_former: boolean;
+    unread_count: number;
+    last_message_at: string | null;
+  }>;
+  return {
+    ok: true,
+    data: rows.map((row) => ({
+      threadId: row.thread_id,
+      otherMembershipId: row.other_membership_id,
+      otherDisplayName: row.other_display_name,
+      otherIsFormer: row.other_is_former,
+      unreadCount: row.unread_count,
+      lastMessageAt: row.last_message_at ?? undefined,
+    })),
+  };
 }
 
 function mapMessageRow(row: {

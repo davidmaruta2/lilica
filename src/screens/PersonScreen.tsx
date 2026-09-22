@@ -82,6 +82,11 @@ type Props = {
   // previewChatMessage) -- undefined shows the empty state, never a
   // fabricated placeholder message.
   chatPreviewText?: string;
+  // Phase 23 slice 2: "Message privately" in a Care Circle member's own
+  // detail popup. Same availability guard as onOpenChat -- omitted for a
+  // local-only care space; the popup itself never offers this for the
+  // "You" entry regardless.
+  onOpenDirectChat?: (member: CareCircleMember) => void;
 };
 
 const CARE_CIRCLE_PREVIEW_LIMIT = 3;
@@ -120,6 +125,7 @@ export function PersonScreen({
   onOpenCareSummary,
   onOpenRecentActivity,
   onOpenChat,
+  onOpenDirectChat,
   chatUnreadCount = 0,
   chatPreviewText,
 }: Props) {
@@ -382,6 +388,7 @@ export function PersonScreen({
         selfAvatarUrl={selfAvatarUrl}
         memberAvatarUrl={openMember ? memberAvatarUrls[openMember.member.membershipId] : undefined}
         onClose={() => setOpenMember(undefined)}
+        onMessagePrivately={openMember && onOpenDirectChat ? () => { onOpenDirectChat(openMember.member); setOpenMember(undefined); } : undefined}
       />
     </ScreenBackdrop>
     </ScrollView>

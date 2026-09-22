@@ -23,6 +23,11 @@ type Props = {
   // own resolution effect and shared_avatar_visibility.sql's RLS.
   memberAvatarUrl?: string;
   onClose: () => void;
+  // Phase 23 slice 2: omitted for the "You" entry (never message
+  // yourself) and for a local-only care space (no real membership id to
+  // start a thread with) -- same optional-callback-gated pattern as
+  // every other conditional action in this app.
+  onMessagePrivately?: () => void;
 };
 
 function roleLabel(role: CareCircleMember['role']) {
@@ -41,7 +46,7 @@ function domainLabel(domain: CareCircleDomain) {
   return DOMAIN_LABELS[domain] ?? domain;
 }
 
-export function MemberDetailPopup({ visible, member, avatarTone, selfAvatarUrl, memberAvatarUrl, onClose }: Props) {
+export function MemberDetailPopup({ visible, member, avatarTone, selfAvatarUrl, memberAvatarUrl, onClose, onMessagePrivately }: Props) {
   const progress = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
 
@@ -97,6 +102,11 @@ export function MemberDetailPopup({ visible, member, avatarTone, selfAvatarUrl, 
                 </AppText>
               </View>
             ) : null}
+            {!member.isSelf && onMessagePrivately ? (
+              <Pressable accessibilityRole="button" accessibilityLabel={`Message ${label} privately`} onPress={onMessagePrivately} style={styles.messageButton}>
+                <AppText variant="bodyStrong" tone="white">Message privately</AppText>
+              </Pressable>
+            ) : null}
             <Pressable accessibilityRole="button" accessibilityLabel="Close member details" onPress={onClose} style={styles.closeButton}>
               <AppText variant="bodyStrong" tone="primary">Close</AppText>
             </Pressable>
@@ -142,8 +152,18 @@ const styles = StyleSheet.create({
   role: { fontWeight: '700' },
   description: { marginTop: spacing.xs },
   domains: { marginTop: spacing.md, alignItems: 'center', gap: 2 },
-  closeButton: {
+  messageButton: {
     marginTop: spacing.lg,
+    minHeight: 44,
+    minWidth: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+  },
+  closeButton: {
+    marginTop: spacing.sm,
     minHeight: 44,
     minWidth: 120,
     alignItems: 'center',
