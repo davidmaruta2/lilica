@@ -1,5 +1,22 @@
 # Revision Log
 
+## 23 September 2026 - Lilica Chat: keyboard fix (three iterations), combined overview shipped then redesigned into a real three-level structure
+
+A long, iterative day of real-device bug reports from David, each fixed and OTA'd on explicit approval as it was found. Summary in chronological order (each item's own migration/commit/OTA details are in `CLAUDE.md`'s "Where things stand" section, which stays the authoritative live snapshot):
+
+**Conversation subject, editable retrospectively.** Finished the previous day's 4-fixes batch: a conversation's subject can now be added or changed after creation via "Change subject" (migrations `180000`/`190000`), and a tapped subject linked to a real Medical Log record pops that record open as a sheet over the conversation, never a real navigation away from it.
+
+**The keyboard-hiding bug took three real attempts to actually fix**, each one looking right on inspection and still failing on David's physical device:
+1. First attempt found a genuine bug -- `useRevealFocusedInput()`/`useScrollToEnd()` were being called at `ChatThreadScreen`'s own top level, outside the `<Screen>` they themselves render further down, so the hook silently read its context's no-op default. Moved into a small `RevealingTextInput` wrapper genuinely rendered inside the `Screen` subtree.
+2. Still hidden. David's own screenshot showed a dead blank gap where the compose box should be -- proved that the assumption "Android's native `softwareKeyboardLayoutMode: resize` handles this in a real production build" was simply wrong. Switched Android to the same JS-driven `KeyboardAvoidingView` `height` behaviour iOS already used, unconditionally.
+3. Still "partially" covered. Root cause: `KeyboardAvoidingView`'s own padding/height animation (JS-driven, can't use the native driver) was still running when the earlier fixes' reveal/scrollToEnd calls landed. Fixed by reacting to the scroll container's own `onLayout` height changes and re-running whichever action is active -- settles on the true final position regardless of how long the animation takes, with no guessed delay, proven with a real test that fires a genuine layout event and asserts a corrective scroll.
+
+**Combined Lilica Chat overview, shipped then redesigned the same day.** First shipped a single "Lilica Chat" entry point with Care Circle and Direct Messages sections (new `list_my_chat_overview` RPC), replacing the old "DMs only reachable via a Care Circle member's avatar, Lilica Chat card only shows Care Circle" split David had called out as incoherent. David's own screenshots then showed this first version was a flat, confusing dump -- "Marion" appeared as five separate, unrelated-looking rows (one per individual topic-thread she happened to have), and two disconnected "Care Circle" rows sat with no explanation. Wrote up a full redesign proposal (`lilica_chat_redesign_proposal.txt`, David's own machine, not committed) and got explicit sign-off before rebuilding: a genuine three-level structure -- Level 1 groups by person/circle (never a per-thread row), Level 2 lists that person's/circle's own named topics ("General" now pinned first, replacing the old date-based fallback label), Level 3 is the actual conversation. No new migration needed -- the same overview RPC already returned everything; only the client's grouping/presentation changed.
+
+This redesign also fixed the root cause of a real bug David caught in the same screenshots: a screen was passing a display-fallback label (a DM partner's own name, or the old "Conversation started &lt;date&gt;" text) to `ChatThreadScreen` as if it were a genuine, editable subject -- so the app offered to "open" a person's name as though it were a Medical Log record. `conversationHasOwnSubject()` (`src/chat.ts`) is now the one explicit way anything decides whether a real subject exists.
+
+**Also removed** the redundant "Chat" link that had sat beneath each Care Circle avatar (added the previous day) -- the member popup's "Message" button is now the one and only avatar-based DM entry point, per direct instruction.
+
 ## 21 September 2026 - Lilica submitted to Google Play production track
 
 David completed all 13 steps of Play Console's App content checklist. On his explicit approval ("start rollout to production"), promoted the existing internal-track build (`1.0.0`, versionCode `5`) to the `production` track via the Android Publisher API.
