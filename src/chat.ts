@@ -3,25 +3,36 @@
 // 20260922120000_phase23_lilica_chat.sql, ...120100_lint_fix.sql,
 // ...130000_phase23_lilica_chat_direct_messages.sql,
 // ...140000_phase23_lilica_chat_record_linked.sql, ...140100_lint_fix.sql,
-// ...160000_phase23_lilica_chat_subject_tagging.sql, ...160100_lint_fix.sql).
+// ...160000_phase23_lilica_chat_subject_tagging.sql, ...160100_lint_fix.sql,
+// ...170000_phase23_lilica_chat_multi_conversation.sql).
 // A thin, typed wrapper, same shape as src/activity.ts -- all permission
 // filtering (including who may read/write a private direct thread, or a
 // record-linked thread gated on that record's own domain access),
 // sender-only edit/delete enforcement and unread-count arithmetic live
 // server-side.
 //
-// Slice 1: the one shared Care Circle thread per care space.
-// Slice 2: direct messages -- a private one-to-one thread between the
-// signed-in member and exactly one other Care Circle member.
+// Slice 1: Lilica Chat -- Care Circle conversations for a care space.
+// Slice 2: direct messages -- private conversations between the signed-in
+// member and exactly one other Care Circle member.
 // Slice 3: record-linked chat -- a conversation thread attached to one
 // Medical Log item, created lazily on first message, never just by
-// viewing the record.
-// Slice 4 (this file, current): subject tagging -- a Lilica Chat message
-// (shared thread only, never a direct message) can optionally be tagged
-// with a Medical Log record as its subject. That message is stored once,
-// in Lilica Chat, and also surfaces in the tagged record's own
-// conversation (listRecordConversation) alongside that record's own
-// dedicated thread, if it has one.
+// viewing the record -- still exactly ONE thread per record, unchanged
+// by slice 5 below.
+// Slice 4: subject tagging -- a Lilica Chat or direct message can
+// optionally be tagged with a Medical Log record as its subject. That
+// message is stored once, in its own conversation, and also surfaces in
+// the tagged record's own conversation (listRecordConversation) alongside
+// that record's own dedicated thread, if it has one. Direct product-
+// owner decision (22 September 2026): DM tagging behaves exactly like
+// Lilica Chat tagging -- a tagged DM message becomes visible in the
+// record's shared conversation to anyone with that domain's access, a
+// deliberate, knowing trade-off, not an oversight.
+// Slice 5 (this file, current): multiple conversations, not one endless
+// thread. getOrCreateCareCircleThread/getOrCreateDirectThread now mean
+// "the most recently active existing conversation, or a fresh first one"
+// -- startNewConversation is the only way to deliberately begin a new one
+// instead, and listMyConversations lists them all (most recent first) so
+// an old one can be reopened.
 //
 // Photo attachments, read receipts and typing indicators are a
 // deliberately separate next slice (see LILICA_CHAT_SCOPE_2026-09-22.txt
@@ -95,6 +106,84 @@ export async function getOrCreateRecordThread(recordId: string): Promise<Result<
   const { data, error } = await supabase.rpc('get_or_create_record_thread', { target_record_id: recordId });
   if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
   return { ok: true, data: data as string };
+}
+
+// Slice 5: the only way to deliberately begin a NEW conversation rather
+// than continuing the most recently active one (which
+// getOrCreateCareCircleThread/getOrCreateDirectThread return). Never used
+// for record-linked chat -- that stays exactly one thread per record.
+export async function startNewConversation(
+  careSpaceId: string,
+  kind: 'care_circle' | 'direct',
+  otherMembershipId?: string,
+  title?: string,
+): Promise<Result<string>> {
+  const { data, error } = await supabase.rpc('start_new_conversation', {
+    target_care_space_id: careSpaceId,
+    thread_kind: kind,
+    other_membership_id: otherMembershipId ?? null,
+    conversation_title: title ?? null,
+  });
+  if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
+  return { ok: true, data: data as string };
+}
+
+export type ConversationSummary = {
+  threadId: string;
+  title?: string;
+  createdAt: string;
+  lastMessageAt?: string;
+  lastMessageBody?: string;
+  lastMessageSenderIsSelf?: boolean;
+  unreadCount: number;
+};
+
+// Slice 5: every conversation of this kind the caller can access, most
+// recently active first -- the data source for a real "past
+// conversations, reopen one" list. For kind='direct', otherMembershipId
+// is required (lists every DM thread with that one specific person, not
+// every DM across everyone).
+export async function listMyConversations(
+  careSpaceId: string,
+  kind: 'care_circle' | 'direct',
+  otherMembershipId?: string,
+): Promise<Result<ConversationSummary[]>> {
+  const { data, error } = await supabase.rpc('list_my_conversations', {
+    target_care_space_id: careSpaceId,
+    thread_kind: kind,
+    other_membership_id: otherMembershipId ?? null,
+  });
+  if (error) return { ok: false, message: friendlyAuthError(error, 'profile') };
+  const rows = (data ?? []) as Array<{
+    thread_id: string;
+    title: string | null;
+    created_at: string;
+    last_message_at: string | null;
+    last_message_body: string | null;
+    last_message_sender_is_self: boolean | null;
+    unread_count: number;
+  }>;
+  return {
+    ok: true,
+    data: rows.map((row) => ({
+      threadId: row.thread_id,
+      title: row.title ?? undefined,
+      createdAt: row.created_at,
+      lastMessageAt: row.last_message_at ?? undefined,
+      lastMessageBody: row.last_message_body ?? undefined,
+      lastMessageSenderIsSelf: row.last_message_sender_is_self ?? undefined,
+      unreadCount: row.unread_count,
+    })),
+  };
+}
+
+// A short, calm fallback label for a conversation with no title of its
+// own -- "Conversation started 22 Sept" -- never invents a subject/topic
+// it doesn't actually know.
+export function conversationLabel(conversation: ConversationSummary): string {
+  if (conversation.title) return conversation.title;
+  const date = new Date(conversation.createdAt);
+  return `Conversation started ${date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
 }
 
 export type DirectThreadSummary = {
@@ -185,9 +274,6 @@ export async function listChatMessages(
   };
 }
 
-// subjectRecordId (slice 4): only meaningful when threadId is the shared
-// Lilica Chat thread -- the server rejects it outright for a direct
-// message (see send_chat_message's own check).
 // Slice 4: a record's FULL conversation -- its own dedicated
 // record-linked thread (if any) plus any Lilica Chat messages tagged
 // with it as subject, merged newest-first then reversed to oldest-first

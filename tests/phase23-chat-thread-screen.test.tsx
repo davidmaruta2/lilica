@@ -170,7 +170,7 @@ describe('Phase 23 slice 3: record-linked chat mode', () => {
     screen.getByText('Re: Metformin');
   });
 
-  it('sending a message in record mode uses the record thread id, with no subject param (subject tagging is Lilica-Chat-only)', async () => {
+  it('sending a message in record mode uses the record thread id, with no subject param (subject tagging is never offered in record mode)', async () => {
     mockSendChatMessage.mockResolvedValue({ ok: true, data: { ...myMessage, id: 'msg-4', body: 'Started taking the new dose today' } });
     const screen = await render(
       <ChatThreadScreen careSpaceId="space-1" recordId="record-1" recordTitle="Metformin" onBack={jest.fn()} />,
@@ -183,7 +183,7 @@ describe('Phase 23 slice 3: record-linked chat mode', () => {
     await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-record-1', 'Started taking the new dose today', undefined));
   });
 
-  it('never shows the subject picker (that is Lilica-Chat-only)', async () => {
+  it('never shows the subject picker (record mode has no subject picker, even though shared/direct modes both do)', async () => {
     const screen = await render(
       <ChatThreadScreen
         careSpaceId="space-1"
@@ -210,7 +210,11 @@ describe('Phase 23 slice 4: subject picker in Lilica Chat', () => {
     expect(screen.queryByLabelText('Add a subject')).toBeNull();
   });
 
-  it('is not shown in direct message mode, even with subject options supplied', async () => {
+  // Direct product-owner decision (22 September 2026): DM tagging behaves
+  // exactly like Lilica Chat tagging, including surfacing in the record's
+  // shared conversation -- a knowing privacy trade-off, not an oversight.
+  it('is ALSO shown in direct message mode, and tags the DM message the same way', async () => {
+    mockSendChatMessage.mockResolvedValue({ ok: true, data: { ...myMessage, id: 'msg-6', body: 'Been struggling with this today' } });
     const screen = await render(
       <ChatThreadScreen
         careSpaceId="space-1"
@@ -220,8 +224,13 @@ describe('Phase 23 slice 4: subject picker in Lilica Chat', () => {
         onBack={jest.fn()}
       />,
     );
-    await waitFor(() => screen.getByPlaceholderText('Message Sarah'));
-    expect(screen.queryByLabelText('Add a subject')).toBeNull();
+    await waitFor(() => screen.getByLabelText('Add a subject'));
+    await fireEvent.press(screen.getByLabelText('Add a subject'));
+    await fireEvent.press(screen.getByLabelText('Tag this message to Metformin'));
+    screen.getByText('Subject: Metformin');
+    await fireEvent.changeText(screen.getByLabelText('Write a message'), 'Been struggling with this today');
+    await fireEvent.press(screen.getByLabelText('Send message'));
+    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-direct-1', 'Been struggling with this today', 'record-1'));
   });
 
   it('picking a subject shows a chip, and sending tags the message with it -- then clears for the next message', async () => {
@@ -249,5 +258,33 @@ describe('Phase 23 slice 4: subject picker in Lilica Chat', () => {
     await fireEvent.press(screen.getByLabelText('Remove subject'));
     expect(screen.queryByText('Subject: Type 2 diabetes')).toBeNull();
     screen.getByLabelText('Add a subject');
+  });
+});
+
+// Phase 23 slice 5: opening one SPECIFIC past conversation (reopened from
+// ChatConversationListScreen) instead of "the most recently active one".
+describe('Phase 23 slice 5: explicitThreadId opens a specific conversation directly', () => {
+  it('uses explicitThreadId as-is, never calling any get-or-create RPC', async () => {
+    mockListChatMessages.mockResolvedValue({ ok: true, data: { messages: [sarahMessage], hasMore: false } });
+    const screen = await render(
+      <ChatThreadScreen careSpaceId="space-1" explicitThreadId="thread-old-1" explicitThreadTitle="Conversation started 10 Sept" onBack={jest.fn()} />,
+    );
+    await waitFor(() => screen.getByText('Picking up the prescription this afternoon'));
+    expect(mockGetOrCreateCareCircleThread).not.toHaveBeenCalled();
+    expect(mockGetOrCreateDirectThread).not.toHaveBeenCalled();
+    expect(mockListChatMessages).toHaveBeenCalledWith('thread-old-1');
+    expect(mockMarkChatThreadRead).toHaveBeenCalledWith('thread-old-1');
+    screen.getByText('Conversation started 10 Sept');
+  });
+
+  it('sending into an explicit thread uses that exact thread id', async () => {
+    mockSendChatMessage.mockResolvedValue({ ok: true, data: { ...myMessage, id: 'msg-7', body: 'Following up' } });
+    const screen = await render(
+      <ChatThreadScreen careSpaceId="space-1" explicitThreadId="thread-old-1" onBack={jest.fn()} />,
+    );
+    await waitFor(() => screen.getByPlaceholderText('Message your Care Circle'));
+    await fireEvent.changeText(screen.getByLabelText('Write a message'), 'Following up');
+    await fireEvent.press(screen.getByLabelText('Send message'));
+    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-old-1', 'Following up', undefined));
   });
 });

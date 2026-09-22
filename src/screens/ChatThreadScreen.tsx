@@ -24,20 +24,29 @@ import { colors, radius, spacing } from '../theme';
 // (App.tsx) filters the real records list down to Medical Log items.
 export type ChatSubjectOption = { id: string; title: string };
 
-// Phase 23: one screen for the shared Care Circle conversation (slice 1),
-// a private direct-message thread with one other member (slice 2), and a
-// conversation attached to a single Medical Log item (slice 3) -- the
-// three differ only in which thread gets loaded and the header/
+// Phase 23: one screen for a Care Circle conversation (slice 1), a
+// private direct-message conversation with one other member (slice 2),
+// and a conversation attached to a single Medical Log item (slice 3) --
+// the three differ only in which thread gets loaded and the header/
 // placeholder copy, never in how sending/editing/deleting/reading works,
 // so a single screen with a mode switch is simpler and more honest than
 // three near-identical copies.
 //
-// Shared mode: pass careSpaceId only -- loads (or lazily creates) the one
-// shared thread for that care space.
+// Shared mode: pass careSpaceId only -- loads (or lazily creates) the
+// most recently active Lilica Chat conversation for that care space.
 // Direct mode: pass careSpaceId AND directPartnerMembershipId -- loads
-// (or lazily creates) the private thread with that one member.
+// (or lazily creates) the most recently active private conversation with
+// that one member.
 // Record mode: pass recordId (and recordTitle for the header/copy) --
-// loads (or lazily creates) that record's own conversation thread.
+// loads (or lazily creates) that record's own conversation thread (still
+// exactly one per record -- slice 5's multi-conversation change never
+// applied to this mode).
+// Slice 5: pass explicitThreadId (with explicitThreadTitle) to open one
+// SPECIFIC past conversation instead of "the most recent" -- this is how
+// ChatConversationListScreen reopens an older Lilica Chat/DM conversation
+// rather than always landing on the latest one. Combine with
+// careSpaceId/directPartnerMembershipId/directPartnerDisplayName as
+// normal so sending/subject-tagging still know the right context.
 // Exactly one of directPartnerMembershipId/recordId is ever set.
 // Either way, "load on mount, page further only on demand" matches the
 // same shape RecentActivityScreen already established for this app.
@@ -47,10 +56,11 @@ type Props = {
   directPartnerDisplayName?: string;
   recordId?: string;
   recordTitle?: string;
-  // Slice 4: only meaningful in shared mode (no directPartnerMembershipId,
-  // no recordId) -- omitted or empty means no subject picker shows at
-  // all, same "never a fabricated affordance" pattern as everywhere else
-  // in this app.
+  explicitThreadId?: string;
+  explicitThreadTitle?: string;
+  // Slice 4: shown in shared AND direct mode (never record mode) --
+  // omitted or empty means no subject picker shows at all, same "never a
+  // fabricated affordance" pattern as everywhere else in this app.
   subjectOptions?: ChatSubjectOption[];
   onBack: () => void;
   onMessagesChanged?: () => void;
@@ -60,7 +70,7 @@ function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, directPartnerDisplayName, recordId, recordTitle, subjectOptions, onBack, onMessagesChanged }: Props) {
+export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, directPartnerDisplayName, recordId, recordTitle, explicitThreadId, explicitThreadTitle, subjectOptions, onBack, onMessagesChanged }: Props) {
   const [threadId, setThreadId] = useState<string>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,14 +82,16 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
   const inputRef = useRef<TextInput>(null);
   const isDirect = Boolean(directPartnerMembershipId);
   const isRecord = Boolean(recordId);
-  // Slice 4: shared-mode-only subject picker -- a message sent with one
-  // selected also gets tagged (subjectRecordId) so it surfaces in that
-  // record's own conversation too. Cleared after each send -- a one-off
-  // tag per message, not a sticky compose-session setting.
-  const canTagSubject = !isDirect && !isRecord && Boolean(subjectOptions?.length);
+  // Slice 4/5: subject tagging is offered in shared AND direct mode (a
+  // direct product-owner decision -- DM tagging behaves exactly like
+  // Lilica Chat tagging, including surfacing in the record's shared
+  // conversation). Never in record mode.
+  const canTagSubject = !isRecord && Boolean(subjectOptions?.length);
   const [selectedSubject, setSelectedSubject] = useState<ChatSubjectOption>();
   const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
-  const headerTitle = isDirect ? (directPartnerDisplayName ?? 'Direct message') : isRecord ? (recordTitle ?? 'Conversation') : 'Lilica Chat';
+  const headerTitle = explicitThreadTitle
+    ? explicitThreadTitle
+    : isDirect ? (directPartnerDisplayName ?? 'Direct message') : isRecord ? (recordTitle ?? 'Conversation') : 'Lilica Chat';
   const composePlaceholder = isDirect ? `Message ${directPartnerDisplayName ?? 'them'}` : isRecord ? 'Write a message' : 'Message your Care Circle';
   const emptyStateText = isDirect
     ? `No messages yet - send the first one to ${directPartnerDisplayName ?? 'them'}.`
@@ -89,14 +101,16 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
 
   useEffect(() => {
     let cancelled = false;
-    if (!careSpaceId && !recordId) {
+    if (!careSpaceId && !recordId && !explicitThreadId) {
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(undefined);
     (async () => {
-      const threadResult = recordId
+      const threadResult = explicitThreadId
+        ? ({ ok: true, data: explicitThreadId } as const)
+        : recordId
         ? await getOrCreateRecordThread(recordId)
         : directPartnerMembershipId && careSpaceId
         ? await getOrCreateDirectThread(careSpaceId, directPartnerMembershipId)
@@ -133,7 +147,7 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [careSpaceId, directPartnerMembershipId, recordId]);
+  }, [careSpaceId, directPartnerMembershipId, recordId, explicitThreadId]);
 
   async function handleSend() {
     const body = draft.trim();

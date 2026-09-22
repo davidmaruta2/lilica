@@ -48,6 +48,7 @@ import { RecoveryEmailSentScreen, RecoveryPasswordScreen, RecoveryRequestScreen 
 import { RecoveryCodeScreen, VerificationScreen } from './src/screens/VerificationScreen';
 import { PersonScreen } from './src/screens/PersonScreen';
 import { ContactsListScreen } from './src/screens/ContactsListScreen';
+import { ChatConversationListScreen } from './src/screens/ChatConversationListScreen';
 import { ChatThreadScreen } from './src/screens/ChatThreadScreen';
 import { CareCircleScreen } from './src/screens/CareCircleScreen';
 import { ToDoScreen } from './src/screens/ToDoScreen';
@@ -387,6 +388,15 @@ function LilicaApp() {
   // practice: opening one clears the other, same as switching tabs
   // clears both).
   const [recordChatFor, setRecordChatFor] = useState<{ recordId: string; title: string }>();
+  // Phase 23 slice 5: "past conversations, reopen one, or start a new
+  // one" -- direct product-owner decision that a single never-ending
+  // Lilica Chat/DM thread doesn't work. showChatList's own kind decides
+  // which list renders (Lilica Chat for the space, or every DM with
+  // directChatPartner); tapping a row (or "New conversation") sets
+  // openConversation and switches to showChat itself. Record-linked chat
+  // is unchanged -- it never goes through this list.
+  const [showChatList, setShowChatList] = useState<'care_circle' | 'direct'>();
+  const [openConversation, setOpenConversation] = useState<{ threadId: string; title?: string }>();
   // Phase 20B: Search is keyed by the active care space id in renderShell
   // below, so switching supported person while it's open always remounts
   // it fresh rather than risk showing a stale query/result set (brief
@@ -1702,6 +1712,8 @@ function LilicaApp() {
           setRecordOpenOrigin(undefined);
           setProjectionOpenType(undefined);
           setDirectChatPartner(undefined);
+          setShowChatList(undefined);
+          setOpenConversation(undefined);
           setRecordChatFor({ recordId, title });
           setShowChat(true);
         } : undefined}
@@ -1784,6 +1796,21 @@ function LilicaApp() {
           onOpenRecord={openRecordFromProjection}
         />
       );
+    } else if (showChatList) {
+      content = (
+        <ChatConversationListScreen
+          careSpaceId={currentSpace && !currentSpace.careSpaceId.startsWith('local-') ? currentSpace.careSpaceId : undefined}
+          kind={showChatList}
+          partnerMembershipId={showChatList === 'direct' ? directChatPartner?.membershipId : undefined}
+          partnerDisplayName={showChatList === 'direct' ? directChatPartner?.displayName : undefined}
+          onBack={() => { setShowChatList(undefined); setDirectChatPartner(undefined); }}
+          onOpenConversation={(threadId, title) => {
+            setOpenConversation({ threadId, title });
+            setShowChatList(undefined);
+            setShowChat(true);
+          }}
+        />
+      );
     } else if (showChat) {
       content = (
         <ChatThreadScreen
@@ -1792,15 +1819,18 @@ function LilicaApp() {
           directPartnerDisplayName={recordChatFor ? undefined : directChatPartner?.displayName}
           recordId={recordChatFor?.recordId}
           recordTitle={recordChatFor?.title}
-          // Slice 4: Lilica Chat's own subject picker -- every Medical Log
-          // item, so a message can be tagged to it and surface in that
-          // record's own conversation too. Only meaningful in shared mode;
-          // ChatThreadScreen itself already gates this off for direct/
-          // record modes, so passing it unconditionally is harmless.
+          explicitThreadId={openConversation?.threadId}
+          explicitThreadTitle={openConversation?.title}
+          // Slice 4/5: Lilica Chat AND direct messages both offer the
+          // subject picker -- every Medical Log item, so a message can be
+          // tagged to it and surface in that record's own conversation
+          // too. Only meaningful outside record mode; ChatThreadScreen
+          // itself already gates this off there, so passing it
+          // unconditionally is harmless.
           subjectOptions={state.records
             .filter((record) => (record.type === 'careNote' || record.type === 'condition' || record.type === 'medicine') && record.status !== 'cancelled')
             .map((record) => ({ id: record.id, title: record.title }))}
-          onBack={() => { setShowChat(false); setDirectChatPartner(undefined); setRecordChatFor(undefined); }}
+          onBack={() => { setShowChat(false); setDirectChatPartner(undefined); setRecordChatFor(undefined); setOpenConversation(undefined); }}
           onMessagesChanged={() => setChatRefreshToken((token) => token + 1)}
         />
       );
@@ -1963,8 +1993,8 @@ function LilicaApp() {
           selfAvatarPath={auth.profile?.avatarPath}
           onOpenCareSummary={careCircleAvailable ? () => setShowCareSummary(true) : undefined}
           onOpenRecentActivity={careCircleAvailable ? () => setShowRecentActivity(true) : undefined}
-          onOpenChat={careCircleAvailable ? () => { setDirectChatPartner(undefined); setShowChat(true); } : undefined}
-          onOpenDirectChat={careCircleAvailable ? (member) => { setDirectChatPartner({ membershipId: member.membershipId, displayName: member.displayName }); setShowChat(true); } : undefined}
+          onOpenChat={careCircleAvailable ? () => { setDirectChatPartner(undefined); setRecordChatFor(undefined); setOpenConversation(undefined); setShowChatList('care_circle'); } : undefined}
+          onOpenDirectChat={careCircleAvailable ? (member) => { setDirectChatPartner({ membershipId: member.membershipId, displayName: member.displayName }); setRecordChatFor(undefined); setOpenConversation(undefined); setShowChatList('direct'); } : undefined}
           chatUnreadCount={chatUnreadCount}
           chatPreviewText={chatPreviewMessage ? previewChatMessage(chatPreviewMessage) : undefined}
         />
@@ -2183,6 +2213,8 @@ function LilicaApp() {
             setShowJoinCareCircle(false);
             setShowAllContacts(false);
             setShowChat(false);
+            setShowChatList(undefined);
+            setOpenConversation(undefined);
             setDirectChatPartner(undefined);
             setRecordChatFor(undefined);
             setShowNotificationCentre(false);
