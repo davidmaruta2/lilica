@@ -57,7 +57,7 @@ describe('Phase 23 slice 5: Lilica Chat conversation list', () => {
     screen.getByText('Lilica Chat');
   });
 
-  it('lists real conversations, most recent first, with title fallback, preview and unread badge', async () => {
+  it('lists real conversations with title/preview/unread badge, "General" (the untitled one) pinned first', async () => {
     mockListMyConversations.mockResolvedValue({ ok: true, data: [titledConversation, olderConversation] });
     const screen = await render(
       <ChatConversationListScreen careSpaceId="space-1" kind="care_circle" onBack={jest.fn()} onOpenConversation={jest.fn()} />,
@@ -65,8 +65,9 @@ describe('Phase 23 slice 5: Lilica Chat conversation list', () => {
     await waitFor(() => screen.getByText("This week's appointments"));
     screen.getByText('See you Thursday', { exact: false });
     screen.getByText('3');
-    // Fallback label for the untitled conversation.
-    screen.getByText('Conversation started 10 Sept');
+    // "General" -- the singular untitled/default conversation -- always
+    // pinned first, replacing the old date-based fallback label.
+    screen.getByText('General');
     screen.getByText('Thanks for letting me know');
     expect(mockListMyConversations).toHaveBeenCalledWith('space-1', 'care_circle', undefined);
   });
@@ -93,6 +94,23 @@ describe('Phase 23 slice 5: Lilica Chat conversation list', () => {
     await waitFor(() => screen.getByText("This week's appointments"));
     await fireEvent.press(screen.getByLabelText("Open This week's appointments"));
     expect(onOpenConversation).toHaveBeenCalledWith('thread-2', "This week's appointments", undefined);
+  });
+
+  // Real device bug (23 September 2026): opening "General" (no real
+  // subject/title) used to pass conversationLabel()'s display fallback
+  // as if it were a genuine subject, so ChatThreadScreen offered to
+  // "open"/"change" a subject that never actually existed. Tapping
+  // "General" must pass undefined for title, letting ChatThreadScreen
+  // fall back to its own natural default heading.
+  it('tapping "General" (no real subject) passes undefined title, never the display fallback', async () => {
+    mockListMyConversations.mockResolvedValue({ ok: true, data: [olderConversation] });
+    const onOpenConversation = jest.fn();
+    const screen = await render(
+      <ChatConversationListScreen careSpaceId="space-1" kind="care_circle" onBack={jest.fn()} onOpenConversation={onOpenConversation} />,
+    );
+    await waitFor(() => screen.getByText('General'));
+    await fireEvent.press(screen.getByLabelText('Open General'));
+    expect(onOpenConversation).toHaveBeenCalledWith('thread-1', undefined, undefined);
   });
 
   // Slice 6: "+ New conversation" opens the subject picker first -- a

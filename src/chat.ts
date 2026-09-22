@@ -294,14 +294,31 @@ export async function listMyConversations(
 }
 
 // A conversation's own subject -- a real Medical Log record's current
-// title, or a free-text title, or (only when neither was ever set) a
-// calm fallback naming when it started. Never invents a topic it doesn't
-// actually know.
+// title, or a free-text title, or (only when neither was ever set) the
+// one, singular default conversation every scope starts with. Never
+// invents a topic it doesn't actually know. Redesign (23 September
+// 2026): "General" replaces the old "Conversation started <date>"
+// fallback -- that date-based label read as if it belonged to the same
+// family as a real named topic, which is exactly the ambiguity a direct
+// product-owner report called out ("Marion" / "Conversation started 22
+// Sept" sitting as two unexplained, disconnected-looking rows).
 export function conversationLabel(conversation: ConversationSummary): string {
   if (conversation.subjectRecordTitle) return conversation.subjectRecordTitle;
   if (conversation.title) return conversation.title;
-  const date = new Date(conversation.createdAt);
-  return `Conversation started ${date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+  return 'General';
+}
+
+// Whether a conversation has a REAL subject of its own (a linked record
+// or a deliberately-chosen title) -- as opposed to conversationLabel()'s
+// display fallback, which always returns something to show in a list row
+// even when there isn't one. Real device bug (23 September 2026): a
+// screen naively treated conversationLabel()'s fallback string as if it
+// were a real, editable subject, and offered to "open" a person's name
+// or the word "General" as though it were a Medical Log record. Anything
+// that decides whether to offer "Change subject"/"Open <record>" must
+// check this, never just "is the label non-empty".
+export function conversationHasOwnSubject(conversation: ConversationSummary): boolean {
+  return Boolean(conversation.subjectRecordTitle || conversation.title);
 }
 
 export type DirectThreadSummary = {

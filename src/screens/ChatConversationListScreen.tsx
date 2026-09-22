@@ -5,7 +5,7 @@ import { Header } from '../components/Header';
 import { useScrollToEnd } from '../components/KeyboardAwareScrollView';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
-import { ChatSubjectOption, ConversationSummary, conversationLabel, listMyConversations, startNewConversation } from '../chat';
+import { ChatSubjectOption, ConversationSummary, conversationHasOwnSubject, conversationLabel, listMyConversations, startNewConversation } from '../chat';
 import { colors, radius, spacing } from '../theme';
 
 // Phase 23 slice 5: "past conversations, reopen one, or start a new one"
@@ -213,6 +213,16 @@ export function ChatConversationListScreen({ careSpaceId, kind, partnerMembershi
     return () => { cancelled = true; };
   }, [careSpaceId, kind, partnerMembershipId]);
 
+  // Redesign (23 September 2026): "General" -- the one, singular default
+  // conversation every scope lazily starts with -- always shows first,
+  // pinned above every deliberately-named topic, rather than competing
+  // with them purely on recency. There is at most one of these per scope
+  // (start_new_conversation always requires a title or a subject; only
+  // the lazy get-or-create path ever leaves both unset).
+  const orderedConversations = conversations
+    ? [...conversations].sort((a, b) => Number(conversationHasOwnSubject(a)) - Number(conversationHasOwnSubject(b)))
+    : conversations;
+
   return (
     <Screen
       footer={
@@ -234,7 +244,7 @@ export function ChatConversationListScreen({ careSpaceId, kind, partnerMembershi
         <ActivityIndicator />
       ) : error ? (
         <AppText variant="secondary" tone="danger">{error}</AppText>
-      ) : !conversations || conversations.length === 0 ? (
+      ) : !orderedConversations || orderedConversations.length === 0 ? (
         <AppText variant="secondary" tone="soft">
           {isDirect
             ? `No conversations with ${partnerDisplayName ?? 'them'} yet - start one below.`
@@ -242,12 +252,22 @@ export function ChatConversationListScreen({ careSpaceId, kind, partnerMembershi
         </AppText>
       ) : (
         <View style={styles.list}>
-          {conversations.map((conversation) => (
+          {orderedConversations.map((conversation) => (
             <Pressable
               key={conversation.threadId}
               accessibilityRole="button"
               accessibilityLabel={`Open ${conversationLabel(conversation)}`}
-              onPress={() => onOpenConversation(conversation.threadId, conversationLabel(conversation), conversation.subjectRecordId)}
+              onPress={() => onOpenConversation(
+                conversation.threadId,
+                // Only a REAL subject/title, never conversationLabel()'s
+                // "General" display fallback -- passing that fallback as
+                // if it were a genuine subject is exactly the bug a
+                // direct device report caught (23 September 2026):
+                // ChatThreadScreen offered to "open"/"change" a subject
+                // that never actually existed.
+                conversation.subjectRecordTitle ?? conversation.title,
+                conversation.subjectRecordId,
+              )}
               style={styles.row}
             >
               <View style={styles.rowCopy}>

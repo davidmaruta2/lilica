@@ -1,32 +1,34 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
 import { AppText } from '../components/Text';
-import { ChatOverviewEntry, ChatSubjectOption, listMyChatOverview } from '../chat';
+import { ChatOverviewEntry, listMyChatOverview } from '../chat';
 import { colors, radius, spacing } from '../theme';
-import { ChatNewConversationSheet } from './ChatConversationListScreen';
 
-// Phase 23 slice 9: a single combined "Lilica Chat" entry point -- direct
-// product-owner report (23 September 2026): "while it's possible to
-// start a DM through the care circle avatar, not seeing DMs through the
-// main Lilica Chat space seems odd" -- one entry point, both kinds, but
-// never merged into one undifferentiated list (a DM is private between
-// two people, Care Circle chat is visible to the whole circle), so this
-// renders two clearly-labelled sections instead of blending them.
+// Phase 23 slice 10 -- a real three-level structure (23 September 2026,
+// direct product-owner redesign, replacing slice 9 from earlier the same
+// day): "Marion" was showing up as five separate, unrelated-looking rows
+// -- one per individual topic-thread -- because slice 9 flattened every
+// underlying conversation straight into this top-level screen. That's
+// the wrong level of the hierarchy to show first.
 //
-// Starting a NEW Care Circle conversation is still offered here (same
-// picker as ChatConversationListScreen). Starting a NEW direct message is
-// deliberately NOT offered here -- same day, same decision: DMing stays
-// reachable only via a Care Circle member's own avatar (the popup's
-// "Message" button), never duplicated as a second "pick someone" flow
-// here. This screen only ever lists DMs that already exist.
+// LEVEL 1 (this screen): one row per PERSON you have DMs with (however
+// many separate topic-threads they actually have), plus one summary row
+// for the whole Care Circle group. Always calm, never a flat dump, no
+// matter how many topics exist underneath.
+// LEVEL 2 (ChatConversationListScreen): tapping a Level 1 row drills into
+// that person's (or the Care Circle's) own list of named topic-threads --
+// this is where "+ New conversation" belongs, and where a NEW direct
+// message with someone new is still never offered (DMing stays reachable
+// only via a Care Circle member's own avatar).
+// LEVEL 3 (ChatThreadScreen): the actual conversation.
 type Props = {
   careSpaceId?: string;
-  subjectOptions?: ChatSubjectOption[];
   onBack: () => void;
-  onOpenConversation: (threadId: string, title?: string, subjectRecordId?: string) => void;
+  onOpenCareCircle: () => void;
+  onOpenDirect: (partnerMembershipId: string, partnerDisplayName: string) => void;
 };
 
 function timeLabel(iso: string): string {
@@ -39,61 +41,120 @@ function timeLabel(iso: string): string {
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-function createdOnLabel(iso: string): string {
-  const date = new Date(iso);
-  const day = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  return `Created on ${day} at ${time}`;
+// A Care Circle "group" summary -- collapsed across every one of its
+// individual topic-threads, the way Level 1 must always present it.
+type CareCircleSummary = {
+  unreadCount: number;
+  lastMessageAt?: string;
+  lastMessageBody?: string;
+  lastMessageSenderIsSelf?: boolean;
+};
+
+// One row per DM partner -- collapsed across every one of THEIR
+// individual topic-threads (there is no equivalent per-thread flattening
+// at this level any more).
+type DirectSummary = {
+  membershipId: string;
+  displayName: string;
+  isFormer: boolean;
+  unreadCount: number;
+  lastMessageAt?: string;
+  lastMessageBody?: string;
+  lastMessageSenderIsSelf?: boolean;
+};
+
+function summariseCareCircle(entries: ChatOverviewEntry[]): CareCircleSummary {
+  const unreadCount = entries.reduce((total, entry) => total + entry.unreadCount, 0);
+  const latest = entries.reduce<ChatOverviewEntry | undefined>((mostRecent, entry) => {
+    if (!entry.lastMessageAt) return mostRecent;
+    if (!mostRecent?.lastMessageAt || entry.lastMessageAt > mostRecent.lastMessageAt) return entry;
+    return mostRecent;
+  }, undefined);
+  return {
+    unreadCount,
+    lastMessageAt: latest?.lastMessageAt,
+    lastMessageBody: latest?.lastMessageBody,
+    lastMessageSenderIsSelf: latest?.lastMessageSenderIsSelf,
+  };
 }
 
-// A care_circle row is known by its own subject/title (falling back to
-// when it started); a direct row is known by WHO it's with first -- the
-// same "who am I talking to" identity every messaging app leads with --
-// and its own subject/title (if it has one) is secondary context.
-function headline(entry: ChatOverviewEntry): string {
-  if (entry.kind === 'direct') return entry.otherDisplayName ?? 'Direct message';
-  if (entry.subjectRecordTitle) return entry.subjectRecordTitle;
-  if (entry.title) return entry.title;
-  const date = new Date(entry.createdAt);
-  return `Conversation started ${date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+function summariseDirect(entries: ChatOverviewEntry[]): DirectSummary[] {
+  const byPartner = new Map<string, ChatOverviewEntry[]>();
+  for (const entry of entries) {
+    if (!entry.otherMembershipId) continue;
+    const existing = byPartner.get(entry.otherMembershipId) ?? [];
+    existing.push(entry);
+    byPartner.set(entry.otherMembershipId, existing);
+  }
+  const summaries: DirectSummary[] = [];
+  for (const [membershipId, partnerEntries] of byPartner) {
+    const unreadCount = partnerEntries.reduce((total, entry) => total + entry.unreadCount, 0);
+    const latest = partnerEntries.reduce<ChatOverviewEntry | undefined>((mostRecent, entry) => {
+      if (!entry.lastMessageAt) return mostRecent;
+      if (!mostRecent?.lastMessageAt || entry.lastMessageAt > mostRecent.lastMessageAt) return entry;
+      return mostRecent;
+    }, undefined);
+    summaries.push({
+      membershipId,
+      displayName: partnerEntries[0].otherDisplayName ?? 'A Lilica member',
+      isFormer: Boolean(partnerEntries[0].otherIsFormer),
+      unreadCount,
+      lastMessageAt: latest?.lastMessageAt,
+      lastMessageBody: latest?.lastMessageBody,
+      lastMessageSenderIsSelf: latest?.lastMessageSenderIsSelf,
+    });
+  }
+  // Most recently active partner first -- a partner with no messages at
+  // all yet (lastMessageAt undefined) sorts last, same convention as
+  // every other chat list in this app.
+  summaries.sort((a, b) => {
+    if (!a.lastMessageAt && !b.lastMessageAt) return 0;
+    if (!a.lastMessageAt) return 1;
+    if (!b.lastMessageAt) return -1;
+    return b.lastMessageAt.localeCompare(a.lastMessageAt);
+  });
+  return summaries;
 }
 
-function subjectContext(entry: ChatOverviewEntry): string | undefined {
-  if (entry.kind !== 'direct') return undefined;
-  return entry.subjectRecordTitle ?? entry.title;
-}
-
-function OverviewRow({ entry, onOpen }: { entry: ChatOverviewEntry; onOpen: () => void }) {
-  const context = subjectContext(entry);
+function SummaryRow({
+  label,
+  formerLabel,
+  lastMessageAt,
+  lastMessageBody,
+  lastMessageSenderIsSelf,
+  unreadCount,
+  emptyText,
+  onPress,
+}: {
+  label: string;
+  formerLabel?: boolean;
+  lastMessageAt?: string;
+  lastMessageBody?: string;
+  lastMessageSenderIsSelf?: boolean;
+  unreadCount: number;
+  emptyText: string;
+  onPress: () => void;
+}) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Open ${headline(entry)}`}
-      onPress={onOpen}
-      style={styles.row}
-    >
+    <Pressable accessibilityRole="button" accessibilityLabel={`Open ${label}`} onPress={onPress} style={styles.row}>
       <View style={styles.rowCopy}>
-        <AppText variant="bodyStrong" numberOfLines={1}>{headline(entry)}</AppText>
-        {entry.lastMessageBody ? (
+        <AppText variant="bodyStrong" numberOfLines={1}>
+          {formerLabel ? `${label} (former member)` : label}
+        </AppText>
+        {lastMessageBody ? (
           <AppText variant="secondary" tone="soft" numberOfLines={1}>
-            {entry.lastMessageSenderIsSelf ? 'You: ' : ''}{entry.lastMessageBody}
+            {lastMessageSenderIsSelf ? 'You: ' : ''}{lastMessageBody}
           </AppText>
-        ) : context ? (
-          <AppText variant="secondary" tone="soft" numberOfLines={1}>Re: {context}</AppText>
-        ) : entry.kind === 'care_circle' && (entry.subjectRecordTitle || entry.title) ? (
-          <AppText variant="meta" tone="soft">{createdOnLabel(entry.createdAt)}</AppText>
         ) : (
-          <AppText variant="secondary" tone="soft">No messages yet</AppText>
+          <AppText variant="secondary" tone="soft">{emptyText}</AppText>
         )}
       </View>
       <View style={styles.rowMeta}>
-        {entry.lastMessageAt ? (
-          <AppText variant="meta" tone="soft">{timeLabel(entry.lastMessageAt)}</AppText>
-        ) : null}
-        {entry.unreadCount > 0 ? (
+        {lastMessageAt ? <AppText variant="meta" tone="soft">{timeLabel(lastMessageAt)}</AppText> : null}
+        {unreadCount > 0 ? (
           <View style={styles.unreadBadge}>
             <AppText variant="meta" tone="white" style={styles.unreadBadgeLabel}>
-              {entry.unreadCount > 9 ? '9+' : entry.unreadCount}
+              {unreadCount > 9 ? '9+' : unreadCount}
             </AppText>
           </View>
         ) : null}
@@ -102,11 +163,10 @@ function OverviewRow({ entry, onOpen }: { entry: ChatOverviewEntry; onOpen: () =
   );
 }
 
-export function ChatOverviewScreen({ careSpaceId, subjectOptions, onBack, onOpenConversation }: Props) {
+export function ChatOverviewScreen({ careSpaceId, onBack, onOpenCareCircle, onOpenDirect }: Props) {
   const [entries, setEntries] = useState<ChatOverviewEntry[]>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
-  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,24 +182,11 @@ export function ChatOverviewScreen({ careSpaceId, subjectOptions, onBack, onOpen
     return () => { cancelled = true; };
   }, [careSpaceId]);
 
-  const careCircleEntries = entries?.filter((entry) => entry.kind === 'care_circle') ?? [];
-  const directEntries = entries?.filter((entry) => entry.kind === 'direct') ?? [];
+  const careCircle = summariseCareCircle(entries?.filter((entry) => entry.kind === 'care_circle') ?? []);
+  const directSummaries = summariseDirect(entries?.filter((entry) => entry.kind === 'direct') ?? []);
 
   return (
-    <Screen
-      footer={
-        <View style={styles.footer}>
-          <ChatNewConversationSheet
-            careSpaceId={careSpaceId}
-            kind="care_circle"
-            subjectOptions={subjectOptions}
-            open={pickerOpen}
-            onOpenChange={setPickerOpen}
-            onStarted={(threadId, title, subjectRecordId) => onOpenConversation(threadId, title, subjectRecordId)}
-          />
-        </View>
-      }
-    >
+    <Screen>
       <Header title="Lilica Chat" onBack={onBack} />
       {loading ? (
         <ActivityIndicator />
@@ -149,33 +196,35 @@ export function ChatOverviewScreen({ careSpaceId, subjectOptions, onBack, onOpen
         <View style={styles.sections}>
           <View style={styles.section}>
             <AppText variant="section" style={styles.sectionTitle}>Care Circle</AppText>
-            {careCircleEntries.length === 0 ? (
-              <AppText variant="secondary" tone="soft">No conversations yet - start one below.</AppText>
-            ) : (
-              <View style={styles.list}>
-                {careCircleEntries.map((entry) => (
-                  <OverviewRow
-                    key={entry.threadId}
-                    entry={entry}
-                    onOpen={() => onOpenConversation(entry.threadId, headline(entry), entry.subjectRecordId)}
-                  />
-                ))}
-              </View>
-            )}
+            <SummaryRow
+              label="Care Circle"
+              lastMessageAt={careCircle.lastMessageAt}
+              lastMessageBody={careCircle.lastMessageBody}
+              lastMessageSenderIsSelf={careCircle.lastMessageSenderIsSelf}
+              unreadCount={careCircle.unreadCount}
+              emptyText="No conversations yet"
+              onPress={onOpenCareCircle}
+            />
           </View>
           <View style={styles.section}>
             <AppText variant="section" style={styles.sectionTitle}>Direct Messages</AppText>
-            {directEntries.length === 0 ? (
+            {directSummaries.length === 0 ? (
               <AppText variant="secondary" tone="soft">
                 No direct messages yet - start one from a Care Circle member's profile.
               </AppText>
             ) : (
               <View style={styles.list}>
-                {directEntries.map((entry) => (
-                  <OverviewRow
-                    key={entry.threadId}
-                    entry={entry}
-                    onOpen={() => onOpenConversation(entry.threadId, headline(entry), entry.subjectRecordId)}
+                {directSummaries.map((summary) => (
+                  <SummaryRow
+                    key={summary.membershipId}
+                    label={summary.displayName}
+                    formerLabel={summary.isFormer}
+                    lastMessageAt={summary.lastMessageAt}
+                    lastMessageBody={summary.lastMessageBody}
+                    lastMessageSenderIsSelf={summary.lastMessageSenderIsSelf}
+                    unreadCount={summary.unreadCount}
+                    emptyText="No messages yet"
+                    onPress={() => onOpenDirect(summary.membershipId, summary.displayName)}
                   />
                 ))}
               </View>
@@ -232,9 +281,5 @@ const styles = StyleSheet.create({
   unreadBadgeLabel: {
     fontSize: 11,
     fontWeight: '700',
-  },
-  footer: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
   },
 });

@@ -1807,14 +1807,11 @@ function LilicaApp() {
       content = (
         <ChatOverviewScreen
           careSpaceId={currentSpace && !currentSpace.careSpaceId.startsWith('local-') ? currentSpace.careSpaceId : undefined}
-          subjectOptions={state.records
-            .filter((record) => (record.type === 'careNote' || record.type === 'condition' || record.type === 'medicine') && record.status !== 'cancelled')
-            .map((record) => ({ id: record.id, title: record.title }))}
           onBack={() => setShowChatList(undefined)}
-          onOpenConversation={(threadId, title, subjectRecordId) => {
-            setOpenConversation({ threadId, title, subjectRecordId });
-            setShowChatList(undefined);
-            setShowChat(true);
+          onOpenCareCircle={() => setShowChatList('care_circle')}
+          onOpenDirect={(membershipId, displayName) => {
+            setDirectChatPartner({ membershipId, displayName });
+            setShowChatList('direct');
           }}
         />
       );
@@ -1828,7 +1825,13 @@ function LilicaApp() {
           subjectOptions={state.records
             .filter((record) => (record.type === 'careNote' || record.type === 'condition' || record.type === 'medicine') && record.status !== 'cancelled')
             .map((record) => ({ id: record.id, title: record.title }))}
-          onBack={() => { setShowChatList(undefined); setDirectChatPartner(undefined); }}
+          // Redesign (23 September 2026): this list (Level 2) is now
+          // ALWAYS reached via the combined overview (Level 1) -- either
+          // through its own Care Circle row, or through a partner's own
+          // DM summary row, or via that partner's avatar (a shortcut
+          // straight into Level 2, never bypassing Level 1 on the way
+          // back). Back always returns to Level 1, for both kinds.
+          onBack={() => { setShowChatList('overview'); setDirectChatPartner(undefined); }}
           onOpenConversation={(threadId, title, subjectRecordId) => {
             setOpenConversation({ threadId, title, subjectRecordId });
             setShowChatList(undefined);
@@ -1872,15 +1875,12 @@ function LilicaApp() {
               return;
             }
             // Every other conversation was reached via
-            // ChatConversationListScreen or ChatOverviewScreen (either
-            // one's own onOpenConversation cleared showChatList when this
-            // thread opened) -- direct product-owner report (23 September
-            // 2026): back should return there, not skip past it out of
-            // Lilica Chat/DMs entirely. A direct conversation always came
-            // from that partner's own DM list (only reachable via their
-            // avatar); every other conversation came from the combined
-            // overview.
-            setShowChatList(directChatPartner ? 'direct' : 'overview');
+            // ChatConversationListScreen (Level 2 -- its own
+            // onOpenConversation cleared showChatList when this thread
+            // opened) -- back returns there, one level up, never skipping
+            // straight past it to Level 1 or out of Lilica Chat/DMs
+            // entirely.
+            setShowChatList(directChatPartner ? 'direct' : 'care_circle');
           }}
           onMessagesChanged={() => setChatRefreshToken((token) => token + 1)}
         />
