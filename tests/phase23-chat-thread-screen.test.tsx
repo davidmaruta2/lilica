@@ -2,6 +2,7 @@ const mockGetOrCreateCareCircleThread = jest.fn();
 const mockGetOrCreateDirectThread = jest.fn();
 const mockGetOrCreateRecordThread = jest.fn();
 const mockListChatMessages = jest.fn();
+const mockListRecordConversation = jest.fn();
 const mockSendChatMessage = jest.fn();
 const mockEditChatMessage = jest.fn();
 const mockDeleteChatMessage = jest.fn();
@@ -12,6 +13,7 @@ jest.mock('../src/chat', () => ({
   getOrCreateDirectThread: (...args: unknown[]) => mockGetOrCreateDirectThread(...args),
   getOrCreateRecordThread: (...args: unknown[]) => mockGetOrCreateRecordThread(...args),
   listChatMessages: (...args: unknown[]) => mockListChatMessages(...args),
+  listRecordConversation: (...args: unknown[]) => mockListRecordConversation(...args),
   sendChatMessage: (...args: unknown[]) => mockSendChatMessage(...args),
   editChatMessage: (...args: unknown[]) => mockEditChatMessage(...args),
   deleteChatMessage: (...args: unknown[]) => mockDeleteChatMessage(...args),
@@ -51,6 +53,7 @@ beforeEach(() => {
   mockGetOrCreateDirectThread.mockResolvedValue({ ok: true, data: 'thread-direct-1' });
   mockGetOrCreateRecordThread.mockResolvedValue({ ok: true, data: 'thread-record-1' });
   mockListChatMessages.mockResolvedValue({ ok: true, data: { messages: [], hasMore: false } });
+  mockListRecordConversation.mockResolvedValue({ ok: true, data: { messages: [], hasMore: false } });
   mockMarkChatThreadRead.mockResolvedValue({ ok: true, data: undefined });
 });
 
@@ -81,7 +84,7 @@ describe('Phase 23 slice 1: shared Lilica Chat mode', () => {
     await fireEvent.changeText(input, 'Hello');
     await waitFor(() => expect(screen.getByLabelText('Write a message').props.value).toBe('Hello'));
     await fireEvent.press(screen.getByLabelText('Send message'));
-    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-1', 'Hello'));
+    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-1', 'Hello', undefined));
     await waitFor(() => screen.getByText('Hello'));
     expect(screen.getByLabelText('Write a message').props.value).toBe('');
     // onMessagesChanged is called once on load, and again after sending.
@@ -132,7 +135,7 @@ describe('Phase 23 slice 2: direct message mode', () => {
 });
 
 describe('Phase 23 slice 3: record-linked chat mode', () => {
-  it('loads (or creates) the record thread by recordId, never the shared or direct thread', async () => {
+  it('loads (or creates) the record thread by recordId, and reads the MERGED conversation via listRecordConversation, never listChatMessages', async () => {
     const screen = await render(
       <ChatThreadScreen careSpaceId="space-1" recordId="record-1" recordTitle="Metformin" onBack={jest.fn()} />,
     );
@@ -140,6 +143,8 @@ describe('Phase 23 slice 3: record-linked chat mode', () => {
     expect(mockGetOrCreateRecordThread).toHaveBeenCalledWith('record-1');
     expect(mockGetOrCreateCareCircleThread).not.toHaveBeenCalled();
     expect(mockGetOrCreateDirectThread).not.toHaveBeenCalled();
+    expect(mockListRecordConversation).toHaveBeenCalledWith('record-1');
+    expect(mockListChatMessages).not.toHaveBeenCalled();
     screen.getByPlaceholderText('Write a message');
   });
 
@@ -150,7 +155,22 @@ describe('Phase 23 slice 3: record-linked chat mode', () => {
     await waitFor(() => screen.getByText('No messages yet - start the conversation about Metformin.'));
   });
 
-  it('sending a message in record mode uses the record thread id', async () => {
+  // Slice 4: a message tagged from Lilica Chat can appear here even
+  // though it was never sent into this record's own dedicated thread --
+  // this is exactly what listRecordConversation's merge is for.
+  it('shows a message tagged from Lilica Chat, with its "Re: <subject>" chip', async () => {
+    mockListRecordConversation.mockResolvedValue({
+      ok: true,
+      data: { messages: [{ ...sarahMessage, threadId: 'thread-1', subjectRecordId: 'record-1', subjectRecordTitle: 'Metformin' }], hasMore: false },
+    });
+    const screen = await render(
+      <ChatThreadScreen careSpaceId="space-1" recordId="record-1" recordTitle="Metformin" onBack={jest.fn()} />,
+    );
+    await waitFor(() => screen.getByText('Picking up the prescription this afternoon'));
+    screen.getByText('Re: Metformin');
+  });
+
+  it('sending a message in record mode uses the record thread id, with no subject param (subject tagging is Lilica-Chat-only)', async () => {
     mockSendChatMessage.mockResolvedValue({ ok: true, data: { ...myMessage, id: 'msg-4', body: 'Started taking the new dose today' } });
     const screen = await render(
       <ChatThreadScreen careSpaceId="space-1" recordId="record-1" recordTitle="Metformin" onBack={jest.fn()} />,
@@ -160,6 +180,74 @@ describe('Phase 23 slice 3: record-linked chat mode', () => {
     await fireEvent.changeText(input, 'Started taking the new dose today');
     await waitFor(() => expect(screen.getByLabelText('Write a message').props.value).toBe('Started taking the new dose today'));
     await fireEvent.press(screen.getByLabelText('Send message'));
-    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-record-1', 'Started taking the new dose today'));
+    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-record-1', 'Started taking the new dose today', undefined));
+  });
+
+  it('never shows the subject picker (that is Lilica-Chat-only)', async () => {
+    const screen = await render(
+      <ChatThreadScreen
+        careSpaceId="space-1"
+        recordId="record-1"
+        recordTitle="Metformin"
+        subjectOptions={[{ id: 'record-1', title: 'Metformin' }]}
+        onBack={jest.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByPlaceholderText('Write a message'));
+    expect(screen.queryByLabelText('Add a subject')).toBeNull();
+  });
+});
+
+describe('Phase 23 slice 4: subject picker in Lilica Chat', () => {
+  const subjectOptions = [
+    { id: 'record-1', title: 'Metformin' },
+    { id: 'record-2', title: 'Type 2 diabetes' },
+  ];
+
+  it('is not shown at all when no subject options are supplied', async () => {
+    const screen = await render(<ChatThreadScreen careSpaceId="space-1" onBack={jest.fn()} />);
+    await waitFor(() => screen.getByPlaceholderText('Message your Care Circle'));
+    expect(screen.queryByLabelText('Add a subject')).toBeNull();
+  });
+
+  it('is not shown in direct message mode, even with subject options supplied', async () => {
+    const screen = await render(
+      <ChatThreadScreen
+        careSpaceId="space-1"
+        directPartnerMembershipId="m-sarah"
+        directPartnerDisplayName="Sarah"
+        subjectOptions={subjectOptions}
+        onBack={jest.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByPlaceholderText('Message Sarah'));
+    expect(screen.queryByLabelText('Add a subject')).toBeNull();
+  });
+
+  it('picking a subject shows a chip, and sending tags the message with it -- then clears for the next message', async () => {
+    mockSendChatMessage.mockResolvedValue({ ok: true, data: { ...myMessage, id: 'msg-5', body: 'New dose starts Monday' } });
+    const screen = await render(<ChatThreadScreen careSpaceId="space-1" subjectOptions={subjectOptions} onBack={jest.fn()} />);
+    await waitFor(() => screen.getByLabelText('Add a subject'));
+    await fireEvent.press(screen.getByLabelText('Add a subject'));
+    await fireEvent.press(screen.getByLabelText('Tag this message to Metformin'));
+    screen.getByText('Subject: Metformin');
+
+    await fireEvent.changeText(screen.getByLabelText('Write a message'), 'New dose starts Monday');
+    await fireEvent.press(screen.getByLabelText('Send message'));
+    await waitFor(() => expect(mockSendChatMessage).toHaveBeenCalledWith('thread-1', 'New dose starts Monday', 'record-1'));
+    // The chip disappears and "Add a subject" is back for the next message.
+    await waitFor(() => screen.getByLabelText('Add a subject'));
+    expect(screen.queryByText('Subject: Metformin')).toBeNull();
+  });
+
+  it('"Remove" clears the selected subject without sending', async () => {
+    const screen = await render(<ChatThreadScreen careSpaceId="space-1" subjectOptions={subjectOptions} onBack={jest.fn()} />);
+    await waitFor(() => screen.getByLabelText('Add a subject'));
+    await fireEvent.press(screen.getByLabelText('Add a subject'));
+    await fireEvent.press(screen.getByLabelText('Tag this message to Type 2 diabetes'));
+    screen.getByText('Subject: Type 2 diabetes');
+    await fireEvent.press(screen.getByLabelText('Remove subject'));
+    expect(screen.queryByText('Subject: Type 2 diabetes')).toBeNull();
+    screen.getByLabelText('Add a subject');
   });
 });

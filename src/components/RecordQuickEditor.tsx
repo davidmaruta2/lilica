@@ -129,7 +129,7 @@ export function RecordQuickEditor({
   // only case RecordDetail actually shows the action at all), so this
   // never runs pointlessly for every other record type.
   const isMedicalLogRecord = record?.type === 'careNote' || record?.type === 'condition' || record?.type === 'medicine';
-  const [conversationInfo, setConversationInfo] = useState<{ threadId: string; messageCount: number }>();
+  const [conversationInfo, setConversationInfo] = useState<{ threadId?: string; messageCount: number }>();
   useEffect(() => {
     if (!record || !isMedicalLogRecord || !onOpenConversation || careSpaceId.startsWith('local-')) {
       setConversationInfo(undefined);

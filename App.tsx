@@ -1792,6 +1792,14 @@ function LilicaApp() {
           directPartnerDisplayName={recordChatFor ? undefined : directChatPartner?.displayName}
           recordId={recordChatFor?.recordId}
           recordTitle={recordChatFor?.title}
+          // Slice 4: Lilica Chat's own subject picker -- every Medical Log
+          // item, so a message can be tagged to it and surface in that
+          // record's own conversation too. Only meaningful in shared mode;
+          // ChatThreadScreen itself already gates this off for direct/
+          // record modes, so passing it unconditionally is harmless.
+          subjectOptions={state.records
+            .filter((record) => (record.type === 'careNote' || record.type === 'condition' || record.type === 'medicine') && record.status !== 'cancelled')
+            .map((record) => ({ id: record.id, title: record.title }))}
           onBack={() => { setShowChat(false); setDirectChatPartner(undefined); setRecordChatFor(undefined); }}
           onMessagesChanged={() => setChatRefreshToken((token) => token + 1)}
         />

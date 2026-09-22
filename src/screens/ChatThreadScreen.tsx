@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Header } from '../components/Header';
 import { Screen } from '../components/Screen';
@@ -12,10 +12,17 @@ import {
   getOrCreateDirectThread,
   getOrCreateRecordThread,
   listChatMessages,
+  listRecordConversation,
   markChatThreadRead,
   sendChatMessage,
 } from '../chat';
 import { colors, radius, spacing } from '../theme';
+
+// Slice 4: a plain {id, title} option this screen picks a subject from --
+// deliberately not the full LilicaRecord type, so this screen never needs
+// to know about record shapes beyond what a picker needs. The host
+// (App.tsx) filters the real records list down to Medical Log items.
+export type ChatSubjectOption = { id: string; title: string };
 
 // Phase 23: one screen for the shared Care Circle conversation (slice 1),
 // a private direct-message thread with one other member (slice 2), and a
@@ -40,6 +47,11 @@ type Props = {
   directPartnerDisplayName?: string;
   recordId?: string;
   recordTitle?: string;
+  // Slice 4: only meaningful in shared mode (no directPartnerMembershipId,
+  // no recordId) -- omitted or empty means no subject picker shows at
+  // all, same "never a fabricated affordance" pattern as everywhere else
+  // in this app.
+  subjectOptions?: ChatSubjectOption[];
   onBack: () => void;
   onMessagesChanged?: () => void;
 };
@@ -48,7 +60,7 @@ function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, directPartnerDisplayName, recordId, recordTitle, onBack, onMessagesChanged }: Props) {
+export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, directPartnerDisplayName, recordId, recordTitle, subjectOptions, onBack, onMessagesChanged }: Props) {
   const [threadId, setThreadId] = useState<string>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +72,13 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
   const inputRef = useRef<TextInput>(null);
   const isDirect = Boolean(directPartnerMembershipId);
   const isRecord = Boolean(recordId);
+  // Slice 4: shared-mode-only subject picker -- a message sent with one
+  // selected also gets tagged (subjectRecordId) so it surfaces in that
+  // record's own conversation too. Cleared after each send -- a one-off
+  // tag per message, not a sticky compose-session setting.
+  const canTagSubject = !isDirect && !isRecord && Boolean(subjectOptions?.length);
+  const [selectedSubject, setSelectedSubject] = useState<ChatSubjectOption>();
+  const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
   const headerTitle = isDirect ? (directPartnerDisplayName ?? 'Direct message') : isRecord ? (recordTitle ?? 'Conversation') : 'Lilica Chat';
   const composePlaceholder = isDirect ? `Message ${directPartnerDisplayName ?? 'them'}` : isRecord ? 'Write a message' : 'Message your Care Circle';
   const emptyStateText = isDirect
@@ -95,7 +114,13 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
         return;
       }
       setThreadId(threadResult.data);
-      const messagesResult = await listChatMessages(threadResult.data);
+      // Slice 4: a record's conversation can include messages tagged
+      // from Lilica Chat, living in a DIFFERENT thread than this one's
+      // own dedicated thread -- listRecordConversation merges both;
+      // listChatMessages(threadId) alone would miss the tagged ones.
+      const messagesResult = recordId
+        ? await listRecordConversation(recordId)
+        : await listChatMessages(threadResult.data);
       if (cancelled) return;
       setLoading(false);
       if (!messagesResult.ok) {
@@ -114,14 +139,19 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
     const body = draft.trim();
     if (!body || !threadId || sending) return;
     setSending(true);
-    const result = await sendChatMessage(threadId, body);
+    const result = await sendChatMessage(threadId, body, selectedSubject?.id);
     setSending(false);
     if (!result.ok) {
       Alert.alert('Message not sent', result.message);
       return;
     }
-    setMessages((current) => [...current, result.data]);
+    // The server doesn't echo subject_record_title back on the plain
+    // chat_messages row (only list_chat_messages resolves it via a
+    // join) -- fill it in from what was just picked so the chip renders
+    // immediately, without needing a full reload.
+    setMessages((current) => [...current, selectedSubject ? { ...result.data, subjectRecordTitle: selectedSubject.title } : result.data]);
     setDraft('');
+    setSelectedSubject(undefined);
     onMessagesChanged?.();
   }
 
@@ -168,26 +198,66 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
     <Screen
       footer={
         threadId ? (
-          <View style={styles.composeRow}>
-            <TextInput
-              ref={inputRef}
-              value={draft}
-              onChangeText={setDraft}
-              placeholder={composePlaceholder}
-              placeholderTextColor={colors.muted}
-              multiline
-              style={styles.composeInput}
-              accessibilityLabel="Write a message"
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Send message"
-              onPress={() => void handleSend()}
-              disabled={!draft.trim() || sending}
-              style={[styles.sendButton, (!draft.trim() || sending) && styles.sendButtonDisabled]}
-            >
-              {sending ? <ActivityIndicator color={colors.white} /> : <AppText variant="bodyStrong" tone="white">Send</AppText>}
-            </Pressable>
+          <View>
+            {canTagSubject ? (
+              <View style={styles.subjectArea}>
+                {selectedSubject ? (
+                  <View style={styles.subjectChip}>
+                    <AppText variant="meta" tone="primary" style={styles.subjectChipText} numberOfLines={1}>
+                      Subject: {selectedSubject.title}
+                    </AppText>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Remove subject" onPress={() => setSelectedSubject(undefined)} hitSlop={8}>
+                      <AppText variant="meta" tone="primary" style={styles.subjectChipClear}>Remove</AppText>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Add a subject"
+                    onPress={() => setSubjectPickerOpen((open) => !open)}
+                    style={styles.subjectAddButton}
+                  >
+                    <AppText variant="meta" tone="primary" style={styles.subjectChipText}>+ Add subject</AppText>
+                  </Pressable>
+                )}
+                {subjectPickerOpen ? (
+                  <ScrollView style={styles.subjectPicker} keyboardShouldPersistTaps="handled">
+                    {subjectOptions?.map((option) => (
+                      <Pressable
+                        key={option.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Tag this message to ${option.title}`}
+                        onPress={() => { setSelectedSubject(option); setSubjectPickerOpen(false); }}
+                        style={styles.subjectPickerRow}
+                      >
+                        <AppText variant="secondary" numberOfLines={1}>{option.title}</AppText>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                ) : null}
+              </View>
+            ) : null}
+            <View style={styles.composeRow}>
+              <TextInput
+                ref={inputRef}
+                value={draft}
+                onChangeText={setDraft}
+                placeholder={composePlaceholder}
+                placeholderTextColor={colors.muted}
+                multiline
+                style={styles.composeInput}
+                accessibilityLabel="Write a message"
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Send message"
+                onPress={() => void handleSend()}
+                disabled={!draft.trim() || sending}
+                style={[styles.sendButton, (!draft.trim() || sending) && styles.sendButtonDisabled]}
+              >
+                {sending ? <ActivityIndicator color={colors.white} /> : <AppText variant="bodyStrong" tone="white">Send</AppText>}
+              </Pressable>
+            </View>
           </View>
         ) : undefined
       }
@@ -216,6 +286,11 @@ export function ChatThreadScreen({ careSpaceId, directPartnerMembershipId, direc
                   <AppText variant="meta" tone="soft" style={styles.senderLabel}>
                     {message.senderIsFormer ? `${message.senderDisplayName} (former member)` : message.senderDisplayName}
                   </AppText>
+                ) : null}
+                {message.subjectRecordId && message.subjectRecordTitle && !message.deletedAt ? (
+                  <View style={styles.messageSubjectChip}>
+                    <AppText variant="meta" tone="soft" numberOfLines={1}>Re: {message.subjectRecordTitle}</AppText>
+                  </View>
                 ) : null}
                 {isEditing ? (
                   <View style={styles.editWrap}>
@@ -290,6 +365,9 @@ const styles = StyleSheet.create({
   senderLabel: {
     paddingHorizontal: spacing.xs,
   },
+  messageSubjectChip: {
+    paddingHorizontal: spacing.xs,
+  },
   bubble: {
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
@@ -340,6 +418,48 @@ const styles = StyleSheet.create({
   },
   saveLabel: {
     fontWeight: '700',
+  },
+  subjectArea: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  subjectAddButton: {
+    alignSelf: 'flex-start',
+    minHeight: 28,
+    justifyContent: 'center',
+  },
+  subjectChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+  },
+  subjectChipText: {
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  subjectChipClear: {
+    fontWeight: '700',
+  },
+  subjectPicker: {
+    marginTop: spacing.xxs,
+    maxHeight: 160,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  subjectPickerRow: {
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
   },
   composeRow: {
     flexDirection: 'row',
