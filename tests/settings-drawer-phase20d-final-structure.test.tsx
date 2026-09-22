@@ -94,3 +94,66 @@ describe('Settings drawer: final Phase 20D person-scoped structure', () => {
     screen.getByLabelText('Contact');
   });
 });
+
+// Direct product-owner request (22 September 2026): the static,
+// non-interactive person-name header row is gone -- "Manage [Name]'s
+// care" is now the drawer's real way in, so it leads the "[Name]'s
+// care" group instead of sitting fourth behind a plain display row.
+// Key contacts moved out of that group entirely and into Care Circle,
+// to de-fragment the drawer (GP/pharmacy/etc. are "who's involved",
+// same as Care Circle, even though they never message anyone or gain
+// app access).
+describe('Settings drawer: 22 September 2026 tidy-up', () => {
+  it('no longer shows the static person-name header row above the group', async () => {
+    const screen = await render(<SettingsMenu {...baseProps} personName="Maggie" onOpenManageCare={jest.fn()} />);
+    expect(screen.queryByText('View and manage their care')).toBeNull();
+  });
+
+  it('"Manage [Name]\'s care" is the first row in the "[Name]\'s care" group, ahead of Care Summary/Documents/Medical Log', async () => {
+    const screen = await render(
+      <SettingsMenu
+        {...baseProps}
+        personName="Maggie"
+        onOpenManageCare={jest.fn()}
+        onOpenCareSummary={jest.fn()}
+        onOpenDocuments={jest.fn()}
+        onOpenMedicalLog={jest.fn()}
+      />,
+    );
+    const labels = screen.getAllByRole('button').map((node) => node.props.accessibilityLabel);
+    const manageIndex = labels.indexOf("Manage Maggie's care");
+    expect(manageIndex).toBeGreaterThanOrEqual(0);
+    expect(manageIndex).toBeLessThan(labels.indexOf('Care Summary'));
+    expect(manageIndex).toBeLessThan(labels.indexOf('Documents'));
+    expect(manageIndex).toBeLessThan(labels.indexOf('Medical Log'));
+  });
+
+  it('Key contacts lives in the Care Circle group, not "[Name]\'s care"', async () => {
+    const screen = await render(
+      <SettingsMenu
+        {...baseProps}
+        personName="Maggie"
+        onOpenManageCare={jest.fn()}
+        onOpenCareSummary={jest.fn()}
+        onOpenCareCircle={jest.fn()}
+        onOpenContacts={jest.fn()}
+      />,
+    );
+    const labels = screen.getAllByRole('button').map((node) => node.props.accessibilityLabel);
+    // After Care Circle (its own group), before Account's own group.
+    expect(labels.indexOf('Key contacts')).toBeGreaterThan(labels.indexOf('Care Circle'));
+    expect(labels.indexOf('Key contacts')).toBeLessThan(labels.indexOf('Account'));
+  });
+
+  it('Key contacts is omitted entirely when onOpenContacts is not supplied', async () => {
+    const screen = await render(<SettingsMenu {...baseProps} personName="Maggie" onOpenCareCircle={jest.fn()} />);
+    expect(screen.queryByLabelText('Key contacts')).toBeNull();
+  });
+
+  it('Key contacts calls its own real handler', async () => {
+    const onOpenContacts = jest.fn();
+    const screen = await render(<SettingsMenu {...baseProps} personName="Maggie" onOpenContacts={onOpenContacts} />);
+    await fireEvent.press(screen.getByLabelText('Key contacts'));
+    expect(onOpenContacts).toHaveBeenCalledTimes(1);
+  });
+});

@@ -188,6 +188,48 @@ describe('Phase 23 slice 2: "Message privately" wired from the Care circle membe
   });
 });
 
+// Direct product-owner request (22 September 2026): DMing a member no
+// longer needs the popup as a detour -- a direct "Chat" link sits right
+// beneath their avatar in the Care circle preview itself.
+describe('Phase 23 slice 2: direct "Chat" link beneath each Care circle avatar', () => {
+  const members: CareCircleMember[] = [
+    { membershipId: 'm-1', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
+    { membershipId: 'm-2', displayName: 'Sarah', role: 'contributor', relationshipType: 'Other relative', isSelf: false, grantedDomains: ['general'] },
+  ];
+
+  it('tapping "Chat" beneath a member\'s avatar calls onOpenDirectChat with that member directly, no popup detour', async () => {
+    const onOpenDirectChat = jest.fn();
+    const screen = await render(<PersonScreen {...baseProps} careCircleMembers={members} onOpenDirectChat={onOpenDirectChat} />);
+    await fireEvent.press(screen.getByLabelText('Chat with Sarah'));
+    expect(onOpenDirectChat).toHaveBeenCalledWith(members[1]);
+  });
+
+  it('is never shown for the "You" entry', async () => {
+    const screen = await render(<PersonScreen {...baseProps} careCircleMembers={members} onOpenDirectChat={jest.fn()} />);
+    expect(screen.queryByLabelText('Chat with You')).toBeNull();
+    expect(screen.queryByLabelText('Chat with David')).toBeNull();
+  });
+
+  it('is omitted entirely when onOpenDirectChat is not supplied (e.g. a local-only care space)', async () => {
+    const screen = await render(<PersonScreen {...baseProps} careCircleMembers={members} />);
+    expect(screen.queryByLabelText('Chat with Sarah')).toBeNull();
+  });
+
+  it('both the avatar-row "Chat" link and the popup\'s "Message privately" work independently and do not collide', async () => {
+    const onOpenDirectChat = jest.fn();
+    const screen = await render(<PersonScreen {...baseProps} careCircleMembers={members} onOpenDirectChat={onOpenDirectChat} />);
+    await fireEvent.press(screen.getByLabelText('View details for Sarah'));
+    await fireEvent.press(screen.getByLabelText('Message Sarah privately'));
+    // Pressing "Message privately" already closes the popup (see
+    // PersonScreen's own onMessagePrivately wiring), so the avatar-row
+    // link is immediately reachable again with no extra close step.
+    await fireEvent.press(screen.getByLabelText('Chat with Sarah'));
+    expect(onOpenDirectChat).toHaveBeenCalledTimes(2);
+    expect(onOpenDirectChat).toHaveBeenNthCalledWith(1, members[1]);
+    expect(onOpenDirectChat).toHaveBeenNthCalledWith(2, members[1]);
+  });
+});
+
 describe('Corrective task 10, section 4: Ask Lilica moved from Home to People', () => {
   it('People shows the Ask Lilica placeholder', async () => {
     const screen = await render(<PersonScreen {...baseProps} />);

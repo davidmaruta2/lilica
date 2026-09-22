@@ -189,6 +189,14 @@ export function SettingsMenu({
   if (!mounted) return null;
 
   const personCareEntries = [
+    // Direct product-owner request (22 September 2026): "Manage [name]'s
+    // care" replaces the old static, non-interactive person-name header
+    // row (removed below) as this list's first row -- it already led
+    // straight to Manage before via a plain "You" strip; now it IS the
+    // way in, so it goes first rather than fourth.
+    ...(onOpenManageCare
+      ? [{ key: 'manageCare', label: personName ? `Manage ${personName}'s care` : 'Manage their care', description: 'Archive, handoff and permanent removal', icon: HeartHandshakeIcon, onPress: onOpenManageCare }]
+      : []),
     ...(onOpenCareSummary
       ? [{ key: 'careSummary', label: 'Care Summary', description: 'A quick view of what matters right now', icon: ClipboardListIcon, onPress: onOpenCareSummary }]
       : []),
@@ -197,12 +205,6 @@ export function SettingsMenu({
       : []),
     ...(onOpenMedicalLog
       ? [{ key: 'medicalLog', label: 'Medical Log', description: 'Care needs, conditions and medicines', icon: PillIcon, onPress: onOpenMedicalLog }]
-      : []),
-    ...(onOpenManageCare
-      ? [{ key: 'manageCare', label: personName ? `Manage ${personName}'s care` : 'Manage their care', description: 'Archive, handoff and permanent removal', icon: HeartHandshakeIcon, onPress: onOpenManageCare }]
-      : []),
-    ...(onOpenContacts
-      ? [{ key: 'contacts', label: 'Key contacts', description: 'GP, pharmacy, and other useful contacts', icon: PhoneIcon, onPress: onOpenContacts }]
       : []),
   ];
 
@@ -217,6 +219,14 @@ export function SettingsMenu({
   const careCircleEntries = [
     ...(onOpenCareCircle
       ? [{ key: 'careCircle', label: 'Care Circle', description: 'Who can help, and what they can see', icon: UsersRoundIcon, onPress: onOpenCareCircle }]
+      : []),
+    // Direct product-owner request (22 September 2026): moved here from
+    // "[Name]'s care" -- the drawer was unnecessarily fragmented with Key
+    // contacts as its own small group elsewhere. It genuinely belongs
+    // beside Care Circle: both are "who's involved", even though Key
+    // contacts (GP, pharmacy) never message anyone or gain app access.
+    ...(onOpenContacts
+      ? [{ key: 'contacts', label: 'Key contacts', description: 'GP, pharmacy, and other useful contacts', icon: PhoneIcon, onPress: onOpenContacts }]
       : []),
     // Real gap reported directly (15 September 2026): the manual
     // invitation-code entry point (JoinCareCircleScreen) was only ever
@@ -271,15 +281,6 @@ export function SettingsMenu({
                     rows were added the menu needed to remain scrollable. */}
                 <ScrollView style={styles.listWrap} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.list}>
-                  {personName ? (
-                    <View style={styles.personRow}>
-                      <View style={styles.personAvatar}><AppText variant="bodyStrong" tone="primary">{personName.charAt(0).toUpperCase()}</AppText></View>
-                      <View style={styles.copy}>
-                        <AppText variant="bodyStrong">{personName}</AppText>
-                        <AppText variant="secondary" tone="soft">View and manage their care</AppText>
-                      </View>
-                    </View>
-                  ) : null}
                   {personCareEntries.length > 0 ? (
                     <View style={styles.group}>
                       <AppText variant="meta" tone="muted" style={styles.groupLabel}>
@@ -392,8 +393,6 @@ const styles = StyleSheet.create({
   // group heading. No new typography token, no new colour.
   group: { gap: spacing.xxs },
   groupLabel: { paddingHorizontal: spacing.xs, fontSize: 11, lineHeight: 15 },
-  personRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
-  personAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft },
   // The active screen renders full-bleed inside the drawer -- it supplies
   // its own scroll/safe-area handling (Screen/Header), same as when it
   // was a top-level screen, just hosted here instead.
