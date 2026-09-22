@@ -36,10 +36,12 @@ describe('Tab header titles', () => {
     screen.getByLabelText('Lilica');
   });
 
-  it('People leads with "People"', async () => {
+  // Phase 23: renamed from "People" to "Care Circle" -- the page now
+  // centres on Care Circle membership and Lilica Chat, not a broader
+  // "people involved in care" framing (Key contacts moved to Settings).
+  it('Care Circle leads with "Care Circle"', async () => {
     const screen = await render(
       <PersonScreen
-        records={[]}
         displayName="Maggie"
         relationshipLabel="Mum"
         isSelf={false}
@@ -47,12 +49,10 @@ describe('Tab header titles', () => {
         activeCareSpaceId="space-a"
         onSwitchPerson={jest.fn()}
         onAddPerson={jest.fn()}
-        onOpenRecord={jest.fn()}
-        onAddType={jest.fn()}
         onOpenSettings={jest.fn()}
       />,
     );
-    screen.getByText('People');
+    screen.getByText('Care Circle');
     screen.getByLabelText('Lilica');
   });
 });

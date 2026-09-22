@@ -9,8 +9,6 @@ import { CareCircleMember } from '../src/careCircle';
 import { HomeScreen } from '../src/screens/HomeScreen';
 import { PersonScreen } from '../src/screens/PersonScreen';
 import { initialOnboardingState } from '../src/storage';
-import { LilicaRecord } from '../src/types';
-import { colors } from '../src/theme';
 
 beforeEach(() => {
   mockResolveAvatarUrl.mockReset();
@@ -20,10 +18,17 @@ beforeEach(() => {
 // Corrective task 10: People used to repeat Home's own record-category
 // dashboard (bills, home matters, documents, care notes) under a
 // different heading, giving it no distinct purpose. It now centres on
-// four things Home/Calendar/To Do genuinely don't cover: the people
-// supported, key external contacts, the real care circle, and (unchanged,
-// still a placeholder) Ask Lilica. This supersedes the old Phase 13
-// five-section design that used to be tested here.
+// the things Home/Calendar/To Do genuinely don't cover: the people
+// supported, the real care circle, Lilica Chat (Phase 23), and
+// (unchanged, still a placeholder) Ask Lilica. This supersedes the old
+// Phase 13 five-section design that used to be tested here.
+//
+// Phase 23: Key contacts moved out of this page and into the Settings
+// drawer (see tests/phase23-settings-key-contacts.test.tsx for its new
+// coverage there) -- this page no longer accepts a `records` prop at all,
+// and every test here that used to assert Key contacts behaviour was
+// removed rather than adapted, since that behaviour no longer exists on
+// this screen.
 
 const baseProps = {
   displayName: 'Maggie',
@@ -33,72 +38,18 @@ const baseProps = {
   activeCareSpaceId: 'space-maggie',
   onSwitchPerson: jest.fn(),
   onAddPerson: jest.fn(),
-  onOpenRecord: jest.fn(),
-  onAddType: jest.fn(),
   onOpenSettings: jest.fn(),
 };
 
-const gpSurgery: LilicaRecord = { id: 'contact-1', type: 'contact', title: 'GP surgery', role: 'GP surgery', phone: '01234 000000', createdAt: '2026-09-01T00:00:00.000Z' };
-const pharmacy: LilicaRecord = { id: 'contact-2', type: 'contact', title: 'Pharmacy', phone: '01234 111111', createdAt: '2026-09-02T00:00:00.000Z' };
-const homeInsurance: LilicaRecord = { id: 'bill-1', type: 'bill', title: 'Home insurance', status: 'unresolved', dueDate: '2027-03-01', reference: 'Aviva', createdAt: '2026-09-03T00:00:00.000Z' };
-const boilerInfo: LilicaRecord = { id: 'home-1', type: 'homeMatter', title: 'Boiler', status: 'unresolved', provider: 'British Gas', createdAt: '2026-09-05T00:00:00.000Z' };
-const prescription: LilicaRecord = { id: 'care-1', type: 'careNote', title: 'Metformin', notes: 'Taken twice daily with food', createdAt: '2026-09-06T00:00:00.000Z' };
-const importantDoc: LilicaRecord = { id: 'doc-1', type: 'document', title: 'Power of attorney', attachments: [{ id: 'a1', kind: 'file', uri: 'file://a1', name: 'poa.pdf', createdAt: '2026-09-01T00:00:00.000Z' }], createdAt: '2026-09-07T00:00:00.000Z' };
-const dentistAppt: LilicaRecord = { id: 'appt-1', type: 'appointment', title: 'Dentist', status: 'scheduled', eventDate: '2026-09-20', createdAt: '2026-09-08T00:00:00.000Z' };
-const transportTask: LilicaRecord = { id: 'task-1', type: 'task', title: 'Arrange transport', status: 'unresolved', dueDate: '2026-09-12', createdAt: '2026-09-09T00:00:00.000Z' };
-const completedTask: LilicaRecord = { id: 'task-2', type: 'task', title: 'Completed historical task', status: 'completed', completed: true, completedAt: '2026-09-09T00:00:00.000Z', createdAt: '2026-09-01T00:00:00.000Z' };
-
-const fixedScenario = [gpSurgery, pharmacy, homeInsurance, boilerInfo, prescription, importantDoc, dentistAppt, transportTask, completedTask];
-
-describe('Corrective task 10: People centres on Key contacts, not a second Home dashboard', () => {
-  it('shows Key contacts, and nothing else that Home/Calendar/To Do already project', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={fixedScenario} />);
-
-    screen.getByText('Key contacts');
-    screen.getByText('GP surgery');
-    screen.getByText('Pharmacy');
-
-    // No bills/home/documents/care-note dashboard duplication.
-    expect(screen.queryByText('Bills & renewals')).toBeNull();
-    expect(screen.queryByText('Home insurance')).toBeNull();
-    expect(screen.queryByText('Home')).toBeNull();
-    expect(screen.queryByText('Boiler')).toBeNull();
-    expect(screen.queryByText('Documents & paperwork')).toBeNull();
-    expect(screen.queryByText('Power of attorney')).toBeNull();
-    expect(screen.queryByText('Care & health information')).toBeNull();
-    expect(screen.queryByText('Metformin')).toBeNull();
-
-    // Appointments/tasks/completed history stay Calendar/To Do's job.
-    expect(screen.queryByText('Dentist')).toBeNull();
-    expect(screen.queryByText('Arrange transport')).toBeNull();
-    expect(screen.queryByText('Completed historical task')).toBeNull();
-  });
-
-  it('never shows a generated summary or inferred medical/legal statement', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={fixedScenario} />);
-    expect(screen.queryByText(/diabetes|legal authority confirmed|generally healthy|finances are up to date|medication is stable/i)).toBeNull();
-  });
-});
-
-describe('Corrective task 10: Home no longer duplicates People, and this data stays canonical', () => {
-  it('Home does not render the removed sections either -- this is a projection change, not a deletion', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={[homeInsurance]} />);
-    // The bill record itself is not shown here at all -- it stays exactly
-    // where Home/Calendar/To Do already project it; nothing here asserts
-    // it was deleted (see records.characterization.test.ts for storage).
-    expect(screen.queryByText('Home insurance')).toBeNull();
-  });
-});
-
 describe('Corrective task 10, section 1: supported people', () => {
   it('shows the currently supported person, and switching is still the existing PersonSwitcher', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={[]} />);
+    const screen = await render(<PersonScreen {...baseProps} />);
     screen.getByText('Person being supported');
     screen.getByLabelText('Switch person, currently Maggie');
   });
 
   it('the switch affordance is only shown when there is more than one supported person', async () => {
-    const single = await render(<PersonScreen {...baseProps} records={[]} people={[]} />);
+    const single = await render(<PersonScreen {...baseProps} people={[]} />);
     // getByLabelText still resolves (it's the whole card's tap target),
     // but the chevron/switch cue itself is scoped to people.length > 1 --
     // covered structurally rather than by a brittle style assertion.
@@ -114,48 +65,15 @@ describe('Corrective task 10, section 1: supported people', () => {
   // neighbour". Removed from this card entirely, and from the
   // PersonSwitcher list for the same reason.
   it('never shows the relationship label on the supported-person card, however it was entered', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={[]} />);
+    const screen = await render(<PersonScreen {...baseProps} />);
     screen.getByText('Maggie');
     expect(screen.queryByText('Mum')).toBeNull();
   });
 });
 
-describe('Corrective task 10, section 2: Key contacts', () => {
-  it('contains the whole Key contacts section on its own stable nested background', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={[gpSurgery]} />);
-    expect(screen.getByTestId('key-contacts-card').props.style).toEqual(expect.objectContaining({
-      backgroundColor: colors.blueSoft,
-    }));
-  });
-
-  it('opening a Key contact calls back with the real underlying record ID', async () => {
-    const onOpenRecord = jest.fn();
-    const screen = await render(<PersonScreen {...baseProps} records={[gpSurgery]} onOpenRecord={onOpenRecord} />);
-    await fireEvent.press(screen.getByLabelText('Open GP surgery'));
-    expect(onOpenRecord).toHaveBeenCalledWith('contact-1');
-  });
-
-  it('"Add a contact" reuses the established creation architecture, not a separate form', async () => {
-    const onAddType = jest.fn();
-    const screen = await render(<PersonScreen {...baseProps} records={[gpSurgery]} onAddType={onAddType} />);
-    await fireEvent.press(screen.getByLabelText('Add a contact'));
-    expect(onAddType).toHaveBeenCalledWith('contact');
-  });
-
-  it('shows a calm inline empty state, not an error, when no key contacts are saved', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={[]} />);
-    screen.getByText(/No key contacts saved for Maggie yet/);
-  });
-
-  it('only ever shows what it is given -- nothing beyond the scoped records prop', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={[gpSurgery]} />);
-    expect(screen.queryByText('Pharmacy')).toBeNull();
-  });
-});
-
-describe('Corrective task 10, section 3: Care circle -- real memberships, never fabricated', () => {
+describe('Corrective task 10, section 2: Care circle -- real memberships, never fabricated', () => {
   it('shows a real "You"/"Organiser" preview when there are no real memberships yet (e.g. a local-only care space)', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={[]} />);
+    const screen = await render(<PersonScreen {...baseProps} careCircleMembers={[]} />);
     screen.getByText('Care circle');
     screen.getByText('You');
     screen.getByText('Organiser');
@@ -166,29 +84,16 @@ describe('Corrective task 10, section 3: Care circle -- real memberships, never 
       { membershipId: 'm-organiser', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
       { membershipId: 'm-sarah', displayName: 'Sarah', role: 'contributor', relationshipType: 'Other relative', relationshipLabel: 'Family member', isSelf: false, grantedDomains: ['general'] },
     ];
-    const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={members} />);
+    const screen = await render(<PersonScreen {...baseProps} careCircleMembers={members} />);
     screen.getByText('You');
     screen.getByText('Organiser');
     screen.getByText('Sarah');
     screen.getByText('Contributor');
   });
 
-  it('an external Key contact never appears as, or is conflated with, a care circle member', async () => {
-    const members: CareCircleMember[] = [
-      { membershipId: 'm-organiser', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
-    ];
-    const screen = await render(<PersonScreen {...baseProps} records={[gpSurgery]} careCircleMembers={members} />);
-    screen.getByText('GP surgery');
-    screen.getByText('You');
-    screen.getByText('Organiser');
-    // "GP surgery" is a Key contact row, not a care circle row -- it never
-    // gains a role suffix or membership treatment.
-    expect(screen.queryByText(/GP surgery - /)).toBeNull();
-  });
-
   it('"Manage" opens the existing Care Circle management screen, unchanged', async () => {
     const onOpenCareCircle = jest.fn();
-    const screen = await render(<PersonScreen {...baseProps} records={[]} onOpenCareCircle={onOpenCareCircle} />);
+    const screen = await render(<PersonScreen {...baseProps} onOpenCareCircle={onOpenCareCircle} />);
     await fireEvent.press(screen.getByLabelText('Manage Care Circle'));
     expect(onOpenCareCircle).toHaveBeenCalledTimes(1);
   });
@@ -196,29 +101,72 @@ describe('Corrective task 10, section 3: Care circle -- real memberships, never 
 
 describe('Phase 20B: Care summary and Recent activity entry points', () => {
   it('"Care summary" is not shown for a local-only care space, exactly like "Manage"', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={[]} />);
+    const screen = await render(<PersonScreen {...baseProps} />);
     expect(screen.queryByLabelText('View exportable care summary')).toBeNull();
     expect(screen.queryByLabelText('View recent activity')).toBeNull();
   });
 
   it('"Care summary" opens the new Care Summary screen', async () => {
     const onOpenCareSummary = jest.fn();
-    const screen = await render(<PersonScreen {...baseProps} records={[]} onOpenCareSummary={onOpenCareSummary} />);
+    const screen = await render(<PersonScreen {...baseProps} onOpenCareSummary={onOpenCareSummary} />);
     await fireEvent.press(screen.getByLabelText('View exportable care summary'));
     expect(onOpenCareSummary).toHaveBeenCalledTimes(1);
   });
 
   it('"Recent activity" opens the new Recent Activity screen', async () => {
     const onOpenRecentActivity = jest.fn();
-    const screen = await render(<PersonScreen {...baseProps} records={[]} onOpenRecentActivity={onOpenRecentActivity} />);
+    const screen = await render(<PersonScreen {...baseProps} onOpenRecentActivity={onOpenRecentActivity} />);
     await fireEvent.press(screen.getByLabelText('View recent activity'));
     expect(onOpenRecentActivity).toHaveBeenCalledTimes(1);
   });
 });
 
+// Phase 23 slice 1: Lilica Chat card, immediately beneath Care circle.
+// Omitted entirely (no onOpenChat) for a local-only care space, exactly
+// the same availability-guard pattern as Care summary/Manage above.
+describe('Phase 23 slice 1: Lilica Chat card', () => {
+  it('is not shown at all when onOpenChat is not supplied (local-only care space)', async () => {
+    const screen = await render(<PersonScreen {...baseProps} />);
+    expect(screen.queryByText('Lilica Chat')).toBeNull();
+  });
+
+  it('shows the empty state when there is no preview text yet', async () => {
+    const screen = await render(<PersonScreen {...baseProps} onOpenChat={jest.fn()} />);
+    screen.getByText('Lilica Chat');
+    screen.getByText('Message everyone in your Care Circle');
+  });
+
+  it('shows a real preview line and unread badge count when supplied', async () => {
+    const screen = await render(
+      <PersonScreen {...baseProps} onOpenChat={jest.fn()} chatUnreadCount={3} chatPreviewText="Sarah: Picking up the prescription" />,
+    );
+    screen.getByText('Sarah: Picking up the prescription');
+    screen.getByText('3');
+  });
+
+  it('shows "9+" rather than the real count once unread messages exceed 9', async () => {
+    const screen = await render(<PersonScreen {...baseProps} onOpenChat={jest.fn()} chatUnreadCount={14} />);
+    screen.getByText('9+');
+    expect(screen.queryByText('14')).toBeNull();
+  });
+
+  it('shows no badge at all when there are no unread messages', async () => {
+    const screen = await render(<PersonScreen {...baseProps} onOpenChat={jest.fn()} chatUnreadCount={0} />);
+    screen.getByLabelText('Lilica Chat');
+    expect(screen.queryByLabelText(/unread/)).toBeNull();
+  });
+
+  it('tapping the card opens the chat thread', async () => {
+    const onOpenChat = jest.fn();
+    const screen = await render(<PersonScreen {...baseProps} onOpenChat={onOpenChat} chatUnreadCount={2} />);
+    await fireEvent.press(screen.getByLabelText('Lilica Chat, 2 unread'));
+    expect(onOpenChat).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('Corrective task 10, section 4: Ask Lilica moved from Home to People', () => {
   it('People shows the Ask Lilica placeholder', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={[]} />);
+    const screen = await render(<PersonScreen {...baseProps} />);
     screen.getByText('Ask Lilica');
   });
 
@@ -232,7 +180,7 @@ describe('Corrective task 10, section 4: Ask Lilica moved from Home to People', 
 
 describe('Corrective task 10: self-care wording is explicit, never name-matched', () => {
   it('isSelf shows "You" regardless of the underlying display name', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={[]} isSelf displayName="David" />);
+    const screen = await render(<PersonScreen {...baseProps} isSelf displayName="David" />);
     // "You" also labels the always-present Care circle row, so assert via
     // getAllByText rather than a single unique match.
     expect(screen.getAllByText('You').length).toBeGreaterThan(0);
@@ -241,59 +189,19 @@ describe('Corrective task 10: self-care wording is explicit, never name-matched'
 });
 
 describe('Corrective task 10: care-space isolation', () => {
-  it('switching to a different care space shows only that space\'s key contacts and members', async () => {
-    const jackieContact: LilicaRecord = { id: 'jackie-contact-1', type: 'contact', title: "Jackie's dentist", createdAt: '2026-09-01T00:00:00.000Z' };
-    const screen = await render(<PersonScreen {...baseProps} records={[gpSurgery]} />);
-    screen.getByText('GP surgery');
-    await screen.rerender(<PersonScreen {...baseProps} displayName="Jackie" records={[jackieContact]} />);
-    expect(screen.queryByText('GP surgery')).toBeNull();
-    screen.getByText("Jackie's dentist");
-  });
-});
-
-describe('Corrective task 10: offline-safe (no network dependency)', () => {
-  it('renders already-cached records with no fetch/sync call of its own', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={[gpSurgery]} />);
-    screen.getByText('GP surgery');
-  });
-});
-
-// People-screen final implementation (Downloads\peopleimproved.png): the
-// overview is a bounded summary, never an unbounded growing directory.
-describe('People-screen final implementation: Key Contacts preview is bounded', () => {
-  const manyContacts: LilicaRecord[] = Array.from({ length: 12 }, (_, index) => ({
-    id: `contact-${index + 1}`,
-    type: 'contact',
-    title: `Contact ${index + 1}`,
-    createdAt: `2026-09-${String(index + 1).padStart(2, '0')}T00:00:00.000Z`,
-  }));
-
-  it('renders at most four contact cards even when far more exist', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={manyContacts} onViewAllContacts={jest.fn()} />);
-    expect(screen.getAllByRole('button').filter((node) => node.props.accessibilityLabel?.startsWith('Open Contact')).length).toBe(4);
-  });
-
-  it('shows "View all (N)" with the REAL total count once more than four contacts exist, replacing Add', async () => {
-    const onViewAllContacts = jest.fn();
-    const screen = await render(<PersonScreen {...baseProps} records={manyContacts} onViewAllContacts={onViewAllContacts} />);
-    screen.getByText('View all (12)');
-    expect(screen.queryByLabelText('Add a contact')).toBeNull();
-    await fireEvent.press(screen.getByLabelText('View all contacts (12)'));
-    expect(onViewAllContacts).toHaveBeenCalledTimes(1);
-  });
-
-  it('shows every contact (no "View all") and keeps Add when four or fewer exist', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={[gpSurgery, pharmacy]} onViewAllContacts={jest.fn()} />);
-    screen.getByText('GP surgery');
-    screen.getByText('Pharmacy');
-    expect(screen.queryByText(/View all/)).toBeNull();
-    screen.getByLabelText('Add a contact');
-  });
-
-  it('0 contacts renders the honest empty state, not an error, and keeps Add', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={[]} onViewAllContacts={jest.fn()} />);
-    screen.getByText(/No key contacts saved/);
-    screen.getByLabelText('Add a contact');
+  it('switching to a different care space shows only that space\'s real care circle members', async () => {
+    const maggieMembers: CareCircleMember[] = [
+      { membershipId: 'm-1', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
+      { membershipId: 'm-2', displayName: 'Sarah', role: 'contributor', relationshipType: 'Other relative', isSelf: false, grantedDomains: ['general'] },
+    ];
+    const jackieMembers: CareCircleMember[] = [
+      { membershipId: 'm-3', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
+    ];
+    const screen = await render(<PersonScreen {...baseProps} careCircleMembers={maggieMembers} />);
+    screen.getByText('Sarah');
+    await screen.rerender(<PersonScreen {...baseProps} displayName="Jackie" careCircleMembers={jackieMembers} />);
+    expect(screen.queryByText('Sarah')).toBeNull();
+    screen.getByText('Jackie');
   });
 });
 
@@ -308,7 +216,7 @@ describe('People-screen final implementation: Care Circle preview is bounded', (
   }));
 
   it('shows at most three named members plus a real "+N More" tile', async () => {
-    const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={eightMembers} />);
+    const screen = await render(<PersonScreen {...baseProps} careCircleMembers={eightMembers} />);
     screen.getByText('You');
     screen.getByText('Member 2');
     screen.getByText('Member 3');
@@ -322,7 +230,7 @@ describe('People-screen final implementation: Care Circle preview is bounded', (
       { membershipId: 'm-1', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
       { membershipId: 'm-2', displayName: 'Sarah', role: 'viewer', relationshipType: 'Other relative', isSelf: false, grantedDomains: ['general'] },
     ];
-    const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={twoMembers} />);
+    const screen = await render(<PersonScreen {...baseProps} careCircleMembers={twoMembers} />);
     screen.getByText('You');
     screen.getByText('Sarah');
     expect(screen.queryByText(/More/)).toBeNull();
@@ -330,7 +238,7 @@ describe('People-screen final implementation: Care Circle preview is bounded', (
 
   it('offers exactly ONE management action ("Manage"), never a separate Invite action', async () => {
     const onOpenCareCircle = jest.fn();
-    const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={eightMembers} onOpenCareCircle={onOpenCareCircle} />);
+    const screen = await render(<PersonScreen {...baseProps} careCircleMembers={eightMembers} onOpenCareCircle={onOpenCareCircle} />);
     screen.getByText('Manage');
     expect(screen.queryByText(/Invite/)).toBeNull();
     await fireEvent.press(screen.getByLabelText('Manage Care Circle'));
@@ -342,7 +250,7 @@ describe('People-screen final implementation: Care Circle preview is bounded', (
       { membershipId: 'm-1', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
       { membershipId: 'm-2', displayName: 'Sarah', role: 'viewer', relationshipType: 'Other relative', relationshipLabel: 'Aunt', isSelf: false, grantedDomains: ['general', 'health'] },
     ];
-    const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={members} />);
+    const screen = await render(<PersonScreen {...baseProps} careCircleMembers={members} />);
     await fireEvent.press(screen.getByLabelText('View details for Sarah'));
     expect(screen.queryByText('Aunt')).toBeNull();
     expect(screen.getAllByText('Viewer').length).toBeGreaterThan(0);
@@ -360,7 +268,7 @@ describe('People-screen final implementation: Care Circle preview is bounded', (
       { membershipId: 'm-1', displayName: 'David', role: 'organiser', relationshipType: 'Myself', isSelf: true, grantedDomains: ['general'] },
       { membershipId: 'm-2', displayName: 'Sarah', role: 'viewer', relationshipType: 'Other relative', isSelf: false, grantedDomains: ['general'] },
     ];
-    const screen = await render(<PersonScreen {...baseProps} records={[]} careCircleMembers={members} selfAvatarPath="user-1/avatar.jpg" />);
+    const screen = await render(<PersonScreen {...baseProps} careCircleMembers={members} selfAvatarPath="user-1/avatar.jpg" />);
     expect(mockResolveAvatarUrl).toHaveBeenCalledWith('user-1/avatar.jpg');
     await waitFor(() => screen.getByLabelText('View details for You'));
     // "You"'s initial letter is replaced by the real photo -- "S" for

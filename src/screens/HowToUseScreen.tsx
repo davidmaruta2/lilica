@@ -24,20 +24,20 @@ const STEPS: Step[] = [
     body: 'Actionable work, grouped into Overdue, Today and Upcoming. Filter by Mine, Unassigned or All to see who a task belongs to.',
   },
   {
-    title: 'People',
-    body: "The person you support, their Key Contacts, and their Care Circle -- everyone who can help. Switch between the people you support from the card at the top, or add another person here.",
+    title: 'Care Circle',
+    body: "The person you support, and everyone in their Care Circle. Message everyone in Lilica Chat, right beneath it. Switch between the people you support from the card at the top, or add another person here. Key Contacts (GP, pharmacy and similar) have moved into Settings.",
   },
   {
-    title: 'Care Circle',
-    body: "Invite family, friends or professional carers to help with a specific person's care. Each person gets a role -- organiser, contributor or viewer -- that controls what they can see and change.",
+    title: 'Inviting your Care Circle',
+    body: "From Settings, invite family, friends or professional carers to help with a specific person's care. Each person gets a role -- organiser, contributor or viewer -- that controls what they can see and change.",
   },
   {
     title: 'Settings',
-    body: "Tap the bell on any main tab for reminders, overdue items and recent Care Circle activity. Tap the cog for Care Summary, Account, Care Circle, Privacy & data, Subscription, and this FAQ.",
+    body: "Tap the bell on any main tab for reminders, overdue items and recent Care Circle activity. Tap the cog for Care Summary, Key Contacts, Account, Care Circle, Privacy & data, Subscription, and this FAQ.",
   },
   {
     title: 'Recording something',
-    body: 'Add an appointment, task, bill, home or car matter, document, or care note from Home or People. Assign it to someone in the Care Circle, attach a document, and turn on a reminder if you want one.',
+    body: 'Add an appointment, task, bill, home or car matter, document, or care note from Home or Care Circle. Assign it to someone in the Care Circle, attach a document, and turn on a reminder if you want one.',
   },
   {
     title: 'Staying up to date',

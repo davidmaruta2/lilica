@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { MemberDetailPopup } from '../components/MemberDetailPopup';
@@ -9,23 +9,31 @@ import { ScreenBackdrop } from '../components/ScreenBackdrop';
 import { AppText } from '../components/Text';
 import { CareCircleMember, CareCircleRole } from '../careCircle';
 import { resolveAvatarUrl } from '../profileAvatar';
-import { CategoryIcon, visualFor } from './HomeScreen';
 import { colors, radius, spacing, tabAccent } from '../theme';
-import { LilicaRecord, LilicaRecordType, LocalCareSpaceState } from '../types';
+import { LocalCareSpaceState } from '../types';
 
 // Corrective task 10: People used to repeat Home's own record-category
 // dashboard (bills, home matters, documents, care notes) under a
 // different heading -- the exact same data Home's "Recently added"
 // already shows, giving this tab no distinct purpose. People now centres
-// on the four things Home/Calendar/To Do genuinely don't cover: who is
-// being cared for, the external people/services useful to have on hand,
-// who actually has Lilica access, and (unchanged, still a placeholder)
-// the future assistance entry point. Bills/home/documents/care-note
-// records are untouched in storage and still appear correctly in Home,
-// Calendar and To Do -- nothing here deletes or hides them from those
-// screens, they simply aren't duplicated a second time on this one.
+// on the things Home/Calendar/To Do genuinely don't cover: who is being
+// cared for, who actually has Lilica access, talking to them (Lilica
+// Chat), and (unchanged, still a placeholder) the future assistance entry
+// point. Bills/home/documents/care-note records are untouched in storage
+// and still appear correctly in Home, Calendar and To Do -- nothing here
+// deletes or hides them from those screens, they simply aren't duplicated
+// a second time on this one.
+//
+// Phase 23: Key contacts (GP, pharmacy, a neighbour -- external people/
+// services with no Lilica account, never part of a conversation) moved
+// OUT of this page and into the Settings drawer, alongside Care Summary/
+// Documents/Medical Log (see SettingsMenu.tsx's personCareEntries) -- it
+// never messages anyone, so keeping it here next to Care circle/Lilica
+// Chat blurred a real distinction. This tab was also renamed from
+// "People" to "Care Circle" in the same change (TabBar.tsx) -- Care
+// circle moved up to the second section (immediately after the supported
+// person), and Lilica Chat is new, directly beneath it.
 type Props = {
-  records: LilicaRecord[];
   displayName?: string;
   relationshipLabel?: string;
   isSelf: boolean;
@@ -33,8 +41,6 @@ type Props = {
   activeCareSpaceId?: string;
   onSwitchPerson: (careSpaceId: string) => void;
   onAddPerson: () => void;
-  onOpenRecord: (recordId: string) => void;
-  onAddType: (type: LilicaRecordType) => void;
   // Corrective task 4: opens the shared Settings sheet -- People no longer
   // has its own direct "Account" link; Account is one of the Settings
   // sheet's own entries now (see src/components/SettingsMenu.tsx).
@@ -55,10 +61,6 @@ type Props = {
   // or a relationship label; empty for a local-only care space, which
   // shows the honest "just you" state below rather than a fake member.
   careCircleMembers?: CareCircleMember[];
-  // Final People-screen mock (Downloads\peopleimproved.png): the overview
-  // shows at most four Key Contacts; "View all (N)" opens the complete
-  // list (src/screens/ContactsListScreen.tsx) via this callback.
-  onViewAllContacts?: () => void;
   // Profile picture: the signed-in organiser's own avatar path
   // (auth.profile?.avatarPath) -- shown for their own ("You") tile in
   // the Care circle preview and detail popup only. Care Circle member
@@ -71,9 +73,17 @@ type Props = {
   // on until the space is genuinely synced. See docs/PHASE_20_ARCHITECTURE.md.
   onOpenCareSummary?: () => void;
   onOpenRecentActivity?: () => void;
+  // Phase 23 slice 1: same availability guard as Care circle/Care
+  // Summary above -- omitted for a local-only care space, since there is
+  // no one else to message yet.
+  onOpenChat?: () => void;
+  chatUnreadCount?: number;
+  // A short, already-formatted preview line (src/chat.ts's
+  // previewChatMessage) -- undefined shows the empty state, never a
+  // fabricated placeholder message.
+  chatPreviewText?: string;
 };
 
-const CONTACT_PREVIEW_LIMIT = 4;
 const CARE_CIRCLE_PREVIEW_LIMIT = 3;
 const EMPTY_CARE_CIRCLE_MEMBERS: CareCircleMember[] = [];
 // Cycles through existing palette tones only -- no new colour introduced
@@ -85,18 +95,6 @@ const MEMBER_AVATAR_TONES = [
   { chip: colors.blueSoft, text: colors.blue },
 ];
 
-function contactDetail(record: LilicaRecord): string | undefined {
-  return [record.role, record.phone, record.email].filter(Boolean).join(' · ') || undefined;
-}
-
-// Empty-string fallback: a legacy-imported record can genuinely have
-// neither date set at runtime despite LilicaRecord's type declaring
-// createdAt required -- see MedicalLogScreen.tsx's recentFirst for the
-// real crash this pattern caused, 21 September 2026.
-function recentFirst(a: LilicaRecord, b: LilicaRecord) {
-  return (b.updatedAt ?? b.createdAt ?? '').localeCompare(a.updatedAt ?? a.createdAt ?? '');
-}
-
 function roleLabel(role: CareCircleRole) {
   if (role === 'organiser') return 'Organiser';
   if (role === 'contributor') return 'Contributor';
@@ -104,7 +102,6 @@ function roleLabel(role: CareCircleRole) {
 }
 
 export function PersonScreen({
-  records,
   displayName,
   relationshipLabel,
   isSelf,
@@ -112,8 +109,6 @@ export function PersonScreen({
   activeCareSpaceId,
   onSwitchPerson,
   onAddPerson,
-  onOpenRecord,
-  onAddType,
   onOpenSettings,
   notificationCount = 0,
   onOpenNotifications,
@@ -121,10 +116,12 @@ export function PersonScreen({
   pendingInvitationCount = 0,
   onOpenInvitations,
   careCircleMembers = EMPTY_CARE_CIRCLE_MEMBERS,
-  onViewAllContacts,
   selfAvatarPath,
   onOpenCareSummary,
   onOpenRecentActivity,
+  onOpenChat,
+  chatUnreadCount = 0,
+  chatPreviewText,
 }: Props) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [openMember, setOpenMember] = useState<{ member: CareCircleMember; tone: { chip: string; text: string } }>();
@@ -164,22 +161,6 @@ export function PersonScreen({
     return () => { active = false; };
   }, [careCircleMembers]);
 
-  // Key contacts (section 2): external people/services with no Lilica
-  // account of their own -- still exactly the established `contact`
-  // record type/creation architecture, never a new store.
-  const contacts = useMemo(
-    () => records
-      .filter((record) => record.type === 'contact' && record.status !== 'cancelled')
-      .sort(recentFirst),
-    [records],
-  );
-  // Final mock: the overview is a bounded preview, never the whole
-  // directory -- at most four, in the same order the list already uses
-  // (its own existing "most recently added/updated first" ordering,
-  // simplest deterministic choice available -- no new ranking system).
-  const contactsPreview = contacts.slice(0, CONTACT_PREVIEW_LIMIT);
-  const hasMoreContacts = contacts.length > CONTACT_PREVIEW_LIMIT;
-
   const namedMembers = careCircleMembers.length > 0
     ? careCircleMembers
     : [{ membershipId: 'self', displayName: 'You', role: 'organiser' as CareCircleRole, relationshipType: 'Myself' as const, relationshipLabel: undefined, isSelf: true, grantedDomains: [] }];
@@ -205,9 +186,9 @@ export function PersonScreen({
           ScreenBackdrop) -- title, wordmark and the Invitations link
           switch to light-on-dark. */}
       <PrimaryTabHeader
-        title="People"
+        title="Care Circle"
         tone="light"
-        supporting="The people you support, and those who help."
+        supporting="The people who help, and how you talk to each other."
         notificationCount={notificationCount}
         onOpenNotifications={onOpenNotifications}
         actions={onOpenInvitations && pendingInvitationCount > 0 ? (
@@ -255,59 +236,7 @@ export function PersonScreen({
         ) : null}
       </View>
 
-      {/* Section 2: KEY CONTACTS -- useful external people/services (GP,
-          pharmacy, a neighbour), kept strictly distinct from the
-          authenticated Care circle members below. Final mock: an
-          overview, never the whole directory -- at most four preview
-          cards, with "View all (N)" replacing the plain "Add" link once
-          there are more than that to see (Add is still reachable there). */}
-      <View testID="key-contacts-card" style={styles.keyContactsCard}>
-        <View style={styles.sectionHeader}>
-          <AppText variant="section">Key contacts</AppText>
-          {hasMoreContacts && onViewAllContacts ? (
-            <Pressable accessibilityRole="button" accessibilityLabel={`View all contacts (${contacts.length})`} onPress={onViewAllContacts} hitSlop={8} style={styles.viewAllLink}>
-              <AppText variant="secondary" tone="primary" style={styles.nestedActionLabel}>View all ({contacts.length})</AppText>
-              <View style={styles.manageChevron} />
-            </Pressable>
-          ) : (
-            <Pressable accessibilityRole="button" accessibilityLabel="Add a contact" onPress={() => onAddType('contact')} hitSlop={8}>
-              <AppText variant="secondary" tone="primary" style={styles.nestedActionLabel}>Add</AppText>
-            </Pressable>
-          )}
-        </View>
-        {contactsPreview.length > 0 ? (
-          <View style={styles.sectionList}>
-            {contactsPreview.map((record) => {
-              const visual = visualFor(record.type);
-              const detail = contactDetail(record);
-              return (
-                <Pressable
-                  key={record.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Open ${record.title}`}
-                  onPress={() => onOpenRecord(record.id)}
-                  style={styles.row}
-                >
-                  <View style={[styles.iconChip, { backgroundColor: visual.tint }]}>
-                    <CategoryIcon type={record.type} color={visual.accent} />
-                  </View>
-                  <View style={styles.rowCopy}>
-                    <AppText variant="bodyStrong" style={styles.tileTitle} numberOfLines={2}>{record.title}</AppText>
-                    {detail ? <AppText variant="secondary" tone="soft" style={styles.tileDetail} numberOfLines={2}>{detail}</AppText> : null}
-                  </View>
-                  <View style={styles.chevron} />
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : (
-          <AppText variant="secondary" tone="soft">
-            No key contacts saved for {isSelf ? 'you' : name} yet - GP, pharmacy, a neighbour or anyone else useful to have on hand.
-          </AppText>
-        )}
-      </View>
-
-      {/* Section 3: CARE CIRCLE -- authenticated Lilica members who
+      {/* Section 2: CARE CIRCLE -- authenticated Lilica members who
           actually have access, never conflated with the external
           contacts above. Reads the same real membership list Settings'
           own Care Circle screen already reads (see App.tsx); an empty
@@ -385,6 +314,42 @@ export function PersonScreen({
         ) : null}
       </View>
 
+      {/* Section 3: LILICA CHAT -- Phase 23 slice 1. Immediately beneath
+          Care circle, matching its own visual weight (a stable, opaque
+          card, never a fourth "section" competing with it). Omitted
+          entirely for a local-only care space, same availability guard as
+          Care circle/Care Summary above -- there is no one else to
+          message yet. Shows a short, real, already-formatted preview of
+          the most recent message (chatPreviewText, computed in App.tsx via
+          src/chat.ts's previewChatMessage) or the honest empty state, and
+          an unread badge when chatUnreadCount is greater than 0. */}
+      {onOpenChat ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={chatUnreadCount > 0 ? `Lilica Chat, ${chatUnreadCount} unread` : 'Lilica Chat'}
+          onPress={onOpenChat}
+          style={styles.chatCard}
+        >
+          <View style={styles.chatIconWrap}>
+            <View style={styles.chatIcon} />
+            {chatUnreadCount > 0 ? (
+              <View style={styles.chatBadge}>
+                <AppText variant="meta" tone="white" style={styles.chatBadgeLabel}>
+                  {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
+                </AppText>
+              </View>
+            ) : null}
+          </View>
+          <View style={styles.chatCopy}>
+            <AppText variant="section">Lilica Chat</AppText>
+            <AppText variant="secondary" tone="soft" numberOfLines={1}>
+              {chatPreviewText ?? 'Message everyone in your Care Circle'}
+            </AppText>
+          </View>
+          <View style={styles.chevron} />
+        </Pressable>
+      ) : null}
+
       {/* Section 4: ASK LILICA -- re-homed from Home exactly as it already
           existed. No AI functionality is implemented here; this stays
           the same non-interactive placeholder for a future phase. */}
@@ -441,11 +406,6 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '700',
   },
-  viewAllLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxs,
-  },
   viewAllChevron: {
     width: 8,
     height: 8,
@@ -454,29 +414,9 @@ const styles = StyleSheet.create({
     borderColor: colors.white,
     transform: [{ rotate: '45deg' }],
   },
-  onDarkSoft: {
-    color: 'rgba(255,255,255,0.8)',
-  },
   section: {
     gap: spacing.sm,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  keyContactsCard: {
-    backgroundColor: colors.blueSoft,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.md,
-  },
-  nestedActionLabel: { fontWeight: '700' },
   personCard: {
     backgroundColor: colors.white,
     borderRadius: radius.md,
@@ -527,45 +467,6 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     transform: [{ rotate: '-45deg' }],
   },
-  // Visual pass: pure white (not colors.surface), matching the same
-  // "white cards on a coloured backdrop" treatment used across
-  // Home/Calendar/To Do too.
-  row: {
-    width: '48%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  iconChip: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowCopy: {
-    flex: 1,
-    gap: 1,
-  },
-  // Compact, neat card typography for the Key contacts/Care circle tiles --
-  // deliberately smaller than the shared bodyStrong/secondary variants,
-  // which read oversized once packed into a half-width tile. The person
-  // switcher card above (personCard/personCopy, using the "title" variant)
-  // is intentionally left alone -- this only affects these tiles.
-  tileTitle: {
-    fontSize: 13,
-    lineHeight: 17,
-  },
-  tileDetail: {
-    fontSize: 11.5,
-    lineHeight: 15,
-  },
   chevron: {
     width: 10,
     height: 10,
@@ -577,8 +478,7 @@ const styles = StyleSheet.create({
   // Final mock: Care circle is its own stable, opaque surface -- a solid
   // fill (never transparent, never a gradient), so it reads exactly the
   // same regardless of where it lands on the page's own fading backdrop
-  // behind it. tealSoft is already this screen's own Key Contacts icon
-  // colour, reused rather than inventing a new tone.
+  // behind it.
   careCircleCard: {
     backgroundColor: colors.tealSoft,
     borderRadius: radius.lg,
@@ -647,6 +547,49 @@ const styles = StyleSheet.create({
   },
   memberRole: {
     fontSize: 11.5,
+  },
+  // Phase 23 slice 1: same opaque-card, "white surface on a coloured
+  // backdrop" treatment as careCircleCard immediately above it, so the two
+  // read as one visual family (Care circle, then Lilica Chat beneath).
+  chatCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  chatIconWrap: {
+    position: 'relative',
+  },
+  chatIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.tealSoft,
+  },
+  chatBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 3,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  chatBadgeLabel: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '700',
+  },
+  chatCopy: {
+    flex: 1,
+    gap: 2,
   },
   ask: {
     backgroundColor: colors.primarySoft,

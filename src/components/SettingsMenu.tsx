@@ -6,7 +6,7 @@ const ZERO_INSETS = { top: 0, bottom: 0, left: 0, right: 0 };
 
 import { colors, radius, shadow, spacing } from '../theme';
 import { FoundationIcon, FoundationIconComponent } from './FoundationIcon';
-import { ArchiveIcon, BookOpenIcon, CircleHelpIcon, ClipboardListIcon, CreditCardIcon, FileTextIcon, ForwardIcon, HeartHandshakeIcon, LightbulbIcon, LockIcon, MailIcon, PillIcon, UserIcon, UsersRoundIcon, XIcon } from './foundationIcons';
+import { ArchiveIcon, BookOpenIcon, CircleHelpIcon, ClipboardListIcon, CreditCardIcon, FileTextIcon, ForwardIcon, HeartHandshakeIcon, LightbulbIcon, LockIcon, MailIcon, PhoneIcon, PillIcon, UserIcon, UsersRoundIcon, XIcon } from './foundationIcons';
 import { SecondaryIconCircle } from './SecondaryPage';
 import { SecondaryPageCloseProvider } from './Header';
 import { AppText } from './Text';
@@ -28,6 +28,10 @@ import { Wordmark } from './Wordmark';
 //     reference content, always offered regardless of sync state, same
 //     as Account. No About row: not yet a genuinely implemented
 //     destination.
+//   - Key contacts (Phase 23): the existing ContactsListScreen, moved
+//     here from the Care Circle page now that page centres on Care
+//     Circle membership and Lilica Chat -- GP/pharmacy/etc. never
+//     message anyone, so they no longer sit beside a chat feature.
 //
 // Revised from an anchored dropdown card (which itself replaced an even
 // earlier full-width bottom sheet) after direct product feedback: opening
@@ -62,6 +66,7 @@ export function SettingsMenu({
   onOpenDocuments,
   onOpenMedicalLog,
   onOpenManageCare,
+  onOpenContacts,
   onOpenAccount,
   onOpenCareCircle,
   onOpenJoinCareCircle,
@@ -100,6 +105,16 @@ export function SettingsMenu({
   // same care-space availability guard as Care Summary/Documents.
   onOpenMedicalLog?: () => void;
   onOpenManageCare?: () => void;
+  // Phase 23: Key contacts (GP, pharmacy, a neighbour) moved here from
+  // the Care Circle page -- person-scoped like Care Summary/Documents/
+  // Medical Log above, since it's about this supported person's own
+  // useful contacts, not about Care Circle sharing/access or the signed-
+  // in user's account. Unlike Documents/Medical Log, App.tsx always
+  // supplies this regardless of careCircleAvailable -- contacts are a
+  // plain local `contact` record with no sync dependency, and the Care
+  // Circle page itself always offered this for a local-only space before
+  // this move, so that stays true here too.
+  onOpenContacts?: () => void;
   onOpenAccount: () => void;
   onOpenCareCircle?: () => void;
   // Optional only so existing tests that render this component in
@@ -185,6 +200,9 @@ export function SettingsMenu({
       : []),
     ...(onOpenManageCare
       ? [{ key: 'manageCare', label: personName ? `Manage ${personName}'s care` : 'Manage their care', description: 'Archive, handoff and permanent removal', icon: HeartHandshakeIcon, onPress: onOpenManageCare }]
+      : []),
+    ...(onOpenContacts
+      ? [{ key: 'contacts', label: 'Key contacts', description: 'GP, pharmacy, and other useful contacts', icon: PhoneIcon, onPress: onOpenContacts }]
       : []),
   ];
 

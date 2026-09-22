@@ -87,8 +87,8 @@ describe('HowToUseScreen', () => {
     screen.getByText('Home');
     screen.getByText('Calendar');
     screen.getByText('To Do');
-    screen.getByText('People');
     screen.getByText('Care Circle');
+    screen.getByText('Inviting your Care Circle');
     screen.getByText('Settings');
   });
 

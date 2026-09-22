@@ -168,7 +168,6 @@ describe('Settings cog on the four primary tabs', () => {
     const onOpenSettings = jest.fn();
     const screen = await render(
       <PersonScreen
-        records={[]}
         displayName="Maggie"
         relationshipLabel="Mum"
         isSelf={false}
@@ -176,8 +175,6 @@ describe('Settings cog on the four primary tabs', () => {
         activeCareSpaceId="space-a"
         onSwitchPerson={jest.fn()}
         onAddPerson={jest.fn()}
-        onOpenRecord={jest.fn()}
-        onAddType={jest.fn()}
         onOpenSettings={onOpenSettings}
       />,
     );
@@ -190,7 +187,6 @@ describe('Settings cog on the four primary tabs', () => {
     const onOpenCareCircle = jest.fn();
     const screen = await render(
       <PersonScreen
-        records={[]}
         displayName="Maggie"
         relationshipLabel="Mum"
         isSelf={false}
@@ -198,8 +194,6 @@ describe('Settings cog on the four primary tabs', () => {
         activeCareSpaceId="space-a"
         onSwitchPerson={jest.fn()}
         onAddPerson={jest.fn()}
-        onOpenRecord={jest.fn()}
-        onAddType={jest.fn()}
         onOpenSettings={jest.fn()}
         onOpenCareCircle={onOpenCareCircle}
       />,

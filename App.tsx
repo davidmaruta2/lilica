@@ -48,6 +48,7 @@ import { RecoveryEmailSentScreen, RecoveryPasswordScreen, RecoveryRequestScreen 
 import { RecoveryCodeScreen, VerificationScreen } from './src/screens/VerificationScreen';
 import { PersonScreen } from './src/screens/PersonScreen';
 import { ContactsListScreen } from './src/screens/ContactsListScreen';
+import { ChatThreadScreen } from './src/screens/ChatThreadScreen';
 import { CareCircleScreen } from './src/screens/CareCircleScreen';
 import { ToDoScreen } from './src/screens/ToDoScreen';
 import { WellbeingUpdatesScreen } from './src/screens/WellbeingUpdatesScreen';
@@ -105,6 +106,7 @@ import {
 import { InvitationsScreen } from './src/screens/InvitationsScreen';
 import { useInvitationDeepLink } from './src/invitationDeepLink';
 import { ActivityEvent, listRecentActivity } from './src/activity';
+import { ChatMessage, getChatUnreadCount, getOrCreateCareCircleThread, listChatMessages, previewChatMessage } from './src/chat';
 import {
   buildNotificationCentreItems,
   loadNotificationLastViewedAt,
@@ -364,6 +366,16 @@ function LilicaApp() {
   const [notificationReadStateLoaded, setNotificationReadStateLoaded] = useState(false);
   const [notificationUnreadIds, setNotificationUnreadIds] = useState<Set<string>>(new Set());
   const [showCareSummary, setShowCareSummary] = useState(false);
+  // Phase 23 slice 1: Lilica Chat's own app-level-overlay pattern, exactly
+  // like showCareSummary/showRecentActivity above. chatUnreadCount and
+  // chatPreviewMessage feed the Care Circle tab badge and the Care Circle
+  // page's Chat card -- refetched below whenever the active care space
+  // changes or the chat screen is opened/closed (onMessagesChanged also
+  // refetches immediately after sending/editing/deleting a message).
+  const [showChat, setShowChat] = useState(false);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [chatPreviewMessage, setChatPreviewMessage] = useState<ChatMessage>();
+  const [chatRefreshToken, setChatRefreshToken] = useState(0);
   // Phase 20B: Search is keyed by the active care space id in renderShell
   // below, so switching supported person while it's open always remounts
   // it fresh rather than risk showing a stale query/result set (brief
@@ -720,6 +732,34 @@ function LilicaApp() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSpace?.careSpaceId, showRecentActivity, showCareSummary, showNotificationCentre]);
+
+  // Phase 23 slice 1: unread Lilica Chat count (Care Circle tab badge +
+  // Chat card badge) and a short preview of the most recent message
+  // (Chat card). Reloaded on the same triggers as Recent Activity above,
+  // plus chatRefreshToken -- bumped by ChatThreadScreen's onMessagesChanged
+  // so the badge/preview update immediately after sending, editing or
+  // deleting a message, not only the next time the space changes.
+  useEffect(() => {
+    if (!currentSpace || currentSpace.careSpaceId.startsWith('local-')) {
+      setChatUnreadCount(0);
+      setChatPreviewMessage(undefined);
+      return;
+    }
+    let cancelled = false;
+    getChatUnreadCount(currentSpace.careSpaceId).then((result) => {
+      if (!cancelled && result.ok) setChatUnreadCount(result.data);
+    });
+    getOrCreateCareCircleThread(currentSpace.careSpaceId).then((threadResult) => {
+      if (cancelled || !threadResult.ok) return;
+      listChatMessages(threadResult.data).then((messagesResult) => {
+        if (!cancelled && messagesResult.ok) {
+          setChatPreviewMessage(messagesResult.data.messages[messagesResult.data.messages.length - 1]);
+        }
+      });
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSpace?.careSpaceId, showChat, chatRefreshToken]);
 
   // Phase 15: surface the invitations screen automatically the first time
   // this session finds any pending invitation -- but only once, so a user
@@ -1725,6 +1765,14 @@ function LilicaApp() {
           onOpenRecord={openRecordFromProjection}
         />
       );
+    } else if (showChat) {
+      content = (
+        <ChatThreadScreen
+          careSpaceId={currentSpace && !currentSpace.careSpaceId.startsWith('local-') ? currentSpace.careSpaceId : undefined}
+          onBack={() => setShowChat(false)}
+          onMessagesChanged={() => setChatRefreshToken((token) => token + 1)}
+        />
+      );
     } else if (showWellbeingUpdates) {
       content = (
         <WellbeingUpdatesScreen
@@ -1867,7 +1915,6 @@ function LilicaApp() {
     } else {
       content = (
         <PersonScreen
-          records={state.records}
           displayName={currentSpace?.displayName}
           relationshipLabel={currentSpace?.relationshipLabel || currentSpace?.relationshipType}
           isSelf={currentSpace?.relationshipType === 'Myself'}
@@ -1875,8 +1922,6 @@ function LilicaApp() {
           activeCareSpaceId={state.activeCareSpaceId}
           onSwitchPerson={selectActiveSpace}
           onAddPerson={startAddPerson}
-          onOpenRecord={openRecordFromProjection}
-          onAddType={(type) => guardMutation(() => openNewFromProjection(type))}
           notificationCount={notificationUnreadCount}
           onOpenNotifications={openNotifications}
           onOpenSettings={() => setShowSettingsMenu(true)}
@@ -1884,10 +1929,12 @@ function LilicaApp() {
           careCircleMembers={careCircleMembers}
           pendingInvitationCount={myInvitations.length}
           onOpenInvitations={() => setShowInvitations(true)}
-          onViewAllContacts={() => setShowAllContacts(true)}
           selfAvatarPath={auth.profile?.avatarPath}
           onOpenCareSummary={careCircleAvailable ? () => setShowCareSummary(true) : undefined}
           onOpenRecentActivity={careCircleAvailable ? () => setShowRecentActivity(true) : undefined}
+          onOpenChat={careCircleAvailable ? () => setShowChat(true) : undefined}
+          chatUnreadCount={chatUnreadCount}
+          chatPreviewText={chatPreviewMessage ? previewChatMessage(chatPreviewMessage) : undefined}
         />
       );
     }
@@ -1927,6 +1974,7 @@ function LilicaApp() {
           onOpenDocuments={careCircleAvailable ? () => setSettingsSection('documents') : undefined}
           onOpenMedicalLog={careCircleAvailable ? () => setSettingsSection('medicalLog') : undefined}
           onOpenManageCare={careCircleAvailable && currentSpace?.role === 'organiser' ? () => setSettingsSection('manageCare') : undefined}
+          onOpenContacts={() => { setShowSettingsMenu(false); setShowAllContacts(true); }}
           onOpenAccount={() => setSettingsSection('account')}
           onOpenPrivacyData={() => setSettingsSection('privacyData')}
           onOpenCareCircle={careCircleAvailable ? () => setSettingsSection('careCircle') : undefined}
@@ -2102,6 +2150,7 @@ function LilicaApp() {
             setShowCareCircle(false);
             setShowJoinCareCircle(false);
             setShowAllContacts(false);
+            setShowChat(false);
             setShowNotificationCentre(false);
             setActiveTab(tab);
             setShowSettingsMenu(false);
@@ -2113,6 +2162,7 @@ function LilicaApp() {
             setTodoInitialFilter(undefined);
             setTodoInitialFocusGroup(undefined);
           }}
+          careCircleUnreadCount={chatUnreadCount}
         />
         <ReadOnlyGate
           visible={showReadOnlyGate}
