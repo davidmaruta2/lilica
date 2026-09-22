@@ -1,14 +1,18 @@
 # Claude Handoff Entry Point
 
-Last updated 21 September 2026, end of session -- David going to sleep, next agent picks up cold with no chat context. Nothing is currently broken or urgent; read this fully before doing anything.
+Last updated 22 September 2026, evening -- read this fully before doing anything.
 
-## Where things stand right now
+**This file goes stale the moment a build, submission, migration or OTA happens without updating it back -- exactly what caused a real mistake earlier today (an agent told David the installed binary was build 5, sourced from this file's own previous "Last updated 21 September" snapshot, when the real installed binary was already build 6). Never state a build number, store review state, or migration state from this file's prose alone when it's about to inform something you tell David or act on -- re-verify it live first (commands below), every time, even if this file was "just updated." Treat every fact below as a snapshot, not a live value.**
 
-- Installed native binary: iOS/Android **`1.0.0 (5)`**, built from commit `313d064`, the first build genuinely wired to `lilica-production`. No new native build since.
-- Two OTA updates have shipped on top of that binary since, both approved and both JS/asset-only (no native change): one fixed a critical production signup outage (confirmed working by David); the second added a Medical Log Add-flow tile, a Care Summary medical section, a regrouped Settings drawer, and a header spacing fix (validated by tests, not yet explicitly confirmed on David's device -- worth asking).
-- **Both stores submitted 21 September 2026.** Apple: `WAITING_FOR_REVIEW`, build `1.0.0 (5)`. Google Play: production track rollout `completed` (release `1.0.0`, versionCode `5`), awaiting Google's own review before going publicly live. No action needed on either unless a review outcome changes something -- check both at session start.
+## Where things stand right now (verified live 22 September 2026, ~17:00 UTC)
+
+- Installed native binary: iOS/Android **`1.0.0 (6)`**, built from commit `195d186`, `buildProfile: production` on both platforms. Verified via `eas build:list --limit 6 --json` (grep `appBuildVersion`) -- do not trust a build number from prose in this or any doc; always re-check this way. No new native build since.
+- **Store status, verified live 22 September:**
+  - Apple: reviewSubmission `d9d53c6e-d2bb-4ca7-9304-a3afc274d542`, build `1.0.0 (6)`, state `WAITING_FOR_REVIEW` (submitted 22 September). Re-check via a JWT-signed GET to `/v1/apps/{appId}/reviewSubmissions` (App Store Connect API key already on disk -- see credentials section below).
+  - Google Play: production track release `versionCode 6`, status `completed` -- **live and publicly available**, confirmed via a raw OAuth2-JWT call to the Android Publisher API (`androidpublisher.googleapis.com/.../edits/{editId}/tracks`; the `googleapis` npm package is NOT installed in this repo -- sign the service-account JWT by hand with Node's `crypto`, same pattern as the Apple API calls, rather than adding a new dependency for a one-off check).
+- **Phase 23 (Lilica Chat: shared thread, direct messages, record-linked chat; Care Circle page reorg/tab rename; Key contacts moved to Settings) shipped 22 September 2026**, all with David's explicit per-step approval: 5 migrations applied to `lilica-development` then `lilica-production` (both confirmed via `supabase migration list --linked` and `supabase db lint --linked`, clean); OTA published to the `production` channel/branch, commit `d6b4984`, update group `c62d7e6c-6167-4e6f-9859-a11e064b5729`, runtime `1.0.0` (matches build 6). Confirmed live via `eas update:list --branch production --limit 2`. **Zero on-device QA has happened on this feature** -- Expo Go cannot run this app (RevenueCat native module + unreliable local notifications since SDK 53, both pre-existing blockers), no development-build profile exists in `eas.json` (only `preview`/`store-test`/`production`), so this has only ever been verified by typecheck/jest/schema-lint. Say this plainly if David asks about it rather than implying it's been used for real.
 - Local `HEAD` and `origin/prephase22-remove-supported-person-faq-help` should be in sync, working tree clean. Confirm this is still true with a fresh `git log -1`/`git status --short` -- do not trust this line alone.
-- Full detail on everything above: `docs/LUMEN_HANDOFF.md` (updated this session -- read it in full, it is the accurate source, not a stale summary).
+- Full detail on everything through 21 September: `docs/LUMEN_HANDOFF.md` (last rewritten 21 September -- itself subject to the same staleness warning above; cross-check anything build/store/migration-related against live commands, not its prose either).
 
 ## CRITICAL: durable release credentials -- never ask David for these again
 
@@ -45,6 +49,16 @@ git rev-parse origin/prephase22-remove-supported-person-faq-help
 ```
 
 Work on `prephase22-remove-supported-person-faq-help`. `master` is stale. Do not merge or switch baselines without David's explicit instruction.
+
+**Before telling David a build number, store review state, or a migration/OTA state as current fact** (not just when he asks directly -- also before any status summary that includes it), re-verify live rather than quoting this file:
+
+```text
+npx eas-cli build:list --limit 6 --non-interactive --json     # grep appBuildVersion -- the real installed binary version
+npx eas-cli update:list --branch production --limit 3 --non-interactive   # real latest OTA on the production channel
+npx supabase migration list --linked                          # real applied-migration state of whichever project is currently linked
+```
+
+For store review state, App Store Connect and Android Publisher API credentials already exist (see below) -- sign the requests by hand with Node's `crypto` (JWT for Apple, OAuth2 service-account JWT for Google) rather than installing a new package; both patterns are demonstrated in `docs/REVISION_LOG.md`'s recent entries.
 
 ## Non-negotiable release rule
 
