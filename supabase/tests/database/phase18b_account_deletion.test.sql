@@ -5,7 +5,7 @@ drop extension if exists pgtap;
 create extension pgtap with schema extensions;
 set search_path = public, extensions, pgtap;
 
-select extensions.plan(34);
+select extensions.plan(36);
 
 insert into auth.users (id, email)
 values
@@ -113,9 +113,22 @@ select public.apply_record_mutation(
   '{"local_record_id":"solo-appt-1","record_type":"appointment","record_data":{"title":"Solo appointment"}}'::jsonb
 );
 
+-- Real-device bug, 26 September 2026: deleting an account that had ever
+-- created a multi-person invitation group failed outright with
+-- "violates foreign key constraint" on auth.users --
+-- care_space_invitation_groups.invited_by_user_id referenced auth.users
+-- directly with ON DELETE RESTRICT, and delete_my_account() never
+-- detached it. Reproduced here exactly: the solo organiser creates a
+-- group invitation before deleting their own account.
+select public.invite_member_group(
+  array[(select id from public.care_spaces where bootstrap_owner_id = 'b8000000-0000-0000-0000-000000000004')],
+  'p18b-solo-invitee@example.test', 'contributor', array['general'], 'Other relative', 'Friend',
+  'b8900000-0000-4000-a000-000000000001'
+);
+
 select extensions.lives_ok(
   $$ select public.delete_my_account() $$,
-  'a sole active organiser can now delete their own account directly (no longer blocked)'
+  'a sole active organiser can now delete their own account directly (no longer blocked), even having created an invitation group'
 );
 
 reset role;
@@ -150,6 +163,16 @@ select extensions.is(
   (select count(*) from public.records where local_record_id = 'solo-appt-1'),
   1::bigint,
   'the record the solo organiser created still survives, readable'
+);
+select extensions.is(
+  (select invited_by_user_id from public.care_space_invitation_groups where operation_id = 'b8900000-0000-4000-a000-000000000001'),
+  null,
+  'the invitation group''s invited_by_user_id is detached, not left dangling -- this is what actually made deletion succeed'
+);
+select extensions.is(
+  (select status from public.care_space_invitation_groups where operation_id = 'b8900000-0000-4000-a000-000000000001'),
+  'pending',
+  'the invitation group itself, and its pending child invitation, are otherwise untouched'
 );
 
 -- A lonely account with no care spaces at all may always delete freely.

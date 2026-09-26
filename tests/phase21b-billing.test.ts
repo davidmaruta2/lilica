@@ -21,6 +21,7 @@ jest.mock('react-native-purchases', () => ({
     restorePurchases: (...args: unknown[]) => mockRestorePurchases(...args),
   },
   PACKAGE_TYPE: { ANNUAL: 'ANNUAL', MONTHLY: 'MONTHLY' },
+  STOREKIT_VERSION: { STOREKIT_1: 'STOREKIT_1', STOREKIT_2: 'STOREKIT_2', DEFAULT: 'DEFAULT' },
 }));
 
 import {
@@ -68,7 +69,19 @@ describe('isBillingConfigured / configureBilling', () => {
 
   it('identifies RevenueCat with the Lilica account id, never an email', async () => {
     await configureBilling('auth-uid-123');
-    expect(mockConfigure).toHaveBeenCalledWith({ apiKey: 'test-ios-key', appUserID: 'auth-uid-123' });
+    expect(mockConfigure).toHaveBeenCalledWith({ apiKey: 'test-ios-key', appUserID: 'auth-uid-123', storeKitVersion: 'STOREKIT_1' });
+  });
+
+  // Real-device bug, 26 September 2026: StoreKit2 (the SDK's own default)
+  // showed the wrong currency for the annual subscription's displayed
+  // price despite a confirmed-correct Apple ID/sandbox region -- a
+  // documented RevenueCat/purchases-ios bug class. Forced to STOREKIT_1
+  // (src/billing.ts) to sidestep it; this proves the config is actually
+  // wired through, not just present in the source.
+  it('forces STOREKIT_1 rather than trusting the SDK default, to avoid a known StoreKit2 sandbox currency-resolution bug', async () => {
+    await configureBilling('auth-uid-123');
+    const [[configArg]] = mockConfigure.mock.calls;
+    expect(configArg.storeKitVersion).toBe('STOREKIT_1');
   });
 
   it('does not re-configure for the same already-configured user (a safe no-op)', async () => {
@@ -94,7 +107,7 @@ describe('logOutBilling', () => {
     await configureBilling('user-a');
     await logOutBilling();
     await configureBilling('user-b');
-    expect(mockConfigure).toHaveBeenLastCalledWith({ apiKey: 'test-ios-key', appUserID: 'user-b' });
+    expect(mockConfigure).toHaveBeenLastCalledWith({ apiKey: 'test-ios-key', appUserID: 'user-b', storeKitVersion: 'STOREKIT_1' });
   });
 });
 

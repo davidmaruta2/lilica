@@ -23,7 +23,7 @@
 // required" section for the exact list of what the product owner must set
 // up outside this repository before this can be physically tested.
 
-import Purchases, { CustomerInfo, PACKAGE_TYPE, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
+import Purchases, { CustomerInfo, PACKAGE_TYPE, PurchasesOffering, PurchasesPackage, STOREKIT_VERSION } from 'react-native-purchases';
 import { Platform } from 'react-native';
 
 // The one logical entitlement RevenueCat is configured with (brief
@@ -71,7 +71,26 @@ export async function configureBilling(userId: string): Promise<Result<void>> {
   if (!apiKey) return { ok: false, message: 'Subscriptions are not configured yet in this build.' };
   if (configuredForUserId === userId) return { ok: true, data: undefined };
   try {
-    Purchases.configure({ apiKey, appUserID: userId });
+    Purchases.configure({
+      apiKey,
+      appUserID: userId,
+      // Real-device bug, 26 September 2026: the annual subscription's
+      // displayed price showed USD despite a confirmed UK Apple ID and
+      // sandbox tester account (both regions verified, purchase itself
+      // correctly resolved GBP) -- StoreKit2 (the SDK's DEFAULT since
+      // react-native-purchases defaults to it on iOS 16+) has a
+      // documented history of exactly this class of sandbox
+      // currency-resolution bug (see RevenueCat/purchases-ios#1707) and
+      // separately requires an In-App Purchase Key configured in App
+      // Store Connect -- a distinct credential from the App Store
+      // Connect API key already in use, and not confirmed present here
+      // (that resource isn't even listable via the public API). Forcing
+      // STOREKIT_1 -- the older, more mature API with no such
+      // dependency -- sidesteps the whole class of bug rather than
+      // depending on an unverified App Store Connect setting. iOS-only;
+      // ignored on Android per the SDK's own documentation.
+      storeKitVersion: STOREKIT_VERSION.STOREKIT_1,
+    });
     configuredForUserId = userId;
     return { ok: true, data: undefined };
   } catch (error) {
