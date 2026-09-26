@@ -1436,3 +1436,9 @@ Drafted a comprehensive Resolution Center reply (`C:\Users\DavidPC\Downloads\DAV
 Updated the App Store Connect `appStoreReviewDetails` resource's `notes` field (id `cbed79f7-e431-4d63-93ef-07ee1160eec9`) via the API to mention that a genuine purchase can now be made during the free trial period and to point reviewers at the attached Resolution Center reply. Demo account credentials themselves were unchanged (already correct).
 
 **Not yet done:** actually posting the reply text + attaching the video in App Store Connect's Resolution Center UI, and resubmitting for review. These are David's own actions in the Console (the reply text can't be posted via the public API - confirmed earlier this session that `appStoreVersionSubmissions` CREATE is 403 for this API key's role).
+
+## 26 September 2026 - Apple's missing item 2 recovered; Notes field corrected to hold real reference content, not just a pointer
+
+David supplied the text of numbered item 2 (missing from the original reconstruction): "A description of the app's purpose and target audience, including the problem it solves and the value it provides." Added to the Resolution Center reply as its own section; trimmed elsewhere to stay under Apple's 4,000-character limit (final: 3,959 characters, confirmed via `wc -c`).
+
+Also corrected the App Store Connect `appStoreReviewDetails.notes` field (id `cbed79f7-e431-4d63-93ef-07ee1160eec9`): the first pass only pointed at the separate Resolution Center reply rather than containing the actual reference information David asked to be recorded there "for reference on future submissions." Replaced with the full content itself -- demo account, purpose/audience, external services, regional differences, regulated-industry declaration, account types -- so it stands on its own for any future submission, not just this rejection.
