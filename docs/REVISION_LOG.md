@@ -1,5 +1,19 @@
 # Revision Log
 
+## 26 September 2026 - Build 7 built, submitted, attached to the app version, and resubmitted for review
+
+On David's explicit instruction ("go for it. ios only build 7. submit to apple. once done, update review stuff to attach new build").
+
+**Build:** `eas build --platform ios --profile production` -- buildNumber auto-incremented 6 -> 7, build id `b13120db-cb4e-4d9c-a51e-8b6dfe3933cf`, commit `a92fee3` (adds `fallbackToCacheTimeout: 3000` to `app.json`'s `updates` config -- the only native-affecting change since build 6; every other fix already shipped via OTA and is already running on build 6 devices, see the entries below). `eas submit` uploaded it; App Store Connect finished processing it as build resource `678bcded-f331-4203-9549-affc5d66c34a` (`processingState: VALID`) after ~8 minutes.
+
+**Attach blocker found and resolved:** the first attempt to `PATCH` the app version's `build` relationship to point at build 7 returned `409 ENTITY_ERROR.RELATIONSHIP.INVALID.INVALID_STATE`. Root cause: the app version had moved from `REJECTED` back to `WAITING_FOR_REVIEW` -- David's own Resolution Center reply submission (the comprehensive written answer to Apple's numbered questions) had already put the existing review submission (`d9d53c6e-d2bb-4ca7-9304-a3afc274d542`) back into Apple's active queue, still pointing at the old build 6. An app version actively queued for review cannot have its build swapped. Fixed by `PATCH`ing that review submission to `{"attributes":{"canceled":true}}` -- state moved to `CANCELING` then settled as `COMPLETE`, and the app version dropped back to `PREPARE_FOR_SUBMISSION`. The build-7 attach `PATCH` then succeeded (`204`), confirmed via a follow-up `GET` showing `version: "7"`.
+
+**App Review Notes updated** (`PATCH /v1/appStoreReviewDetails/cbed79f7-e431-4d63-93ef-07ee1160eec9`) -- prepended a new paragraph naming build 7's two changes (GBP currency fix, subscribe-during-trial) ahead of the existing purpose/audience/external-services/regional/regulated-industry/account-type answers from the Resolution Center reply, so a reviewer opening App Review Information sees the build-7 context first.
+
+**Resubmitted for review:** created a new `reviewSubmissions` resource (`9fda3fbc-4bf9-4938-8094-b4ea0c2a81e0`), attached the app version as a `reviewSubmissionItems` item, then `PATCH`ed `{"attributes":{"submitted":true}}` -- confirmed `state: WAITING_FOR_REVIEW`, `submittedDate: 2026-09-26T21:41:41.008Z`.
+
+**Not yet done:** on-device confirmation that build 7 itself (not just the OTA-delivered fixes already running on build 6) behaves correctly -- David has not yet installed/tested build 7 directly.
+
 ## 26 September 2026 - Real explanation for "I keep fixing it and it's still broken": OTA updates were never auto-applying
 
 After the date/time-picker crash fix (below) was reported as still crashing on a fresh retest, found a systemic issue that plausibly explains repeated "fix reported still broken" cycles this session: `expo-updates`' own default behaviour only ever applies a newly downloaded OTA update on the cold start **after** the one that downloaded it. A single relaunch after being told a fix is live silently keeps running the previous bundle, with no visible sign anything is stale -- so a retest immediately after an OTA publish may not actually have been running the new code at all.
