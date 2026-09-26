@@ -30,13 +30,15 @@ describe('SubscriptionScreen', () => {
     screen.getByText(/days left in your free period/);
   });
 
-  it('does not offer purchase while the 60-day free period is still active', async () => {
+  it('still offers an early Subscribe option while the 60-day free period is active (David, 26 September 2026)', async () => {
+    const onSubscribe = jest.fn().mockResolvedValue({ ok: true });
     const screen = await render(
-      <SubscriptionScreen entitlement={entitlement({})} loading={false} billingConfigured annualPrice="£8.99" productLoading={false} onBack={jest.fn()} onSubscribe={jest.fn()} onRestore={jest.fn()} />,
+      <SubscriptionScreen entitlement={entitlement({})} loading={false} billingConfigured annualPrice="£8.99" productLoading={false} onBack={jest.fn()} onSubscribe={onSubscribe} onRestore={jest.fn()} />,
     );
     screen.getByText(/will not be charged before it ends/i);
-    expect(screen.queryByText('Subscribe for £8.99/year')).toBeNull();
     expect(screen.queryByText('Manage subscription')).toBeNull();
+    await fireEvent.press(screen.getByText('Subscribe now for £8.99/year'));
+    expect(onSubscribe).toHaveBeenCalledTimes(1);
   });
 
   it('offers Manage subscription (not Subscribe) once actively subscribed', async () => {

@@ -2,9 +2,11 @@
 
 This repository is the Lilica React Native care-organising app for Luxford Interactive.
 
-## STOP -- immediate pending task as of 19 September 2026
+## STOP -- immediate pending task as of 26 September 2026
 
-David was mid-way through checking Apple ASN V2 / Google RTDN configuration in RevenueCat's dashboard when his session was interrupted. Pick this up first, before other work, unless told otherwise -- full context and exact instructions are in `docs/LUMEN_HANDOFF.md`'s "IMMEDIATE NEXT TASK ON RESUME" section. Do not assume it is resolved; ask what he found rather than re-explaining from scratch.
+**Apple rejected Lilica** (version `1.0`, build `1.0.0 (6)`; confirmed via API, `appStoreState`/`appVersionState` both `REJECTED`, review submission `state: UNRESOLVED_ISSUES`). Apple is asking for more information, not stating confirmed defects: a physical-device screen recording of app launch through typical use, written answers to several numbered questions (setup/login instructions, external services used, regional differences, regulated-industry documentation), plus its standard "Prevent Common Issues" boilerplate (2.1 bugs/crashes, 2.1 demo-account credentials, 2.3.3 screenshots, 3.1.1 In-App Purchase, 3.2 Other Business Models). Full message text and a section-by-section read of which items are worth taking seriously (3.2 especially) is in `docs/REVISION_LOG.md`'s 26 September entry. Pick this up first, before other work, unless told otherwise -- nothing has been sent back to Apple yet.
+
+**Google Play is separately approved and live** -- confirmed correct: the real installed native binary is `1.0.0 (6)`, commit `195d186`, per `CLAUDE.md`'s corrected "Where things stand" section (this repo's local checkout was 16 commits behind `origin` for part of this session; now reconciled).
 
 ## Required reading before any work
 
@@ -32,12 +34,12 @@ Do not run `eas build`, `eas submit`, or `eas update` merely because configurati
 
 ## Current release state
 
-- **iOS TestFlight baseline: `1.0.0 (5)`, EAS build `22860bae-49bb-46de-9ccb-0e4cb5a51ca8`** (superseding `1.0.0 (4)`). Built and submitted 19 September 2026 on the `production` EAS profile -- the first build wired to `lilica-production`, not dev.
-- **Android baseline: `1.0.0 (5)`, EAS build `a7ed9204-270b-482e-a329-2f72f863ceef`**, submitted to Google Play's **internal** track specifically (David's explicit choice -- `eas.json`'s `submit.production.android.track` is still `internal`, not `production`; changing it needs no rebuild).
-- Both contain the returning-account duplicate-person fix, the approved Lilica icon, the OTA foundation (first OTA-capable binaries), the notification bell/Care Summary PDF/webhook hardening batch, the 17 September post-build batch (biometric lock, Medical Log, intro copy), and real production backend wiring (`lilica-production` Supabase, correctly-scoped RevenueCat webhook, verified Auth). No OTA update has been published yet.
+- **iOS: `1.0.0 (6)`, built from commit `195d186`, `production` EAS profile -- REJECTED by Apple 26 September 2026.** Built 22 September, the first build wired to `lilica-production`, not dev. Needs a Resolution Center response before it can be resubmitted; see the STOP section above and `docs/REVISION_LOG.md`'s 26 September entry. No new build is implied by this rejection -- the existing binary is expected to be resubmitted once Apple's questions are answered, not rebuilt.
+- **Android: `1.0.0 (6)`, same commit/build as iOS.** Originally submitted to Google Play's internal track, then promoted to production and **approved -- publicly live**, production track release `versionCode 6`, status `completed`.
+- Both contain the returning-account duplicate-person fix, the approved Lilica icon, the OTA foundation (first OTA-capable binaries), the notification bell/Care Summary PDF/webhook hardening batch, the 17 September post-build batch (biometric lock, Medical Log, intro copy), and real production backend wiring (`lilica-production` Supabase, correctly-scoped RevenueCat webhook, verified Auth). Multiple OTA updates have since shipped on top of this binary, most recently the full Phase 23 Lilica Chat feature (22-23 September, David's explicit per-step approval each time) -- see `docs/REVISION_LOG.md`. None of the OTA'd JS changes are part of what Apple is currently reviewing/rejecting (that's the submitted binary's own bundled state at submission time), but they are already live via Google Play and OTA to existing installs.
 - iOS remains iPhone-only. Preserve `app.json` -> `ios.supportsTablet: false`.
 - **David has stated the project is now oriented entirely toward real public go-live, not further dev/store-test cycles (19 September 2026)** -- treat `production` as the default profile for future build discussions, though the absolute build-approval gate is unchanged.
-- Going public still needs, independent of any build: Android submit track switched to `production` (or Google's testing-track requirement satisfied), Apple App Store review submission/release, Apple subscription review screenshot, real purchase QA, and Apple ASN V2/Google RTDN configuration confirmed in Apple's/Google's own consoles (not visible via any API available to this session).
+- Going public now needs: a satisfactory Apple Resolution Center response and resubmission, real purchase QA, and Apple ASN V2/Google RTDN configuration confirmed in Apple's/Google's own consoles (not visible via any API available to this session). Google Play's own gates are cleared -- it is live.
 
 The full binary delta and pre/post-build checklists are authoritative in `docs/NEXT_NATIVE_BUILD_MANIFEST.md`.
 

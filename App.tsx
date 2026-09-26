@@ -121,7 +121,6 @@ import {
   describeEntitlement,
   getCareSpaceCommercialStatus,
   getMyEntitlement,
-  isEntitlementActiveNow,
   MyEntitlement,
   readCachedCommercialStatus,
 } from './src/entitlement';
@@ -603,9 +602,12 @@ function LilicaApp() {
   }
 
   async function handleSubscribe(): Promise<{ ok: boolean; message?: string }> {
-    if (myEntitlement?.status === 'TRIAL_ACTIVE' && isEntitlementActiveNow(myEntitlement)) {
-      return { ok: false, message: 'Your free period is still active. You will not be charged before it ends.' };
-    }
+    // Subscribing early during an active free period is allowed (David's
+    // explicit product decision, 26 September 2026) -- the store's own
+    // purchase sheet and RevenueCat webhook (mapping.ts's INITIAL_PURCHASE
+    // case) already handle this correctly regardless of prior entitlement
+    // status, so no server-side change was needed, only removing this
+    // client-side refusal.
     const offer = await getAnnualPackage();
     if (!offer.ok) return { ok: false, message: offer.message };
     if (!offer.data) return { ok: false, message: 'No subscription product is available yet.' };
@@ -1025,6 +1027,19 @@ function LilicaApp() {
         ? careCircleMembers.filter((member) => !member.isSelf).length
         : 0,
     }));
+
+  // Every synced care space this account is an active CONTRIBUTOR/VIEWER
+  // of, not the organiser -- the same "only offers the currently active
+  // one, not every one" bug removableCareSpaces above was already fixed
+  // for, direct product-owner report 26 September 2026: "a contributor
+  // has no way of leaving a care circle if they want to". A local-only
+  // space is never included (nothing synced, nothing to leave -- remove
+  // it via removableCareSpaces instead), and an organiser never leaves
+  // here (Care Circle's own role-change/removal flow is the correct path
+  // for them).
+  const leavableCareSpaces = Object.values(state.careSpaces)
+    .filter((space) => !space.careSpaceId.startsWith('local-') && space.role && space.role !== 'organiser')
+    .map((space) => ({ careSpaceId: space.careSpaceId, displayName: space.displayName }));
 
   // Phase 18: the safest resolution to "what happens after I clear local
   // data" -- rather than attempting a risky live rebuild of in-memory
@@ -2212,12 +2227,7 @@ function LilicaApp() {
           ) : settingsSection === 'privacyData' ? (
             <PrivacyDataScreen
               storageOwnerId={storageOwnerId ?? undefined}
-              currentCareSpaceId={currentSpace?.careSpaceId}
-              currentCareSpaceName={currentSpace?.displayName}
-              canLeaveCurrentCareSpace={(() => {
-                const selfMember = careCircleMembers.find((member) => member.isSelf);
-                return Boolean(currentSpace && !currentSpace.careSpaceId.startsWith('local-') && selfMember && selfMember.role !== 'organiser');
-              })()}
+              leavableCareSpaces={leavableCareSpaces}
               removableCareSpaces={removableCareSpaces}
               currentRecords={currentSpace?.records ?? []}
               onBack={() => setSettingsSection('menu')}

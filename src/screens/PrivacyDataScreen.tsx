@@ -3,6 +3,7 @@ import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { checkAccountDeletionEligibility, deleteMyAccount, exportMyData, shareExportFile, ExportFile } from '../accountLifecycle';
 import { Button } from '../components/Button';
+import { DeleteAccountOrganiserConfirm } from '../components/DeleteAccountOrganiserConfirm';
 import { Header } from '../components/Header';
 import { RemoveCareSpaceConfirm } from '../components/RemoveCareSpaceConfirm';
 import { Screen } from '../components/Screen';
@@ -40,15 +41,25 @@ export type RemovableCareSpace = {
   collaboratorCount: number;
 };
 
+export type LeavableCareSpace = {
+  careSpaceId: string;
+  displayName: string;
+};
+
 type Props = {
   storageOwnerId?: string;
-  currentCareSpaceId?: string;
-  currentCareSpaceName?: string;
-  // Omitted for a local-only care space (nothing synced, nothing to
-  // leave) or when the current member is the space's organiser (an
-  // organiser leaves via Care Circle's own role-change/removal flow, not
-  // this screen -- Leave here is for a contributor/viewer only).
-  canLeaveCurrentCareSpace?: boolean;
+  // Direct product-owner report, 26 September 2026: "a contributor has no
+  // way of leaving a care circle if they want to" -- this used to be
+  // scoped to only the currently active care space
+  // (canLeaveCurrentCareSpace/currentCareSpaceId), the exact same
+  // "only offers one, not every one" shape as the removableCareSpaces bug
+  // fixed below. Every synced care space this account is an active
+  // CONTRIBUTOR/VIEWER of (never the organiser -- an organiser leaves via
+  // Care Circle's own role-change/removal flow, not this screen; never a
+  // local-only space -- nothing synced, nothing to leave) now appears
+  // here, not only whichever the switcher happens to have selected.
+  // Empty array (never undefined) when none are leavable.
+  leavableCareSpaces: LeavableCareSpace[];
   // Remove-supported-person: EVERY care space this account actively
   // organises -- not only the currently active one. Direct product-owner
   // report: "I have two supported people but it only offers to remove
@@ -79,9 +90,7 @@ type ExportState = SectionState & { files?: ExportFile[] };
 
 export function PrivacyDataScreen({
   storageOwnerId,
-  currentCareSpaceId,
-  currentCareSpaceName,
-  canLeaveCurrentCareSpace,
+  leavableCareSpaces,
   removableCareSpaces,
   currentRecords,
   onBack,
@@ -98,6 +107,7 @@ export function PrivacyDataScreen({
   const [deletionState, setDeletionState] = useState<SectionState>({ busy: false });
   const [deletionBlockers, setDeletionBlockers] = useState<string[]>([]);
   const [deletionCleared, setDeletionCleared] = useState(false);
+  const [showOrganiserConfirm, setShowOrganiserConfirm] = useState(false);
 
   async function handleRemoveCareSpace() {
     if (!onRemoveCareSpace || !removeTarget) return;
@@ -172,19 +182,18 @@ export function PrivacyDataScreen({
     );
   }
 
-  function handleLeave() {
-    if (!currentCareSpaceId) return;
+  function handleLeave(space: LeavableCareSpace) {
     Alert.alert(
-      `Leave ${currentCareSpaceName ?? 'this care space'}?`,
+      `Leave ${space.displayName}?`,
       'You\'ll lose access to its records and documents. Anything you added stays as part of its shared history. Your account and any other care spaces are unaffected.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Leave', style: 'destructive', onPress: async () => {
             setLeaveState({ busy: true });
-            const result = await leaveCareSpace(currentCareSpaceId);
+            const result = await leaveCareSpace(space.careSpaceId);
             if (result.ok) {
-              setLeaveState({ busy: false, message: `You've left ${currentCareSpaceName ?? 'that care space'}.`, tone: 'success' });
+              setLeaveState({ busy: false, message: `You've left ${space.displayName}.`, tone: 'success' });
               onCareSpaceLeft();
             } else {
               setLeaveState({ busy: false, message: result.message, tone: 'danger' });
@@ -204,13 +213,16 @@ export function PrivacyDataScreen({
       return;
     }
     if (result.data.length > 0) {
+      // Direct product-owner decision, 26 September 2026: being a sole
+      // active organiser no longer BLOCKS deletion (delete_my_account()
+      // itself no longer refuses this server-side either -- see the 26
+      // September migration). Instead, show a clear warning and require
+      // typing DELETE before proceeding -- DeleteAccountOrganiserConfirm
+      // below, not a dead end.
       const names = result.data.map((space) => space.careSpaceName);
       setDeletionBlockers(names);
-      setDeletionState({
-        busy: false,
-        tone: 'danger',
-        message: `You're the only organiser of ${names.join(', ')}. Make someone else an organiser there first, so it's never left without one.`,
-      });
+      setDeletionState({ busy: false });
+      setShowOrganiserConfirm(true);
       return;
     }
     // Nothing blocks deletion -- reveal the real, final destructive
@@ -219,6 +231,23 @@ export function PrivacyDataScreen({
     setDeletionBlockers([]);
     setDeletionCleared(true);
     setDeletionState({ busy: false, tone: 'default', message: undefined });
+  }
+
+  // Shared by both confirmation paths below (the plain Alert for a
+  // non-organiser, and DeleteAccountOrganiserConfirm's typed DELETE for
+  // a sole organiser) -- the actual destructive call is identical either
+  // way, only the warning/confirmation UI in front of it differs.
+  async function performDeletion() {
+    setDeletionState({ busy: true });
+    const result = await deleteMyAccount();
+    if (!result.ok) {
+      // Server deletion failed -- never touch local data (section 24/27).
+      setDeletionState({ busy: false, message: result.message, tone: 'danger' });
+      return;
+    }
+    setShowOrganiserConfirm(false);
+    setDeletionState({ busy: false, tone: 'success', message: 'Your account has been deleted. Signing you out...' });
+    await onAccountDeleted();
   }
 
   function handleConfirmDeletion() {
@@ -232,19 +261,7 @@ export function PrivacyDataScreen({
       'This permanently deletes your account and sign-in -- you will lose all future access. Shared care records, documents and their relationships stay intact for anyone else who still has access to them, and your work stays truthfully attributed to you. This cannot be undone.\n\nDeleting your Lilica account does NOT automatically cancel an active App Store or Google Play subscription -- manage or cancel it directly in your App Store/Google Play account settings to stop future charges.',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete my account', style: 'destructive', onPress: async () => {
-            setDeletionState({ busy: true });
-            const result = await deleteMyAccount();
-            if (!result.ok) {
-              // Server deletion failed -- never touch local data (section 24/27).
-              setDeletionState({ busy: false, message: result.message, tone: 'danger' });
-              return;
-            }
-            setDeletionState({ busy: false, tone: 'success', message: 'Your account has been deleted. Signing you out...' });
-            await onAccountDeleted();
-          },
-        },
+        { text: 'Delete my account', style: 'destructive', onPress: () => void performDeletion() },
       ],
     );
   }
@@ -291,14 +308,25 @@ export function PrivacyDataScreen({
           {clearState.message ? <AppText variant="secondary" tone={clearState.tone === 'danger' ? 'danger' : 'soft'}>{clearState.message}</AppText> : null}
         </Section>
 
-        {canLeaveCurrentCareSpace && currentCareSpaceId ? (
+        {leavableCareSpaces.length > 0 ? (
           <Section title="Care spaces" description="Data for the people you care for" icon={LockIcon}>
             <AppText variant="body" tone="soft">
-              You currently have access to {currentCareSpaceName ?? 'this care space'}.
+              {leavableCareSpaces.length === 1
+                ? `You currently have access to ${leavableCareSpaces[0].displayName}.`
+                : `You currently have access to ${leavableCareSpaces.length} care spaces as a contributor.`}
             </AppText>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Leave ${currentCareSpaceName ?? 'this care space'}`} disabled={leaveState.busy} onPress={handleLeave} style={styles.destructiveRow}>
-              <AppText variant="bodyStrong" tone="danger" centre>{leaveState.busy ? 'Leaving…' : `Leave ${currentCareSpaceName ?? 'this care space'}`}</AppText>
-            </Pressable>
+            {leavableCareSpaces.map((space) => (
+              <Pressable
+                key={space.careSpaceId}
+                accessibilityRole="button"
+                accessibilityLabel={`Leave ${space.displayName}`}
+                disabled={leaveState.busy}
+                onPress={() => handleLeave(space)}
+                style={styles.destructiveRow}
+              >
+                <AppText variant="bodyStrong" tone="danger" centre>{leaveState.busy ? 'Leaving…' : `Leave ${space.displayName}`}</AppText>
+              </Pressable>
+            ))}
             {leaveState.message ? <AppText variant="secondary" tone={leaveState.tone === 'danger' ? 'danger' : 'soft'}>{leaveState.message}</AppText> : null}
           </Section>
         ) : null}
@@ -347,6 +375,14 @@ export function PrivacyDataScreen({
         error={removeState.tone === 'danger' ? removeState.message : undefined}
         onConfirm={() => void handleRemoveCareSpace()}
         onCancel={() => setRemoveTarget(undefined)}
+      />
+      <DeleteAccountOrganiserConfirm
+        visible={showOrganiserConfirm}
+        careSpaceNames={deletionBlockers}
+        busy={deletionState.busy}
+        error={deletionState.tone === 'danger' ? deletionState.message : undefined}
+        onConfirm={() => void performDeletion()}
+        onCancel={() => setShowOrganiserConfirm(false)}
       />
     </Screen>
   );

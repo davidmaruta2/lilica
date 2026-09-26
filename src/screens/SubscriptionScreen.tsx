@@ -99,9 +99,17 @@ export function SubscriptionScreen({
           </View>
 
           {isFreePeriodActive ? (
-            <AppText variant="secondary" tone="soft" style={styles.configNotice}>
-              Your free period is active. You will not be charged before it ends.
-            </AppText>
+            <>
+              <AppText variant="secondary" tone="soft" style={styles.configNotice}>
+                Your free period is active. You will not be charged before it ends.
+              </AppText>
+              <Button
+                label={actionPending === 'subscribe' ? 'Subscribing…' : annualPrice ? `Subscribe now for ${annualPrice}/year` : 'Annual subscription unavailable'}
+                onPress={() => void handleSubscribe()}
+                variant="secondary"
+                disabled={actionPending !== undefined || !canSubscribe}
+              />
+            </>
           ) : !isPaidSubscriber ? (
             <Button
               label={actionPending === 'subscribe' ? 'Subscribing…' : annualPrice ? `Subscribe for ${annualPrice}/year` : 'Annual subscription unavailable'}

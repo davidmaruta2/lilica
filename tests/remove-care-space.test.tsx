@@ -114,8 +114,7 @@ describe('RemoveCareSpaceConfirm: checkbox gates the destructive action', () => 
 describe('PrivacyDataScreen: Remove a supported person', () => {
   const baseProps = {
     storageOwnerId: 'owner-1',
-    currentCareSpaceId: 'space-1',
-    currentCareSpaceName: 'Beauty',
+    leavableCareSpaces: [],
     removableCareSpaces: [],
     currentRecords: [],
     onBack: jest.fn(),

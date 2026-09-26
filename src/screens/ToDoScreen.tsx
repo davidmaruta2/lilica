@@ -86,6 +86,16 @@ const TASK_GROUP_VISUALS: Record<TaskGroupKey, { tile: string; heading: string; 
   completed: { tile: '#F1F4F5', heading: colors.inkSoft, metadata: colors.inkSoft },
 };
 
+// David's explicit request (21 September 2026): the Overdue/Today/Upcoming
+// SECTION band titles (not the row-tile text -- that's TASK_GROUP_VISUALS
+// above, and stays untouched, see the 20 September bug note there) read in
+// white against the screen's own blue-teal gradient background. Deliberately
+// a separate constant, not a change to TASK_GROUP_VISUALS[key].heading --
+// reusing that here would repeat the exact white-on-white-tile bug already
+// found and fixed once. Completed's own section title is unaffected -- not
+// part of this request, and it sits on a different, lighter background.
+const SECTION_BAND_TITLE_COLOR = colors.white;
+
 const TODO_ICON_COLORS: Partial<Record<LilicaRecord['type'], string>> = {
   task: '#9B71CA',
   bill: '#E46E77',
@@ -437,7 +447,7 @@ export function ToDoScreen({ records, personName, activeMembershipId, onOpenReco
           {orderedGroupDefs.map(({ key, title, items }) => (
             items.length > 0 ? (
               <View key={key} testID={`todo-group-${key}`} style={styles.group}>
-                <AppText variant="section" style={{ color: TASK_GROUP_VISUALS[key].heading }}>{title}</AppText>
+                <AppText variant="section" style={{ color: SECTION_BAND_TITLE_COLOR }}>{title}</AppText>
                 <View testID={`todo-${viewMode}-${key}`} style={viewMode === 'list' ? styles.listRows : styles.gridTiles}>
                   {items.map((record, index) => renderRow(record, key, index, items.length))}
                 </View>

@@ -5,7 +5,7 @@ drop extension if exists pgtap;
 create extension pgtap with schema extensions;
 set search_path = public, extensions, pgtap;
 
-select extensions.plan(29);
+select extensions.plan(34);
 
 insert into auth.users (id, email)
 values
@@ -83,22 +83,73 @@ select extensions.throws_ok(
 );
 
 -- ---------------------------------------------------------------------
--- Sole-organiser block.
+-- Sole-organiser deletion is now ALLOWED (direct product-owner decision,
+-- 26 September 2026 -- previously this was a hard block). Proven with a
+-- separate, isolated account/care space so the rest of this file's
+-- David/Sarah/Beauty scenario below is completely unaffected.
 -- ---------------------------------------------------------------------
 
-reset role;
+insert into auth.users (id, email)
+values ('b8000000-0000-0000-0000-000000000004', 'p18b-solo@example.test');
+
 set local role authenticated;
-select set_config('request.jwt.claim.sub', 'b8000000-0000-0000-0000-000000000001', true);
-select extensions.throws_like(
-  $$ select public.delete_my_account() $$,
-  '%Beauty%',
-  'sole organiser of Beauty is blocked from deleting their account'
+select set_config('request.jwt.claim.sub', 'b8000000-0000-0000-0000-000000000004', true);
+select * from public.bootstrap_supported_people('[
+  {"draft_id":"b8100000-0000-4000-a000-000000000002","display_name":"Solo Person","relationship_type":"Friend","relationship_label":null}
+]'::jsonb);
+
+reset role;
+set local role postgres;
+insert into public.profiles (id, display_name) values
+  ('b8000000-0000-0000-0000-000000000004', 'Solo Organiser')
+on conflict (id) do update set display_name = excluded.display_name;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b8000000-0000-0000-0000-000000000004', true);
+select public.apply_record_mutation(
+  'b8200000-0000-4000-a000-000000000003', 'b8300000-0000-4000-a000-000000000003',
+  (select id from public.care_spaces where bootstrap_owner_id = 'b8000000-0000-0000-0000-000000000004'),
+  'import', 0,
+  '{"local_record_id":"solo-appt-1","record_type":"appointment","record_data":{"title":"Solo appointment"}}'::jsonb
 );
--- Nothing was touched by the refused attempt.
+
+select extensions.lives_ok(
+  $$ select public.delete_my_account() $$,
+  'a sole active organiser can now delete their own account directly (no longer blocked)'
+);
+
+reset role;
+set local role postgres;
+
 select extensions.is(
-  (select membership_status from public.care_space_memberships where user_id = 'b8000000-0000-0000-0000-000000000001'),
-  'active',
-  'a refused deletion leaves the membership untouched'
+  (select count(*) from auth.users where id = 'b8000000-0000-0000-0000-000000000004'),
+  0::bigint,
+  'the solo organiser''s auth identity is actually gone'
+);
+select extensions.is(
+  (select membership_status from public.care_space_memberships where former_display_name = 'Solo Organiser'),
+  'former',
+  'the solo organiser''s own membership is detached and marked former, never deleted'
+);
+select extensions.is(
+  (select bootstrap_owner_id from public.care_spaces where id = (select care_space_id from public.care_space_memberships where former_display_name = 'Solo Organiser')),
+  null,
+  'the care space''s bootstrap_owner_id is detached'
+);
+select extensions.is(
+  (select commercial_owner_id from public.care_spaces where id = (select care_space_id from public.care_space_memberships where former_display_name = 'Solo Organiser')),
+  null,
+  'the care space''s commercial_owner_id is detached -- this is the mechanism behind "closes the care circle"'
+);
+select extensions.is(
+  (select public.care_space_has_active_entitlement((select care_space_id from public.care_space_memberships where former_display_name = 'Solo Organiser'))),
+  false,
+  'the now-unowned care space is gated from further mutation for anyone -- the care circle is commercially closed'
+);
+select extensions.is(
+  (select count(*) from public.records where local_record_id = 'solo-appt-1'),
+  1::bigint,
+  'the record the solo organiser created still survives, readable'
 );
 
 -- A lonely account with no care spaces at all may always delete freely.

@@ -30,8 +30,7 @@ import { PrivacyDataScreen } from '../src/screens/PrivacyDataScreen';
 
 const baseProps = {
   storageOwnerId: 'owner-1',
-  currentCareSpaceId: 'space-1',
-  currentCareSpaceName: 'Beauty',
+  leavableCareSpaces: [],
   removableCareSpaces: [],
   currentRecords: [],
   onBack: jest.fn(),
@@ -132,8 +131,8 @@ describe('PrivacyDataScreen: Clear data from this device', () => {
 });
 
 describe('PrivacyDataScreen: Leave care space', () => {
-  it('is offered only when the current member is not the organiser', async () => {
-    const screen = await render(<PrivacyDataScreen {...baseProps} canLeaveCurrentCareSpace={false} />);
+  it('is offered only when there is a leavable (non-organiser) care space', async () => {
+    const screen = await render(<PrivacyDataScreen {...baseProps} leavableCareSpaces={[]} />);
     expect(screen.queryByLabelText('Care spaces section')).toBeNull();
     expect(screen.queryByLabelText('Leave Beauty')).toBeNull();
   });
@@ -141,25 +140,70 @@ describe('PrivacyDataScreen: Leave care space', () => {
   it('leaves via the real leaveCareSpace RPC after confirmation, then notifies the host', async () => {
     mockLeaveCareSpace.mockResolvedValue({ ok: true, data: undefined });
     const onCareSpaceLeft = jest.fn();
-    const screen = await render(<PrivacyDataScreen {...baseProps} canLeaveCurrentCareSpace onCareSpaceLeft={onCareSpaceLeft} />);
+    const screen = await render(
+      <PrivacyDataScreen {...baseProps} leavableCareSpaces={[{ careSpaceId: 'space-1', displayName: 'Beauty' }]} onCareSpaceLeft={onCareSpaceLeft} />,
+    );
     await expandSection(screen, 'Care spaces');
     await fireEvent.press(screen.getByLabelText('Leave Beauty'));
     expect(mockLeaveCareSpace).toHaveBeenCalledWith('space-1');
     await waitFor(() => expect(onCareSpaceLeft).toHaveBeenCalledTimes(1));
   });
+
+  // Direct product-owner report, 26 September 2026: "a contributor has no
+  // way of leaving a care circle if they want to" -- this used to be
+  // scoped to only the currently active care space. A contributor on
+  // several care spaces now sees, and can leave, every one of them from
+  // this one screen, the same fix already applied to removableCareSpaces.
+  it('offers every leavable care space, not only one, and leaves the specific one tapped', async () => {
+    mockLeaveCareSpace.mockResolvedValue({ ok: true, data: undefined });
+    const screen = await render(
+      <PrivacyDataScreen
+        {...baseProps}
+        leavableCareSpaces={[
+          { careSpaceId: 'space-1', displayName: 'Beauty' },
+          { careSpaceId: 'space-2', displayName: 'Marion' },
+        ]}
+      />,
+    );
+    await expandSection(screen, 'Care spaces');
+    screen.getByLabelText('Leave Beauty');
+    await fireEvent.press(screen.getByLabelText('Leave Marion'));
+    expect(mockLeaveCareSpace).toHaveBeenCalledWith('space-2');
+  });
 });
 
-describe('PrivacyDataScreen: Delete account', () => {
-  it('shows exactly which care space blocks deletion, and never offers the real deletion button while blocked', async () => {
+describe('PrivacyDataScreen: Delete account as a sole organiser', () => {
+  // Direct product-owner decision, 26 September 2026: being a sole
+  // active organiser used to block deletion outright. It no longer does
+  // -- it shows a clear warning naming the dependent care space(s) and
+  // requires typing DELETE, rather than refusing the action.
+  it('shows the organiser warning naming the care space, and disables confirmation until DELETE is typed', async () => {
     mockCheckAccountDeletionEligibility.mockResolvedValue({ ok: true, data: [{ careSpaceId: 'space-1', careSpaceName: 'Beauty' }] });
     const screen = await render(<PrivacyDataScreen {...baseProps} />);
     await expandSection(screen, 'Delete account');
     await fireEvent.press(screen.getByLabelText('Check if my account can be deleted'));
-    await waitFor(() => screen.getByText(/Beauty/));
-    expect(screen.queryByLabelText('Delete my account')).toBeNull();
+    await waitFor(() => screen.getByText(/organiser of Beauty/));
+    screen.getByText(/closes this care circle/);
+    screen.getByText(/permanent and cannot be reversed/);
+    expect(screen.getByLabelText('Confirm account deletion')).toBeDisabled();
     expect(mockDeleteMyAccount).not.toHaveBeenCalled();
   });
 
+  it('calls the real delete function once DELETE is typed and confirmed', async () => {
+    mockCheckAccountDeletionEligibility.mockResolvedValue({ ok: true, data: [{ careSpaceId: 'space-1', careSpaceName: 'Beauty' }] });
+    mockDeleteMyAccount.mockResolvedValue({ ok: true, data: undefined });
+    const screen = await render(<PrivacyDataScreen {...baseProps} />);
+    await expandSection(screen, 'Delete account');
+    await fireEvent.press(screen.getByLabelText('Check if my account can be deleted'));
+    await waitFor(() => screen.getByLabelText('Type DELETE to confirm account deletion'));
+    await fireEvent.changeText(screen.getByLabelText('Type DELETE to confirm account deletion'), 'DELETE');
+    await fireEvent.press(screen.getByLabelText('Confirm account deletion'));
+    expect(mockDeleteMyAccount).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(baseProps.onAccountDeleted).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('PrivacyDataScreen: Delete account (not a sole organiser)', () => {
   it('offers the real final confirmation once the precheck clears, and calls the real delete function only after confirming', async () => {
     mockCheckAccountDeletionEligibility.mockResolvedValue({ ok: true, data: [] });
     mockDeleteMyAccount.mockResolvedValue({ ok: true, data: undefined });
@@ -187,13 +231,13 @@ describe('PrivacyDataScreen: Delete account', () => {
 
   it('a failed deletion shows the real error and never calls onAccountDeleted -- local data is never touched on failure', async () => {
     mockCheckAccountDeletionEligibility.mockResolvedValue({ ok: true, data: [] });
-    mockDeleteMyAccount.mockResolvedValue({ ok: false, message: 'Cannot delete account: Beauty still depends on you as its only organiser.' });
+    mockDeleteMyAccount.mockResolvedValue({ ok: false, message: 'Could not reach the server. Please try again.' });
     const screen = await render(<PrivacyDataScreen {...baseProps} />);
     await expandSection(screen, 'Delete account');
     await fireEvent.press(screen.getByLabelText('Check if my account can be deleted'));
     await waitFor(() => screen.getByLabelText('Delete my account'));
     await fireEvent.press(screen.getByLabelText('Delete my account'));
-    await waitFor(() => screen.getByText(/still depends on you/));
+    await waitFor(() => screen.getByText(/Could not reach the server/));
     expect(baseProps.onAccountDeleted).not.toHaveBeenCalled();
   });
 });

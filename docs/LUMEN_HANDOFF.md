@@ -2,13 +2,15 @@
 
 Despite its legacy filename, this is the canonical current handoff for every incoming agent.
 
-Last updated: 21 September 2026 (both stores now submitted).
+Last updated: 26 September 2026 (Google Play live; Apple rejected, needs a response).
 
 ## Read this first
 
 Lilica is a calm personal and family care organiser built with Expo SDK 57, React Native, TypeScript, Supabase, RevenueCat, EAS, App Store Connect, and Google Play. It is not a clinical system, emergency monitor, surveillance product, or generic family calendar.
 
-**Nothing is urgent or broken right now.** The one real incident this session (production signup completely broken) is fixed and David confirmed it working on-device. **Both stores are now formally submitted.** Apple: `WAITING_FOR_REVIEW`. Google Play: production track rollout `completed` (release `1.0.0`, versionCode `5`), awaiting Google's own review before going publicly live. Nothing further to do on either submission unless a review outcome changes something -- check both at the start of a new session (Apple: `GET /v1/apps/6812822327/appStoreVersions`; Google: `edits.tracks` for `production`).
+**Google Play: Lilica is now publicly live** -- production track release `versionCode 6`, status `completed`. This is the real native binary `1.0.0 (6)` (commit `195d186`, built 22 September), confirmed correct -- not a discrepancy (an earlier pass this session wrongly flagged "build 6" as unreconciled, before this repo's local checkout was caught up with `origin`'s 22-23 September Phase 23 work and CLAUDE.md's corrected build history).
+
+**Apple: `1.0` / build `1.0.0 (6)` was REJECTED** (confirmed via `GET /v1/apps/6812822327/appStoreVersions`, `appStoreState`/`appVersionState` both `REJECTED`; review submission `d9d53c6e-d2bb-4ca7-9304-a3afc274d542` shows `state: UNRESOLVED_ISSUES`, submitted 22 September 2026). Apple is asking for additional information rather than stating confirmed defects -- full message text and a section-by-section read of it (including the one guideline worth taking most seriously, 3.2 "Other Business Models") is in `docs/REVISION_LOG.md`'s 26 September entry. Nothing has been sent back to Apple yet: no screen recording made, no Resolution Center reply drafted, demo account not yet re-verified this session. This is the next real piece of work, subject to the same build/submit approval gate as everything else -- resubmitting the existing binary needs no new build, but confirm with David before taking any Resolution Center or App Store Connect action on his behalf.
 
 An incoming agent must not assume a new phase or release action is authorised. Read this file, `AGENTS.md`, `docs/NEXT_NATIVE_BUILD_MANIFEST.md`, `docs/BUILD_RELEASE_CONTROL.md`, and `docs/REVENUECAT_BILLING_SETUP_REPORT.md` before acting.
 
@@ -33,26 +35,24 @@ Before any `eas update`, state: channel, environment, exact commit, exact change
 
 Authoritative policy: `docs/BUILD_RELEASE_CONTROL.md`.
 
-## Existing native binary (unchanged since 19 September 2026)
+## Existing native binary (unchanged since 22 September 2026)
 
-| Platform | Version | EAS build ID | State |
+| Platform | Version | Commit | State |
 | --- | --- | --- | --- |
-| iOS | `1.0.0 (5)` | `22860bae-49bb-46de-9ccb-0e4cb5a51ca8` | **Submitted to Apple for review** (`appStoreState: WAITING_FOR_REVIEW`, submitted 21 September 2026). No further action needed until Apple responds. |
-| Android | `1.0.0 (5)` | `a7ed9204-270b-482e-a329-2f72f863ceef` | **Submitted to Google Play production track** (21 September 2026, on David's explicit approval). `edits.tracks` for `production` shows release `1.0.0`/versionCode `5`, status `completed`. Awaiting Google's own review before becoming publicly downloadable -- check `edits.tracks` for status changes at the start of a new session. |
+| iOS | `1.0.0 (6)` | `195d186` | **REJECTED by Apple** (confirmed via API, 26 September 2026). Needs a Resolution Center response (screen recording + written answers) before resubmission -- see `docs/REVISION_LOG.md`'s 26 September entry. No build/submit action taken yet. |
+| Android | `1.0.0 (6)` | `195d186` | **Approved and publicly live on Google Play production**, `versionCode 6`, status `completed`. |
 
-Built from commit `313d064`, the first build genuinely wired to `lilica-production` (not `lilica-development`). No new native build has been run since -- everything below this point has reached the installed app via OTA (JS/asset-only, no native change), not a new binary. **This means the version currently under Apple review does not include any of the OTA fixes from 19-21 September** (password toggle, Medical Log Add-flow fix, supported-person rename, ToDo contrast fix, tile rename) -- those exist only as OTA updates for already-installed copies, not baked into the submitted binary. A fresh install from the App Store (once approved) will get them automatically on second launch, same as the Android tester did.
+Built from commit `195d186`, `buildProfile: production` on both platforms, superseding the earlier `313d064`/`1.0.0 (5)` binary. No new native build has been run since -- everything below this point (including the entire Phase 23 Lilica Chat feature) has reached the installed app via OTA (JS/asset-only, no native change), not a new binary. **This means the version currently under Apple review does not include any OTA-only change made after 22 September's build** -- those exist only as OTA updates for already-installed copies, not baked into the submitted binary. A fresh install from the App Store (once approved) will get them automatically on next launch, same as existing installs already have.
 
-**Not yet done, and not resolved by any build or OTA:** Android's `eas.json` submit track is still `internal` (David's choice, changeable to `production` with no rebuild needed when ready); iOS still needs a manual "submit for App Store review" and release action in App Store Connect to go public.
+**Not yet done, and not resolved by any build or OTA:** Android's `eas.json` submit track was switched to `production` (no rebuild needed, already reflected in the live release above); iOS still needs Apple's rejection resolved and a fresh "submit for App Store review" action in App Store Connect to go public.
 
-## OTA state -- two updates published to `production`, both confirmed working
+## OTA state
 
-The installed `1.0.0 (5)` binary is OTA-capable (`expo-updates`, update URL, `runtimeVersion.policy: appVersion`, `production` channel all configured and built in). Three OTA updates have been published since, all on David's explicit approval:
+**This section (originally written 21 September, describing three early OTAs on the now-superseded `1.0.0 (5)` binary) is historical only.** The binary was superseded by `1.0.0 (6)` (commit `195d186`) on 22 September, and a long chain of further OTA updates has shipped since -- the entire Phase 23 Lilica Chat feature (22-23 September, each step David-approved) plus a returning-account crash fix, recurring care needs, and a To Do view-mode fix (22 September). **`docs/REVISION_LOG.md` is the accurate, up-to-date OTA history -- read it top-down rather than trusting the three-update list originally here.** The 19-20 September detail below is kept only because it documents the real critical-outage incident, not because its "current OTA state" framing is still accurate.
 
 1. **Update group `c9ff772b-2a9c-4d03-880d-f6cf103028e6`** (commit `656a98d`, 19 September 2026): fixed a **critical production outage** (see next section) + added a password show/hide eye toggle to Create Account/Log In/Reset Password.
 2. **Update group `0c587d88-d63a-4c81-ad36-8020227beca5`** (commit `68f6247`, 20 September 2026): Medical Log Add-flow tile, Care Summary now includes active conditions/medicines, Settings drawer regrouped (new "Care Circle" group split out of "Account"), notification bell/settings cog spacing tightened.
 3. **Update group `1fb7917f-2682-40d0-b0c5-2d0418889ab5`** (commit `f7753a8`, 20 September 2026): renamed the Add-flow/onboarding tile from "Medical Log" to "Medical issues" (the destination screen's own header is unchanged, still "Medical Log" -- only the entry-point tile wording changed).
-
-All on the `production` channel, runtime `1.0.0`, so they apply automatically to the installed binary. **David confirmed device state after update 1 (signup works); has not yet explicitly confirmed device state after updates 2 or 3** -- validated by full test suite (104 suites/916 tests) and typecheck only, not yet physically confirmed on David's device. Worth asking if not yet mentioned.
 
 Full detail on each OTA and everything it fixed: `docs/REVISION_LOG.md`'s 20 September entries (read top-down, most recent first).
 
@@ -123,7 +123,7 @@ Lilica is iPhone-only. `app.json` must retain `ios.supportsTablet: false`. Check
 
 ### RevenueCat/store work still outstanding (unrelated to any build/OTA)
 
-1. **Both stores: awaiting review outcome, nothing to do unless it changes.** Apple: `1.0.0 (5)` submitted 21 September 2026 (`appStoreState: WAITING_FOR_REVIEW`) -- check `GET /v1/apps/6812822327/appStoreVersions`. Google Play: production track rollout `completed` (release `1.0.0`, versionCode `5`) submitted the same day on David's explicit approval -- check `edits.tracks` for `production` for a status change.
+1. **Apple rejected `1.0.0 (5)`, needs a real response.** See `docs/REVISION_LOG.md`'s 26 September entry for the full Resolution Center message and a section-by-section read of it. Outstanding: physical-device screen recording of app launch/typical flow, written answers to Apple's numbered information requests, re-verification the demo account (`applereview@luxfordinteractive.com`) still logs in with valid entitlement, and a check that App Store screenshots show real app screens (not splash/login). Google Play: approved and live per David ("build 6") -- confirm actual live versionCode via `edits.tracks` for `production`.
 2. Run physical iPhone sandbox purchase, restore, renewal, cancellation, expiry, and refund/revocation checks.
 3. Add/confirm licensed Google Play testers and run equivalent Android internal-track checks.
 4. Confirm a real store event reaches RevenueCat, passes the signed webhook, updates Supabase entitlement state, and changes Lilica's access gates correctly end-to-end (plumbing itself is verified; a real-purchase proof is still outstanding).
@@ -166,15 +166,16 @@ Authority: `docs/PHASE_22_APPROVED_VISUAL_DIRECTION.md` and completion reports. 
 
 ## Immediate continuation instructions
 
-Both stores are submitted and awaiting review -- there is no automatically authorised next phase or pending urgent issue. On a new instruction:
+Google Play is live; Apple needs a Resolution Center response before it can go live -- that response is the clear next piece of work unless David directs otherwise. On a new instruction:
 
-1. re-read current git status/log and this handoff;
-2. if David hasn't yet confirmed the second OTA (Medical Log tile / Settings regrouping / Care Summary) looks right on his device, ask;
+1. re-read current git status/log and this handoff (note: as of 26 September there is an uncommitted change to `src/screens/ToDoScreen.tsx` and untracked `LILBATCH_COMPLETION_REPORT.txt`/`expo-dev.log` -- the tree is not clean, check what these are before assuming they're safe to ignore or commit);
+2. if David hasn't yet confirmed the second/third OTA (Medical Log tile rename / Settings regrouping / Care Summary / ToDo contrast fix / supported-person renaming) looks right on his device, ask;
 3. identify whether the request is code, store metadata, QA, build preparation, build execution, submission, or OTA;
 4. preserve all protected product and visual behaviour (note the two intentional exceptions above: nine categories, not eight; Settings drawer regrouped);
 5. for build/release work, follow the explicit authority gate and `docs/NEXT_NATIVE_BUILD_MANIFEST.md`;
-6. for RevenueCat/store work, resume from the "still outstanding" list above;
-7. update docs to actual behaviour, validate, inspect the full diff, and report limitations honestly;
-8. commit/push only when requested and verify the working tree is clean.
+6. for the Apple rejection specifically, draft the Resolution Center reply and flag what needs David directly (recording a physical-device video, confirming demo-account/subscription state) rather than assuming any of it can be done without him;
+7. for RevenueCat/store work, resume from the "still outstanding" list above;
+8. update docs to actual behaviour, validate, inspect the full diff, and report limitations honestly;
+9. commit/push only when requested and verify the working tree is clean.
 
 An incoming agent should be able to begin immediately from this file and its linked release/billing documents without asking David to reconstruct prior context.

@@ -17,6 +17,13 @@ David stated explicitly he is done with dev-phase work; everything now targets r
 
 **Not resolved by this build, and not resolvable by any build:** Android's `eas.json` submit track is still `internal` (a one-line, no-rebuild change when David wants public release); iOS still needs a manual "submit for App Store review" and release action in App Store Connect; Apple ASN V2/Google RTDN configuration is unconfirmed (lives entirely in Apple's/Google's own consoles, not visible via any API); the rest of the store-readiness list below is also unaffected.
 
+## 26 September 2026 update: outcome of the submissions above
+
+Both `1.0.0 (5)` binaries were subsequently submitted for review (21 September 2026). Outcome:
+
+- **Android: APPROVED, publicly live** on Google Play production track, `versionCode 6`, status `completed` -- this is the real native binary `1.0.0 (6)` (commit `195d186`, built 22 September 2026; see `CLAUDE.md`'s corrected build history), not a discrepancy.
+- **iOS: REJECTED.** Confirmed via API (`appStoreState`/`appVersionState` both `REJECTED`). Apple is asking for additional information (screen recording, written answers, demo-account/screenshot/IAP checks), not stating confirmed defects. This does not, by itself, require a new native build -- the expected path is answering Apple and resubmitting the existing `1.0.0 (6)` binary, not building a new one. Full detail: `docs/REVISION_LOG.md`'s 26 September entry.
+
 ## 19 September 2026 update (superseded by the above): store-test build 4 was approved, built, and submitted
 
 On David's explicit approval (stated build request: both platforms, `store-test` profile, purpose superseding the `1.0.0 (3)`/`1.0.0 (2)` baseline, commit `f3d0dcb`, full delta as listed below, validation as listed below, submission included), the build described in this manifest was run:
