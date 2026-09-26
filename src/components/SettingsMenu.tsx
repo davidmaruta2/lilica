@@ -69,7 +69,6 @@ export function SettingsMenu({
   onOpenContacts,
   onOpenAccount,
   onOpenCareCircle,
-  onOpenJoinCareCircle,
   onOpenPrivacyData,
   onOpenSubscription,
   subscriptionSummary,
@@ -116,13 +115,15 @@ export function SettingsMenu({
   // this move, so that stays true here too.
   onOpenContacts?: () => void;
   onOpenAccount: () => void;
-  onOpenCareCircle?: () => void;
-  // Optional only so existing tests that render this component in
-  // isolation need not supply every prop -- the real app (App.tsx)
-  // always supplies it; see the "Join a Care Circle" row's own header
-  // comment below for why it must be offered regardless of
-  // onOpenCareCircle/careCircleAvailable.
-  onOpenJoinCareCircle?: () => void;
+  // Direct product-owner request, 26 September 2026: "all key care
+  // circle actions in one place, coherent, logical" -- no longer
+  // optional/gated by careCircleAvailable. The Care Circle destination
+  // itself now adapts (App.tsx decides whether that opens the full
+  // CareCircleScreen or a first-time JoinCareCircleScreen), so this row
+  // is always offered, the same way Account/Privacy & data always are.
+  // This also removes the previously-separate "Join a Care Circle" row
+  // (see below) -- joining now happens INSIDE this one destination.
+  onOpenCareCircle: () => void;
   onOpenPrivacyData: () => void;
   // Phase 21B: always offered, like Privacy & data -- meaningful
   // regardless of whether the active care space is real/synced, since
@@ -217,9 +218,15 @@ export function SettingsMenu({
   // Slack "Team members" vs "Profile & account", Dropbox "Sharing" vs
   // "Account"). Kept as its own group below, separate from accountEntries.
   const careCircleEntries = [
-    ...(onOpenCareCircle
-      ? [{ key: 'careCircle', label: 'Care Circle', description: 'Who can help, and what they can see', icon: UsersRoundIcon, onPress: onOpenCareCircle }]
-      : []),
+    // Direct product-owner request, 26 September 2026: one coherent Care
+    // Circle destination -- joining (for someone with nothing set up
+    // yet), members, invitations, removing a contributor (organiser),
+    // and leaving (contributor/viewer) all live inside it now, rather
+    // than "Join" being a separate, easy-to-miss sibling row. See
+    // App.tsx's settingsSection === 'careCircle' branch for how it
+    // decides which of the two screens (CareCircleScreen vs
+    // JoinCareCircleScreen) that actually opens.
+    { key: 'careCircle', label: 'Care Circle', description: 'Join, invite, and manage who can help', icon: UsersRoundIcon, onPress: onOpenCareCircle },
     // Direct product-owner request (22 September 2026): moved here from
     // "[Name]'s care" -- the drawer was unnecessarily fragmented with Key
     // contacts as its own small group elsewhere. It genuinely belongs
@@ -227,21 +234,6 @@ export function SettingsMenu({
     // contacts (GP, pharmacy) never message anyone or gain app access.
     ...(onOpenContacts
       ? [{ key: 'contacts', label: 'Key contacts', description: 'GP, pharmacy, and other useful contacts', icon: PhoneIcon, onPress: onOpenContacts }]
-      : []),
-    // Real gap reported directly (15 September 2026): the manual
-    // invitation-code entry point (JoinCareCircleScreen) was only ever
-    // reachable from INSIDE an already-open Care Circle screen, itself
-    // gated behind having a real, synced care space of one's own
-    // (`careCircleAvailable` in App.tsx). Someone with nothing of their
-    // own set up yet -- exactly who a fresh invitation code is most
-    // likely to reach -- had no way to find it at all. Always offered
-    // here (App.tsx always supplies onOpenJoinCareCircle), regardless of
-    // onOpenCareCircle/careCircleAvailable, for that reason -- and
-    // (20 September 2026, explicit product-owner decision) this is
-    // exactly why the "Care Circle" group heading itself still appears
-    // for someone with nothing set up yet, showing only this row.
-    ...(onOpenJoinCareCircle
-      ? [{ key: 'joinCareCircle', label: 'Join a Care Circle', description: 'Enter an invitation code you\'ve been sent', icon: HeartHandshakeIcon, onPress: onOpenJoinCareCircle }]
       : []),
     ...(onOpenArchivedCare
       ? [{ key: 'archivedCare', label: 'Archived care', description: 'Care spaces you\'ve paused', icon: ArchiveIcon, onPress: onOpenArchivedCare }]

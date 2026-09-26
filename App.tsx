@@ -1989,6 +1989,7 @@ function LilicaApp() {
           // before showJoinCareCircle was ever reached. Both must toggle
           // together.
           onJoinAnotherCareCircle={() => { setShowCareCircle(false); setShowJoinCareCircle(true); }}
+          onLeaveCareSpace={() => { setShowCareCircle(false); void handlePrivacyCareSpaceLeft(); }}
           organiserEligiblePeople={organiserEligiblePeople}
         />
       ) : null;
@@ -2163,8 +2164,7 @@ function LilicaApp() {
           onOpenContacts={() => { setShowSettingsMenu(false); setShowAllContacts(true); }}
           onOpenAccount={() => setSettingsSection('account')}
           onOpenPrivacyData={() => setSettingsSection('privacyData')}
-          onOpenCareCircle={careCircleAvailable ? () => setSettingsSection('careCircle') : undefined}
-          onOpenJoinCareCircle={() => { setJoinCareCircleReturnSection('menu'); setSettingsSection('joinCareCircle'); }}
+          onOpenCareCircle={() => setSettingsSection('careCircle')}
           onOpenSubscription={() => setSettingsSection('subscription')}
           subscriptionSummary={myEntitlement ? describeEntitlement(myEntitlement) : undefined}
           onOpenArchivedCare={archivedSpaces.length > 0 ? () => setSettingsSection('archivedCare') : undefined}
@@ -2248,7 +2248,7 @@ function LilicaApp() {
               onBack={() => setSettingsSection('menu')}
               onSignOut={() => void signOut()}
             />
-          ) : settingsSection === 'careCircle' && currentSpace ? (
+          ) : settingsSection === 'careCircle' && careCircleAvailable && currentSpace ? (
             <CareCircleScreen
               personName={currentSpace.displayName}
               members={careCircleMembers}
@@ -2261,6 +2261,23 @@ function LilicaApp() {
               inviterDisplayName={auth.profile?.displayName}
               organiserEligiblePeople={organiserEligiblePeople}
               onJoinAnotherCareCircle={() => { setJoinCareCircleReturnSection('careCircle'); setSettingsSection('joinCareCircle'); }}
+              onLeaveCareSpace={() => void handlePrivacyCareSpaceLeft()}
+            />
+          ) : settingsSection === 'careCircle' ? (
+            // Direct product-owner request, 26 September 2026: "all key
+            // care circle actions in one place" -- someone with nothing
+            // set up yet (no real, synced care space of their own) opens
+            // the SAME "Care Circle" drawer row as everyone else, but
+            // lands here instead of the member-management screen above.
+            // Closing returns to the drawer menu, never out to the app.
+            <JoinCareCircleScreen
+              onResolveCode={resolveInvitationByCode}
+              onAccept={handleAcceptInvitation}
+              onClose={() => setSettingsSection('menu')}
+              onJoined={() => {
+                setShowSettingsMenu(false);
+                setSettingsSection('menu');
+              }}
             />
           ) : settingsSection === 'joinCareCircle' ? (
             // Real gap reported directly (15 September 2026): this was

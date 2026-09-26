@@ -27,6 +27,7 @@ function Harness({ initialTab, personName = 'Maggie' }: { initialTab: Tab; perso
         personName={personName}
         onClose={() => { setShowSettingsMenu(false); setSettingsSection('menu'); }}
         onOpenAccount={() => setSettingsSection('account')}
+        onOpenCareCircle={jest.fn()}
         onOpenPrivacyData={() => setSettingsSection('privacyData')}
         onOpenSubscription={jest.fn()}
         onOpenHowTo={jest.fn()}

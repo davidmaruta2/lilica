@@ -10,6 +10,7 @@ import {
   DOMAIN_LABELS,
   inviteMember,
   inviteMemberGroup,
+  leaveCareSpace,
   recordInvitationGroupShareOpened,
   recordInvitationShareOpened,
   removeMember,
@@ -57,6 +58,17 @@ type Props = {
   // automatic discovery. Optional -- omitted entirely where this screen
   // is reached from a context that already offers it elsewhere.
   onJoinAnotherCareCircle?: () => void;
+  // Direct product-owner request, 26 September 2026: "all key care
+  // circle actions in one place" -- a contributor/viewer could
+  // previously only leave THIS specific circle via Privacy & data's
+  // own comprehensive, all-circles list (still there, unchanged, for
+  // leaving a circle other than the one currently open). This is the
+  // convenient, in-context counterpart for the one you're looking at
+  // right now. Omitted entirely for the organiser (Manage this
+  // person's care -- archive/handoff/removal -- is their own
+  // equivalent action, never "leave"). Called only after the real
+  // leaveCareSpace() RPC has genuinely succeeded.
+  onLeaveCareSpace?: () => void;
   // Multi-person Care Circle invitation scope (`\downloads\perm.txt`, 15
   // September 2026): every supported person the CURRENT authenticated
   // user has the actual server-authorised ability to invite members
@@ -273,12 +285,13 @@ type JustCreated = {
   alreadyHasAccessNames: string[];
 };
 
-export function CareCircleScreen({ personName, members, invitations, careSpaceId, onBack, onRefresh, isReadOnly, onInviteBlocked, inviterDisplayName, onJoinAnotherCareCircle, organiserEligiblePeople = [] }: Props) {
+export function CareCircleScreen({ personName, members, invitations, careSpaceId, onBack, onRefresh, isReadOnly, onInviteBlocked, inviterDisplayName, onJoinAnotherCareCircle, onLeaveCareSpace, organiserEligiblePeople = [] }: Props) {
   const [showInvite, setShowInvite] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'contributor' | 'viewer'>('contributor');
   const [relationshipLabel, setRelationshipLabel] = useState('');
   const [selectedDomains, setSelectedDomains] = useState<CareCircleDomain[]>(['general']);
+  const [leaving, setLeaving] = useState(false);
   // Multi-person Care Circle invitation scope (`\downloads\perm.txt`, 15
   // September 2026): brief section 4 -- the person whose Care Circle
   // screen this is stays preselected by default (the current context),
@@ -448,6 +461,33 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
     );
   }
 
+  // Direct product-owner request, 26 September 2026: leaving THIS
+  // circle, from right here, rather than only via Privacy & data's
+  // separate, comprehensive (but less immediate) all-circles list.
+  // Mirrors PrivacyDataScreen.tsx's own leave-confirmation pattern
+  // exactly (same copy, same real leaveCareSpace() RPC).
+  function handleLeaveCareSpace() {
+    Alert.alert(
+      `Leave ${personName?.trim() || 'this care circle'}?`,
+      'You\'ll lose access to its records and documents. Anything you added stays as part of its shared history. Your account and any other care spaces are unaffected.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave', style: 'destructive', onPress: async () => {
+            setLeaving(true);
+            const result = await leaveCareSpace(careSpaceId);
+            setLeaving(false);
+            if (!result.ok) {
+              setError(result.message);
+              return;
+            }
+            onLeaveCareSpace?.();
+          },
+        },
+      ],
+    );
+  }
+
   return (
     <Screen>
       <Header title="Care Circle" onBack={onBack} />
@@ -497,6 +537,22 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
             </View>
           ))}
         </View>
+
+        {onLeaveCareSpace && members.some((member) => member.isSelf && member.role !== 'organiser') ? (
+          <View style={styles.section}>
+            <AppText variant="section" tone="danger" style={styles.sectionTitle}>Leave this Care Circle</AppText>
+            <AppText variant="secondary" tone="soft">
+              You'll lose access to {personName?.trim() || 'their'} records and documents. Your account and any other care spaces are unaffected.
+            </AppText>
+            <Button
+              label={leaving ? 'Leaving…' : `Leave ${personName?.trim() || 'this Care Circle'}`}
+              variant="text"
+              disabled={leaving}
+              onPress={handleLeaveCareSpace}
+              style={styles.removeButton}
+            />
+          </View>
+        ) : null}
 
         {infoMessage ? (
           <View style={styles.section}>

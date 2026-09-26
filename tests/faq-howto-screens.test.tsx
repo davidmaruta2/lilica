@@ -17,6 +17,7 @@ describe('SettingsMenu: Help group (How to use Lilica, FAQ, Contact)', () => {
     section: 'menu' as const,
     onClose: jest.fn(),
     onOpenAccount: jest.fn(),
+    onOpenCareCircle: jest.fn(),
     onOpenPrivacyData: jest.fn(),
     onOpenSubscription: jest.fn(),
   };

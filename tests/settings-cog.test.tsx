@@ -29,23 +29,23 @@ describe('SettingsMenu', () => {
   it('always offers Account -- the one destination that already bundles profile, reminders and sign out', async () => {
     const onOpenAccount = jest.fn();
     const screen = await render(
-      <SettingsMenu visible section="menu" onClose={jest.fn()} onOpenAccount={onOpenAccount} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()} />,
+      <SettingsMenu visible section="menu" onClose={jest.fn()} onOpenAccount={onOpenAccount} onOpenCareCircle={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()} />,
     );
     await fireEvent.press(screen.getByLabelText('Account'));
     expect(onOpenAccount).toHaveBeenCalledTimes(1);
   });
 
-  it('offers Care Circle only when a callback is supplied -- never a dead row', async () => {
-    const withoutCareCircle = await render(
-      <SettingsMenu visible section="menu" onClose={jest.fn()} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()} />,
-    );
-    expect(withoutCareCircle.queryByLabelText('Care Circle')).toBeNull();
-
+  // Direct product-owner request, 26 September 2026: "all key care
+  // circle actions in one place" -- Care Circle is no longer a
+  // sometimes-omitted row (there used to be a separate "Join a Care
+  // Circle" fallback for someone with nothing set up yet -- see
+  // tests/settings-join-care-circle.test.tsx). It's always offered now.
+  it('always offers Care Circle -- App.tsx decides internally whether that opens management or first-time joining', async () => {
     const onOpenCareCircle = jest.fn();
-    const withCareCircle = await render(
-      <SettingsMenu visible section="menu" onClose={jest.fn()} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()} onOpenCareCircle={onOpenCareCircle} />,
+    const screen = await render(
+      <SettingsMenu visible section="menu" onClose={jest.fn()} onOpenAccount={jest.fn()} onOpenCareCircle={onOpenCareCircle} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()} />,
     );
-    await fireEvent.press(withCareCircle.getByLabelText('Care Circle'));
+    await fireEvent.press(screen.getByLabelText('Care Circle'));
     expect(onOpenCareCircle).toHaveBeenCalledTimes(1);
   });
 
@@ -58,7 +58,7 @@ describe('SettingsMenu', () => {
     const onClose = jest.fn();
     const onOpenAccount = jest.fn();
     const screen = await render(
-      <SettingsMenu visible section="menu" onClose={onClose} onOpenAccount={onOpenAccount} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()} />,
+      <SettingsMenu visible section="menu" onClose={onClose} onOpenAccount={onOpenAccount} onOpenCareCircle={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()} />,
     );
     await fireEvent.press(screen.getByLabelText('Account'));
     expect(onOpenAccount).toHaveBeenCalledTimes(1);
@@ -68,14 +68,14 @@ describe('SettingsMenu', () => {
   it('Close (header) and the dimmed backdrop both call onClose', async () => {
     const onClose = jest.fn();
     const screen = await render(
-      <SettingsMenu visible section="menu" onClose={onClose} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()} />,
+      <SettingsMenu visible section="menu" onClose={onClose} onOpenAccount={jest.fn()} onOpenCareCircle={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()} />,
     );
     await fireEvent.press(screen.getByLabelText('Close settings'));
     expect(onClose).toHaveBeenCalledTimes(1);
 
     onClose.mockClear();
     const second = await render(
-      <SettingsMenu visible section="menu" onClose={onClose} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()} />,
+      <SettingsMenu visible section="menu" onClose={onClose} onOpenAccount={jest.fn()} onOpenCareCircle={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()} />,
     );
     await fireEvent.press(second.getByLabelText('Dismiss settings'));
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -84,7 +84,7 @@ describe('SettingsMenu', () => {
   it('renders the passed-in section content, not the menu list, whenever section is not "menu"', async () => {
     const { Text } = require('react-native');
     const screen = await render(
-      <SettingsMenu visible section="privacyData" onClose={jest.fn()} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()}>
+      <SettingsMenu visible section="privacyData" onClose={jest.fn()} onOpenAccount={jest.fn()} onOpenCareCircle={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()}>
         <Text>Privacy & data body</Text>
       </SettingsMenu>,
     );
@@ -94,7 +94,7 @@ describe('SettingsMenu', () => {
 
   it('offers a real Help group (How to use Lilica, FAQ), but still no About row -- that is not a genuinely implemented destination', async () => {
     const screen = await render(
-      <SettingsMenu visible section="menu" onClose={jest.fn()} onOpenAccount={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()} onOpenCareCircle={jest.fn()} />,
+      <SettingsMenu visible section="menu" onClose={jest.fn()} onOpenAccount={jest.fn()} onOpenCareCircle={jest.fn()} onOpenPrivacyData={jest.fn()} onOpenSubscription={jest.fn()} onOpenHowTo={jest.fn()} onOpenFaq={jest.fn()} onOpenContact={jest.fn()} />,
     );
     screen.getByText('Help');
     screen.getByLabelText('How to use Lilica');

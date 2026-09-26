@@ -17,6 +17,7 @@ const baseProps = {
   section: 'menu' as const,
   onClose: jest.fn(),
   onOpenAccount: jest.fn(),
+    onOpenCareCircle: jest.fn(),
   onOpenPrivacyData: jest.fn(),
   onOpenSubscription: jest.fn(),
   onOpenHowTo: jest.fn(),
