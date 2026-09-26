@@ -6,6 +6,7 @@ import {
   CareCircleInvitation,
   CareCircleMember,
   CareCircleRole,
+  changeMemberRole,
   DOMAIN_DESCRIPTIONS,
   DOMAIN_LABELS,
   inviteMember,
@@ -292,6 +293,17 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
   const [relationshipLabel, setRelationshipLabel] = useState('');
   const [selectedDomains, setSelectedDomains] = useState<CareCircleDomain[]>(['general']);
   const [leaving, setLeaving] = useState(false);
+  // Direct product-owner request, 26 September 2026: "how do I amend the
+  // contributor's permissions?" -- change_member_role() already existed
+  // server-side (used e.g. to promote a second organiser) but nothing in
+  // this screen ever called it for a contributor/viewer's own role or
+  // domains after the fact -- only settable once, at invite time. Reuses
+  // the exact same role-pill/domain-checkbox UI the invite form already
+  // established, pre-filled with that member's CURRENT values, rather
+  // than inventing a second visual language for the same choice.
+  const [editingMember, setEditingMember] = useState<CareCircleMember>();
+  const [editRole, setEditRole] = useState<'contributor' | 'viewer'>('contributor');
+  const [editDomains, setEditDomains] = useState<CareCircleDomain[]>([]);
   // Multi-person Care Circle invitation scope (`\downloads\perm.txt`, 15
   // September 2026): brief section 4 -- the person whose Care Circle
   // screen this is stays preselected by default (the current context),
@@ -488,6 +500,37 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
     );
   }
 
+  function openEditMember(member: CareCircleMember) {
+    setError(undefined);
+    setEditingMember(member);
+    setEditRole(member.role === 'organiser' ? 'contributor' : member.role);
+    setEditDomains(member.grantedDomains);
+  }
+
+  function toggleEditDomain(domain: CareCircleDomain) {
+    setEditDomains((current) =>
+      current.includes(domain) ? current.filter((value) => value !== domain) : [...current, domain],
+    );
+  }
+
+  async function submitEditMember() {
+    if (!editingMember) return;
+    setBusy(true);
+    setError(undefined);
+    const result = await changeMemberRole({
+      membershipId: editingMember.membershipId,
+      role: editRole,
+      grantedDomains: editDomains,
+    });
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    setEditingMember(undefined);
+    onRefresh();
+  }
+
   return (
     <Screen>
       <Header title="Care Circle" onBack={onBack} />
@@ -506,12 +549,32 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
 
         {error ? <AppText variant="secondary" tone="danger">{error}</AppText> : null}
 
+        {/* Direct product-owner request, 26 September 2026: "needs to be
+            a nice box under that menu like the other boxes" -- was a
+            small text-only link squeezed into the Members section
+            title row. Now its own real, pressable card matching this
+            screen's established box language exactly (personContext
+            above, each member card below). */}
+        {onJoinAnotherCareCircle ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Join a Care Circle"
+            onPress={onJoinAnotherCareCircle}
+            style={({ pressed }) => [styles.joinCard, pressed && styles.joinCardPressed]}
+          >
+            <View style={styles.personAvatar}><AppText variant="bodyStrong" tone="primary">+</AppText></View>
+            <View style={styles.cardCopy}>
+              <AppText variant="bodyStrong">Join a Care Circle</AppText>
+              <AppText variant="secondary" tone="soft">Have an invitation code? Enter it here.</AppText>
+            </View>
+            <View style={styles.joinChevron} />
+          </Pressable>
+        ) : null}
+
         <View style={styles.section}>
           <View style={styles.sectionTitleRow}>
             <AppText variant="section" tone="primary" style={styles.sectionTitle}>Members</AppText>
-            {onJoinAnotherCareCircle ? <Button label="Join a Care Circle" variant="text" onPress={onJoinAnotherCareCircle} style={styles.joinButton} /> : null}
           </View>
-          {onJoinAnotherCareCircle ? <AppText variant="secondary" tone="soft">Have an invitation code? Enter it to join a Care Circle.</AppText> : null}
           {members.map((member) => (
             <View key={member.membershipId} style={styles.card}>
               <View style={styles.memberAvatar}><AppText variant="bodyStrong" tone="primary">{member.displayName.charAt(0).toUpperCase()}</AppText></View>
@@ -530,13 +593,72 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
                       : 'Nothing shared yet'}
                   </AppText>
                 ) : null}
-                {!member.isSelf && !(member.role === 'organiser' && organiserCount <= 1) ? (
-                  <Button label="Remove" variant="text" disabled={busy} onPress={() => handleRemove(member.membershipId, member.displayName)} style={styles.removeButton} />
-                ) : null}
+                <View style={styles.memberActionRow}>
+                  {member.role !== 'organiser' ? (
+                    <Button label="Edit permissions" variant="text" disabled={busy} onPress={() => openEditMember(member)} style={styles.editButton} />
+                  ) : null}
+                  {!member.isSelf && !(member.role === 'organiser' && organiserCount <= 1) ? (
+                    <Button label="Remove" variant="text" disabled={busy} onPress={() => handleRemove(member.membershipId, member.displayName)} style={styles.removeButton} />
+                  ) : null}
+                </View>
               </View>
             </View>
           ))}
         </View>
+
+        {editingMember ? (
+          <View style={styles.section}>
+            <AppText variant="section" tone="primary">Edit {editingMember.displayName}'s permissions</AppText>
+            <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>Role</AppText>
+            <View style={styles.pillRow}>
+              {(['contributor', 'viewer'] as const).map((option) => (
+                <Pressable
+                  key={option}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: editRole === option }}
+                  onPress={() => setEditRole(option)}
+                  style={[styles.pill, editRole === option && styles.pillSelected]}
+                >
+                  <AppText variant="secondary" tone={editRole === option ? 'primary' : 'soft'}>
+                    {option === 'contributor' ? 'Contributor' : 'Viewer'}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
+            <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>What can they see?</AppText>
+            <View style={styles.domainList}>
+              {DOMAIN_OPTIONS.map((option) => {
+                const selected = editDomains.includes(option.value);
+                return (
+                  <Pressable
+                    key={option.value}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: selected }}
+                    accessibilityLabel={selected ? `${option.label}, selected. Grants access to: ${DOMAIN_DESCRIPTIONS[option.value]}` : `${option.label}, not selected`}
+                    onPress={() => toggleEditDomain(option.value)}
+                    style={[styles.domainRow, selected && styles.domainRowSelected]}
+                  >
+                    <View style={styles.domainRowHeader}>
+                      <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+                        {selected ? <View style={styles.checkboxTick} /> : null}
+                      </View>
+                      <AppText variant="bodyStrong" tone={selected ? 'primary' : 'default'} style={styles.domainRowLabel}>
+                        {option.label}
+                      </AppText>
+                    </View>
+                    {selected ? (
+                      <AppText variant="secondary" tone="soft" style={styles.domainRowDescription}>
+                        {DOMAIN_DESCRIPTIONS[option.value]}
+                      </AppText>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Button label={busy ? 'Saving…' : 'Save changes'} onPress={submitEditMember} disabled={busy} />
+            <Button label="Cancel" variant="text" onPress={() => setEditingMember(undefined)} disabled={busy} />
+          </View>
+        ) : null}
 
         {onLeaveCareSpace && members.some((member) => member.isSelf && member.role !== 'organiser') ? (
           <View style={styles.section}>
@@ -820,8 +942,30 @@ const styles = StyleSheet.create({
   },
   sectionTitleRow: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   sectionTitle: { fontSize: 17, lineHeight: 22 },
-  joinButton: { width: 'auto', minHeight: 40, paddingHorizontal: spacing.sm },
   personContext: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  joinCard: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  joinCardPressed: { opacity: 0.85 },
+  // Same drawn-chevron technique used throughout the app (Header's own
+  // back chevron, Settings drawer rows) -- pointing right here, to read
+  // as "opens something further" rather than a plain text link.
+  joinChevron: {
+    width: 10,
+    height: 10,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+    borderColor: colors.primary,
+    transform: [{ rotate: '45deg' }],
+  },
   personAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
   card: {
     backgroundColor: colors.surface,
@@ -839,6 +983,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  memberActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  editButton: {
+    alignSelf: 'flex-start',
   },
   removeButton: {
     alignSelf: 'flex-start',

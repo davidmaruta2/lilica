@@ -42,7 +42,7 @@ describe('CareCircleScreen: "Join a Care Circle" is clearly visible to every aut
       <CareCircleScreen {...baseProps} members={[organiserSelf]} onJoinAnotherCareCircle={onJoinAnotherCareCircle} />,
     );
     screen.getByText('Join a Care Circle');
-    screen.getByText("Have an invitation code? Enter it to join a Care Circle.");
+    screen.getByText('Have an invitation code? Enter it here.');
     screen.getByText('Invite someone');
     await fireEvent.press(screen.getByText('Join a Care Circle'));
     expect(onJoinAnotherCareCircle).toHaveBeenCalledTimes(1);
