@@ -220,10 +220,36 @@ function formatQuietHour(hour: number): string {
   return `${twelveHour}${period}`;
 }
 
+// Real-device bug, 26 September 2026: signing in on a genuinely fresh
+// install (no local AsyncStorage yet -- exactly what a reinstall, a new
+// device, or Apple's own reviewer produces) showed "[Person] still needs
+// setting up" for an account whose care space was already fully
+// populated with real records on the server for weeks. Root cause:
+// integrateReconnectedCareSpaces() (src/careSpaceState.ts) has no
+// server-side signal for "has this person's setup actually been
+// finished" to work from -- ProvisionedPerson carries only identity/
+// membership fields -- so a newly-integrated space it has never seen
+// locally before always starts at setupStatus: 'identity_only',
+// deliberately (see that function's own comment), regardless of real
+// completeness. Nothing downstream ever re-derived a more accurate
+// status once the server's own records arrived. Fixed here, the one
+// place every sync path (initial load, reconnect, periodic resync,
+// post-mutation sync) already funnels through to apply fetched
+// records: a space that isn't already 'ready' but genuinely has real
+// records is promoted to 'ready' -- nobody can have a real record
+// without having already completed the onboarding wizard's final step
+// (see completeOnboarding() above), so this is a safe, conservative
+// signal, not a guess. allSetDismissed is deliberately left untouched
+// (never forced to false here) so an established account never sees a
+// "you're all set!" congratulatory card again on a fresh device.
 function applyCachedRecords(state: OnboardingState, recordsBySpace: Record<string, LilicaRecord[]>) {
   let next = state;
   for (const [careSpaceId, records] of Object.entries(recordsBySpace)) {
-    next = replaceCareSpace(next, careSpaceId, (space) => ({ ...space, records }));
+    next = replaceCareSpace(next, careSpaceId, (space) => ({
+      ...space,
+      records,
+      setupStatus: space.setupStatus !== 'ready' && records.length > 0 ? 'ready' : space.setupStatus,
+    }));
   }
   return projectActiveCareSpace(next);
 }
