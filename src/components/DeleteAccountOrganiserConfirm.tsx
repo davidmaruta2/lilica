@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from './Text';
 import { Button } from './Button';
+import { KeyboardAwareScrollView } from './KeyboardAwareScrollView';
 import { TextField } from './TextField';
+import { keyboardAvoidingBehavior, keyboardDismissMode } from '../keyboard';
 import { colors, radius, shadow, spacing } from '../theme';
 
 // Direct product-owner decision, 26 September 2026: deleting your own
@@ -42,52 +44,69 @@ export function DeleteAccountOrganiserConfirm({ visible, careSpaceNames, busy, e
   const plural = careSpaceNames.length > 1;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
-      <View style={styles.root}>
+    <Modal visible={visible} transparent statusBarTranslucent animationType="fade" onRequestClose={handleCancel}>
+      {/* Real-device report, 26 September 2026: the typed-DELETE field and
+          the confirm/cancel buttons below it were hidden behind the
+          keyboard -- this card used to be a fixed, vertically-centred
+          View with no keyboard awareness at all, the one surface in this
+          screen's family that hadn't been given the KeyboardAvoidingView +
+          KeyboardAwareScrollView treatment already established for every
+          other text-entry surface (see RecordSheet.tsx, src/keyboard.ts).
+          Fixed the same way, plus a capped card height so long content and
+          a keyboard can both be accommodated by scrolling internally
+          rather than overflowing off-screen. */}
+      <KeyboardAvoidingView behavior={keyboardAvoidingBehavior(Platform.OS)} style={styles.root}>
         <Pressable accessibilityLabel="Dismiss" style={StyleSheet.absoluteFill} onPress={handleCancel} />
         <View style={styles.card}>
-          <AppText variant="title">Delete your account?</AppText>
-          <AppText variant="body" tone="soft" style={styles.body}>
-            You are the organiser of {namesList}. Deleting your account unsubscribes you from Lilica and closes {plural ? 'these care circles' : 'this care circle'}.
-          </AppText>
-          <AppText variant="bodyStrong" tone="danger" style={styles.body}>
-            This action is permanent and cannot be reversed.
-          </AppText>
-          <AppText variant="body" tone="soft" style={styles.body}>
-            Make sure alternative arrangements are in place for the {plural ? 'people' : 'person'} you support before continuing.
-          </AppText>
-          <AppText variant="body" tone="soft" style={styles.body}>
-            Deleting your account does NOT automatically cancel an active App Store or Google Play subscription -- manage or cancel it directly in your App Store/Google Play account settings.
-          </AppText>
-
-          <AppText variant="secondary" tone="soft" style={styles.prompt}>
-            Still want to delete? Type DELETE to proceed.
-          </AppText>
-          <TextField
-            label="Type DELETE"
-            compact
-            value={typed}
-            onChangeText={setTyped}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            editable={!busy}
-            accessibilityLabel="Type DELETE to confirm account deletion"
-          />
-
-          {error ? <AppText variant="secondary" tone="danger">{error}</AppText> : null}
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Confirm account deletion"
-            disabled={!confirmed || busy}
-            onPress={onConfirm}
-            style={[styles.destructiveRow, (!confirmed || busy) && styles.destructiveRowDisabled]}
+          <KeyboardAwareScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={keyboardDismissMode(Platform.OS)}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
           >
-            <AppText variant="bodyStrong" tone="danger" centre>{busy ? 'Deleting…' : 'Delete my account'}</AppText>
-          </Pressable>
-          <Button label="Cancel" variant="text" onPress={handleCancel} disabled={busy} />
+            <AppText variant="title">Delete your account?</AppText>
+            <AppText variant="body" tone="soft" style={styles.body}>
+              You are the organiser of {namesList}. Deleting your account unsubscribes you from Lilica and closes {plural ? 'these care circles' : 'this care circle'}.
+            </AppText>
+            <AppText variant="bodyStrong" tone="danger" style={styles.body}>
+              This action is permanent and cannot be reversed.
+            </AppText>
+            <AppText variant="body" tone="soft" style={styles.body}>
+              Make sure alternative arrangements are in place for the {plural ? 'people' : 'person'} you support before continuing.
+            </AppText>
+            <AppText variant="body" tone="soft" style={styles.body}>
+              Deleting your account does NOT automatically cancel an active App Store or Google Play subscription -- manage or cancel it directly in your App Store/Google Play account settings.
+            </AppText>
+
+            <AppText variant="secondary" tone="soft" style={styles.prompt}>
+              Still want to delete? Type DELETE to proceed.
+            </AppText>
+            <TextField
+              label="Type DELETE"
+              compact
+              value={typed}
+              onChangeText={setTyped}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              editable={!busy}
+              accessibilityLabel="Type DELETE to confirm account deletion"
+            />
+
+            {error ? <AppText variant="secondary" tone="danger">{error}</AppText> : null}
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Confirm account deletion"
+              disabled={!confirmed || busy}
+              onPress={onConfirm}
+              style={[styles.destructiveRow, (!confirmed || busy) && styles.destructiveRowDisabled]}
+            >
+              <AppText variant="bodyStrong" tone="danger" centre>{busy ? 'Deleting…' : 'Delete my account'}</AppText>
+            </Pressable>
+            <Button label="Cancel" variant="text" onPress={handleCancel} disabled={busy} />
+          </KeyboardAwareScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -103,11 +122,14 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 420,
+    maxHeight: '90%',
     backgroundColor: colors.canvas,
     borderRadius: 8,
+    ...shadow.soft,
+  },
+  scrollContent: {
     padding: spacing.md,
     gap: spacing.sm,
-    ...shadow.soft,
   },
   body: {
     lineHeight: 20,
