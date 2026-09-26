@@ -43,8 +43,10 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockPendingLocalWork.mockResolvedValue({ hasPendingMutations: false, hasPendingUploads: false, hasPendingCleanup: false });
   jest.spyOn(Alert, 'alert').mockImplementation((title, message, buttons) => {
-    // Simulate the user pressing the destructive confirmation button.
-    const confirm = buttons?.find((button) => button.style === 'destructive');
+    // Simulate the user pressing the destructive confirmation button, or
+    // (for the post-deletion "Account deleted" acknowledgement, which has
+    // no destructive button -- just a single OK) whichever button exists.
+    const confirm = buttons?.find((button) => button.style === 'destructive') ?? buttons?.[0];
     confirm?.onPress?.();
   });
 });
@@ -199,6 +201,42 @@ describe('PrivacyDataScreen: Delete account as a sole organiser', () => {
     await fireEvent.changeText(screen.getByLabelText('Type DELETE to confirm account deletion'), 'DELETE');
     await fireEvent.press(screen.getByLabelText('Confirm account deletion'));
     expect(mockDeleteMyAccount).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(baseProps.onAccountDeleted).toHaveBeenCalledTimes(1));
+  });
+
+  // Real-device report, 26 September 2026: after entering DELETE and
+  // confirming, nothing visibly told the user the account was actually
+  // gone -- onAccountDeleted() signs out and navigates away before any
+  // on-screen text could be read. A real, blocking "Account deleted"
+  // confirmation must appear and be acknowledged before sign-out proceeds.
+  it('shows a blocking "Account deleted" confirmation, and only signs out once it is acknowledged', async () => {
+    mockCheckAccountDeletionEligibility.mockResolvedValue({ ok: true, data: [{ careSpaceId: 'space-1', careSpaceName: 'Beauty' }] });
+    mockDeleteMyAccount.mockResolvedValue({ ok: true, data: undefined });
+    let acknowledge: (() => void) | undefined;
+    (Alert.alert as jest.Mock).mockImplementation((title, message, buttons) => {
+      if (title === 'Account deleted') {
+        acknowledge = () => buttons?.[0]?.onPress?.();
+        return;
+      }
+      const confirm = buttons?.find((button: { style?: string }) => button.style === 'destructive') ?? buttons?.[0];
+      confirm?.onPress?.();
+    });
+    const screen = await render(<PrivacyDataScreen {...baseProps} />);
+    await expandSection(screen, 'Delete account');
+    await fireEvent.press(screen.getByLabelText('Check if my account can be deleted'));
+    await waitFor(() => screen.getByLabelText('Type DELETE to confirm account deletion'));
+    await fireEvent.changeText(screen.getByLabelText('Type DELETE to confirm account deletion'), 'DELETE');
+    await fireEvent.press(screen.getByLabelText('Confirm account deletion'));
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith(
+      'Account deleted',
+      expect.stringMatching(/permanently deleted/i),
+      expect.anything(),
+      expect.objectContaining({ cancelable: false }),
+    ));
+    // Deletion succeeded server-side, but sign-out must NOT happen until
+    // the confirmation is actually acknowledged.
+    expect(baseProps.onAccountDeleted).not.toHaveBeenCalled();
+    acknowledge?.();
     await waitFor(() => expect(baseProps.onAccountDeleted).toHaveBeenCalledTimes(1));
   });
 });

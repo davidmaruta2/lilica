@@ -246,8 +246,20 @@ export function PrivacyDataScreen({
       return;
     }
     setShowOrganiserConfirm(false);
-    setDeletionState({ busy: false, tone: 'success', message: 'Your account has been deleted. Signing you out...' });
-    await onAccountDeleted();
+    setDeletionState({ busy: false, tone: 'success', message: 'Your account has been deleted.' });
+    // Real-device report, 26 September 2026: this inline message was
+    // never actually seen -- onAccountDeleted() immediately clears local
+    // data and signs out, which navigates away (to sign-in/Welcome)
+    // before anyone could read text on a screen that no longer exists.
+    // A real, blocking confirmation the user must acknowledge -- not
+    // text that gets superseded by a screen change a moment later -- is
+    // shown first; sign-out only proceeds once they dismiss it.
+    Alert.alert(
+      'Account deleted',
+      'Your account has been permanently deleted. You will now be signed out.',
+      [{ text: 'OK', onPress: () => void onAccountDeleted() }],
+      { cancelable: false },
+    );
   }
 
   function handleConfirmDeletion() {
