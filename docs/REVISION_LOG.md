@@ -8,7 +8,7 @@
 
 Both shipped via OTA (`production`/runtime `1.0.0`/both platforms, update group `75bda283-3d65-4421-8480-6e2ed390767c`, commit `6c32fca`) after 111 suites/996 tests passed, typecheck clean, secrets scan clean, and confirming no native-affecting file changed since the prior OTA.
 
-**Not yet confirmed:** whether the Subscription screen now shows £8.99 on-device (StoreKit product-metadata can take time to refresh even after a genuine root-cause fix, per the earlier base-territory attempt's own experience) or whether account deletion now succeeds end-to-end on a real device with a real invitation group. Both fixes are correct by code/schema inspection and match established, already-proven patterns elsewhere in this codebase, but David's own on-device confirmation of both is the real test.
+**Confirmed by David on-device, same day: both fixed.** The Subscription screen now shows £8.99, and account deletion (including the invitation-group scenario) now completes successfully.
 
 ## 26 September 2026 - Root cause found and fixed: subscription screen showed USD instead of GBP on iOS
 
