@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -115,9 +115,35 @@ function WheelColumn({ label, values, selected, format = String, onSelect }: Whe
 
 export function DateTimeWheelField({ label, mode, value, onChange, optional }: Props) {
   const [open, setOpen] = useState(false);
+  // Real-device crash, 26 September 2026 (Medical Log's "Date diagnosed"
+  // field, though this field is shared by every record type): each
+  // WheelColumn's FlatList uses initialScrollIndex + getItemLayout to
+  // jump straight to the current value (e.g. the Year column can need to
+  // scroll ~126 rows deep) -- a documented, timing-dependent React
+  // Native crash class when that combination mounts inside a Modal
+  // that's still mid-slide-in animation, since the list's own first
+  // layout pass hasn't necessarily completed yet. Intermittent by
+  // nature (matches the real report: crashed three times, then worked)
+  // rather than reliably reproducible, which is itself a signature of
+  // this exact bug class. Fixed by not mounting the wheel columns at
+  // all until one tick after the sheet opens -- by then React has
+  // already committed and the modal's native view has had a real layout
+  // pass, regardless of whether the slide animation is still visually
+  // finishing. The existing test suite's own `waitFor` around this
+  // content already tolerates this delay.
+  const [wheelsReady, setWheelsReady] = useState(false);
   const [dateParts, setDateParts] = useState<DateParts>(() => initialDateParts(value));
   const [timeParts, setTimeParts] = useState<TimeParts>(() => initialTimeParts(value));
   const placeholder = optional ? `Optional - choose ${mode}` : `Choose ${mode}`;
+
+  useEffect(() => {
+    if (!open) {
+      setWheelsReady(false);
+      return;
+    }
+    const timer = setTimeout(() => setWheelsReady(true), 0);
+    return () => clearTimeout(timer);
+  }, [open]);
   const days = useMemo(
     () => Array.from({ length: daysInMonth(dateParts.month, dateParts.year) }, (_, index) => index + 1),
     [dateParts.month, dateParts.year],
@@ -156,18 +182,20 @@ export function DateTimeWheelField({ label, mode, value, onChange, optional }: P
             </View>
             <View style={styles.wheels} testID={`${mode}-wheel-selector`}>
               <View pointerEvents="none" style={styles.selection} />
-              {mode === 'date' ? (
-                <>
-                  <WheelColumn label="Day" values={days} selected={dateParts.day} onSelect={(day) => changeDate({ day })} format={(day) => String(day).padStart(2, '0')} />
-                  <WheelColumn label="Month" values={MONTHS.map((_, index) => index + 1)} selected={dateParts.month} onSelect={(month) => changeDate({ month })} format={(month) => MONTHS[month - 1]} />
-                  <WheelColumn label="Year" values={YEARS} selected={dateParts.year} onSelect={(year) => changeDate({ year })} />
-                </>
-              ) : (
-                <>
-                  <WheelColumn label="Hour" values={HOURS} selected={timeParts.hour} onSelect={(hour) => setTimeParts((current) => ({ ...current, hour }))} format={(hour) => String(hour).padStart(2, '0')} />
-                  <WheelColumn label="Minute" values={MINUTES} selected={timeParts.minute} onSelect={(minute) => setTimeParts((current) => ({ ...current, minute }))} format={(minute) => String(minute).padStart(2, '0')} />
-                </>
-              )}
+              {wheelsReady ? (
+                mode === 'date' ? (
+                  <>
+                    <WheelColumn label="Day" values={days} selected={dateParts.day} onSelect={(day) => changeDate({ day })} format={(day) => String(day).padStart(2, '0')} />
+                    <WheelColumn label="Month" values={MONTHS.map((_, index) => index + 1)} selected={dateParts.month} onSelect={(month) => changeDate({ month })} format={(month) => MONTHS[month - 1]} />
+                    <WheelColumn label="Year" values={YEARS} selected={dateParts.year} onSelect={(year) => changeDate({ year })} />
+                  </>
+                ) : (
+                  <>
+                    <WheelColumn label="Hour" values={HOURS} selected={timeParts.hour} onSelect={(hour) => setTimeParts((current) => ({ ...current, hour }))} format={(hour) => String(hour).padStart(2, '0')} />
+                    <WheelColumn label="Minute" values={MINUTES} selected={timeParts.minute} onSelect={(minute) => setTimeParts((current) => ({ ...current, minute }))} format={(minute) => String(minute).padStart(2, '0')} />
+                  </>
+                )
+              ) : null}
             </View>
             {optional && value ? <Button label={`Clear ${mode}`} variant="text" onPress={() => { onChange(''); setOpen(false); }} style={styles.clear} /> : null}
           </SafeAreaView>

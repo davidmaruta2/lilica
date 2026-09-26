@@ -101,7 +101,7 @@ describe('responsive onboarding composition', () => {
     const dateScreen = await render(<DateTimeWheelField label="Date" mode="date" value="15/09/2026" onChange={onDateChange} />);
     expect(() => dateScreen.getByPlaceholderText('DD/MM/YYYY')).toThrow();
     await fireEvent.press(dateScreen.getByRole('button', { name: 'Date: 15/09/2026' }));
-    await waitFor(() => dateScreen.getByTestId('date-wheel-selector'));
+    await waitFor(() => dateScreen.getByTestId('day-wheel'));
     expect(flattenedStyle(dateScreen.getByTestId('date-picker-sheet')).minHeight).toBe(344);
     expect(dateScreen.getByTestId('day-wheel').props.initialScrollIndex).toBe(14);
     expect(dateScreen.getByTestId('month-wheel').props.initialScrollIndex).toBe(8);
@@ -117,7 +117,7 @@ describe('responsive onboarding composition', () => {
     const onDateChange = jest.fn();
     const dateScreen = await render(<DateTimeWheelField label="Date" mode="date" value="15/09/2026" onChange={onDateChange} />);
     await fireEvent.press(dateScreen.getByRole('button', { name: 'Date: 15/09/2026' }));
-    await waitFor(() => dateScreen.getByTestId('date-wheel-selector'));
+    await waitFor(() => dateScreen.getByTestId('day-wheel'));
     await fireEvent(dateScreen.getByTestId('day-wheel'), 'momentumScrollEnd', { nativeEvent: { contentOffset: { y: 19 * 44 } } });
     await fireEvent.press(dateScreen.getByRole('button', { name: 'Done' }));
     await waitFor(() => expect(dateScreen.queryByTestId('date-wheel-selector')).toBeNull());
@@ -125,11 +125,30 @@ describe('responsive onboarding composition', () => {
     await dateScreen.unmount();
   });
 
+  // Real-device crash, 26 September 2026 (reported on Medical Log's "Date
+  // diagnosed" field, though this field is shared by every record type):
+  // a FlatList using initialScrollIndex + getItemLayout is a documented
+  // React Native crash risk when it mounts inside a Modal that's still
+  // animating in. Fixed by not mounting the wheel columns at all until
+  // one tick after the sheet opens. This proves that deferral is real --
+  // the selector container appears immediately, but the actual wheels
+  // (the crash-prone part) do not exist yet at that exact moment.
+  it('does not mount the crash-prone wheel columns in the same tick the sheet opens', async () => {
+    const dateScreen = await render(<DateTimeWheelField label="Date" mode="date" value="15/09/2026" onChange={jest.fn()} />);
+    await fireEvent.press(dateScreen.getByRole('button', { name: 'Date: 15/09/2026' }));
+    // The selector container itself renders synchronously with the sheet...
+    expect(dateScreen.getByTestId('date-wheel-selector')).toBeTruthy();
+    // ...but the actual wheel FlatLists are deliberately not mounted yet.
+    expect(dateScreen.queryByTestId('day-wheel')).toBeNull();
+    await waitFor(() => dateScreen.getByTestId('day-wheel'));
+    await dateScreen.unmount();
+  });
+
   it('uses 24-hour and minute wheels without opening a text keyboard', async () => {
     const timeScreen = await render(<DateTimeWheelField label="Time" mode="time" value="00:00" onChange={jest.fn()} optional />);
     expect(() => timeScreen.getByPlaceholderText('HH:MM')).toThrow();
     await fireEvent.press(timeScreen.getByRole('button', { name: 'Time: 00:00' }));
-    await waitFor(() => timeScreen.getByTestId('time-wheel-selector'));
+    await waitFor(() => timeScreen.getByTestId('hour-wheel'));
     expect(timeScreen.getByTestId('hour-wheel').props.initialScrollIndex).toBe(0);
     expect(timeScreen.getByTestId('minute-wheel').props.initialScrollIndex).toBe(0);
     await fireEvent.press(timeScreen.getByRole('button', { name: 'Cancel' }));
