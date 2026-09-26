@@ -1442,3 +1442,13 @@ Updated the App Store Connect `appStoreReviewDetails` resource's `notes` field (
 David supplied the text of numbered item 2 (missing from the original reconstruction): "A description of the app's purpose and target audience, including the problem it solves and the value it provides." Added to the Resolution Center reply as its own section; trimmed elsewhere to stay under Apple's 4,000-character limit (final: 3,959 characters, confirmed via `wc -c`).
 
 Also corrected the App Store Connect `appStoreReviewDetails.notes` field (id `cbed79f7-e431-4d63-93ef-07ee1160eec9`): the first pass only pointed at the separate Resolution Center reply rather than containing the actual reference information David asked to be recorded there "for reference on future submissions." Replaced with the full content itself -- demo account, purpose/audience, external services, regional differences, regulated-industry declaration, account types -- so it stands on its own for any future submission, not just this rejection.
+
+## 26 September 2026 - Real regression found via David's own pre-recording check: fresh install always showed "still needs setting up"
+
+David reinstalled the app and signed into the Apple review demo account specifically to double-check what a reviewer would see, and found it showed "Mum still needs setting up" -- directly contradicting the Resolution Center reply and App Review Notes field, both of which state the account lands straight into a populated Home screen.
+
+Root cause: `integrateReconnectedCareSpaces()` (`src/careSpaceState.ts`) has no server-side signal for "has setup actually finished" to work from -- `ProvisionedPerson` carries only identity/membership fields -- so any care space not already known on the current device always starts at `setupStatus: 'identity_only'` by deliberate original design, regardless of real completeness. This is a general regression risk for any real user reinstalling the app or getting a new phone, not specific to the demo account.
+
+Fixed in `App.tsx`'s `applyCachedRecords()` -- the single point every sync path (initial load, reconnect, periodic resync, post-mutation sync) already funnels fetched records through: a space that isn't already `'ready'` but genuinely has real records is now promoted to `'ready'`. 111 suites/998 tests still pass, typecheck clean, secrets scan clean. No dedicated unit test -- `App.tsx` isn't unit-tested anywhere in this suite. Shipped via OTA, commit `fe93926`, update group `f88d6787-49f5-40fd-b41c-27a7916feac3`.
+
+**Not yet confirmed on-device** -- this needs the double-relaunch (the auto-apply-on-launch logic ships in this same update) before David can re-verify the demo account lands on Home correctly.
