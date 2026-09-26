@@ -1428,3 +1428,11 @@ The supported-person journey now creates a reviewed roster rather than one globa
 Supabase now contains one care space and one supported person per roster entry, plus a membership that stores the organiser-relative relationship. The authenticated bootstrap RPC creates the roster transactionally and reuses stable draft IDs on retry. RLS grants reads only through membership and denies anonymous, cross-user and direct membership writes.
 
 AsyncStorage migration version 2 partitions privacy, interests, records, attachments and setup state by care space. Existing single-person data migrates deterministically without changing record or attachment IDs. Home projects only the active space and exposes a minimal switcher/add-person route. Records remain local; Phase 7 sync was not started.
+
+## 26 September 2026 - Resolution Center reply drafted; App Store Connect demo-account notes updated
+
+Drafted a comprehensive Resolution Center reply (`C:\Users\DavidPC\Downloads\DAVID\lilica_apple_resolution_center_reply.txt`, outside the repo -- David's own machine) answering every numbered item from Apple's request (screen recording, setup/access instructions + demo credentials, external services list, regional differences, regulated-industry/third-party declaration) plus a direct response to each "Prevent Common Issues" line item, including a candid disclosure of the two real defects found and fixed during this session's testing. Condensed to 3,888 characters to meet Apple's 4,000-character field limit, confirmed via `wc -c`.
+
+Updated the App Store Connect `appStoreReviewDetails` resource's `notes` field (id `cbed79f7-e431-4d63-93ef-07ee1160eec9`) via the API to mention that a genuine purchase can now be made during the free trial period and to point reviewers at the attached Resolution Center reply. Demo account credentials themselves were unchanged (already correct).
+
+**Not yet done:** actually posting the reply text + attaching the video in App Store Connect's Resolution Center UI, and resubmitting for review. These are David's own actions in the Console (the reply text can't be posted via the public API - confirmed earlier this session that `appStoreVersionSubmissions` CREATE is 403 for this API key's role).
