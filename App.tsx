@@ -1,5 +1,6 @@
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
+import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -259,6 +260,37 @@ function LilicaApp() {
     let active = true;
     getBiometricAvailability().then((result) => { if (active) setBiometricAvailability(result); });
     return () => { active = false; };
+  }, []);
+
+  // Real-device confusion, 26 September 2026: expo-updates' own default
+  // behaviour only ever APPLIES an OTA update on the cold start AFTER the
+  // one that downloaded it -- a single relaunch after being told "the fix
+  // is live" silently keeps running the PREVIOUS bundle, with no visible
+  // sign anything is stale. This cost real, repeated wasted testing this
+  // session (a fix reported as still broken was, at least in part, never
+  // actually running yet). Checked and applied explicitly on launch
+  // instead: if a newer update is available, fetch and reload to it
+  // immediately, before the user does anything -- one relaunch is then
+  // always enough. Best-effort and silent by design (Updates.isEnabled
+  // is false in Expo Go/dev, where this API isn't available at all;
+  // any check/fetch failure -- e.g. offline -- is swallowed exactly the
+  // same way expo-updates' own background auto-check already does,
+  // never surfaced as an app-breaking error).
+  useEffect(() => {
+    if (!Updates.isEnabled) return;
+    (async () => {
+      try {
+        const result = await Updates.checkForUpdateAsync();
+        if (result.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch {
+        // Offline, or the update server is unreachable -- carry on with
+        // whatever bundle is already running, exactly as expo-updates'
+        // own default background check already does silently.
+      }
+    })();
   }, []);
   const [addingRelationship, setAddingRelationship] = useState(false);
   const [pendingRelationship, setPendingRelationship] = useState<Relationship>();
