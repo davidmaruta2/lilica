@@ -4,6 +4,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
+  ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -324,38 +325,44 @@ export function WelcomeScreen({ onStart, onLogin }: Props) {
             getItemLayout={(_, index) => ({ length: pageWidth, offset: pageWidth * index, index })}
             renderItem={({ item, index }) => (
               <View style={[styles.page, { width: pageWidth }]}>
-                <View style={[styles.visualArea, compact && styles.visualAreaCompact]}>
-                  <View style={compact && styles.visualCompact}>
-                    {item.visual === 'hero' ? <BrandVisual /> : item.visual === 'together' ? <TogetherVisual /> : <AheadVisual />}
-                  </View>
-                </View>
-                <View style={[styles.copy, compact && styles.copyCompact]}>
-                  <AppText variant="display" tone="white" centre style={styles.heading}>
-                    {item.heading}
-                  </AppText>
-                  <AppText variant="body" tone="white" centre style={[styles.body, compact && styles.bodyCompact]}>
-                    {item.body}
-                  </AppText>
-                  {item.bullets ? (
-                    <View style={[styles.bullets, compact && styles.bulletsCompact]}>
-                      {item.bullets.map((bullet) => (
-                        <View key={bullet.label} style={styles.bulletRow}>
-                          <View style={styles.bulletBadge}>
-                            <BulletIcon icon={bullet.icon} />
-                          </View>
-                          <AppText variant="bodyStrong" tone="white" style={styles.bulletText}>
-                            {bullet.label}
-                          </AppText>
-                        </View>
-                      ))}
+                <ScrollView
+                  contentContainerStyle={styles.pageScrollContent}
+                  showsVerticalScrollIndicator={false}
+                  bounces={false}
+                >
+                  <View style={[styles.visualArea, compact && styles.visualAreaCompact]}>
+                    <View style={compact && styles.visualCompact}>
+                      {item.visual === 'hero' ? <BrandVisual /> : item.visual === 'together' ? <TogetherVisual /> : <AheadVisual />}
                     </View>
-                  ) : null}
-                  {index === 2 ? (
-                    <AppText variant="secondary" tone="white" centre style={[styles.reassurance, compact && styles.reassuranceCompact]}>
-                      Lilica works from day one, even when it’s just you.
+                  </View>
+                  <View style={[styles.copy, compact && styles.copyCompact]}>
+                    <AppText variant="display" tone="white" centre style={styles.heading}>
+                      {item.heading}
                     </AppText>
-                  ) : null}
-                </View>
+                    <AppText variant="body" tone="white" centre style={[styles.body, compact && styles.bodyCompact]}>
+                      {item.body}
+                    </AppText>
+                    {item.bullets ? (
+                      <View style={[styles.bullets, compact && styles.bulletsCompact]}>
+                        {item.bullets.map((bullet) => (
+                          <View key={bullet.label} style={styles.bulletRow}>
+                            <View style={styles.bulletBadge}>
+                              <BulletIcon icon={bullet.icon} />
+                            </View>
+                            <AppText variant="bodyStrong" tone="white" style={styles.bulletText}>
+                              {bullet.label}
+                            </AppText>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+                    {index === 2 ? (
+                      <AppText variant="secondary" tone="white" centre style={[styles.reassurance, compact && styles.reassuranceCompact]}>
+                        Lilica works from day one, even when it’s just you.
+                      </AppText>
+                    ) : null}
+                  </View>
+                </ScrollView>
               </View>
             )}
           />
@@ -423,6 +430,9 @@ const styles = StyleSheet.create({
   page: {
     flex: 1,
     paddingHorizontal: spacing.xl,
+  },
+  pageScrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
   },
   visualArea: {
