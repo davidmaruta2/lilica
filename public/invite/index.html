@@ -23,12 +23,9 @@
     with none of that risk, and needs no path-based server routing at
     all, on GitHub Pages or any other static host.
 
-    HONESTY NOTE, read before deploying: this page deliberately does NOT
-    show "Download on the App Store" / "Get it on Google Play" buttons.
-    Lilica has never been built via EAS or submitted to either store, so
-    those links would have nowhere real to point -- a fake or placeholder
-    store button would be actively misleading. Add real store badges
-    here once real listings exist, not before.
+    STORE NOTE (3 November 2026): Lilica is now publicly available in
+    both stores. The page keeps the direct app hand-off first and offers
+    real store links as a fallback when the app is not installed.
   -->
   <style>
     :root { color-scheme: light; }
@@ -89,7 +86,19 @@
     .store-note {
       margin-top: 20px;
       font-size: 13px;
-      color: #9A9086;
+      color: #6B615C;
+    }
+    .store-links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .store-links a {
+      color: #63364D;
+      font-weight: 600;
+      text-underline-offset: 3px;
     }
   </style>
 </head>
@@ -113,9 +122,13 @@
       You can also enter this invitation code in Lilica:
       <span class="code-value" id="code-value"></span>
     </p>
-    <p class="store-note" id="store-note">
-      Lilica isn't publicly available in the App Store or Google Play yet -- ask whoever invited you for another way to help in the meantime.
-    </p>
+    <div class="store-note" id="store-note">
+      Need to install Lilica first?
+      <div class="store-links">
+        <a href="https://apps.apple.com/gb/app/lilica-care-support/id6812822327">App Store</a>
+        <a href="https://play.google.com/store/apps/details?id=com.luxfordinteractive.lilica">Google Play</a>
+      </div>
+    </div>
   </div>
   <script>
     (function () {
@@ -139,10 +152,8 @@
       }
 
       // The invitation CODE (a human-friendly locator for this SAME
-      // invitation, see src/invitationLinks.ts) is a particularly useful
-      // fallback during this pre-launch period, when there is no store
-      // listing to install Lilica FROM in the first place -- shown only
-      // when the link actually carried one, never invented.
+      // invitation, see src/invitationLinks.ts) is shown only when the
+      // link actually carried one, never invented.
       var codeMatch = window.location.search.match(/[?&]code=([A-Za-z0-9]{8})\b/);
       if (codeMatch) {
         document.getElementById('code-value').textContent =
