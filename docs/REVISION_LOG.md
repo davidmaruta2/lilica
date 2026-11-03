@@ -1,5 +1,20 @@
 # Revision Log
 
+## 3 November 2026 - Growth work started by the Lumen agent (store listing and website changes already live)
+
+Recorded from live checks, not from the agent's own reports. A growth plan (`C:UsersDavidPC.openclawworkspaceLILICA_GROWTH_REPORT_2026-11-03.md`, with working files in `lilica-growth-execution`) was reviewed and partly executed on David's approval.
+
+**Live now (verified via API/HTTP 3 November 2026):**
+- Google Play en-GB listing: title `Lilica: Family Care Organiser`, new short and full description (subscription section states the 60 days is a Lilica-managed free period, not a Google offer). Rollback file: `lilica-growth-executionollback-google-play-listing.json`. The `baseline-google-play-listings.json` export was captured at the same minute as the change and may not be the original, so do not rely on it for rollback.
+- Apple en-GB promotional text updated (price no longer named in it). Version `1.0` still `READY_FOR_SALE`.
+- Website `lilica.co.uk`: marketing site plus a resource hub and three UK care resources (`lilica-legal-check` repo, commit `b8dec31`, resources URL returns 200).
+
+**NOT live, and blocked on a new iOS version/build (needs David's explicit build approval):** the new Apple name (`Lilica: Family Care Organiser`), subtitle, keyword field, description and screenshots. Apple only allows promotional text to change on a live version.
+
+**Gaps to close before relying on the plan's gates:** no privacy-safe activation/invite events exist in the app yet (needs a build); ICO registration for Luxford Interactive not confirmed; trial-to-paid conversion at the day 60 paywall should be a headline KPI; screenshots must drop the `21` notification badge and the delete/archive screen.
+
+**Agreed week-one order:** baseline metrics, activation journey audit, synthetic account and screenshot capture, store creative production.
+
 ## 3 November 2026 - App price corrected from GBP 8.99 to free
 
 Found via `GET /v1/appPriceSchedules/6812822327/manualPrices` that the app itself (not the subscription) was priced at GBP 8.99 in the GBR base territory, meaning customers would have paid to download and then again for the subscription. On David's explicit instruction (free download, 2 months free, then 8.99 yearly) created a new app price schedule (`POST /v1/appPriceSchedules`, GBR base territory, free price point `10000`); read back as customerPrice 0.0. The 60 day free period is the in-app entitlement trial (`trial_expires_at` = 60 days, `20260914090000_phase21b_billing_entitlement.sql`), not an Apple introductory offer (none configured). Lilica Annual stays GBP 8.99/year. Other territories' prices were not individually checked.
