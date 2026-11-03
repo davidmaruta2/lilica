@@ -58,18 +58,17 @@ OTA publication is a separate release operation. Do not run `eas update` without
 
 Native dependency/configuration changes remain incompatible with OTA and require a newly approved native build plus an appropriate app/runtime version decision.
 
-## Current-build limitation
+## Current binary and OTA boundary (reconciled 3 November 2026)
 
-The existing TestFlight build 3 and Google Play internal build 2 were produced before `expo-updates` was configured. OTA cannot be retrofitted into an installed native binary. The next expressly approved iOS and Android builds must retain the checked-in OTA configuration and will be the first OTA-capable Lilica binaries.
+The publicly live binaries are iOS `1.0.0 (8)` from commit `207cc24` and Android `1.0.0 (6)` from commit `195d186`; both include EAS Update support. The old TestFlight build 3 / Google Play internal build 2 limitation was historical and is no longer the current baseline. OTA remains limited to compatible JavaScript/assets: native dependency or native configuration changes still require a newly approved native build and an appropriate runtime/version decision.
 
-## Current readiness and approval boundary
+## Current readiness and approval boundary (reconciled 3 November 2026)
 
-- The approved icon is checked in at `assets/lilica-app-icon.png` and active in `app.json`.
-- The returning-account duplicate-person prevention change is implemented and covered by focused tests.
-- Full TypeScript and Jest validation passes (100 suites, 880 tests), as do secret scan, resolved Expo config, web export, and diff checks.
-- Expo's compatibility check still reports known SDK 57 patch-level drift. Do not upgrade dependencies incidentally; review that as a separate task.
-- Local backend validation most recently could not run because Docker Desktop was off. The post-build icon/OTA/reconnect changes do not include a schema migration.
-- A production Supabase project (`lilica-production`, `luyoyupghbxjftqwzcfn`) and EAS `production` environment now exist (created 19 September 2026), fully migrated and pgTAP-proven. The RevenueCat production webhook integration and production Auth (SMTP, redirect URLs, OTP length) are now also configured and independently verified (19 September 2026, see `docs/REVISION_LOG.md`). A `production`-profile build is technically ready, but no production build has ever been requested or approved, and the separate store-readiness gates (Apple subscription review, real purchase QA, store listings, Google Play production-track eligibility) remain outstanding regardless. Do not infer approval for a production build from this readiness.
-- `store-test` builds `1.0.0 (4)` (iOS EAS `6d89e118-ab7b-4065-a279-03ef1b581b66`, Android EAS `56cb08fe-f5a7-4b16-b101-ce6fe5a63ae1`) were approved, built, and submitted 19 September 2026 to TestFlight and Google Play internal respectively. See `docs/NEXT_NATIVE_BUILD_MANIFEST.md` for the exact included delta.
+- Both stores are publicly live: iOS `1.0.0 (8)` / commit `207cc24`; Android `1.0.0 (6)` / commit `195d186`.
+- The app download is free. The commercial contract remains 60 backend-controlled free days, then GBP 8.99/year; no Apple introductory offer is configured.
+- Production Supabase/EAS, RevenueCat's production webhook, production Auth, durable submission credentials, Apple ASN V2, and Google RTDN are configured. These are established infrastructure, not authority for another release action.
+- Physical billing lifecycle and cross-platform entitlement QA remain outstanding, as does real-device confirmation of build 8's intro-carousel scroll fix. Store approval must not be represented as completion of those checks.
+- Validation counts recorded in older manifests are historical snapshots. Re-run the required checks against the exact future commit rather than quoting them as current evidence.
+- Expo SDK patch-level drift was previously reported. Re-check it deliberately and do not upgrade dependencies incidentally.
 
-Technical preparation never authorizes a build. The absolute approval rule still applies. The exact current binary delta and checklist are in `docs/NEXT_NATIVE_BUILD_MANIFEST.md`.
+Technical preparation or public availability never authorizes another build, submission, distribution, or OTA. The absolute approval rule still applies. Use `docs/NEXT_NATIVE_BUILD_MANIFEST.md` for the current binary baseline and mandatory checklist, then calculate the exact proposed delta.

@@ -1,22 +1,21 @@
 # Lilica RevenueCat and Store Billing Implementation Report
 
-**Report date:** 16 September 2026 (see "Remaining launch gates" below for 19 September 2026 updates -- new `1.0.0 (4)` binaries submitted, durable Apple/Google submission credentials configured, and a full production Supabase/EAS environment created and independently verified, including a correctly-scoped RevenueCat production webhook and production Auth config. Full detail: `docs/REVISION_LOG.md`'s 19 September entries.)
-**Scope:** RevenueCat catalogue, Apple and Google subscription configuration, signed entitlement webhook, EAS store builds, test-store submissions, and current next steps.
+**Report date:** 16 September 2026; current-state reconciliation added 3 November 2026.
+**Scope:** RevenueCat catalogue, Apple and Google subscription configuration, signed entitlement webhook, EAS store builds, test-store submissions, and remaining QA.
 
-## Executive status
+## Executive status (reconciled 3 November 2026)
 
-Lilica's annual subscription foundation is now configured across RevenueCat, App Store Connect, Google Play, Supabase, and the native app build environments.
+Lilica's annual subscription foundation is configured across RevenueCat, App Store Connect, Google Play, Supabase, and the native production environments.
 
-- Commercial contract: GBP 8.99 per year after Lilica's app/backend-controlled 60-day free period.
-- No additional Apple or Google introductory trial is configured.
+- Both stores are publicly live: iOS `1.0.0 (8)` from commit `207cc24`; Android `1.0.0 (6)` from commit `195d186`.
+- The app itself is a free download. Customers receive an app/backend-controlled 60-day free period, then Lilica Annual costs GBP 8.99/year.
+- No Apple or Google introductory offer/store trial is configured.
 - One RevenueCat entitlement (`lilica_active`) and one annual package (`$rc_annual`) cover both stores.
-- RevenueCat public SDK keys are configured for both native platforms in the ignored local environment and the EAS preview environment.
-- The signed RevenueCat-to-Supabase webhook is live and has passed valid/invalid signature checks.
-- Store-distribution Android and iOS builds both completed successfully.
-- The iOS build was successfully submitted for TestFlight delivery.
-- The Android build was successfully submitted to Google Play's internal testing track.
+- The signed, environment-scoped RevenueCat-to-Supabase webhooks are configured; Apple ASN V2 and Google RTDN are connected.
+- Apple approved the Lilica Annual subscription (`6812831899`).
+- Physical purchase, restore, renewal, cancellation, expiry, refund/revocation, real-event webhook propagation, and cross-platform entitlement QA remain outstanding. Store approval is not evidence that those checks passed.
 
-No public production release was performed. The billing implementation was subsequently included in repository checkpoint `2942a25`; later handoff documentation sits on top of that checkpoint.
+The build/submission details below are retained as dated implementation history unless a section explicitly says it is current.
 
 ## Commercial and RevenueCat contract
 
@@ -62,7 +61,7 @@ Both store products are attached to the annual package and grant the same entitl
 - Automatic access to all builds is enabled for that group.
 - Build 3 is attached and `admin@luxfordinteractive.com` is registered as an internal tester.
 
-Apple still requires the subscription review screenshot/final review metadata before the subscription can be approved for public sale. TestFlight purchase and restore QA must be completed on a physical iPhone with an Apple sandbox tester.
+**Current outcome:** the subscription review screenshot and metadata were completed, the subscription was submitted with build 8, and Apple now reports Lilica Annual as `APPROVED`. Physical iPhone purchase and restore/lifecycle QA remains outstanding.
 
 ## Google Play configuration
 
@@ -111,17 +110,14 @@ Apple Server Notifications V2 and Google Real-time Developer Notifications are n
 
 - Expo owner/project: `@davidmaruta2/lilica`.
 - EAS project ID: `13d12e42-4800-440f-9f38-9c93f5403c6f`.
-- Added build profiles for internal preview, store testing, and production.
-- Store-test builds use the EAS `preview` environment.
-- The preview environment contains the two RevenueCat public SDK keys and development Supabase public configuration.
-- The production environment was intentionally not populated because a production Supabase project does not yet exist.
-- The private Apple API key remains outside the repository; its temporary local path was removed from `eas.json` after the submission was created.
+- Build profiles exist for internal preview, store testing, and production.
+- Store-test builds use the EAS `preview` environment, which contains RevenueCat public SDK keys and development Supabase public configuration.
+- **Historical correction:** production was intentionally unpopulated at this report's original date, but a production Supabase project and populated EAS production environment were created and independently verified on 19 September 2026 and have since supported the live production binaries.
+- Durable Apple and Google submission credentials now exist outside the repository and are wired into `eas.json`; see `docs/BUILD_RELEASE_CONTROL.md`. Never expose or commit them.
 
 ### OTA status
 
-EAS Update/OTA is **not enabled in the existing iOS build 3 or Android build 2**. After those builds completed, the repository added `expo-updates@~57.0.22`, the EAS update URL, `runtimeVersion.policy: appVersion`, and explicit `preview`, `store-test`, and `production` channels. The next expressly approved native builds must retain that configuration and will be the first OTA-capable binaries. No OTA has been published.
-
-The exact post-build delta also includes the returning-account duplicate-person prevention fix and the approved Lilica app icon. See `docs/NEXT_NATIVE_BUILD_MANIFEST.md`.
+Build 3/build 2 predated EAS Update and could not receive OTAs; that was the historical limitation at this report's original date. The live iOS build 8 and Android build 6 include `expo-updates`, the EAS update URL, `runtimeVersion.policy: appVersion`, and the production channel, and production OTAs were subsequently published with David's per-action approvals. OTA publication remains separately gated; native dependency/configuration changes remain ineligible for OTA.
 
 ## Validation completed
 
@@ -139,7 +135,7 @@ The exact post-build delta also includes the returning-account duplicate-person 
 
 1. ~~Obtain express product-owner approval before starting any new iOS or Android build~~ -- obtained and executed 19 September 2026: `1.0.0 (4)` both platforms, submitted to TestFlight and Google Play internal. See `docs/REVISION_LOG.md`.
 2. ~~Build/install new `store-test` binaries containing the approved icon, duplicate-person fix, and OTA foundation~~ -- done, per above.
-3. ~~Supply Apple's subscription review screenshot~~ -- done 20 September 2026, via the App Store Connect API directly (`subscriptionAppStoreReviewScreenshots`), using David's Lilica in-app subscription screen padded to Apple's required 1242x2208px canvas. State confirmed `COMPLETE`. Final subscription review metadata (beyond the screenshot) remains outstanding.
+3. ~~Supply Apple's subscription review screenshot and complete first subscription review submission~~ -- screenshot completed 20 September 2026; the subscription version and group version were later attached to build 8's review submission, and Lilica Annual is now `APPROVED`.
 4. Run physical iPhone sandbox purchase, restore, renewal, cancellation, expiry, and refund/revocation checks.
 5. Add/confirm licensed Google Play testers and run equivalent Android internal-track checks.
 6. ~~Configure a durable EAS-managed Google Play submission credential~~ -- done 19 September 2026; a permanent Apple key was also configured at the same time. Both are wired into `eas.json` outside the repo. Never ask David to re-supply these.
@@ -147,9 +143,9 @@ The exact post-build delta also includes the returning-account duplicate-person 
 8. Confirm a real store event reaches RevenueCat, passes the signed webhook, updates Supabase entitlement state, and changes Lilica's access gates correctly. (The webhook plumbing itself -- a correctly environment-scoped production integration -- is now independently verified via the RevenueCat API as of 19 September 2026; an end-to-end real-purchase proof is still outstanding.)
 9. Verify purchase on one platform and login on the other for the same Lilica account.
 10. ~~Create production Supabase/EAS environment values before any production build~~ -- done and independently verified 19 September 2026: `lilica-production` (`luyoyupghbxjftqwzcfn`), fully migrated, pgTAP-proven, edge functions deployed, RevenueCat production webhook correctly scoped, Auth SMTP/URLs/OTP length all confirmed correct. See `docs/REVISION_LOG.md` and `docs/SUPABASE_OPERATIONS.md`. This does not itself authorise a production build.
-11. Complete store listings, privacy/policy declarations, review assets, and explicit production release approval. **Apple side done 20-21 September 2026:** privacy policy/terms/support pages published at lilica.co.uk; App Store Connect description, keywords, subtitle, promotional text, copyright, category (Lifestyle), age rating declaration, and all 10 store screenshots are set; submitted for review 21 September. **REJECTED 26 September 2026** -- Apple wants additional information (screen recording, written answers, demo-account/screenshot/IAP re-checks) before it will finish reviewing; full detail in `docs/REVISION_LOG.md`'s 26 September entry and `docs/LUMEN_HANDOFF.md`. **Google Play side: done and APPROVED.** Store listing, screenshots, icon, feature graphic, and all App content checklist items completed 20-21 September 2026; submitted to the production track 21 September on David's explicit approval; approved and publicly live as of 26 September 2026 -- production track `versionCode 6`, status `completed`, matching the real native binary `1.0.0 (6)` (commit `195d186`, see `CLAUDE.md`).
+11. ~~Complete store listings, privacy/policy declarations, review assets, and explicit production release approval~~ -- resolved. Google Play is publicly live on production `versionCode 6`; Apple is publicly live with iOS build 8. Apple's earlier build 6/build 7 rejections and their fixes remain documented chronologically in `docs/REVISION_LOG.md`.
 
-Expo Go cannot test RevenueCat native purchases. Real billing QA must use the TestFlight and Play-distributed builds. Items 4/9 (physical sandbox purchase/restore/renewal/cross-platform QA) remain outstanding on both platforms regardless of the Apple rejection or Google's approval.
+Expo Go cannot test RevenueCat native purchases. Real billing QA must use store-distributed native builds. Items 4, 5, 8, and 9 remain outstanding despite both stores being live.
 
 ## Repository impact
 

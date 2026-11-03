@@ -1,7 +1,13 @@
 # Lilica EAS Build and OTA Readiness Report
 
-**Date:** 16 September 2026
-**Action taken:** Configuration and documentation only. No build, submission, or OTA publication was started.
+**Date:** 16 September 2026; current-state reconciliation added 3 November 2026
+**Original action taken:** Configuration and documentation only. No build, submission, or OTA publication was started during that task.
+
+## 3 November 2026 reconciliation
+
+This is a historical readiness report, not a current release plan. Both stores are publicly live: iOS `1.0.0 (8)` from commit `207cc24` and Android `1.0.0 (6)` from commit `195d186`. Both current binaries include EAS Update support, and production OTAs have subsequently been published under David's per-action approvals. The app is a free download; customers receive 60 backend-controlled free days and can then buy Lilica Annual for GBP 8.99/year; no Apple introductory offer is configured.
+
+Remaining limitations are physical QA, not store-readiness claims: billing lifecycle and cross-platform entitlement checks, plus real-device confirmation of build 8's intro-carousel scroll fix. No future build, submission, distribution, or OTA is authorised by this report.
 
 ## Critical product-owner instruction
 
@@ -26,22 +32,22 @@ David's instruction is now recorded as an absolute release gate: **no EAS/native
   - production builds -> `production`.
 - No update was published.
 
-## Important limitation
+## Important limitation at the time (historical)
 
-TestFlight build 3 and Google Play internal build 2 cannot receive EAS OTA updates because they were built before `expo-updates` existed in Lilica's native binaries. OTA cannot be added to an already-installed build. The next iOS and Android builds, if and only if David explicitly approves them, must retain the checked-in OTA configuration and will be the first OTA-capable binaries.
+TestFlight build 3 and Google Play internal build 2 could not receive EAS OTA updates because they predated `expo-updates`. They were later superseded by OTA-capable production binaries; this statement no longer describes the current live baseline.
 
 OTA is suitable for compatible JavaScript and bundled-asset changes. Native dependency or native configuration changes still require a newly approved native build. Publishing an OTA update also requires David's separate explicit approval.
 
-## Build readiness update
+## Build readiness snapshot (historical, 16 September 2026)
 
-- The product owner approved a Lilica icon and it is checked in as `assets/lilica-app-icon.png`; active Expo icon/adaptive-icon/favicon references no longer use the Expo placeholder.
-- The returning-account duplicate-person prevention fix now has focused coverage and the repository-wide Jest run passes: 100 suites, 880 tests.
-- TypeScript, secret scan, Expo public config, web export, and diff checks pass.
-- `npx expo install --check` reports known Expo SDK 57 patch-level drift. No upgrade has been authorised.
-- Local backend validation was blocked because Docker Desktop was off. No schema/backend change was made by the icon/OTA/reconnect checkpoint.
-- Production Supabase/EAS configuration still does not exist; a production build is not ready.
+- The product owner approved a Lilica icon and it was checked in as `assets/lilica-app-icon.png`; active Expo icon/adaptive-icon/favicon references no longer used the Expo placeholder.
+- The returning-account duplicate-person prevention fix had focused coverage and that task's repository-wide Jest run passed: 100 suites, 880 tests.
+- TypeScript, secret scan, Expo public config, web export, and diff checks passed for that snapshot.
+- `npx expo install --check` reported known Expo SDK 57 patch-level drift. No upgrade had been authorised.
+- Local backend validation was blocked because Docker Desktop was off. No schema/backend change was made by that checkpoint.
+- Production Supabase/EAS did not yet exist on 16 September; it was created and verified later and has since supported the live production binaries.
 
-This readiness evidence is not build approval. See `docs/NEXT_NATIVE_BUILD_MANIFEST.md` and obtain express approval before any build command.
+Historical readiness evidence is not current validation and never constitutes build approval. See `docs/NEXT_NATIVE_BUILD_MANIFEST.md`, re-run checks against the exact proposed commit, and obtain express approval before any release command.
 
 ## Files changed for this task
 

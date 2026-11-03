@@ -14,6 +14,8 @@ Lilica is a calm personal and family care organiser built with Expo SDK 57, Reac
 
 **Pricing (corrected 3 November 2026):** the app is a FREE download (app price schedule set to GBP 0.00; it had mistakenly been GBP 8.99). Customers get 60 days free via the in-app entitlement trial, then Lilica Annual at GBP 8.99/year. No Apple introductory offer is configured. See `docs/REVISION_LOG.md`.
 
+**Growth work (3 November 2026):** a growth plan is in progress, driven by the Lumen agent from `C:\Users\DavidPC\.openclaw\workspace\lilica-growth-execution`. Google Play listing copy, Apple promotional text and the lilica.co.uk resource site are already live. The new Apple name, subtitle, keywords and screenshots wait on a new iOS version, which needs David's explicit build approval. No in-app activation/invite analytics exists yet. Full detail and open gaps: `docs/REVISION_LOG.md` (3 November entry).
+
 An incoming agent must not assume a new phase or release action is authorised. Read this file, `AGENTS.md`, `docs/NEXT_NATIVE_BUILD_MANIFEST.md`, `docs/BUILD_RELEASE_CONTROL.md`, and `docs/REVENUECAT_BILLING_SETUP_REPORT.md` before acting.
 
 ## Repository state
@@ -21,9 +23,9 @@ An incoming agent must not assume a new phase or release action is authorised. R
 - Repository: `https://github.com/davidmaruta2/lilica`
 - Active branch: `prephase22-remove-supported-person-faq-help`
 - `master` is stale and behind. Do not merge to or restart from `master` without explicit product-owner instruction.
-- Last pushed commit as of this handoff: `cd8ca91` (20 September 2026, docs-only). Do not trust this line alone -- confirm with a fresh `git log -1`/`git status --short` per the line below.
+- Latest verified local commit as of this handoff: `469b984` (3 November 2026, docs-only). At that check, `origin/prephase22-remove-supported-person-faq-help` was still at `5e7551f`; do not infer that the local commit has been pushed.
 - Run `git log -1`, `git status --short`, and compare local HEAD with the remote branch at the beginning of every session. Shared-machine/concurrent-agent changes have occurred before.
-- The handoff task is complete only when local HEAD equals the remote branch and the working tree is empty. As of this entry that is already true.
+- As of 3 November 2026 the working tree also contains pre-existing untracked `LILBATCH_COMPLETION_REPORT.txt` and `expo-dev.log`. Preserve and inspect them; do not claim the tree is clean or delete/commit them without instruction.
 
 ## Critical release authority
 
@@ -44,9 +46,9 @@ Authoritative policy: `docs/BUILD_RELEASE_CONTROL.md`.
 | iOS | `1.0.0 (8)` | `207cc24` | **Approved and LIVE on the App Store** (`READY_FOR_SALE`, confirmed via API 3 November 2026). Builds 6 and 7 were rejected earlier; see `docs/REVISION_LOG.md`. |
 | Android | `1.0.0 (6)` | `195d186` | **Approved and publicly live on Google Play production**, `versionCode 6`, status `completed`. Re-confirmed via `edits.tracks` 3 November 2026 (production, beta, alpha and internal all on versionCode 6). |
 
-Built from commit `195d186`, `buildProfile: production` on both platforms, superseding the earlier `313d064`/`1.0.0 (5)` binary. No new native build has been run since -- everything below this point (including the entire Phase 23 Lilica Chat feature) has reached the installed app via OTA (JS/asset-only, no native change), not a new binary. **This means the version currently under Apple review does not include any OTA-only change made after 22 September's build** -- those exist only as OTA updates for already-installed copies, not baked into the submitted binary. A fresh install from the App Store (once approved) will get them automatically on next launch, same as existing installs already have.
+Android remains the production-profile `1.0.0 (6)` binary from commit `195d186`. iOS was subsequently rebuilt twice and the publicly live binary is production-profile `1.0.0 (8)` from commit `207cc24`; see `docs/REVISION_LOG.md` for the build 7/build 8 sequence. Both binaries include EAS Update support. OTA-only changes published after a binary's source commit are not baked into that binary, but compatible installed copies can receive them through the production channel.
 
-**Not yet done, and not resolved by any build or OTA:** Android's `eas.json` submit track was switched to `production` (no rebuild needed, already reflected in the live release above); iOS still needs Apple's rejection resolved and a fresh "submit for App Store review" action in App Store Connect to go public.
+**Public-release status is resolved:** Android's production track is live and iOS build 8 is live. Remaining work is QA, not a release blocker: physical purchase/restore/renewal/cancellation/expiry/refund-revocation and cross-platform entitlement checks, plus real-device confirmation of build 8's intro-carousel scroll fix.
 
 ## OTA state
 
@@ -161,23 +163,18 @@ Authority: `docs/PHASE_22_APPROVED_VISUAL_DIRECTION.md` and completion reports. 
 
 ## Validation status at handoff
 
-- `npm run typecheck`: clean (last run: this session, after every change below).
-- Jest: **104 suites, 916 tests, all passing** (last full run: this session).
-- `npx expo config --type public`: not re-run this session (no native config changed) -- last confirmed clean 19 September.
-- Local backend validation: not touched this session (no schema/backend change made).
+The 3 November reconciliation was documentation/store-state work only; no app build, OTA, or physical QA was run. The latest recorded app validation is build 8's 4 October checkpoint: TypeScript clean, **113 suites / 1008 tests passing**, and secrets scan clean. Resolved Expo config and backend checks were not re-run for this documentation reconciliation. Treat all counts as dated evidence and re-run the required checks against any future code/release commit.
 
 ## Immediate continuation instructions
 
-Google Play is live; Apple needs a Resolution Center response before it can go live -- that response is the clear next piece of work unless David directs otherwise. On a new instruction:
+Both stores are publicly live. Do not invent another release action: the clearest remaining operational work is the physical billing/entitlement QA listed above and real-device confirmation of build 8's intro-carousel scroll fix, only when David directs it. On a new instruction:
 
-1. re-read current git status/log and this handoff (note: as of 26 September there is an uncommitted change to `src/screens/ToDoScreen.tsx` and untracked `LILBATCH_COMPLETION_REPORT.txt`/`expo-dev.log` -- the tree is not clean, check what these are before assuming they're safe to ignore or commit);
-2. if David hasn't yet confirmed the second/third OTA (Medical Log tile rename / Settings regrouping / Care Summary / ToDo contrast fix / supported-person renaming) looks right on his device, ask;
-3. identify whether the request is code, store metadata, QA, build preparation, build execution, submission, or OTA;
-4. preserve all protected product and visual behaviour (note the two intentional exceptions above: nine categories, not eight; Settings drawer regrouped);
-5. for build/release work, follow the explicit authority gate and `docs/NEXT_NATIVE_BUILD_MANIFEST.md`;
-6. for the Apple rejection specifically, draft the Resolution Center reply and flag what needs David directly (recording a physical-device video, confirming demo-account/subscription state) rather than assuming any of it can be done without him;
-7. for RevenueCat/store work, resume from the "still outstanding" list above;
-8. update docs to actual behaviour, validate, inspect the full diff, and report limitations honestly;
-9. commit/push only when requested and verify the working tree is clean.
+1. re-read current git status/log and this handoff; preserve the pre-existing untracked `LILBATCH_COMPLETION_REPORT.txt` and `expo-dev.log` unless David directs otherwise;
+2. identify whether the request is code, store metadata, QA, build preparation, build execution, submission, or OTA;
+3. preserve all protected product and visual behaviour (note the two intentional exceptions above: nine categories, not eight; Settings drawer regrouped);
+4. for build/release work, follow the explicit authority gate and `docs/NEXT_NATIVE_BUILD_MANIFEST.md`; public availability does not grant standing authority for another build, submission, distribution, or OTA;
+5. for RevenueCat/store work, resume from the "still outstanding" list above without treating live-store approval as proof of physical purchase or webhook QA;
+6. update docs to actual behaviour, validate, inspect the full diff, and report limitations honestly;
+7. commit/push only when requested; never claim a clean tree while the preserved untracked files remain.
 
 An incoming agent should be able to begin immediately from this file and its linked release/billing documents without asking David to reconstruct prior context.

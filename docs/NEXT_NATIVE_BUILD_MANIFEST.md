@@ -1,10 +1,16 @@
 # Lilica Next Native Build Manifest
 
-Status: the build described below has been built and submitted (19 September 2026). This document's "existing native baseline" and "changes awaiting" sections are retained for history but are now superseded -- see the 19 September update immediately below for the actual current baseline.
+Status: historical build manifest, reconciled 3 November 2026. The original build request and delta below are retained as dated evidence; they are not the current release plan or binary baseline.
 
-Date: 17 September 2026 (original); updated 19 September 2026
+Date: 17 September 2026 (original); reconciled 3 November 2026
 
-## 19 September 2026 update: FIRST PRODUCTION-PROFILE BUILD -- this is now the current baseline
+## 3 November 2026 current-state reconciliation
+
+Both stores are publicly live. The current native binaries are iOS `1.0.0 (8)` from commit `207cc24` and Android `1.0.0 (6)` from commit `195d186`, both production-profile builds. The app is a free download; the backend-controlled free period is 60 days, followed by Lilica Annual at GBP 8.99/year, with no Apple introductory offer. Build 8's intro-carousel scroll fix remains unconfirmed on a real device, and physical billing/entitlement QA remains outstanding.
+
+This document does not authorise another build, submission, distribution, or OTA. The absolute authority rule below remains current. Any future proposal must use the live binaries above as its starting baseline, calculate the exact delta at that time, run the mandatory checks, and obtain David's express approval for each release action.
+
+## 19 September 2026 update: first production-profile build (historical baseline)
 
 David stated explicitly he is done with dev-phase work; everything now targets real public go-live. After the RevenueCat production webhook and production Auth config were verified/fixed (a cross-environment webhook bug found and fixed via the RevenueCat API -- see `docs/REVISION_LOG.md`), David explicitly authorised the first `production`-profile build, following the full mandatory pre-build checklist below (all passed): commit `313d064`.
 
@@ -13,9 +19,9 @@ David stated explicitly he is done with dev-phase work; everything now targets r
 | iOS | `1.0.0 (5)` | `22860bae-49bb-46de-9ccb-0e4cb5a51ca8` | Submitted to TestFlight |
 | Android | `1.0.0 (5)` | `a7ed9204-270b-482e-a329-2f72f863ceef` | Submitted to Google Play **internal** track (David's explicit choice, not `production`), status `COMPLETED` |
 
-**This is the first binary genuinely wired to `lilica-production`, not `lilica-development`.** It supersedes `1.0.0 (4)` (below) as the current baseline and contains everything that build contained, plus real production backend wiring. Treat `production` as the default profile for any future build discussion -- the absolute build-approval gate is unchanged, but the default assumption should no longer be `store-test`.
+**This was the first binary genuinely wired to `lilica-production`, not `lilica-development`.** It superseded `1.0.0 (4)` (below) as the baseline at that time and contained everything that build contained, plus real production backend wiring. Production remains the default profile for any future build discussion, but use the 3 November reconciliation above for the current binary baseline. The absolute build-approval gate is unchanged.
 
-**Not resolved by this build, and not resolvable by any build:** Android's `eas.json` submit track is still `internal` (a one-line, no-rebuild change when David wants public release); iOS still needs a manual "submit for App Store review" and release action in App Store Connect; Apple ASN V2/Google RTDN configuration is unconfirmed (lives entirely in Apple's/Google's own consoles, not visible via any API); the rest of the store-readiness list below is also unaffected.
+**Historical limitations at 19 September 2026:** Android's submit track was then `internal`; iOS had not yet been submitted for App Store review; Apple ASN V2/Google RTDN was then unconfirmed. All three were resolved later: both stores are now live and the notification integrations were confirmed. See `docs/REVISION_LOG.md` and `docs/REVENUECAT_BILLING_SETUP_REPORT.md`.
 
 ## 26 September 2026 update: outcome of the submissions above
 
@@ -153,7 +159,7 @@ Before requesting build approval:
    - Android adaptive background `#062B33`.
 4. Confirm the selected profile has the correct EAS Update channel.
 5. Confirm the selected EAS environment contains the intended Supabase public values and both RevenueCat public SDK keys. Never print secret values into logs or documentation.
-6. Decide whether the build is `store-test` against development/preview services or a true production build. Production EAS/Supabase values are not currently configured, so a production build is not ready.
+6. Confirm the intended environment/profile and verify its current EAS/Supabase values without printing secrets. Production infrastructure exists and has supported the live binaries, but its existence is neither current validation nor release authority.
 7. **Medical Log migration** (`supabase/migrations/20260917130000_medical_log.sql`, added 17 September 2026): applied to `lilica-development` and database-proven 19 September 2026 (local + linked pgTAP both pass, see `docs/REVISION_LOG.md`). No longer an open pre-build item, but re-confirm `supabase/tests/database/medical_log.test.sql` still passes if further backend changes land before the next build.
 8. State the build request to David in the format required by `docs/BUILD_RELEASE_CONTROL.md` and wait for explicit approval.
 
@@ -172,14 +178,12 @@ On both platforms:
 
 An OTA smoke test may be designed only after the new binary is installed and only after separate express approval to publish that test update.
 
-## Current limitations
+## Current limitations (reconciled 3 November 2026)
 
-- Production Supabase and production EAS environment values do not exist/configured; do not run a production build.
-- Apple subscription review screenshot/final review metadata remains outstanding.
-- Google Play testing availability and tester enrolment still need physical confirmation.
-- Durable EAS-managed Google Play submission credentials remain to be configured before a future automated submission.
-- Apple Server Notifications V2 and Google RTDN still need final store-side verification through RevenueCat.
 - Store purchase, renewal, cancellation, refund/revocation, expiry, restore, and iOS-to-Android cross-login flows are not yet physically signed off.
-- Expo's compatibility check reports several SDK 57 packages a few patch versions behind. Do not upgrade them incidentally; handle them as a separately reviewed dependency task.
-- Local backend validation requires Docker Desktop. It was blocked at the 17 September checkpoint (Docker off) but has since run successfully -- see the 19 September 2026 Medical Log migration deployment in `docs/REVISION_LOG.md`.
-- Biometric app lock has real automated test coverage (`tests/biometric-lock.test.ts`, mocked at the `expo-local-authentication` boundary) but has NEVER been exercised against real device biometrics -- Expo Go cannot load a new native module at all, so this is entirely unverified on a physical device until a new native build exists.
+- Google Play licensed-tester/internal-track billing coverage still needs physical confirmation.
+- Build 8's intro-carousel scroll fix remains unconfirmed on a real device. Do not infer that App Store approval is physical QA evidence.
+- Expo's compatibility check previously reported several SDK 57 packages a few patch versions behind. Re-check before proposing changes and do not upgrade them incidentally; handle dependency work as a separately reviewed task.
+- Biometric app lock has automated coverage at a mocked native boundary, but this document contains no verified real-device biometric QA result.
+
+Resolved since the original manifest: production Supabase/EAS exists; production builds were created; durable submission credentials exist; Apple's review screenshot/metadata and first subscription submission were completed; Apple ASN V2 and Google RTDN were confirmed; and both stores are publicly live. None of those resolutions relaxes the authority gate.
