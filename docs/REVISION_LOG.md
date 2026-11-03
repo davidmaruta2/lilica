@@ -1,5 +1,13 @@
 # Revision Log
 
+## 3 November 2026 - App price corrected from GBP 8.99 to free
+
+Found via `GET /v1/appPriceSchedules/6812822327/manualPrices` that the app itself (not the subscription) was priced at GBP 8.99 in the GBR base territory, meaning customers would have paid to download and then again for the subscription. On David's explicit instruction (free download, 2 months free, then 8.99 yearly) created a new app price schedule (`POST /v1/appPriceSchedules`, GBR base territory, free price point `10000`); read back as customerPrice 0.0. The 60 day free period is the in-app entitlement trial (`trial_expires_at` = 60 days, `20260914090000_phase21b_billing_entitlement.sql`), not an Apple introductory offer (none configured). Lilica Annual stays GBP 8.99/year. Other territories' prices were not individually checked.
+
+## 3 November 2026 - Store status verified: Apple and Google Play both live
+
+Read-only API checks, no changes made to either store. App Store Connect: app version `e3b3cec3-...` is `READY_FOR_SALE` / `READY_FOR_DISTRIBUTION`; review submission `729cf1c5-...` (build 8) is `COMPLETE`; Lilica Annual subscription `6812831899` is `APPROVED`. Google Play (`com.luxfordinteractive.lilica`): `edits.tracks` shows versionCode 6 `completed` on production, beta, alpha and internal. Build 8's iPad scroll fix remains unverified on a real device. `docs/LUMEN_HANDOFF.md` updated to match.
+
 ## 4 October 2026 - Build 7 rejected again (Guideline 4 design, Guideline 2.1(b) IAP not submitted); build 8 built, submitted, and resubmitted with both fixed
 
 On David's explicit instruction ("do the new ios build with the fixes, submit it, then update the review notes box").

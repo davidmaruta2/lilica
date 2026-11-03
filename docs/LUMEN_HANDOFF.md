@@ -2,7 +2,7 @@
 
 Despite its legacy filename, this is the canonical current handoff for every incoming agent.
 
-Last updated: 26 September 2026 (Google Play live; Apple rejected, needs a response).
+Last updated: 3 November 2026 (Apple and Google Play both live; verified via API).
 
 ## Read this first
 
@@ -10,7 +10,9 @@ Lilica is a calm personal and family care organiser built with Expo SDK 57, Reac
 
 **Google Play: Lilica is now publicly live** -- production track release `versionCode 6`, status `completed`. This is the real native binary `1.0.0 (6)` (commit `195d186`, built 22 September), confirmed correct -- not a discrepancy (an earlier pass this session wrongly flagged "build 6" as unreconciled, before this repo's local checkout was caught up with `origin`'s 22-23 September Phase 23 work and CLAUDE.md's corrected build history).
 
-**Apple: `1.0` / build `1.0.0 (6)` was REJECTED** (confirmed via `GET /v1/apps/6812822327/appStoreVersions`, `appStoreState`/`appVersionState` both `REJECTED`; review submission `d9d53c6e-d2bb-4ca7-9304-a3afc274d542` shows `state: UNRESOLVED_ISSUES`, submitted 22 September 2026). Apple is asking for additional information rather than stating confirmed defects -- full message text and a section-by-section read of it (including the one guideline worth taking most seriously, 3.2 "Other Business Models") is in `docs/REVISION_LOG.md`'s 26 September entry. Nothing has been sent back to Apple yet: no screen recording made, no Resolution Center reply drafted, demo account not yet re-verified this session. This is the next real piece of work, subject to the same build/submit approval gate as everything else -- resubmitting the existing binary needs no new build, but confirm with David before taking any Resolution Center or App Store Connect action on his behalf.
+**Apple: Lilica `1.0` is LIVE on the App Store** -- confirmed 3 November 2026 via `GET /v1/apps/6812822327/appStoreVersions` (`appStoreState` `READY_FOR_SALE`, `appVersionState` `READY_FOR_DISTRIBUTION`). The approved review submission is `729cf1c5-e4b2-42ce-bec1-4adaac451cc1` (build 8, state `COMPLETE`; the API reports its submittedDate as 14 October 2026, which differs from the 4 October date in `docs/REVISION_LOG.md` and was not investigated). The Lilica Annual subscription (`6812831899`) is `APPROVED`. The earlier rejections (builds 6 and 7: Guideline 3.2 info request, Guideline 4 iPad clipping, Guideline 2.1(b) subscription not submitted) are resolved. Still unconfirmed on a real device: the build 8 iPad intro-carousel scroll fix.
+
+**Pricing (corrected 3 November 2026):** the app is a FREE download (app price schedule set to GBP 0.00; it had mistakenly been GBP 8.99). Customers get 60 days free via the in-app entitlement trial, then Lilica Annual at GBP 8.99/year. No Apple introductory offer is configured. See `docs/REVISION_LOG.md`.
 
 An incoming agent must not assume a new phase or release action is authorised. Read this file, `AGENTS.md`, `docs/NEXT_NATIVE_BUILD_MANIFEST.md`, `docs/BUILD_RELEASE_CONTROL.md`, and `docs/REVENUECAT_BILLING_SETUP_REPORT.md` before acting.
 
@@ -39,8 +41,8 @@ Authoritative policy: `docs/BUILD_RELEASE_CONTROL.md`.
 
 | Platform | Version | Commit | State |
 | --- | --- | --- | --- |
-| iOS | `1.0.0 (6)` | `195d186` | **REJECTED by Apple** (confirmed via API, 26 September 2026). Needs a Resolution Center response (screen recording + written answers) before resubmission -- see `docs/REVISION_LOG.md`'s 26 September entry. No build/submit action taken yet. |
-| Android | `1.0.0 (6)` | `195d186` | **Approved and publicly live on Google Play production**, `versionCode 6`, status `completed`. |
+| iOS | `1.0.0 (8)` | `207cc24` | **Approved and LIVE on the App Store** (`READY_FOR_SALE`, confirmed via API 3 November 2026). Builds 6 and 7 were rejected earlier; see `docs/REVISION_LOG.md`. |
+| Android | `1.0.0 (6)` | `195d186` | **Approved and publicly live on Google Play production**, `versionCode 6`, status `completed`. Re-confirmed via `edits.tracks` 3 November 2026 (production, beta, alpha and internal all on versionCode 6). |
 
 Built from commit `195d186`, `buildProfile: production` on both platforms, superseding the earlier `313d064`/`1.0.0 (5)` binary. No new native build has been run since -- everything below this point (including the entire Phase 23 Lilica Chat feature) has reached the installed app via OTA (JS/asset-only, no native change), not a new binary. **This means the version currently under Apple review does not include any OTA-only change made after 22 September's build** -- those exist only as OTA updates for already-installed copies, not baked into the submitted binary. A fresh install from the App Store (once approved) will get them automatically on next launch, same as existing installs already have.
 
@@ -123,7 +125,7 @@ Lilica is iPhone-only. `app.json` must retain `ios.supportsTablet: false`. Check
 
 ### RevenueCat/store work still outstanding (unrelated to any build/OTA)
 
-1. **Apple rejected `1.0.0 (5)`, needs a real response.** See `docs/REVISION_LOG.md`'s 26 September entry for the full Resolution Center message and a section-by-section read of it. Outstanding: physical-device screen recording of app launch/typical flow, written answers to Apple's numbered information requests, re-verification the demo account (`applereview@luxfordinteractive.com`) still logs in with valid entitlement, and a check that App Store screenshots show real app screens (not splash/login). Google Play: approved and live per David ("build 6") -- confirm actual live versionCode via `edits.tracks` for `production`.
+1. **Apple review: RESOLVED.** Lilica is live on the App Store as of the 3 November 2026 check (history in `docs/REVISION_LOG.md`).
 2. Run physical iPhone sandbox purchase, restore, renewal, cancellation, expiry, and refund/revocation checks.
 3. Add/confirm licensed Google Play testers and run equivalent Android internal-track checks.
 4. Confirm a real store event reaches RevenueCat, passes the signed webhook, updates Supabase entitlement state, and changes Lilica's access gates correctly end-to-end (plumbing itself is verified; a real-purchase proof is still outstanding).
