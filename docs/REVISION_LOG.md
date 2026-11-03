@@ -1,5 +1,9 @@
 # Revision Log
 
+## 3 November 2026 - Apple Analytics report requests created (on David's yes)
+
+Created an ONGOING (`f08e5026-6067-42fe-8689-15310cecb6ee`) and a ONE_TIME_SNAPSHOT (`4867ad77-b222-4e0f-a768-b652d88c55e8`) analyticsReportRequests resource for app 6812822327 so impressions, product page views, downloads and conversion become measurable for the growth baseline. Baseline file: `lilica-growth-execution-BASELINE-2026-11-03.md` in the Lumen workspace. Reports expected within about 1 to 2 days.
+
 ## 3 November 2026 - Growth work started by the Lumen agent (store listing and website changes already live)
 
 Recorded from live checks, not from the agent's own reports. A growth plan (`C:UsersDavidPC.openclawworkspaceLILICA_GROWTH_REPORT_2026-11-03.md`, with working files in `lilica-growth-execution`) was reviewed and partly executed on David's approval.
