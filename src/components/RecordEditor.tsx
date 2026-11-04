@@ -648,9 +648,9 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                   onPress={() => change({ assignedMembershipId: option.value })}
-                  style={[styles.segment, selected && styles.segmentSelected]}
+                  style={[styles.segment, option.value === undefined && styles.segmentWide, selected && styles.segmentSelected]}
                 >
-                  <AppText variant="secondary" tone={selected ? 'primary' : 'soft'} centre>{option.label}</AppText>
+                  <AppText variant="secondary" tone={selected ? 'primary' : 'soft'} centre numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{option.label}</AppText>
                 </Pressable>
               );
             })}
@@ -766,9 +766,9 @@ export const RecordEditor = forwardRef<RecordEditorHandle, Props>(function Recor
                       accessibilityRole="button"
                       accessibilityState={{ selected }}
                       onPress={() => setTaskAssignee(option.value)}
-                      style={[styles.segment, selected && styles.segmentSelected]}
+                      style={[styles.segment, option.value === undefined && styles.segmentWide, selected && styles.segmentSelected]}
                     >
-                      <AppText variant="secondary" tone={selected ? 'primary' : 'soft'} centre>{option.label}</AppText>
+                      <AppText variant="secondary" tone={selected ? 'primary' : 'soft'} centre numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{option.label}</AppText>
                     </Pressable>
                   );
                 })}
@@ -939,6 +939,9 @@ const styles = StyleSheet.create({
   addTaskButton: { borderRadius: radius.md },
   segmented: { flexDirection: 'row', borderWidth: 1, borderColor: colors.line, borderRadius: radius.sm, overflow: 'hidden' },
   segment: { flex: 1, minHeight: 44, paddingHorizontal: spacing.xs, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  // "Unassigned" is the longest label in the Assigned to row, so it gets a
+  // wider share; with equal widths the last letter wrapped onto a second line.
+  segmentWide: { flex: 1.4 },
   segmentSelected: { backgroundColor: colors.primarySoft },
   recurrenceRow: { flexDirection: 'row', gap: spacing.xs },
   recurrencePill: { minHeight: 44, paddingHorizontal: spacing.md, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line, borderRadius: radius.pill, backgroundColor: colors.surface },
