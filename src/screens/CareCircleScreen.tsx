@@ -169,7 +169,7 @@ function DeliveryActions({
   // decides what that means (close the creation panel, and/or just
   // re-fetch from the server so this same invitation's row reflects
   // the new persisted state everywhere it's shown).
-  onSuccess: () => void;
+  onSuccess: (kind?: 'email' | 'share') => void;
   busy: boolean;
   setBusy: (busy: boolean) => void;
 }) {
@@ -187,7 +187,7 @@ function DeliveryActions({
     setBusy(false);
     if (result.ok) {
       setTransient({ status: 'idle' });
-      onSuccess();
+      onSuccess('email');
     } else {
       setTransient({ status: 'failed', message: result.message });
     }
@@ -225,7 +225,7 @@ function DeliveryActions({
           ? await recordInvitationGroupShareOpened(invitation.groupId as string)
           : await recordInvitationShareOpened(invitation.id);
         setBusy(false);
-        if (recordResult.ok) onSuccess();
+        if (recordResult.ok) onSuccess('share');
         // If recording fails, the share genuinely happened but Lilica
         // couldn't persist that -- silently NOT calling onSuccess()
         // undersells what happened rather than overclaiming it, which
@@ -284,6 +284,8 @@ type JustCreated = {
   inviteCode: string;
   personNames: string[];
   alreadyHasAccessNames: string[];
+  // Who the invitation is for, so a confirmation can name them once sent.
+  sentTo: string;
 };
 
 export function CareCircleScreen({ personName, members, invitations, careSpaceId, onBack, onRefresh, isReadOnly, onInviteBlocked, inviterDisplayName, onJoinAnotherCareCircle, onLeaveCareSpace, organiserEligiblePeople = [] }: Props) {
@@ -312,6 +314,10 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
   const [selectedCareSpaceIds, setSelectedCareSpaceIds] = useState<string[]>([careSpaceId]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  // Errors from the invite form itself. Shown right above its Continue
+  // button: the page-level `error` renders at the top of the screen, out of
+  // sight once the form is open further down.
+  const [formError, setFormError] = useState<string>();
   const [infoMessage, setInfoMessage] = useState<string>();
   const [justCreated, setJustCreated] = useState<JustCreated>();
 
@@ -346,20 +352,31 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
   function openInviteForm() {
     setSelectedCareSpaceIds([careSpaceId]);
     setInfoMessage(undefined);
+    setFormError(undefined);
     setShowInvite(true);
   }
 
   async function submitInvite() {
-    if (!email.trim() || !relationshipLabel.trim()) {
-      setError('Enter their email and how they know you.');
+    if (!email.trim() && !relationshipLabel.trim()) {
+      setFormError('Enter their email and how you know them to continue.');
+      return;
+    }
+    if (!email.trim()) {
+      setFormError('Enter their email to continue.');
+      return;
+    }
+    if (!relationshipLabel.trim()) {
+      setFormError('Add how you know them to continue, for example "Cousin" or "Neighbour".');
       return;
     }
     if (selectedCareSpaceIds.length === 0) {
-      setError('Choose at least one person they can help with.');
+      setFormError('Choose at least one person they can help with.');
       return;
     }
+    const sentTo = email.trim();
     setBusy(true);
     setError(undefined);
+    setFormError(undefined);
 
     function resetForm() {
       setShowInvite(false);
@@ -382,7 +399,7 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
       });
       setBusy(false);
       if (!result.ok) {
-        setError(result.message);
+        setFormError(result.message);
         return;
       }
       resetForm();
@@ -391,6 +408,7 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
         inviteCode: result.data.inviteCode,
         personNames: [personName?.trim() || 'this person'],
         alreadyHasAccessNames: [],
+        sentTo,
       });
       onRefresh();
       return;
@@ -406,7 +424,7 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
     });
     setBusy(false);
     if (!result.ok) {
-      setError(result.message);
+      setFormError(result.message);
       return;
     }
     resetForm();
@@ -426,6 +444,7 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
       inviteCode: result.data.inviteCode as string,
       personNames: invitedNames,
       alreadyHasAccessNames: alreadyNames,
+      sentTo,
     });
     onRefresh();
   }
@@ -704,12 +723,19 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
               invitation={{ id: justCreated.id, groupId: justCreated.groupId, inviteCode: justCreated.inviteCode, lastEmailSentAt: undefined, lastShareOpenedAt: undefined }}
               personNames={justCreated.personNames}
               inviterDisplayName={inviterDisplayName}
-              onSuccess={() => {
+              onSuccess={(kind) => {
                 // A real, server-confirmed success closes this panel
                 // automatically -- the invitation immediately reappears
                 // exactly once, in Pending invitations, showing that
                 // same real outcome (re-fetched from the server, since
                 // delivery state now lives there, not locally).
+                // A plain confirmation says what just happened, so the
+                // screen never appears to have simply reset itself.
+                setInfoMessage(
+                  kind === 'share'
+                    ? `Invitation shared for ${justCreated.sentTo}. It is listed below under Pending invitations.`
+                    : `Invitation sent to ${justCreated.sentTo}. It is listed below under Pending invitations.`,
+                );
                 onRefresh();
                 setJustCreated(undefined);
               }}
@@ -739,6 +765,10 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
               const shared = !!invitation.lastShareOpenedAt;
               return (
                 <View key={invitation.id} style={styles.card}>
+                  {/* styles.card lays its children out in a row, so every
+                      line needs one column wrapper or the text is squeezed
+                      side by side and cut off at the edge. */}
+                  <View style={styles.cardCopy}>
                   <AppText variant="body" tone="primary">{invitation.inviteeEmail}</AppText>
                   <AppText variant="secondary" tone="soft">
                     Invited as {invitation.role === 'contributor' ? 'Contributor' : 'Viewer'} · not a member yet
@@ -761,7 +791,7 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
                     invitation={invitation}
                     personNames={invitation.groupParticipantNames ?? [personName ?? '']}
                     inviterDisplayName={inviterDisplayName}
-                    onSuccess={onRefresh}
+                    onSuccess={() => onRefresh()}
                     busy={busy}
                     setBusy={setBusy}
                   />
@@ -772,6 +802,7 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
                     onPress={() => handleRevoke(invitation)}
                     style={styles.removeButton}
                   />
+                  </View>
                 </View>
               );
             })}
@@ -787,13 +818,13 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
               autoCapitalize="none"
               keyboardType="email-address"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(value) => { setEmail(value); setFormError(undefined); }}
             />
             <TextField
               label="How you know them"
               placeholder="e.g. Cousin, neighbour"
               value={relationshipLabel}
-              onChangeText={setRelationshipLabel}
+              onChangeText={(value) => { setRelationshipLabel(value); setFormError(undefined); }}
             />
             {/* Multi-person Care Circle invitation scope (`\downloads\perm.txt`,
                 15 September 2026): brief section 3 -- only shown when the
@@ -895,8 +926,9 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
                 send (email/Share/code) happens on the next screen
                 (DeliveryActions, below), so "Send invitation" overclaimed
                 what this specific tap does. */}
+            {formError ? <AppText variant="secondary" tone="danger" testID="invite-form-error">{formError}</AppText> : null}
             <Button label="Continue" onPress={submitInvite} disabled={busy || selectedCareSpaceIds.length === 0} />
-            <Button label="Cancel" variant="text" onPress={() => setShowInvite(false)} disabled={busy} />
+            <Button label="Cancel" variant="text" onPress={() => { setFormError(undefined); setShowInvite(false); }} disabled={busy} />
           </View>
         ) : (
           <Button label="Invite someone" onPress={() => (isReadOnly ? onInviteBlocked?.() : openInviteForm())} />
