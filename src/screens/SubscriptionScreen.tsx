@@ -55,7 +55,9 @@ export function SubscriptionScreen({
     setActionMessage(undefined);
     const result = await onSubscribe();
     setActionPending(undefined);
-    if (!result.ok) setActionMessage(result.message ?? 'Something went wrong. Please try again.');
+    setActionMessage(result.ok
+      ? 'Purchase completed. Your subscription may take a moment to activate.'
+      : (result.message ?? 'Something went wrong. Please try again.'));
   }
 
   async function handleRestore() {

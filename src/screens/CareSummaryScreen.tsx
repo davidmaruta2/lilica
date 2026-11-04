@@ -11,6 +11,9 @@ import { ActivityEvent, describeActivityEvent } from '../activity';
 import { CareCircleMember } from '../careCircle';
 import { buildCareSummary } from '../careSummary';
 import { exportCareSummaryPdf } from '../careSummaryPdf';
+import { trackActivationEventForCurrentUser } from '../activationEvents';
+import { registerReviewMoment } from '../reviewPrompt';
+import { supabase } from '../auth/client';
 import { colors, radius, spacing } from '../theme';
 import { LilicaRecord } from '../types';
 
@@ -59,7 +62,12 @@ export function CareSummaryScreen({ records, careCircleMembers, recentActivity, 
     setExportMessage(undefined);
     const result = await exportCareSummaryPdf({ records, careCircleMembers, recentActivity, personName });
     setExporting(false);
-    if (!result.ok) setExportMessage(result.message);
+    if (!result.ok) {
+      setExportMessage(result.message);
+      return;
+    }
+    void trackActivationEventForCurrentUser('care_summary_created');
+    void supabase.auth.getSession().then(({ data }) => registerReviewMoment(data.session?.user.id, 'care_summary_created')).catch(() => undefined);
   }
 
   return (

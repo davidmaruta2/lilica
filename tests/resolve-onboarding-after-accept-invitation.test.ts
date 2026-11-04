@@ -58,7 +58,7 @@ describe('resolveOnboardingStateAfterAcceptingInvitation', () => {
     expect(result.stage).not.toBe('relationship');
   });
 
-  it('an existing organiser (already completed onboarding) accepting a second invitation is a true no-op', () => {
+  it('an existing organiser accepting a second invitation lands in the newly joined care space', () => {
     const existingOrganiser: OnboardingState = {
       ...initialOnboardingState,
       stage: 'home',
@@ -79,12 +79,42 @@ describe('resolveOnboardingStateAfterAcceptingInvitation', () => {
           setupStatus: 'ready',
           allSetDismissed: true,
         },
+        'space-2': {
+          careSpaceId: 'space-2',
+          supportedPersonId: 'person-2',
+          bootstrapId: 'bootstrap-2',
+          relationshipType: 'Dad',
+          displayName: 'David',
+          membershipId: 'membership-2',
+          role: 'contributor',
+          status: 'active',
+          privacyDeclarationAccepted: false,
+          interests: [],
+          records: [],
+          setupStatus: 'identity_only',
+          allSetDismissed: false,
+        },
       },
+      activeCareSpaceId: 'space-1',
     };
 
-    const result = resolveOnboardingStateAfterAcceptingInvitation(existingOrganiser);
+    const result = resolveOnboardingStateAfterAcceptingInvitation(existingOrganiser, ['membership-2']);
 
-    expect(result).toBe(existingOrganiser); // same reference -- genuinely untouched
+    expect(result.activeCareSpaceId).toBe('space-2');
+    expect(result.stage).toBe('home');
+    expect(result.onboardingComplete).toBe(true);
+  });
+
+  it('falls back safely when the accepted membership is not in the reconnect result', () => {
+    const state: OnboardingState = {
+      ...initialOnboardingState,
+      onboardingComplete: true,
+      stage: 'home',
+    };
+
+    const result = resolveOnboardingStateAfterAcceptingInvitation(state, ['missing-membership']);
+
+    expect(result).toBe(state);
   });
 
   // Decline coverage, per the same closure brief's item 13: a brand-new

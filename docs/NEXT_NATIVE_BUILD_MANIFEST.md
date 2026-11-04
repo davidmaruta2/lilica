@@ -10,6 +10,41 @@ Both stores are publicly live. The current native binaries are iOS `1.0.0 (8)` f
 
 This document does not authorise another build, submission, distribution, or OTA. The absolute authority rule below remains current. Any future proposal must use the live binaries above as its starting baseline, calculate the exact delta at that time, run the mandatory checks, and obtain David's express approval for each release action.
 
+## NATIVE BUILD QUEUE (opened 4 November 2026) - HELD, NOT AUTHORISED
+
+David asked on 4 November 2026 for items that need a native binary to be queued here while he decides whether and when to build. **Queueing is not approval.** No `eas build`, `eas submit` or `eas update` may be run for any of this without David's direct yes for that specific action, and the absolute authority rule below still applies in full.
+
+Baseline to calculate the delta from: iOS `1.0.0 (8)` (commit `207cc24`), Android `1.0.0 (6)` (commit `195d186`). Re-verify both live before any proposal.
+
+### Items that REQUIRE a native build
+
+| # | Item | Why it needs a binary | State |
+| --- | --- | --- | --- |
+| 1 | In-app review prompt (`src/reviewPrompt.ts`, new dependency `expo-store-review ~57.0.3` in `package.json`) | Native module on both iOS (StoreKit) and Android (Play In-App Review). Neither live binary contains it. | Written, tested (5 tests incl. a binary-without-the-module case), uncommitted. The module is loaded lazily and the prompt silently does nothing on an older binary, so the JS can also ship by OTA safely; the prompt only becomes active on a binary that includes the module. |
+| 2 | Android: `updates.fallbackToCacheTimeout: 3000` in `app.json` | Native-affecting config. iOS builds 7 and 8 have it (commit `a92fee3`); Android `1.0.0 (6)` was built before it. Without it, OTA fixes may miss a fresh Android install's first launch. | Already committed. |
+| 3 | Apple store listing update: new app name `Lilica: Family Care Organiser`, subtitle, keywords, description, screenshots | Apple only allows these to change on a new app version going through review (promotional text is the only field editable on a live version, and is already updated). | Copy drafted in `lilica-growth-execution/01-ASO-METADATA-PACK.md`; final screenshots (8 frames, no `21` notification badge, no delete screen) not yet captured or approved. Google Play listing text is already live and needs no build. |
+
+### Items that do NOT need a build (can go by OTA, each needing its own approval)
+
+- Returning user accepting an invitation now lands in the newly joined care space (`App.tsx`, `src/careSpaceState.ts`).
+- Purchase confirmation message on the Subscription screen (`src/screens/SubscriptionScreen.tsx`).
+- Trial prompt (`src/trialPrompt.ts`) and privacy-safe activation events (`src/activationEvents.ts`). The events need the additive migration `supabase/migrations/20261104090000_activation_events.sql` applied to `lilica-production` first, which also needs David's explicit yes. pgTAP for it passed 9 of 9 locally.
+
+### Open items that would join the queue if David chooses
+
+- Retry-safe invitation acceptance after a lost response (needs a reviewed migration plus pgTAP; high priority per the audit).
+- Deep link to a specific invitation; first-collaboration prompt after acceptance; bounded entitlement refresh after purchase.
+
+### Before this queue can become a build request
+
+1. David decides to build, and which platforms.
+2. Commit the working tree (David asks for commits), then re-run typecheck, the full test suite, `secrets:check`, resolved Expo config (`ios.supportsTablet` must stay `false`), web export and `git diff --check`.
+3. Resolve or explain the two failing local pgTAP files (`delete_care_space`, `phase18b_account_deletion`) noted in `docs/NEW_USER_JOURNEY_ACTIVATION_AUDIT_2026-11-03.md`; they were not yet confirmed as pre-existing.
+4. Final screenshots approved and Apple metadata ready, so one Apple review carries the listing change and the binary together.
+5. Present the standard approval statement (platform, profile, exact commit, purpose, delta, validation, limitations, submission) and wait for a direct yes.
+
+Both stores review a new binary (Apple App Review, Google Play review); OTA updates do not need store review but must stay inside the stores' rules for interpreted code.
+
 ## 19 September 2026 update: first production-profile build (historical baseline)
 
 David stated explicitly he is done with dev-phase work; everything now targets real public go-live. After the RevenueCat production webhook and production Auth config were verified/fixed (a cross-environment webhook bug found and fixed via the RevenueCat API -- see `docs/REVISION_LOG.md`), David explicitly authorised the first `production`-profile build, following the full mandatory pre-build checklist below (all passed): commit `313d064`.

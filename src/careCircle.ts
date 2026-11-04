@@ -7,6 +7,7 @@
 import { createUuid } from './identifiers';
 import { friendlyAuthError } from './auth/errors';
 import { supabase } from './auth/client';
+import { trackActivationEventForCurrentUser } from './activationEvents';
 import { Relationship } from './types';
 
 export type CareCircleRole = 'organiser' | 'contributor' | 'viewer';
@@ -267,6 +268,7 @@ export async function inviteMember(input: {
   });
   if (error) return fail(error);
   const row = data as { id: string; invite_code: string };
+  void trackActivationEventForCurrentUser('invite_created');
   return { ok: true, data: { invitationId: row.id, inviteCode: row.invite_code } };
 }
 
@@ -312,6 +314,7 @@ export async function inviteMemberGroup(input: {
     representative_invitation_id: string | null;
   }>;
   const groupRow = rows.find((row) => row.group_id);
+  if (groupRow) void trackActivationEventForCurrentUser('invite_created');
   const representativeRow = rows.find((row) => row.representative_invitation_id);
   return {
     ok: true,

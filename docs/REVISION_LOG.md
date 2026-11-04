@@ -1,5 +1,9 @@
 # Revision Log
 
+## 4 November 2026 - Growth baseline, activation work validated, native build queue opened (no build, OTA, store or production change)
+
+Baseline re-pulled read-only (Apple Analytics report requests exist but have no data yet; Google Play reviews API returns none; Search Console sitemap submitted, 8 URLs, 0 indexed; RevenueCat unchanged) and Supabase cohort queries run against production as aggregates only. Results are in the growth workspace (`07-BASELINE-2026-11-03.md`, `09-KPI-TRACKER-BASELINE-2026-11-04.csv`). Source-only work validated: typecheck clean, 115 of 116 suites (the one failure, `phase17-record-editor`, passed alone, looks like a load flake), secrets scan clean, new activation events pgTAP 9 of 9 locally. Two older local pgTAP files fail (`delete_care_space`, `phase18b_account_deletion`, both around the 26 September account deletion change) and are not yet confirmed as pre-existing. `src/reviewPrompt.ts` now loads `expo-store-review` lazily so an OTA cannot crash binaries built without it. Local Supabase migrations were brought forward with `migration up --local` (no reset). Native build queue opened in `docs/NEXT_NATIVE_BUILD_MANIFEST.md`, held pending David's decision.
+
 ## 3 November 2026 - Search Console connected for lilica.co.uk (on David's yes)
 
 Added a Google site-verification TXT record at the apex of lilica.co.uk in GoDaddy DNS (appended only, no existing record changed) and verified the domain through the Site Verification API. The Google service account is the verified owner of `sc-domain:lilica.co.uk`. Also pushed `googleac8adce7b7931ad9.html` to the lilica-legal site repo (commit `e43b189`) during an earlier verification attempt; harmless and unneeded.

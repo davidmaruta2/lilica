@@ -896,7 +896,7 @@ function LilicaApp() {
   // multi-person group) -- reconnects/integrates care spaces and
   // resolves onboarding state exactly once, so the two entry points
   // below never duplicate this logic.
-  async function finishAcceptance() {
+  async function finishAcceptance(acceptedMembershipIds: string[]) {
     const reconnected = await reconnectCareSpaces();
     if (reconnected.ok) {
       setState((current) => {
@@ -906,7 +906,7 @@ function LilicaApp() {
         // resolveOnboardingStateAfterAcceptingInvitation()'s own header
         // comment in src/careSpaceState.ts for the full explanation and
         // its now-real, isolated unit-test coverage.
-        return resolveOnboardingStateAfterAcceptingInvitation(next);
+        return resolveOnboardingStateAfterAcceptingInvitation(next, acceptedMembershipIds);
       });
     }
     await refreshMyInvitations();
@@ -923,7 +923,7 @@ function LilicaApp() {
       ? await acceptInvitationGroup(target.groupId)
       : await acceptInvitation(target.invitationId as string);
     if (!result.ok) return result;
-    await finishAcceptance();
+    await finishAcceptance(Array.isArray(result.data) ? result.data : [result.data]);
     return { ok: true as const };
   }
 

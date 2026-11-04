@@ -66,6 +66,15 @@ describe('SubscriptionScreen', () => {
     await screen.findByText('Purchase cancelled.');
   });
 
+  it('confirms a successful purchase while the server entitlement catches up', async () => {
+    const onSubscribe = jest.fn().mockResolvedValue({ ok: true });
+    const screen = await render(
+      <SubscriptionScreen entitlement={entitlement({ status: 'TRIAL_EXPIRED' })} loading={false} billingConfigured annualPrice="£8.99" productLoading={false} onBack={jest.fn()} onSubscribe={onSubscribe} onRestore={jest.fn()} />,
+    );
+    await fireEvent.press(screen.getByText('Subscribe for £8.99/year'));
+    await screen.findByText(/Purchase completed.*take a moment to activate/i);
+  });
+
   it('tapping Restore purchases calls onRestore and reports the result', async () => {
     const onRestore = jest.fn().mockResolvedValue({ ok: true });
     const screen = await render(

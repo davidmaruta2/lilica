@@ -15,6 +15,7 @@ import { PersonSwitcher } from '../components/PersonSwitcher';
 import { PlusIcon } from '../components/PlusIcon';
 import { NotificationAnchor } from '../components/NotificationBellButton';
 import { useRef, useState } from 'react';
+import { TrialNotice } from '../trialPrompt';
 
 type Props = {
   state: OnboardingState;
@@ -58,6 +59,10 @@ type Props = {
   // like every other projection on this screen, so it is always shown
   // once there is anything to search.
   onOpenSearch?: () => void;
+  // Growth item 1: calm heads-up shown only in the last two weeks of the
+  // free period. Omitted entirely otherwise.
+  trialNotice?: TrialNotice;
+  onOpenTrialOptions?: () => void;
 };
 
 type HomeViewMode = 'list' | 'grid';
@@ -292,6 +297,8 @@ export function HomeScreen({
   notificationCount = 0,
   onOpenNotifications,
   onOpenSearch,
+  trialNotice,
+  onOpenTrialOptions,
 }: Props) {
   const { width: windowWidth } = useWindowDimensions();
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -488,6 +495,13 @@ export function HomeScreen({
           </Pressable>
         ) : null}
       </View>
+
+      {trialNotice ? (
+        <View style={styles.trialNotice} testID="home-trial-notice">
+          <AppText variant="secondary" tone="soft">{trialNotice.message}</AppText>
+          {onOpenTrialOptions ? <Button label={trialNotice.actionLabel} variant="text" onPress={onOpenTrialOptions} /> : null}
+        </View>
+      ) : null}
 
       {setupStatus !== 'ready' ? (
         <View style={styles.setupCard}>
@@ -692,8 +706,9 @@ export function HomeScreen({
             </View>
           ) : (
             <View style={styles.empty}>
-              <AppText variant="section">Start with one thing you want to keep track of.</AppText>
-              <Button label="Add something" onPress={onAddSomething} style={styles.emptyButton} />
+              <AppText variant="section">Nothing here yet.</AppText>
+              <AppText variant="secondary" tone="soft">Add the next appointment, errand or bill and it will show up here.</AppText>
+              <Button label="Add your first thing" onPress={onAddSomething} style={styles.emptyButton} />
             </View>
           )}
         </>
@@ -991,6 +1006,12 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     marginTop: spacing.lg,
+  },
+  trialNotice: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
   },
 });
 

@@ -18,7 +18,14 @@ import {
   ReminderOffsetKey,
   snoozeNotificationId,
 } from './reminders';
+import { MyEntitlement } from './entitlement';
 import { LilicaRecord } from './types';
+import {
+  TRIAL_NOTIFICATION_DAYS_BEFORE,
+  trialNotificationBody,
+  trialNotificationDates,
+  trialNotificationIdentifier,
+} from './trialPrompt';
 
 // Phase 14: the thin platform boundary. Everything domain-meaningful
 // (which occasions, what they say, quiet-hours policy) lives in
@@ -273,4 +280,29 @@ export function addNotificationResponseListener(handler: (data: ReminderNotifica
     if (data) handler(data);
   });
   return subscription;
+}
+
+// Growth item 1: reschedule (or clear) the two trial-ending heads-ups.
+// Never requests permission - only schedules when reminders are on and
+// permission is already granted.
+// The payload carries no record or care-space data, so the existing
+// reminder response listener (extractReminderData) ignores it.
+export async function syncTrialEndingNotifications(entitlement: MyEntitlement | undefined, remindersEnabled: boolean): Promise<void> {
+  if (!SUPPORTED) return;
+  try {
+    for (const daysBefore of TRIAL_NOTIFICATION_DAYS_BEFORE) {
+      await notifications().cancelScheduledNotificationAsync(trialNotificationIdentifier(daysBefore));
+    }
+    // Respects the user's own reminders switch as well as OS permission.
+    if (!remindersEnabled || (await getPermissionState()) !== 'granted') return;
+    for (const { daysBefore, at } of trialNotificationDates(entitlement)) {
+      await notifications().scheduleNotificationAsync({
+        identifier: trialNotificationIdentifier(daysBefore),
+        content: { title: 'Lilica', body: trialNotificationBody(daysBefore), data: { kind: 'trial-ending' } },
+        trigger: { type: notifications().SchedulableTriggerInputTypes.DATE, date: at, channelId: 'reminders' },
+      });
+    }
+  } catch {
+    // Scheduling is a courtesy; never let it affect the app.
+  }
 }

@@ -355,7 +355,8 @@ describe('real-record-only Home characterization', () => {
     const screen = await render(
       <HomeScreen state={{ ...initialOnboardingState, stage: 'home', supportedPersonName: 'Margaret' }} onAddSomething={jest.fn()} onDismissAllSet={jest.fn()} />,
     );
-    screen.getByText('Start with one thing you want to keep track of.');
+    screen.getByText('Nothing here yet.');
+    screen.getByText('Add your first thing');
     expect(screen.queryByText('Today')).toBeNull();
     expect(screen.queryByText('Upcoming')).toBeNull();
     expect(screen.queryByText('Recently added')).toBeNull();

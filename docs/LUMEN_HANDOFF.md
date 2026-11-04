@@ -27,6 +27,10 @@ An incoming agent must not assume a new phase or release action is authorised. R
 - Run `git log -1`, `git status --short`, and compare local HEAD with the remote branch at the beginning of every session. Shared-machine/concurrent-agent changes have occurred before.
 - As of 3 November 2026 the working tree also contains pre-existing untracked `LILBATCH_COMPLETION_REPORT.txt` and `expo-dev.log`. Preserve and inspect them; do not claim the tree is clean or delete/commit them without instruction.
 
+## Native build queue (4 November 2026, held, not authorised)
+
+Items that need a new binary are queued in `docs/NEXT_NATIVE_BUILD_MANIFEST.md` ("NATIVE BUILD QUEUE"): the in-app review prompt (new native dependency `expo-store-review`), Android's missing `fallbackToCacheTimeout` config, and the Apple name/subtitle/keywords/screenshots update. David is deciding whether and when to build. Queueing is not approval. JS-only fixes (invitation landing fix, purchase message, trial prompt, activation events) can ship by OTA with separate approval, and the activation events migration is not yet applied to production.
+
 ## Critical release authority
 
 No EAS/native build, and no `eas update` (OTA publish), may ever be started without David Maruta's express approval for that specific action.

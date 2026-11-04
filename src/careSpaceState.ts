@@ -237,11 +237,27 @@ export function resolveOnboardingStateAfterAccountReconnect(
 // existing organiser who already completed onboarding once (accepting
 // a SECOND care space's invitation never needs to touch
 // stage/onboardingComplete again).
-export function resolveOnboardingStateAfterAcceptingInvitation(state: OnboardingState): OnboardingState {
-  if (!state.onboardingComplete) {
-    return { ...state, onboardingComplete: true, stage: 'home', onboardingDraft: undefined };
+export function resolveOnboardingStateAfterAcceptingInvitation(
+  state: OnboardingState,
+  acceptedMembershipIds: string[] = [],
+): OnboardingState {
+  // A returning account may already be viewing another care space. Make
+  // the newly accepted space active so a successful acceptance never
+  // appears to have done nothing. The server-returned membership id is
+  // the stable link to the reconnected care space; no name or ordering
+  // guess is involved. Group invites activate the first accepted space
+  // while leaving every joined space available in the person switcher.
+  const acceptedSpace = Object.values(state.careSpaces).find(
+    (space) => space.membershipId && acceptedMembershipIds.includes(space.membershipId),
+  );
+  const next = acceptedSpace
+    ? projectActiveCareSpace({ ...state, activeCareSpaceId: acceptedSpace.careSpaceId })
+    : state;
+
+  if (!next.onboardingComplete) {
+    return { ...next, onboardingComplete: true, stage: 'home', onboardingDraft: undefined };
   }
-  return state;
+  return next;
 }
 
 export function replaceCareSpace(
