@@ -170,3 +170,7 @@ The full repository suite, secrets scan, public Expo config and web export remai
 - `git diff --check`: no whitespace errors (line-ending warnings only).
 - Not run: resolved Expo config, web export, pgTAP for the new activation events migration (needs Docker), and any device test.
 - Note: `expo-store-review` was added to `package.json`, a new native dependency. The review prompt and anything using it needs a new native build, not an OTA.
+
+## Event wiring update, 4 November 2026
+
+All eight allow-listed activation events are now called from the app (names only, no data, failures swallowed): `account_ready` and `first_record_added` (when onboarding completes), `person_added` (after supported people are provisioned), `first_record_added` also on any newly saved record, `invite_created`, `care_summary_created`, `paywall_viewed` (Subscription screen opens), `trial_notice_viewed` (Home shows the free period notice), and `review_prompt_shown` (the native prompt was actually requested). A completed task now also feeds the review prompt (`task_completed`). The server keeps one row per user per event, so repeats are harmless. Events only record once the activation events migration is applied to production, which has not happened. Not committed at the time of writing.

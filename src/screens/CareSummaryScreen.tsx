@@ -67,7 +67,7 @@ export function CareSummaryScreen({ records, careCircleMembers, recentActivity, 
       return;
     }
     void trackActivationEventForCurrentUser('care_summary_created');
-    void supabase.auth.getSession().then(({ data }) => registerReviewMoment(data.session?.user.id, 'care_summary_created')).catch(() => undefined);
+    void supabase.auth.getSession().then(({ data }) => registerReviewMoment(data.session?.user.id, 'care_summary_created')).then((asked) => { if (asked) void trackActivationEventForCurrentUser('review_prompt_shown'); }).catch(() => undefined);
   }
 
   return (

@@ -2,6 +2,8 @@ import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { trackActivationEvent, trackActivationEventForCurrentUser } from './src/activationEvents';
+import { registerReviewMoment } from './src/reviewPrompt';
 import { ActivityIndicator, AppState, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
@@ -1435,6 +1437,14 @@ function LilicaApp() {
     if (storageOwnerId && currentSpace.membershipId) {
       syncAfterLocalMutation(enqueueRecordUpsert(storageOwnerId, currentSpace.careSpaceId, savedRecord));
     }
+    // Privacy-safe measurement (event names only): a first record, and a
+    // completed task as a moment the review prompt may use.
+    if (!previousRecord) void trackActivationEvent(auth.session?.user.id, 'first_record_added');
+    if (savedRecord.completed && !previousRecord?.completed && savedRecord.type === 'task') {
+      void registerReviewMoment(auth.session?.user.id, 'task_completed')
+        .then((asked) => { if (asked) void trackActivationEventForCurrentUser('review_prompt_shown'); })
+        .catch(() => undefined);
+    }
     // Phase 14: reconcile pending local reminders against whatever just
     // changed -- covers a fresh save, a date/time edit, completion and
     // cancellation alike, since they all flow through this one path.
@@ -1520,6 +1530,8 @@ function LilicaApp() {
       syncAfterLocalMutation(enqueueRecordUpsert(storageOwnerId, currentSpace.careSpaceId, savedRecord));
     }
     setActiveTab('home');
+    void trackActivationEvent(auth.session?.user.id, 'account_ready');
+    if (savedRecord) void trackActivationEvent(auth.session?.user.id, 'first_record_added');
   }
 
   function setDraft(patch: Partial<NonNullable<OnboardingState['onboardingDraft']>>) {
@@ -1640,6 +1652,7 @@ function LilicaApp() {
       setProvisionError(result.message);
       return;
     }
+    void trackActivationEvent(auth.session?.user.id, 'person_added');
     const integrated = integrateProvisionedPeople(state, draft.people, result.people);
     const selected = result.people[0]?.careSpaceId;
     setState({

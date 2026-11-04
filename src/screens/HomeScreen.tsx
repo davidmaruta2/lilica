@@ -14,7 +14,8 @@ import { CareSpaceSetupStatus, FirstItem, LilicaRecordType, LocalCareSpaceState,
 import { PersonSwitcher } from '../components/PersonSwitcher';
 import { PlusIcon } from '../components/PlusIcon';
 import { NotificationAnchor } from '../components/NotificationBellButton';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { trackActivationEventForCurrentUser } from '../activationEvents';
 import { TrialNotice } from '../trialPrompt';
 
 type Props = {
@@ -303,6 +304,10 @@ export function HomeScreen({
   const { width: windowWidth } = useWindowDimensions();
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [viewMode, setViewMode] = useState<HomeViewMode>('grid');
+  const trialNoticeShown = Boolean(trialNotice);
+  useEffect(() => {
+    if (trialNoticeShown) void trackActivationEventForCurrentUser('trial_notice_viewed');
+  }, [trialNoticeShown]);
   const records = state.records.length > 0 ? state.records : state.firstItem ? [state.firstItem] : [];
   const personName = state.supportedPersonName?.trim() || 'Them';
   const sections = ['Today', 'Upcoming', 'Recently added']

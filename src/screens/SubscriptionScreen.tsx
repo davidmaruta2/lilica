@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+import { trackActivationEventForCurrentUser } from '../activationEvents';
 import { Linking, Platform, StyleSheet, View } from 'react-native';
 
 import { Button } from '../components/Button';
@@ -49,6 +51,11 @@ export function SubscriptionScreen({
 }: Props) {
   const [actionPending, setActionPending] = useState<'subscribe' | 'restore'>();
   const [actionMessage, setActionMessage] = useState<string>();
+
+  // Privacy-safe measurement: the screen was opened. Name only, no data.
+  useEffect(() => {
+    void trackActivationEventForCurrentUser('paywall_viewed');
+  }, []);
 
   async function handleSubscribe() {
     setActionPending('subscribe');
