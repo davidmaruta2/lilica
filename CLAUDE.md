@@ -1,6 +1,6 @@
 # Claude Handoff Entry Point
 
-Last reconciled 3 November 2026 -- read this fully before doing anything.
+Last reconciled 4 November 2026 -- read this fully before doing anything.
 
 **This file goes stale the moment a build, submission, migration or OTA happens without updating it back -- exactly what caused a real mistake earlier (an agent told David the installed binary was build 5, sourced from this file's own previous "Last updated 21 September" snapshot, when the real installed binary was already build 6). Never state a build number, store review state, or migration state from this file's prose alone when it's about to inform something you tell David or act on -- re-verify it live first (commands below), every time, even if this file was "just updated." Treat every fact below as a snapshot, not a live value.**
 
@@ -20,7 +20,9 @@ Last reconciled 3 November 2026 -- read this fully before doing anything.
   - **Read `lilica_chat_redesign_proposal.txt`** (`C:\Users\DavidPC\Downloads\DAVID\`, outside the repo -- David's own machine, not committed) for the full reasoning behind the current three-level structure and what was explicitly rejected, before changing this area's shape again.
   - **Zero on-device QA has happened on any of Phase 23** beyond what David has personally reported back on screenshots -- Expo Go cannot run this app at all (RevenueCat native module + unreliable local notifications since SDK 53), no development-build profile exists in `eas.json`. Everything is verified by typecheck/jest/schema-lint plus David's own real-device testing and screenshot reports -- say this plainly rather than implying anything is "fully QA'd".
 - **26 September 2026, new work on top of all the above -- migrated to production and OTA'd, on David's explicit instruction:** subscribing is now allowed during the 60-day free trial; a sole active organiser can now delete their own account directly (previously hard-blocked); a contributor can now leave every care space they belong to, not only the active one. Two further real-device bugs found and fixed the same day: account deletion was failing outright with a foreign-key violation for any account that had created a multi-person invitation group (schema gap since 17 September, unrelated to today's other changes -- fixed and applied to both databases), and the Subscription screen showed USD instead of GBP (real root cause: StoreKit2's documented sandbox currency-resolution bug -- fixed by forcing `storeKitVersion: STOREKIT_1` in `src/billing.ts`, not an App Store Connect config issue as first suspected). **Both confirmed fixed by David on-device the same day.** Full detail: `docs/REVISION_LOG.md`'s 26 September entries (read top-down -- several entries superseded earlier same-day theories that turned out to be incomplete, worth reading the full chain).
-- **4 November 2026: a native build queue exists but is held and not authorised** - see `docs/NEXT_NATIVE_BUILD_MANIFEST.md` ("NATIVE BUILD QUEUE"). Review prompt, Android config and Apple listing update are waiting for David's decision on timing. Branch at that time was `growth-activation-events` with uncommitted work.
+- **4 November 2026 (on David's explicit yes each time):** the activation events migration `20261104090000` was applied to `lilica-production`, and an OTA was published to the `production` channel (group `543c1ac0-6934-4051-9cb8-84ae8fa301d7`, commit `9abc9e0`, runtime `1.0.0`; rollback target previous OTA `8d12875`). No native build or store submission was made. Contents and caveats: `docs/LUMEN_HANDOFF.md` ("4 November 2026 state") and `docs/REVISION_LOG.md`.
+- **A native build queue exists but is held and not authorised** - see `docs/NEXT_NATIVE_BUILD_MANIFEST.md` ("NATIVE BUILD QUEUE"): review prompt native module (`expo-store-review`), Android `fallbackToCacheTimeout`, Apple name/subtitle/keywords/screenshots. Waiting for David's decision on timing.
+- **Current branch is `growth-activation-events`** (pushed, branched from the `prephase22-remove-supported-person-faq-help` line at `2b96de8`). Commits: `cce5f0c`, `9abc9e0`, `486fc27`. Do not merge, open a PR or switch baselines without David's instruction.
 - Local `HEAD` and `origin/prephase22-remove-supported-person-faq-help` should be in sync, working tree clean. Confirm this is still true with a fresh `git log -1`/`git status --short` -- do not trust this line alone.
 - Canonical current operational handoff: `docs/LUMEN_HANDOFF.md` (reconciled 3 November 2026, but still re-verify mutable store/build facts before acting). Chronological release and Phase 23 history: `docs/REVISION_LOG.md`, read top-down.
 
@@ -58,7 +60,7 @@ git rev-parse HEAD
 git rev-parse origin/prephase22-remove-supported-person-faq-help
 ```
 
-Work on `prephase22-remove-supported-person-faq-help`. `master` is stale. Do not merge or switch baselines without David's explicit instruction.
+Current working branch is `growth-activation-events` (see above); `prephase22-remove-supported-person-faq-help` is its older baseline. `master` is stale. Do not merge or switch baselines without David's explicit instruction.
 
 **Before telling David a build number, store review state, or a migration/OTA state as current fact** (not just when he asks directly -- also before any status summary that includes it), re-verify live rather than quoting this file:
 

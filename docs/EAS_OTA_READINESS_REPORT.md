@@ -3,6 +3,10 @@
 **Date:** 16 September 2026; current-state reconciliation added 3 November 2026
 **Original action taken:** Configuration and documentation only. No build, submission, or OTA publication was started during that task.
 
+## 4 November 2026 note
+
+On David's explicit yes, an OTA was published to the `production` channel (runtime `1.0.0`, iOS and Android, group `543c1ac0-6934-4051-9cb8-84ae8fa301d7`, commit `9abc9e0`; previous OTA `8d12875` is the rollback target). The `app.json` and `package.json` differences against the previous OTA were reviewed first: `fallbackToCacheTimeout` is ignored by an OTA, and `expo-store-review` is loaded lazily so older binaries skip it safely. See `docs/LUMEN_HANDOFF.md` and `docs/REVISION_LOG.md`.
+
 ## 3 November 2026 reconciliation
 
 This is a historical readiness report, not a current release plan. Both stores are publicly live: iOS `1.0.0 (8)` from commit `207cc24` and Android `1.0.0 (6)` from commit `195d186`. Both current binaries include EAS Update support, and production OTAs have subsequently been published under David's per-action approvals. The app is a free download; customers receive 60 backend-controlled free days and can then buy Lilica Annual for GBP 8.99/year; no Apple introductory offer is configured.

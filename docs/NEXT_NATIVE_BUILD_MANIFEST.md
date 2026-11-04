@@ -20,15 +20,15 @@ Baseline to calculate the delta from: iOS `1.0.0 (8)` (commit `207cc24`), Androi
 
 | # | Item | Why it needs a binary | State |
 | --- | --- | --- | --- |
-| 1 | In-app review prompt (`src/reviewPrompt.ts`, new dependency `expo-store-review ~57.0.3` in `package.json`) | Native module on both iOS (StoreKit) and Android (Play In-App Review). Neither live binary contains it. | Written, tested (5 tests incl. a binary-without-the-module case), uncommitted. The module is loaded lazily and the prompt silently does nothing on an older binary, so the JS can also ship by OTA safely; the prompt only becomes active on a binary that includes the module. |
+| 1 | In-app review prompt (`src/reviewPrompt.ts`, new dependency `expo-store-review ~57.0.3` in `package.json`) | Native module on both iOS (StoreKit) and Android (Play In-App Review). Neither live binary contains it. | Committed (`cce5f0c`, wired in `9abc9e0`) and tested (5 tests incl. a binary-without-the-module case). Its JavaScript already reached users in the 4 November OTA, where it does nothing because the module is absent; the prompt only becomes active on a binary that includes the module. |
 | 2 | Android: `updates.fallbackToCacheTimeout: 3000` in `app.json` | Native-affecting config. iOS builds 7 and 8 have it (commit `a92fee3`); Android `1.0.0 (6)` was built before it. Without it, OTA fixes may miss a fresh Android install's first launch. | Already committed. |
 | 3 | Apple store listing update: new app name `Lilica: Family Care Organiser`, subtitle, keywords, description, screenshots | Apple only allows these to change on a new app version going through review (promotional text is the only field editable on a live version, and is already updated). | Copy drafted in `lilica-growth-execution/01-ASO-METADATA-PACK.md`; final screenshots (8 frames, no `21` notification badge, no delete screen) not yet captured or approved. Google Play listing text is already live and needs no build. |
 
-### Items that do NOT need a build (can go by OTA, each needing its own approval)
+### Items that did NOT need a build (SHIPPED by OTA group `543c1ac0-6934-4051-9cb8-84ae8fa301d7` on 4 November 2026, commit `9abc9e0`, on David's yes)
 
 - Returning user accepting an invitation now lands in the newly joined care space (`App.tsx`, `src/careSpaceState.ts`).
 - Purchase confirmation message on the Subscription screen (`src/screens/SubscriptionScreen.tsx`).
-- Trial prompt (`src/trialPrompt.ts`) and privacy-safe activation events (`src/activationEvents.ts`). The events need the additive migration `supabase/migrations/20261104090000_activation_events.sql` applied to `lilica-production` first, which also needs David's explicit yes. pgTAP for it passed 9 of 9 locally.
+- Trial prompt (`src/trialPrompt.ts`) and privacy-safe activation events (`src/activationEvents.ts`). The additive migration `supabase/migrations/20261104090000_activation_events.sql` was applied to `lilica-production` on 4 November 2026 on David's yes. pgTAP for it passed 9 of 9 locally. The build 8 intro-carousel scroll fix also reached older installs through this OTA.
 
 ### Open items that would join the queue if David chooses
 

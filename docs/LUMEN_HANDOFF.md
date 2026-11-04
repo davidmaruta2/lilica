@@ -2,7 +2,7 @@
 
 Despite its legacy filename, this is the canonical current handoff for every incoming agent.
 
-Last updated: 3 November 2026 (Apple and Google Play both live; verified via API).
+Last updated: 4 November 2026 (Apple and Google Play both live, verified via API on 3 November; the OTA and production migration of 4 November are recorded below).
 
 ## Read this first
 
@@ -18,14 +18,24 @@ Lilica is a calm personal and family care organiser built with Expo SDK 57, Reac
 
 An incoming agent must not assume a new phase or release action is authorised. Read this file, `AGENTS.md`, `docs/NEXT_NATIVE_BUILD_MANIFEST.md`, `docs/BUILD_RELEASE_CONTROL.md`, and `docs/REVENUECAT_BILLING_SETUP_REPORT.md` before acting.
 
+## 4 November 2026 state (read this before the older sections below)
+
+- **OTA published to `production` (David's explicit yes):** update group `543c1ac0-6934-4051-9cb8-84ae8fa301d7`, runtime `1.0.0`, iOS and Android, from commit `9abc9e0`. Contents: invitation landing fix (a returning user accepting an invitation lands in the joined care space), purchase confirmation message, free period notice and trial reminder notifications, eight privacy-safe activation events, a review prompt that is inactive on current binaries (loads `expo-store-review` lazily and does nothing if the module is missing), and the build 8 intro-carousel scroll fix for installs that lack it. Rollback target: previous OTA `8d12875`, group `10f48f2b-eab4-48d8-98ba-51dae3176012`. Not verified on a real device.
+- **Production migration applied (David's explicit yes):** `20261104090000_activation_events.sql` on `lilica-production` (additive: `public.activation_events` table with forced row level security and `log_activation_event`, executable by `authenticated` only). The CLI was re-linked to `lilica-development` afterwards.
+- **No native build or store submission happened.** A native build queue exists, held and not authorised: `docs/NEXT_NATIVE_BUILD_MANIFEST.md` ("NATIVE BUILD QUEUE"): review prompt native module, Android `fallbackToCacheTimeout`, Apple name/subtitle/keywords/screenshots.
+- **Validation (4 November):** typecheck clean, 117 suites / 1029 tests pass, secrets scan clean, new migration pgTAP 9 of 9 locally. Two older local pgTAP files fail and are NOT confirmed as pre-existing: `delete_care_space` (test 3) and `phase18b_account_deletion` (permission denied on an `auth.users` insert); both relate to the 26 September account deletion changes. Resolved Expo config and web export were not re-run.
+- **Branch:** work is on `growth-activation-events` (pushed to origin, tracks it), branched from the `prephase22-remove-supported-person-faq-help` line at `2b96de8`. `master` remains stale. Do not merge or open a PR without David's instruction.
+- **Open items:** retry-safe invitation acceptance after a lost response (needs a reviewed migration), deep link to a specific invitation, first-collaboration prompt, bounded entitlement refresh after purchase, real-device QA of everything above (two-device script in `NEW_USER_JOURNEY_ACTIVATION_AUDIT_2026-11-03.md`), Apple Analytics data not yet generated, Play Console statistics need David to read them.
+- **Growth plan (11 items, owner split, 150 GBP cap):** workspace `C:\Users\DavidPC\.openclaw\workspace\lilica-growth-execution`. Baseline and KPI tracker filled (`07-BASELINE-2026-11-03.md`, `09-KPI-TRACKER-BASELINE-2026-11-04.csv`); item 3 listing rollback verified; Search Console sitemap submitted (8 URLs, 0 indexed); item 4 screenshots waiting on David supplying three emails for a synthetic Care Circle (`Lilica_screenshot_capture_runbook.txt` in Downloads).
+
 ## Repository state
 
 - Repository: `https://github.com/davidmaruta2/lilica`
-- Active branch: `prephase22-remove-supported-person-faq-help`
+- Active branch: `growth-activation-events` (pushed, tracks origin). Older baseline branch: `prephase22-remove-supported-person-faq-help`.
 - `master` is stale and behind. Do not merge to or restart from `master` without explicit product-owner instruction.
-- Latest verified local commit as of this handoff: `469b984` (3 November 2026, docs-only). At that check, `origin/prephase22-remove-supported-person-faq-help` was still at `5e7551f`; do not infer that the local commit has been pushed.
+- Latest commits on `growth-activation-events` as of 4 November 2026: `486fc27` (docs), `9abc9e0` (event wiring, the OTA source), `cce5f0c` (audit fixes, events, review prompt, trial prompt). `origin/prephase22-remove-supported-person-faq-help` is at `2b96de8`, an ancestor of this branch. Re-verify with `git log` and `git status` before relying on this.
 - Run `git log -1`, `git status --short`, and compare local HEAD with the remote branch at the beginning of every session. Shared-machine/concurrent-agent changes have occurred before.
-- As of 3 November 2026 the working tree also contains pre-existing untracked `LILBATCH_COMPLETION_REPORT.txt` and `expo-dev.log`. Preserve and inspect them; do not claim the tree is clean or delete/commit them without instruction.
+- The working tree contains a pre-existing untracked `LILBATCH_COMPLETION_REPORT.txt`; `expo-dev.log` also exists locally and no longer shows as untracked. Preserve them; do not claim the tree is clean or delete/commit them without instruction.
 
 ## Native build queue (4 November 2026, held, not authorised)
 
@@ -55,6 +65,8 @@ Android remains the production-profile `1.0.0 (6)` binary from commit `195d186`.
 **Public-release status is resolved:** Android's production track is live and iOS build 8 is live. Remaining work is QA, not a release blocker: physical purchase/restore/renewal/cancellation/expiry/refund-revocation and cross-platform entitlement checks, plus real-device confirmation of build 8's intro-carousel scroll fix.
 
 ## OTA state
+
+**Latest production OTA (4 November 2026): group `543c1ac0-6934-4051-9cb8-84ae8fa301d7`, commit `9abc9e0`.** See the "4 November 2026 state" section. Everything below is older history.
 
 **This section (originally written 21 September, describing three early OTAs on the now-superseded `1.0.0 (5)` binary) is historical only.** The binary was superseded by `1.0.0 (6)` (commit `195d186`) on 22 September, and a long chain of further OTA updates has shipped since -- the entire Phase 23 Lilica Chat feature (22-23 September, each step David-approved) plus a returning-account crash fix, recurring care needs, and a To Do view-mode fix (22 September). **`docs/REVISION_LOG.md` is the accurate, up-to-date OTA history -- read it top-down rather than trusting the three-update list originally here.** The 19-20 September detail below is kept only because it documents the real critical-outage incident, not because its "current OTA state" framing is still accurate.
 
@@ -166,6 +178,8 @@ Authority: `docs/PHASE_22_APPROVED_VISUAL_DIRECTION.md` and completion reports. 
 - Never infer medical, legal, emergency, or monitoring conclusions.
 
 ## Validation status at handoff
+
+**4 November 2026 update (supersedes the figures below for current code):** typecheck clean, 117 suites / 1029 tests pass, secrets scan clean; see the "4 November 2026 state" section for the pgTAP caveats.
 
 The 3 November reconciliation was documentation/store-state work only; no app build, OTA, or physical QA was run. The latest recorded app validation is build 8's 4 October checkpoint: TypeScript clean, **113 suites / 1008 tests passing**, and secrets scan clean. Resolved Expo config and backend checks were not re-run for this documentation reconciliation. Treat all counts as dated evidence and re-run the required checks against any future code/release commit.
 
