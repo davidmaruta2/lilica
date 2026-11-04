@@ -29,7 +29,7 @@ An incoming agent must not assume a new phase or release action is authorised. R
 
 ## Native build queue (4 November 2026, held, not authorised)
 
-Items that need a new binary are queued in `docs/NEXT_NATIVE_BUILD_MANIFEST.md` ("NATIVE BUILD QUEUE"): the in-app review prompt (new native dependency `expo-store-review`), Android's missing `fallbackToCacheTimeout` config, and the Apple name/subtitle/keywords/screenshots update. David is deciding whether and when to build. Queueing is not approval. JS-only fixes (invitation landing fix, purchase message, trial prompt, activation events) can ship by OTA with separate approval, and the activation events migration is not yet applied to production.
+Items that need a new binary are queued in `docs/NEXT_NATIVE_BUILD_MANIFEST.md` ("NATIVE BUILD QUEUE"): the in-app review prompt (new native dependency `expo-store-review`), Android's missing `fallbackToCacheTimeout` config, and the Apple name/subtitle/keywords/screenshots update. David is deciding whether and when to build. Queueing is not approval. JS-only fixes (invitation landing fix, purchase message, trial prompt, activation events) can ship by OTA with separate approval, and the activation events migration was applied to production on 4 November 2026 (on David's yes); the app code that sends the events has not shipped.
 
 ## Critical release authority
 
