@@ -593,6 +593,26 @@ export async function synchronizeRecords(
   });
 }
 
+// 4 November 2026 two-device test, finding F7: after accepting an invitation
+// the joiner saw an empty, "still needs setting up" Home until the app was
+// killed and reopened, even though the server already returned every record
+// they may see. This makes the records of just-joined care spaces load as an
+// explicit step of acceptance, instead of depending on a re-run of the
+// general sync effect. Idempotent and safe to call for spaces already cached.
+export async function syncJoinedCareSpaces(
+  ownerId: string,
+  spaces: Array<{ careSpaceId: string; membershipId?: string }>,
+  transport: RecordSyncTransport = supabaseRecordTransport,
+  now = new Date(),
+) {
+  const linked = spaces
+    .filter((space) => linkedSpace(space))
+    .map((space) => ({ careSpaceId: space.careSpaceId, membershipId: space.membershipId, records: [] as LilicaRecord[] }));
+  if (linked.length === 0) return {} as Record<string, LilicaRecord[]>;
+  await prepareRecordCache(ownerId, linked);
+  return synchronizeRecords(ownerId, linked.map((space) => space.careSpaceId), transport, now);
+}
+
 export function readRecordCache(ownerId: string) {
   return loadStore(ownerId);
 }

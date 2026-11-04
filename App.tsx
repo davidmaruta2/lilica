@@ -149,6 +149,7 @@ import {
   prepareRecordCache,
   recordRetryDelay,
   synchronizeRecords,
+  syncJoinedCareSpaces,
 } from './src/recordSync';
 import {
   addNotificationResponseListener,
@@ -910,6 +911,19 @@ function LilicaApp() {
         // its now-real, isolated unit-test coverage.
         return resolveOnboardingStateAfterAcceptingInvitation(next, acceptedMembershipIds);
       });
+      // 4 November 2026 two-device test, F7: load the joined space's
+      // records now, as part of accepting, so the joiner never lands on an
+      // empty Home that only fills in after the app is killed and reopened.
+      // Failure is harmless: the regular sync still runs later.
+      const joinerId = auth.session?.user.id;
+      if (joinerId) {
+        try {
+          const cached = await syncJoinedCareSpaces(joinerId, reconnected.people);
+          setState((current) => applyCachedRecords(current, cached));
+        } catch {
+          // Leave it to the regular sync.
+        }
+      }
     }
     await refreshMyInvitations();
   }
