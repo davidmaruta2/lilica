@@ -90,15 +90,37 @@
     }
     .store-links {
       display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px;
-      margin-top: 10px;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 14px;
     }
     .store-links a {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 56px;
+      padding: 10px 20px;
+      box-sizing: border-box;
+      border: 2px solid #63364D;
+      border-radius: 14px;
+      background: #FFFFFF;
       color: #63364D;
-      font-weight: 600;
-      text-underline-offset: 3px;
+      text-decoration: none;
+      line-height: 1.2;
+    }
+    .store-links a:hover,
+    .store-links a:focus-visible {
+      background: #F3E9EE;
+    }
+    .store-links .store-small {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+    }
+    .store-links .store-name {
+      font-size: 19px;
+      font-weight: 700;
     }
   </style>
 </head>
@@ -125,8 +147,8 @@
     <div class="store-note" id="store-note">
       Need to install Lilica first?
       <div class="store-links">
-        <a href="https://apps.apple.com/gb/app/lilica-care-support/id6812822327">App Store</a>
-        <a href="https://play.google.com/store/apps/details?id=com.luxfordinteractive.lilica">Google Play</a>
+        <a href="https://apps.apple.com/gb/app/lilica-care-support/id6812822327"><span class="store-small">Download on the</span><span class="store-name">App Store</span></a>
+        <a href="https://play.google.com/store/apps/details?id=com.luxfordinteractive.lilica"><span class="store-small">Get it on</span><span class="store-name">Google Play</span></a>
       </div>
     </div>
   </div>
