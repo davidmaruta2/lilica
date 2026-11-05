@@ -408,3 +408,17 @@ export function projectActiveCareSpace(state: OnboardingState): OnboardingState 
     allSetDismissed: active.allSetDismissed,
   };
 }
+
+// 5 November 2026 two-device test, F6: a contributor or viewer who joined an
+// existing care circle was shown "[Person] still needs setting up" and a
+// Continue setup button that would walk them through the ORGANISER's setup
+// wizard. Setting a person up is the organiser's job: for anyone else the space
+// is always treated as set up. A space with no known role (a local-only one
+// still being created on this device) keeps the original status-based rule.
+export function isCareSpaceSetupComplete(
+  space: Pick<LocalCareSpaceState, 'setupStatus' | 'role'> | undefined,
+): boolean {
+  if (!space) return false;
+  if (space.setupStatus === 'ready') return true;
+  return space.role !== undefined && space.role !== 'organiser';
+}

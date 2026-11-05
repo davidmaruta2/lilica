@@ -76,6 +76,7 @@ import {
   createPersonDraft,
   integrateProvisionedPeople,
   integrateReconnectedCareSpaces,
+  isCareSpaceSetupComplete,
   linkProvisionedCareSpaces,
   projectActiveCareSpace,
   removeCareSpace,
@@ -483,6 +484,7 @@ function LilicaApp() {
   activeStorageOwnerId.current = storageOwnerId;
   const [fontsLoaded] = useFonts(appFontAssets);
   const currentSpace = activeCareSpace(state);
+  const spaceSetupComplete = isCareSpaceSetupComplete(currentSpace);
   const notificationItems = useMemo(() => buildNotificationCentreItems({
     records: currentSpace?.records ?? [],
     activity: recentActivity,
@@ -1694,7 +1696,7 @@ function LilicaApp() {
   }
 
   function continueActiveSetup() {
-    if (!currentSpace) return;
+    if (!currentSpace || spaceSetupComplete) return;
     const stage = currentSpace.setupStatus === 'identity_only' || currentSpace.setupStatus === 'privacy_pending'
       ? 'privacyConsent'
       : currentSpace.setupStatus === 'interests_pending'
@@ -2060,11 +2062,11 @@ function LilicaApp() {
           state={state}
           people={spaces}
           activeCareSpaceId={state.activeCareSpaceId}
-          setupStatus={currentSpace?.setupStatus}
+          setupStatus={spaceSetupComplete ? 'ready' : currentSpace?.setupStatus}
           onSwitchPerson={selectActiveSpace}
           onAddPerson={startAddPerson}
           onContinueSetup={continueActiveSetup}
-          onAddSomething={() => guardMutation(() => currentSpace?.setupStatus === 'ready' ? go('firstThing') : continueActiveSetup())}
+          onAddSomething={() => guardMutation(() => spaceSetupComplete ? go('firstThing') : continueActiveSetup())}
           onDismissAllSet={() => {
             if (!currentSpace) return;
             setState((current) => projectActiveCareSpace(replaceCareSpace(current, currentSpace.careSpaceId, (space) => ({ ...space, allSetDismissed: true }))));
@@ -2081,7 +2083,7 @@ function LilicaApp() {
         />
       );
     } else if (activeTab === 'calendar') {
-      content = currentSpace?.setupStatus === 'ready' ? (
+      content = currentSpace && spaceSetupComplete ? (
         <CalendarScreen
           key={currentSpace.careSpaceId}
           records={state.records}
@@ -2098,7 +2100,7 @@ function LilicaApp() {
         />
       );
     } else if (activeTab === 'todo') {
-      content = currentSpace?.setupStatus === 'ready' ? (
+      content = currentSpace && spaceSetupComplete ? (
         <ToDoScreen
           key={currentSpace.careSpaceId}
           records={state.records}
@@ -2696,7 +2698,7 @@ function LilicaApp() {
             activeMembershipId={currentSpace?.membershipId}
             careCircleMembers={careCircleMembers}
             onRequestReminderPermission={requestReminderPermission}
-            everyday={currentSpace?.setupStatus === 'ready'}
+            everyday={spaceSetupComplete}
             onBack={goBack}
             onSaveRecord={saveRecord}
             onRemoveRecord={removeRecord}
@@ -2737,7 +2739,7 @@ function LilicaApp() {
             activeMembershipId={currentSpace?.membershipId}
             careCircleMembers={careCircleMembers}
             onRequestReminderPermission={requestReminderPermission}
-            everyday={currentSpace?.setupStatus === 'ready'}
+            everyday={spaceSetupComplete}
             onBack={goBack}
             onSaveRecord={saveRecord}
             onRemoveRecord={removeRecord}
