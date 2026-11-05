@@ -24,6 +24,13 @@ Baseline to calculate the delta from: iOS `1.0.0 (8)` (commit `207cc24`), Androi
 | 2 | Android: `updates.fallbackToCacheTimeout: 3000` in `app.json` | Native-affecting config. iOS builds 7 and 8 have it (commit `a92fee3`); Android `1.0.0 (6)` was built before it. Without it, OTA fixes may miss a fresh Android install's first launch. | Already committed. |
 | 3 | Apple store listing update: new app name `Lilica: Family Care Organiser`, subtitle, keywords, description, screenshots | Apple only allows these to change on a new app version going through review (promotional text is the only field editable on a live version, and is already updated). | Copy drafted in `lilica-growth-execution/01-ASO-METADATA-PACK.md`; final screenshots (8 frames, no `21` notification badge, no delete screen) not yet captured or approved. Google Play listing text is already live and needs no build. |
 
+### Version and review prompt rules for the next build (added 5 November 2026)
+
+- **Do not build as version 1.0.0.** The hotfix OTA published on 5 November 2026 (group `22eede74-eb07-4c81-803a-98a6c1dae352`, commit `1279012`, branch `hotfix-disable-review-prompt`) targets runtime `1.0.0` and switches the review prompt OFF. A new binary still on 1.0.0 would receive it and the prompt would be off. Apple also needs a version higher than the live 1.0.0, so use `1.0.1` on both stores (runtime follows the app version).
+- A build from `growth-activation-events` includes `expo-store-review` and the review prompt switched ON (the `reviewPromptSwitch` exists only on the hotfix branch). Do not merge the hotfix branch into the build commit without setting `reviewPromptSwitch.enabled` back to true.
+- Also in this build, not yet on phones: invite form feedback and layout fixes, records load on joining (F7), Unassigned label fix, Care Circle sub screens with breadcrumb, no setup card for joiners (F6), and the `invitation_accepted` event (G1; its migration `20261105100000` is already applied to production).
+- Full plan: `lilica-growth-execution/14-NATIVE-BUILD-PLAN-2026-11-05.md`.
+
 ### Items that did NOT need a build (SHIPPED by OTA group `543c1ac0-6934-4051-9cb8-84ae8fa301d7` on 4 November 2026, commit `9abc9e0`, on David's yes)
 
 - Returning user accepting an invitation now lands in the newly joined care space (`App.tsx`, `src/careSpaceState.ts`).

@@ -1,5 +1,11 @@
 # Revision Log
 
+## 5 November 2026 - Migration 20261105100000 applied to lilica-production (on David's explicit yes: "apply to prod")
+
+Applied `20261105100000_activation_event_invitation_accepted.sql` to `lilica-production` (`luyoyupghbxjftqwzcfn`) with `supabase db push --linked` after a dry run that listed only this migration. It widens the `activation_events_name_allowlist` check constraint by one name, `invitation_accepted` (finding G1: people who join by invitation never go through organiser onboarding, so no activation event fired for them). Verified afterwards: the migration shows as applied on both sides, the constraint in production lists all nine names, and the existing rows (account_ready 2, first_record_added 2, invite_created 1, paywall_viewed 1, person_added 1) are untouched. CLI re-linked to dev (`ldocquqbcabdbscghojc`).
+
+**Not covered:** the pgTAP file `supabase/tests/database/activation_event_invitation_accepted.test.sql` was written but NOT run (no local database; David chose a dry run instead). The app code that sends the event (commit `9b2ebd3`) is not on phones yet; it ships with the native build. The dev database is behind: it never received `20261104090000`, so this migration would fail there until dev is brought up to date.
+
 ## 5 November 2026 - Hotfix OTA published to production (on David's explicit yes: "yes publish it")
 
 `eas update --branch production --environment production`, runtime `1.0.0`, iOS and Android, update group `22eede74-eb07-4c81-803a-98a6c1dae352` (Android `01a1a94b-b1b4-7f51-8797-6256826ec762`, iOS `01a1a94b-b1b4-7405-9c12-fa7899cfd048`), from commit `1279012` on branch `hotfix-disable-review-prompt` (based on the 4 November OTA commit `9abc9e0`; NOT from `growth-activation-events`, so none of the other unshipped fixes went out). Replaces group `543c1ac0-6934-4051-9cb8-84ae8fa301d7`. Rollback targets: `543c1ac0...` (same JavaScript minus the switch) or `10f48f2b-eab4-48d8-98ba-51dae3176012` (commit `8d12875`).
