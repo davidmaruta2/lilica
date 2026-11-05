@@ -941,6 +941,9 @@ function LilicaApp() {
       ? await acceptInvitationGroup(target.groupId)
       : await acceptInvitation(target.invitationId as string);
     if (!result.ok) return result;
+    // G1: a joiner never goes through organiser onboarding, so without this they
+    // would never count as activated.
+    void trackActivationEvent(auth.session?.user.id, 'invitation_accepted');
     await finishAcceptance(Array.isArray(result.data) ? result.data : [result.data]);
     return { ok: true as const };
   }

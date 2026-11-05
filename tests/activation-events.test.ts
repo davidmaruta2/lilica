@@ -47,6 +47,18 @@ describe('trackActivationEvent', () => {
     await expect(trackActivationEvent('user-1', 'care_summary_created')).resolves.toBeUndefined();
   });
 
+  it('sends invitation_accepted, and retries it if the database has not been updated yet (older allowlist)', async () => {
+    mockRpc.mockResolvedValueOnce({ error: { message: 'Unknown activation event', code: '22023' } });
+    await expect(trackActivationEvent('joiner-1', 'invitation_accepted')).resolves.toBeUndefined();
+    expect(mockRpc.mock.calls[0][1].p_event_name).toBe('invitation_accepted');
+    // Not marked as sent, so it is attempted again once the migration is live.
+    mockRpc.mockResolvedValueOnce({ error: null });
+    await trackActivationEvent('joiner-1', 'invitation_accepted');
+    expect(mockRpc).toHaveBeenCalledTimes(2);
+    mockRpc.mockResolvedValue({ error: null });
+    await trackActivationEvent('joiner-1', 'invitation_accepted');
+    expect(mockRpc).toHaveBeenCalledTimes(2);
+  });
   it('does nothing without a signed-in user', async () => {
     await trackActivationEvent(undefined, 'account_ready');
     expect(mockRpc).not.toHaveBeenCalled();

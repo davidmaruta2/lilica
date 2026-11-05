@@ -1,5 +1,6 @@
 // Growth plan item 5: privacy-safe first-party activation events.
-// Server side: supabase/migrations/20261104090000_activation_events.sql.
+// Server side: supabase/migrations/20261104090000_activation_events.sql (+
+// 20261105100000_activation_event_invitation_accepted.sql for invitation_accepted).
 //
 // Deliberately tiny and deliberately unable to carry data: an event is just
 // a name from a fixed list. No record, person, care-space or free-text
@@ -20,7 +21,10 @@ export type ActivationEventName =
   | 'care_summary_created'
   | 'paywall_viewed'
   | 'trial_notice_viewed'
-  | 'review_prompt_shown';
+  | 'review_prompt_shown'
+  // Joined through an invitation (never goes through organiser onboarding).
+  // Needs migration 20261105100000_activation_event_invitation_accepted.sql.
+  | 'invitation_accepted';
 
 const STORAGE_PREFIX = 'lilica.activationEvents.v1.';
 
