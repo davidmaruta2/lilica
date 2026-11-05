@@ -288,6 +288,39 @@ type JustCreated = {
   sentTo: string;
 };
 
+// Shared frame for the Care Circle sub screens: a header with a back arrow and
+// a breadcrumb ("Care Circle > <where you are>") so it is always clear where
+// you are and how to get back in one tap.
+function SubPage({
+  title,
+  crumb,
+  onBack,
+  error,
+  children,
+}: {
+  title: string;
+  crumb: string;
+  onBack: () => void;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Screen>
+      <Header title={title} onBack={onBack} />
+      <View style={styles.breadcrumb} testID="care-circle-breadcrumb">
+        <Pressable accessibilityRole="link" accessibilityLabel="Back to Care Circle" onPress={onBack} hitSlop={8}>
+          <AppText variant="secondary" tone="primary" style={styles.breadcrumbLink}>Care Circle</AppText>
+        </Pressable>
+        <AppText variant="secondary" tone="soft"> {'\u203A'} {crumb}</AppText>
+      </View>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {error ? <AppText variant="secondary" tone="danger">{error}</AppText> : null}
+        {children}
+      </ScrollView>
+    </Screen>
+  );
+}
+
 export function CareCircleScreen({ personName, members, invitations, careSpaceId, onBack, onRefresh, isReadOnly, onInviteBlocked, inviterDisplayName, onJoinAnotherCareCircle, onLeaveCareSpace, organiserEligiblePeople = [] }: Props) {
   const [showInvite, setShowInvite] = useState(false);
   const [email, setEmail] = useState('');
@@ -550,6 +583,260 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
     onRefresh();
   }
 
+  const editContent = editingMember ? (
+    <View style={styles.section}>
+      <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>Role</AppText>
+      <View style={styles.pillRow}>
+        {(['contributor', 'viewer'] as const).map((option) => (
+          <Pressable
+            key={option}
+            accessibilityRole="button"
+            accessibilityState={{ selected: editRole === option }}
+            onPress={() => setEditRole(option)}
+            style={[styles.pill, editRole === option && styles.pillSelected]}
+          >
+            <AppText variant="secondary" tone={editRole === option ? 'primary' : 'soft'}>
+              {option === 'contributor' ? 'Contributor' : 'Viewer'}
+            </AppText>
+          </Pressable>
+        ))}
+      </View>
+      <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>What can they see?</AppText>
+      <View style={styles.domainList}>
+        {DOMAIN_OPTIONS.map((option) => {
+          const selected = editDomains.includes(option.value);
+          return (
+            <Pressable
+              key={option.value}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: selected }}
+              accessibilityLabel={selected ? `${option.label}, selected. Grants access to: ${DOMAIN_DESCRIPTIONS[option.value]}` : `${option.label}, not selected`}
+              onPress={() => toggleEditDomain(option.value)}
+              style={[styles.domainRow, selected && styles.domainRowSelected]}
+            >
+              <View style={styles.domainRowHeader}>
+                <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+                  {selected ? <View style={styles.checkboxTick} /> : null}
+                </View>
+                <AppText variant="bodyStrong" tone={selected ? 'primary' : 'default'} style={styles.domainRowLabel}>
+                  {option.label}
+                </AppText>
+              </View>
+              {selected ? (
+                <AppText variant="secondary" tone="soft" style={styles.domainRowDescription}>
+                  {DOMAIN_DESCRIPTIONS[option.value]}
+                </AppText>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
+      <Button label={busy ? 'Saving…' : 'Save changes'} onPress={submitEditMember} disabled={busy} />
+      <Button label="Cancel" variant="text" onPress={() => setEditingMember(undefined)} disabled={busy} />
+    </View>
+  ) : null;
+
+  const createdContent = justCreated ? (
+    <View style={styles.section}>
+      <AppText variant="section" tone="primary">Invitation created</AppText>
+      {/* Multi-person Care Circle invitation scope (`\downloads\perm.txt`,
+          15 September 2026): shows every person this ONE invitation
+          covers, plus a truthful note for anyone already excluded
+          because they already have access (brief sections 35/36). */}
+      <AppText variant="secondary" tone="soft">
+        {justCreated.personNames.length > 1
+          ? `Send it by email, or share the link yourself. It covers helping with: ${joinPersonNames(justCreated.personNames)}.`
+          : 'Send it by email, or share the link yourself.'}
+      </AppText>
+      {justCreated.alreadyHasAccessNames.length > 0 ? (
+        <AppText variant="secondary" tone="muted">
+          Already has access to: {joinPersonNames(justCreated.alreadyHasAccessNames)} -- not included in this invitation.
+        </AppText>
+      ) : null}
+      <DeliveryActions
+        invitation={{ id: justCreated.id, groupId: justCreated.groupId, inviteCode: justCreated.inviteCode, lastEmailSentAt: undefined, lastShareOpenedAt: undefined }}
+        personNames={justCreated.personNames}
+        inviterDisplayName={inviterDisplayName}
+        onSuccess={(kind) => {
+          // A real, server-confirmed success closes this panel
+          // automatically -- the invitation immediately reappears
+          // exactly once, in Pending invitations, showing that
+          // same real outcome (re-fetched from the server, since
+          // delivery state now lives there, not locally).
+          // A plain confirmation says what just happened, so the
+          // screen never appears to have simply reset itself.
+          setInfoMessage(
+            kind === 'share'
+              ? `Invitation shared for ${justCreated.sentTo}. It is listed below under Pending invitations.`
+              : `Invitation sent to ${justCreated.sentTo}. It is listed below under Pending invitations.`,
+          );
+          onRefresh();
+          setJustCreated(undefined);
+        }}
+        busy={busy}
+        setBusy={setBusy}
+      />
+      <Button
+        label="Dismiss"
+        variant="text"
+        onPress={() => {
+          // Dismiss never destroys the invitation and never
+          // records a delivery status that didn't happen -- it
+          // only closes this panel, so the invitation reappears
+          // in Pending invitations as "Not sent yet.", with the
+          // same Send/Share actions still available there.
+          setJustCreated(undefined);
+        }}
+      />
+    </View>
+  ) : null;
+
+  const inviteContent = showInvite ? (
+    <View style={styles.section}>
+      <TextField
+        label="Their email"
+        placeholder="name@example.com"
+        autoCapitalize="none"
+        keyboardType="email-address"
+        value={email}
+        onChangeText={(value) => { setEmail(value); setFormError(undefined); }}
+      />
+      <TextField
+        label="How you know them"
+        placeholder="e.g. Cousin, neighbour"
+        value={relationshipLabel}
+        onChangeText={(value) => { setRelationshipLabel(value); setFormError(undefined); }}
+      />
+      {/* Multi-person Care Circle invitation scope (`\downloads\perm.txt`,
+          15 September 2026): brief section 3 -- only shown when the
+          organiser has more than one eligible person, matching
+          section 17's "don't make every invitation needlessly
+          complex" instruction. Only people this account genuinely
+          organises are listed (brief section 5) -- server-side,
+          invite_member_group() independently re-checks this
+          regardless of what is shown here. */}
+      {organiserEligiblePeople.length > 1 ? (
+        <>
+          <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>Who can they help with?</AppText>
+          <View style={styles.domainList}>
+            {organiserEligiblePeople.map((person) => {
+              const selected = selectedCareSpaceIds.includes(person.careSpaceId);
+              return (
+                <Pressable
+                  key={person.careSpaceId}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: selected }}
+                  accessibilityLabel={selected ? `${person.displayName}, selected` : `${person.displayName}, not selected`}
+                  onPress={() => toggleSelectedPerson(person.careSpaceId)}
+                  style={[styles.domainRow, selected && styles.domainRowSelected]}
+                >
+                  <View style={styles.domainRowHeader}>
+                    <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+                      {selected ? <View style={styles.checkboxTick} /> : null}
+                    </View>
+                    <AppText variant="bodyStrong" tone={selected ? 'primary' : 'default'} style={styles.domainRowLabel}>
+                      {person.displayName}
+                    </AppText>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+          <AppText variant="secondary" tone="muted">
+            They'll only be able to see information for the people you select.
+          </AppText>
+        </>
+      ) : null}
+      <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>Role</AppText>
+      <View style={styles.pillRow}>
+        {(['contributor', 'viewer'] as const).map((option) => (
+          <Pressable
+            key={option}
+            accessibilityRole="button"
+            accessibilityState={{ selected: role === option }}
+            onPress={() => setRole(option)}
+            style={[styles.pill, role === option && styles.pillSelected]}
+          >
+            <AppText variant="secondary" tone={role === option ? 'primary' : 'soft'}>
+              {option === 'contributor' ? 'Contributor' : 'Viewer'}
+            </AppText>
+          </Pressable>
+        ))}
+      </View>
+      <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>
+        What can they see? Review this before sending.
+      </AppText>
+      <View style={styles.domainList}>
+        {DOMAIN_OPTIONS.map((option) => {
+          const selected = selectedDomains.includes(option.value);
+          return (
+            <Pressable
+              key={option.value}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: selected }}
+              // Direct product-owner request: a screen reader must
+              // be told the domain name, whether it's selected, AND
+              // what access it grants -- never relying on colour or
+              // visual expansion alone. Composed here rather than
+              // left to be assembled from the two child Text nodes,
+              // since accessibility tree traversal order across a
+              // conditionally-rendered child cannot be relied on.
+              accessibilityLabel={selected ? `${option.label}, selected. Grants access to: ${DOMAIN_DESCRIPTIONS[option.value]}` : `${option.label}, not selected`}
+              onPress={() => toggleDomain(option.value)}
+              style={[styles.domainRow, selected && styles.domainRowSelected]}
+            >
+              <View style={styles.domainRowHeader}>
+                <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+                  {selected ? <View style={styles.checkboxTick} /> : null}
+                </View>
+                <AppText variant="bodyStrong" tone={selected ? 'primary' : 'default'} style={styles.domainRowLabel}>
+                  {option.label}
+                </AppText>
+              </View>
+              {selected ? (
+                <AppText variant="secondary" tone="soft" style={styles.domainRowDescription}>
+                  {DOMAIN_DESCRIPTIONS[option.value]}
+                </AppText>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
+      {/* Direct product-owner correction (15 September 2026): this
+          button only ever CREATES the invitation -- the actual
+          send (email/Share/code) happens on the next screen
+          (DeliveryActions, below), so "Send invitation" overclaimed
+          what this specific tap does. */}
+      {formError ? <AppText variant="secondary" tone="danger" testID="invite-form-error">{formError}</AppText> : null}
+      <Button label="Continue" onPress={submitInvite} disabled={busy || selectedCareSpaceIds.length === 0} />
+      <Button label="Cancel" variant="text" onPress={() => { setFormError(undefined); setShowInvite(false); }} disabled={busy} />
+    </View>
+  ) : null;
+
+  // Each of these used to unfold inside the one long Care Circle list. They now
+  // open as their own screen with a header and a "Care Circle >" breadcrumb back.
+  if (editingMember && editContent) {
+    return (
+      <SubPage title={`Edit ${editingMember.displayName}'s permissions`} crumb="Edit permissions" onBack={() => setEditingMember(undefined)} error={error}>
+        {editContent}
+      </SubPage>
+    );
+  }
+  if (justCreated && createdContent) {
+    return (
+      <SubPage title="Invitation" crumb="Invitation created" onBack={() => setJustCreated(undefined)} error={error}>
+        {createdContent}
+      </SubPage>
+    );
+  }
+  if (showInvite && inviteContent) {
+    return (
+      <SubPage title="Invite someone" crumb="Invite someone" onBack={() => { setFormError(undefined); setShowInvite(false); }} error={error}>
+        {inviteContent}
+      </SubPage>
+    );
+  }
+
   return (
     <Screen>
       <Header title="Care Circle" onBack={onBack} />
@@ -625,59 +912,6 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
           ))}
         </View>
 
-        {editingMember ? (
-          <View style={styles.section}>
-            <AppText variant="section" tone="primary">Edit {editingMember.displayName}'s permissions</AppText>
-            <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>Role</AppText>
-            <View style={styles.pillRow}>
-              {(['contributor', 'viewer'] as const).map((option) => (
-                <Pressable
-                  key={option}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: editRole === option }}
-                  onPress={() => setEditRole(option)}
-                  style={[styles.pill, editRole === option && styles.pillSelected]}
-                >
-                  <AppText variant="secondary" tone={editRole === option ? 'primary' : 'soft'}>
-                    {option === 'contributor' ? 'Contributor' : 'Viewer'}
-                  </AppText>
-                </Pressable>
-              ))}
-            </View>
-            <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>What can they see?</AppText>
-            <View style={styles.domainList}>
-              {DOMAIN_OPTIONS.map((option) => {
-                const selected = editDomains.includes(option.value);
-                return (
-                  <Pressable
-                    key={option.value}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: selected }}
-                    accessibilityLabel={selected ? `${option.label}, selected. Grants access to: ${DOMAIN_DESCRIPTIONS[option.value]}` : `${option.label}, not selected`}
-                    onPress={() => toggleEditDomain(option.value)}
-                    style={[styles.domainRow, selected && styles.domainRowSelected]}
-                  >
-                    <View style={styles.domainRowHeader}>
-                      <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
-                        {selected ? <View style={styles.checkboxTick} /> : null}
-                      </View>
-                      <AppText variant="bodyStrong" tone={selected ? 'primary' : 'default'} style={styles.domainRowLabel}>
-                        {option.label}
-                      </AppText>
-                    </View>
-                    {selected ? (
-                      <AppText variant="secondary" tone="soft" style={styles.domainRowDescription}>
-                        {DOMAIN_DESCRIPTIONS[option.value]}
-                      </AppText>
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Button label={busy ? 'Saving…' : 'Save changes'} onPress={submitEditMember} disabled={busy} />
-            <Button label="Cancel" variant="text" onPress={() => setEditingMember(undefined)} disabled={busy} />
-          </View>
-        ) : null}
 
         {onLeaveCareSpace && members.some((member) => member.isSelf && member.role !== 'organiser') ? (
           <View style={styles.section}>
@@ -702,60 +936,6 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
           </View>
         ) : null}
 
-        {justCreated ? (
-          <View style={styles.section}>
-            <AppText variant="section" tone="primary">Invitation created</AppText>
-            {/* Multi-person Care Circle invitation scope (`\downloads\perm.txt`,
-                15 September 2026): shows every person this ONE invitation
-                covers, plus a truthful note for anyone already excluded
-                because they already have access (brief sections 35/36). */}
-            <AppText variant="secondary" tone="soft">
-              {justCreated.personNames.length > 1
-                ? `Send it by email, or share the link yourself. It covers helping with: ${joinPersonNames(justCreated.personNames)}.`
-                : 'Send it by email, or share the link yourself.'}
-            </AppText>
-            {justCreated.alreadyHasAccessNames.length > 0 ? (
-              <AppText variant="secondary" tone="muted">
-                Already has access to: {joinPersonNames(justCreated.alreadyHasAccessNames)} -- not included in this invitation.
-              </AppText>
-            ) : null}
-            <DeliveryActions
-              invitation={{ id: justCreated.id, groupId: justCreated.groupId, inviteCode: justCreated.inviteCode, lastEmailSentAt: undefined, lastShareOpenedAt: undefined }}
-              personNames={justCreated.personNames}
-              inviterDisplayName={inviterDisplayName}
-              onSuccess={(kind) => {
-                // A real, server-confirmed success closes this panel
-                // automatically -- the invitation immediately reappears
-                // exactly once, in Pending invitations, showing that
-                // same real outcome (re-fetched from the server, since
-                // delivery state now lives there, not locally).
-                // A plain confirmation says what just happened, so the
-                // screen never appears to have simply reset itself.
-                setInfoMessage(
-                  kind === 'share'
-                    ? `Invitation shared for ${justCreated.sentTo}. It is listed below under Pending invitations.`
-                    : `Invitation sent to ${justCreated.sentTo}. It is listed below under Pending invitations.`,
-                );
-                onRefresh();
-                setJustCreated(undefined);
-              }}
-              busy={busy}
-              setBusy={setBusy}
-            />
-            <Button
-              label="Dismiss"
-              variant="text"
-              onPress={() => {
-                // Dismiss never destroys the invitation and never
-                // records a delivery status that didn't happen -- it
-                // only closes this panel, so the invitation reappears
-                // in Pending invitations as "Not sent yet.", with the
-                // same Send/Share actions still available there.
-                setJustCreated(undefined);
-              }}
-            />
-          </View>
-        ) : null}
 
         {pendingInvitations.length > 0 ? (
           <View style={styles.section}>
@@ -809,130 +989,7 @@ export function CareCircleScreen({ personName, members, invitations, careSpaceId
           </View>
         ) : null}
 
-        {showInvite ? (
-          <View style={styles.section}>
-            <AppText variant="section" tone="primary">Invite someone</AppText>
-            <TextField
-              label="Their email"
-              placeholder="name@example.com"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={(value) => { setEmail(value); setFormError(undefined); }}
-            />
-            <TextField
-              label="How you know them"
-              placeholder="e.g. Cousin, neighbour"
-              value={relationshipLabel}
-              onChangeText={(value) => { setRelationshipLabel(value); setFormError(undefined); }}
-            />
-            {/* Multi-person Care Circle invitation scope (`\downloads\perm.txt`,
-                15 September 2026): brief section 3 -- only shown when the
-                organiser has more than one eligible person, matching
-                section 17's "don't make every invitation needlessly
-                complex" instruction. Only people this account genuinely
-                organises are listed (brief section 5) -- server-side,
-                invite_member_group() independently re-checks this
-                regardless of what is shown here. */}
-            {organiserEligiblePeople.length > 1 ? (
-              <>
-                <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>Who can they help with?</AppText>
-                <View style={styles.domainList}>
-                  {organiserEligiblePeople.map((person) => {
-                    const selected = selectedCareSpaceIds.includes(person.careSpaceId);
-                    return (
-                      <Pressable
-                        key={person.careSpaceId}
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: selected }}
-                        accessibilityLabel={selected ? `${person.displayName}, selected` : `${person.displayName}, not selected`}
-                        onPress={() => toggleSelectedPerson(person.careSpaceId)}
-                        style={[styles.domainRow, selected && styles.domainRowSelected]}
-                      >
-                        <View style={styles.domainRowHeader}>
-                          <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
-                            {selected ? <View style={styles.checkboxTick} /> : null}
-                          </View>
-                          <AppText variant="bodyStrong" tone={selected ? 'primary' : 'default'} style={styles.domainRowLabel}>
-                            {person.displayName}
-                          </AppText>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                <AppText variant="secondary" tone="muted">
-                  They'll only be able to see information for the people you select.
-                </AppText>
-              </>
-            ) : null}
-            <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>Role</AppText>
-            <View style={styles.pillRow}>
-              {(['contributor', 'viewer'] as const).map((option) => (
-                <Pressable
-                  key={option}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: role === option }}
-                  onPress={() => setRole(option)}
-                  style={[styles.pill, role === option && styles.pillSelected]}
-                >
-                  <AppText variant="secondary" tone={role === option ? 'primary' : 'soft'}>
-                    {option === 'contributor' ? 'Contributor' : 'Viewer'}
-                  </AppText>
-                </Pressable>
-              ))}
-            </View>
-            <AppText variant="secondary" tone="soft" style={styles.fieldLabel}>
-              What can they see? Review this before sending.
-            </AppText>
-            <View style={styles.domainList}>
-              {DOMAIN_OPTIONS.map((option) => {
-                const selected = selectedDomains.includes(option.value);
-                return (
-                  <Pressable
-                    key={option.value}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: selected }}
-                    // Direct product-owner request: a screen reader must
-                    // be told the domain name, whether it's selected, AND
-                    // what access it grants -- never relying on colour or
-                    // visual expansion alone. Composed here rather than
-                    // left to be assembled from the two child Text nodes,
-                    // since accessibility tree traversal order across a
-                    // conditionally-rendered child cannot be relied on.
-                    accessibilityLabel={selected ? `${option.label}, selected. Grants access to: ${DOMAIN_DESCRIPTIONS[option.value]}` : `${option.label}, not selected`}
-                    onPress={() => toggleDomain(option.value)}
-                    style={[styles.domainRow, selected && styles.domainRowSelected]}
-                  >
-                    <View style={styles.domainRowHeader}>
-                      <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
-                        {selected ? <View style={styles.checkboxTick} /> : null}
-                      </View>
-                      <AppText variant="bodyStrong" tone={selected ? 'primary' : 'default'} style={styles.domainRowLabel}>
-                        {option.label}
-                      </AppText>
-                    </View>
-                    {selected ? (
-                      <AppText variant="secondary" tone="soft" style={styles.domainRowDescription}>
-                        {DOMAIN_DESCRIPTIONS[option.value]}
-                      </AppText>
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-            </View>
-            {/* Direct product-owner correction (15 September 2026): this
-                button only ever CREATES the invitation -- the actual
-                send (email/Share/code) happens on the next screen
-                (DeliveryActions, below), so "Send invitation" overclaimed
-                what this specific tap does. */}
-            {formError ? <AppText variant="secondary" tone="danger" testID="invite-form-error">{formError}</AppText> : null}
-            <Button label="Continue" onPress={submitInvite} disabled={busy || selectedCareSpaceIds.length === 0} />
-            <Button label="Cancel" variant="text" onPress={() => { setFormError(undefined); setShowInvite(false); }} disabled={busy} />
-          </View>
-        ) : (
-          <Button label="Invite someone" onPress={() => (isReadOnly ? onInviteBlocked?.() : openInviteForm())} />
-        )}
+        <Button label="Invite someone" onPress={() => (isReadOnly ? onInviteBlocked?.() : openInviteForm())} />
       </ScrollView>
     </Screen>
   );
@@ -942,6 +999,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  breadcrumb: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: spacing.sm },
+  breadcrumbLink: { fontWeight: '700', textDecorationLine: 'underline' },
   deliveryActions: {
     gap: spacing.xs,
   },
