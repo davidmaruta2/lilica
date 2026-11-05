@@ -1,14 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { COOLDOWN_DAYS, registerReviewMoment, shouldPrompt } from '../src/reviewPrompt';
+import { COOLDOWN_DAYS, registerReviewMoment, reviewPromptSwitch, shouldPrompt } from '../src/reviewPrompt';
 
 const mockRequestReview = jest.fn();
 let mockAvailable = true;
-jest.mock('expo-store-review', () => ({
-  isAvailableAsync: () => Promise.resolve(mockAvailable),
-  hasAction: () => Promise.resolve(true),
-  requestReview: () => mockRequestReview(),
-}));
+let mockStoreReviewLoads = 0;
+jest.mock('expo-store-review', () => {
+  mockStoreReviewLoads += 1;
+  return {
+    isAvailableAsync: () => Promise.resolve(mockAvailable),
+    hasAction: () => Promise.resolve(true),
+    requestReview: () => mockRequestReview(),
+  };
+});
 
 const DAY = 86_400_000;
 const t0 = new Date('2026-12-01T10:00:00Z');
@@ -28,6 +32,7 @@ describe('shouldPrompt', () => {
 
 describe('registerReviewMoment', () => {
   beforeEach(async () => {
+    reviewPromptSwitch.enabled = true;
     mockRequestReview.mockReset();
     mockAvailable = true;
     await AsyncStorage.clear();
@@ -67,8 +72,25 @@ describe('registerReviewMoment on a binary without the native module', () => {
     });
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const isolated = require('../src/reviewPrompt') as typeof import('../src/reviewPrompt');
+    isolated.reviewPromptSwitch.enabled = true;
     await expect(isolated.registerReviewMoment('u1', 'care_summary_created', later(5))).resolves.toBe(false);
     await expect(isolated.registerReviewMoment('u1', 'task_completed', later(9))).resolves.toBe(false);
     jest.dontMock('expo-store-review');
+  });
+});
+
+describe('emergency switch (5 November 2026)', () => {
+  it('is off by default and never loads expo-store-review, so a binary without the module cannot crash', async () => {
+    mockStoreReviewLoads = 0;
+    let isolated!: typeof import('../src/reviewPrompt');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      isolated = require('../src/reviewPrompt');
+    });
+    expect(isolated.reviewPromptSwitch.enabled).toBe(false);
+    expect(await isolated.registerReviewMoment('u1', 'task_completed', later(9))).toBe(false);
+    expect(await isolated.registerReviewMoment('u1', 'care_summary_created', later(20))).toBe(false);
+    expect(mockStoreReviewLoads).toBe(0);
+    expect(mockRequestReview).not.toHaveBeenCalled();
   });
 });

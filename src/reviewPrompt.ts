@@ -81,11 +81,22 @@ async function save(userId: string, state: ReviewState): Promise<void> {
 
 // Call after a successful task completion or Care Summary. Resolves true
 // only if the native prompt was actually requested.
+// 5 November 2026 emergency switch. The store binaries (iOS 1.0.0 (8), Android
+// 1.0.0 (6)) do not contain the expo-store-review native module. Under Metro a
+// require() whose module fails to initialise is reported as a FATAL error
+// (guardedLoadModule -> ErrorUtils.reportFatalError) instead of being thrown to
+// the caller, so the try/catch in loadStoreReview() cannot stop it: the app
+// closed on a first task completion and on a Care Summary export. Until a
+// binary that includes the module is released this stays false, and the module
+// is never required at all. The build that adds expo-store-review switches it on.
+export const reviewPromptSwitch = { enabled: false };
+
 export async function registerReviewMoment(
   userId: string | undefined,
   moment: ReviewMoment,
   now = new Date(),
 ): Promise<boolean> {
+  if (!reviewPromptSwitch.enabled) return false;
   if (!userId) return false;
   const StoreReview = loadStoreReview();
   if (!StoreReview) return false;
